@@ -13,7 +13,7 @@ unit GraphicEx;
 // The initial developer of the original code is Mike Lischke (www.soft-gems.net),
 //
 // Portions created by Mike Lischke are
-// Copyright (C) 1999-2005 Mike Lischke. All Rights Reserved.
+// Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 //
 // Credits:
 //   Haukur K. Bragason, Ingo Neumann, Craig Peterson
@@ -21,12 +21,18 @@ unit GraphicEx;
 //
 // See help file for a description of supported image formats.
 //
-// Version II.1.14
+// Version II.1.17
 //
 // Note: This library can be compiled with Delphi 5 or newer versions.
 //
 //----------------------------------------------------------------------------------------------------------------------
 //
+// September 2008
+//   - Bug fix: size computations in component retrieval for SGI images.
+// October 2006
+//   - Bug fix: 16 bpp SGI images loading failed
+// August 2005
+//   - Bug fix: added exceptions for PCX and PCD images in case they cannot be read.
 // December 2005
 //   - Bug fix: The filter string returned for open dialogs was incorrect, which caused missing files in the dialog.
 // November 2005
@@ -64,7 +70,7 @@ uses
   GraphicCompression, GraphicStrings, GraphicColor;
 
 const
-  GraphicExVersion = 'II.1.14';
+  GraphicExVersion = 'II.1.17';
 
 type
   TCardinalArray = array of Cardinal;
@@ -81,20 +87,20 @@ type
 
   // describes the compression used in the image file
   TCompressionType = (
-    ctUnknown,     // Compression type is unknown.
-    ctNone,        // No compression.
-    ctRLE,         // Run length encoding.
-    ctPackedBits,  // Macintosh packed bits.
-    ctLZW,         // Lempel-Zif-Welch.
-    ctFax3,        // CCITT T.4 (1D), also known as fax group 3.
-    ct2DFax3,      // CCITT T.4 (2D).
-    ctFaxRLE,      // Modified Huffman (CCITT T.4 derivative).
-    ctFax4,        // CCITT T.6, also known as fax group 4.
-    ctFaxRLEW,     // CCITT T.4 with word alignment.
-    ctLZ77,        // Hufman inflate/deflate.
-    ctJPEG,        // TIF JPEG compression (new version)
-    ctOJPEG,       // TIF JPEG compression (old version)
-    ctThunderscan, // TIF thunderscan compression
+    ctUnknown,          // Compression type is unknown.
+    ctNone,             // No compression.
+    ctRLE,              // Run length encoding.
+    ctPackedBits,       // Macintosh packed bits.
+    ctLZW,              // Lempel-Zif-Welch.
+    ctFax3,             // CCITT T.4 (1D), also known as fax group 3.
+    ct2DFax3,           // CCITT T.4 (2D).
+    ctFaxRLE,           // Modified Huffman (CCITT T.4 derivative).
+    ctFax4,             // CCITT T.6, also known as fax group 4.
+    ctFaxRLEW,          // CCITT T.4 with word alignment.
+    ctLZ77,             // Hufman inflate/deflate.
+    ctJPEG,             // TIF JPEG compression (new version)
+    ctOJPEG,            // TIF JPEG compression (old version)
+    ctThunderscan,      // TIF thunderscan compression
     ctNext,
     ctIT8CTPAD,
     ctIT8LW,
@@ -104,9 +110,11 @@ type
     ctPixarLog,
     ctDCS,
     ctJBIG,
-    ctPCDHuffmann, // PhotoCD Hufman compression
-    ctPlainZip,    // ZIP compression without prediction
-    ctPredictedZip // ZIP comression with prediction
+    ctPCDHuffmann,      // PhotoCD Hufman compression
+    ctPlainZip,         // ZIP compression without prediction
+    ctPredictedZip,     // ZIP comression with prediction
+    ctSGILog,           // SGI Log Luminance RLE
+    ctSGILog24          // SGI Log 24-bit packed
   );
 
   // properties of a particular image which are set while loading an image or when
@@ -2434,17 +2442,17 @@ type
 procedure TSGIGraphic.GetComponents(const Memory: Pointer; var Red, Green, Blue, Alpha: Pointer; Row: Integer);
 
 var
-  RowWidth: Integer;
-  PlaneSize: Integer;
+ RowWidth: Integer;
+ PlaneSize: Integer;
 
 begin
-  RowWidth := Row * Width;
-  PlaneSize := Width * Height;
+ RowWidth := Row * Width * FImageProperties.BitsPerSample div 8;
+ PlaneSize := Width * Height * FImageProperties.BitsPerSample div 8;
 
-  Red := PChar(Memory) + 512 + RowWidth;
-  Green := PChar(Memory) + 512 + RowWidth + PlaneSize;
-  Blue := PChar(Memory) + 512 + RowWidth + 2 * PlaneSize;
-  Alpha := PChar(Memory) + 512 + RowWidth + 3 * PlaneSize;
+ Red := PChar(Memory) + 512 + RowWidth;
+ Green := PChar(Memory) + 512 + RowWidth + PlaneSize;
+ Blue := PChar(Memory) + 512 + RowWidth + 2 * PlaneSize;
+ Alpha := PChar(Memory) + 512 + RowWidth + 3 * PlaneSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -3328,6 +3336,10 @@ begin
             Compression := ctDCS;
           COMPRESSION_JBIG:
             Compression := ctJBIG;
+          COMPRESSION_SGILOG:
+            Compression := ctSGILog;
+          COMPRESSION_SGILOG24:
+            Compression := ctSGILog24;
         else
           Compression := ctUnknown;
         end;
@@ -4023,7 +4035,7 @@ begin
     with Header, FImageProperties do
     begin
       if not (FileID in [$0A, $CD]) then
-        GraphicExError(gesInvalidImage, ['PCX or SCR']);
+        GraphicExError(gesInvalidImage, ['PCX, PCC or SCR']);
 
       with ColorManager do
       begin
@@ -4188,7 +4200,9 @@ begin
       end;
       Progress(Self, psEnding, 0, False, FProgressRect, '');
     end;
-  end;
+  end
+  else
+    GraphicExError(gesInvalidImage, ['PCX, PCC or SCR']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -4531,7 +4545,9 @@ begin
           FreeMem(YCbCrData[0]);
       end;
     end;
-  end;
+  end
+  else
+    GraphicExError(gesInvalidImage, ['PCD']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -9129,7 +9145,7 @@ begin
         ; 
     else
       // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
-      SetLength(FTransparency, 255);
+      SetLength(FTransparency, 256);
       // read the values (at most 256)...
       Move(FRawBuffer^,  FTransparency[0], Min(FHeader.Length, 256));
       // ...and set default values (255, fully opaque) for non-supplied values
