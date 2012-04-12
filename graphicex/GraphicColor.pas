@@ -741,11 +741,7 @@ end;
 function TColorManager.ComponentScaleConvert(Value: Word): Byte;
 
 begin
-  // JGB 2012-04-12 According to http://www.delphipraxis.net/129051-graphicex-tiff-m-256-farben-laden-falsche-farbe.html
-  // and http://support.soft-gems.net/forums/viewtopic.php?t=2213
-  // Result := MulDiv16(Value, 255, 65535);
-  // should be changed to:
-  Result := Value shr 8;
+  Result := MulDiv16(Value, 255, 65535);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------

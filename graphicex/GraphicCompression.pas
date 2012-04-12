@@ -12,7 +12,7 @@ unit GraphicCompression;
 //
 // The initial developer of the original code is Dipl. Ing. Mike Lischke (Pleiﬂa, Germany, www.delphi-gems.com),
 //
-// Portions created by Mike Lischke are
+// Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
@@ -970,8 +970,8 @@ begin
       if (Pixel16 and $80) <> 0 then
       begin
         Move(Source16^, Target16^, 2 * RunLength);
-        Inc(Source16, RunLength);
-        Inc(Target16, RunLength);
+        Inc(Source16^, RunLength);
+        Inc(Target16^, RunLength);
       end
       else
       begin
