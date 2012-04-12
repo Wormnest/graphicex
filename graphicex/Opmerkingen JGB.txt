@@ -1,0 +1,15 @@
+Deze versie is vermoedelijk een beta versie gedownload van
+de newsgroups
+De SVN versie werkt op dit moment niet. WEL heb ik GraphicEx.pas uit de svn versie
+(15 mei 2006) naar deze map gekopieerd omdat daarin wat bugfixes zitten en
+dit schijnt zonder problemen te werken.
+
+2012-04-12
+- use this version which I consider stable as basis and incorporate bugfixes
+  from later versions (listed below)
+- Did not copy all the translation strings.
+- Also incorporate bugfixes from the softgems forums and elsewhere when i see them
+- In a later stadium try also to update zlib (security and other fixes) and
+  new tiff/jpg handling that is not stable in the latest svn
+
+2012-04-12 updates to my stable:
