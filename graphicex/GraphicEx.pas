@@ -9162,6 +9162,7 @@ procedure TPNGGraphic.ReadDataAndCheckCRC(var Source: PByte);
 // Allocates memory in FRawBuffer and reads the next Header.Length bytes from Stream.
 // Furthermore, the CRC value following the data is read as well and compared with
 // the CRC value which is calculated here.
+// 2012-04-12 jgb In SoftGems forums there was a thread saying that the below ReallocMem is causing a memory leak
 
 var
   FileCRC: Cardinal;
