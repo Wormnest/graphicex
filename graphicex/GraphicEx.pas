@@ -3155,7 +3155,9 @@ begin
 
               // We can improve speed a bit by directly loading the image data to the scan lines
               // for bottom-up images (which is usually the case).
-              if Integer(Scanline[0]) - Integer(Scanline[1]) > 0 then
+              // jgb 2012-04-13 but take into account the case where there is only
+              // 1 scanline (height=1)
+              if (Height = 1) or (Integer(Scanline[0]) - Integer(Scanline[1]) > 0) then
               begin
                 StartProgressSection(0, gesLoadingData);
                 TIFFReadRGBAImage(TIFFImage, Width, Height, Scanline[Height - 1], True);
