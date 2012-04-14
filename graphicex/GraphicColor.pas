@@ -66,7 +66,7 @@ interface
 {$endif COMPILER_7_UP}
 
 uses
-  Windows, Graphics, GraphicStrings;
+  Windows, Graphics, GraphicStrings, SysUtils;
 
 const
   // This is the value for average CRT monitors, adjust it if your monitor differs.
@@ -308,13 +308,17 @@ function MulDiv16(Number, Numerator, Denominator: Word): Word;
   
 //----------------------------------------------------------------------------------------------------------------------
 
+// Jgb 2012-04-12 Moved to interface so that we can check in try except on
+// this except and handle error reporting ourself
+type
+  EColorConversionError = class(Exception);
+
+
 implementation
 
 uses
-  Math, SysUtils;
+  Math;
 
-type
-  EColorConversionError = class(Exception);
 
 //----------------- helper functions -----------------------------------------------------------------------------------
 
