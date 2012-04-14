@@ -29,12 +29,11 @@
 // certain formats which are not of interest you can save some memory.
 
 // JGB 15-5-2006: EEN AANTAL DOOR MIJ UITGESCHAKELD DOOR EEN . ERVOOR TE ZETTEN
-// 2012-04-12 temporarily turned on tga for testing
 
 {.$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images are supported
 {.$define AutodeskGraphic}        // *.cel, *.pic images
 {$define TIFFGraphic}            // *.tif, *.tiff images
-{$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
+{.$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
 {.$define PCXGraphic}             // *.pcx, *.pcc, *.scr images
 {$define PCDGraphic}             // *.pcd images
 {$define PortableMapGraphic}     // *.ppm, *.pgm, *.pbm images
