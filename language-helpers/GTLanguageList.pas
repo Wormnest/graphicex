@@ -57,7 +57,7 @@ var LanguageList : TGTLanguageList;
 
 implementation
 
-uses gnugettext, Windows, SysUtils, Forms, GTLanguagesEx;
+uses JvGnuGettext, Windows, SysUtils, Forms, GTLanguagesEx;
 
 { TGLLanguageList }
 
@@ -104,16 +104,16 @@ begin
   else
   begin
     // else, add a set in language code order
-    add(dgettext('languages', 'Danish'),    'da');
-    add(dgettext('languages', 'German'),    'de');
+    {add(dgettext('languages', 'Danish'),    'da');
+    add(dgettext('languages', 'German'),    'de');}
     add(dgettext('languages', 'English'),   'en');
-    add(dgettext('languages', 'Spanish'),   'es');
+    {add(dgettext('languages', 'Spanish'),   'es');
     add(dgettext('languages', 'French'),    'fr');
     add(dgettext('languages', 'Italian'),   'it');
     add(dgettext('languages', 'Dutch'),     'nl');
     add(dgettext('languages', 'Norwegian'), 'no');
     add(dgettext('languages', 'Russian'),   'ru');
-    add(dgettext('languages', 'Swedish'),   'sv');
+    add(dgettext('languages', 'Swedish'),   'sv');}
   end;
 end;
 {$WARNINGS OFF}
