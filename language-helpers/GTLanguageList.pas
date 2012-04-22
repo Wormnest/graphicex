@@ -121,6 +121,7 @@ end;
 constructor TGTLanguageList.Create;
 begin
   inherited;
+  fInstalledOnly := True; // jgb 2012-04-22 make InstalledOnly true by default
   fCodes := TStringList.Create;
   fNames := TStringList.Create;
 end;
