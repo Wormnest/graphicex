@@ -9748,7 +9748,8 @@ begin
         S := ExtEntry.Description;
         if S = '' then
           S := ExtEntry.ClassReference.Description;
-        DL.AddObject(S, Pointer(StrNew(PChar('*.' + ExtEntry.Extension))));
+        if DL.IndexOf(S) = -1 then  // jgb 2012-08-16 fix for possible mem leak
+          DL.AddObject(S, Pointer(StrNew(PChar('*.' + ExtEntry.Extension))));
         if foIncludeAll in Options then
           All.Add(ExtEntry.Extension);
       end;
