@@ -26,12 +26,15 @@
 // Ghostscript DLL may be used Delphi.
 //
 
-// JGB, mei 2006
+// JGB, May 2006
 // Changed to dynamic loading of the GhostScript library and detection of
 // its path in the registry
-// 3-4-2007: fixed initialization bug
-// 13-3-2008: fixed changed registry for GPL Ghostscript
-// 2012-04-06 Added error codes from gs 8.64 gserrors.h
+// 2007-04-03: fixed initialization bug
+// 2008-03-13: fixed changed registry for GPL Ghostscript
+// 2012-04-06: Added error codes from gs 8.64 gserrors.h
+
+
+{$DEFINE USE_IN_TRANSCRIPT} // 2013-01-09 Loads exception handling unit for Transcript first
 
 unit gsapi;
 
@@ -70,14 +73,12 @@ const
 
 // {$HPPEMIT '#include <iminst.h>'}
 
-// JGB 18-5-2006: TIJDELIJK !!! MET PAD ERBIJ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// 21-5-2006: var van gemaakt. Bij initialisatie wordt er naar gezocht
-// en wanneer gevonden wordt daar het pad en naam ingevuld!
-//const gsdll32 = 'F:\Programs\gs\gs8.53\bin\gsdll32.dll';
+// 2006-05-21: Changed to var.
+// At initialisation time we fill it with the correct path when found.
 var
-  gsdll32: string = ''; // <> '' betekent GhostScript gevonden en dll geladen
-  gsName: string  = ''; // 11-6-2008 Naam van de GhostScript installatie (AFPL of GPL GhostScript)
-  gsVer: string   = ''; // 11-6-2008 Versie van GhostScript
+  gsdll32: string = ''; // <> '' means GhostScript found and DLL is loaded
+  gsName: string  = ''; // 2008-06-11 Name of installed GhostScript (AFPL or GPL GhostScript)
+  gsVer: string   = ''; // 2008-06-11 GhostScript Version
 
 const
   STDIN_BUF_SIZE = 128;
@@ -334,19 +335,21 @@ procedure UnloadGhostScript;
 implementation
 
 uses SysUtils, Classes {TStringList},
+{$IFDEF USE_IN_TRANSCRIPT}
 {$IFDEF DEBUG_LOG}
-     JgbDebugHelper,  // debug log helper 2-4-2007
+     JgbDebugHelper,  // debug log helper 2007-04-02
 {$ELSE}
-     TransExceptionDlg, // 23-4-2007 Zodat de exceptie interceptie code
-                        // geladen wordt VOOR deze unit zodat eventuele
-                        // problemen hierin getoond kunnen worden!
+     TransExceptionDlg, // 2007-04-27 To make sure that the exception interception
+                        // code will be loaded BEFORE this unit so that we can
+                        // show any problems encountered here.
 {$ENDIF DEBUG_LOG}
+{$ENDIF USE_IN_TRANSCRIPT}
      JclRegistry;
 
 
-// JGB: Omdat we niet van te voren weten waar de GhostScript dll zich bevindt
-// kunnen we de procedures niet statisch laden maar moet het dynamisch
-// Hoe dat kan heb ik afgekeken uit de jedi-apilib units/functies
+// JGB: Because we don't know in advance where the GhosScript dll resides
+// we cannot load it statically. It has to be loaded dynamically.
+// How to do that was copied from the jedi apilib units/functions.
 (**
 {$EXTERNALSYM gsapi_revision}
 function gsapi_revision; stdcall; external gsdll32 name 'gsapi_revision';
@@ -442,33 +445,33 @@ var //SubKeys: TStringList;
   //      if RegGetKeyNames(HKLM,GhostScriptRegKey,SubKeys) and (SubKeys.Count >= 1) then
         if RegGetKeyNames(GhostRoot,GhostRegKey,SubKeys) and (SubKeys.Count >= 1) then
         begin
-          // N.B. bij UNINSTALL oude versie Ghostscript blijft blijkbaar de lege
-          // Key 8.xx [xx=nummer] bestaan maar zonder keys erin, dit gaf bij onze
-          // oude implementatie hieronder een exception
-          // Dus nu: begin bij de laatste key en controleer vervolgens ook of
-          // de value bestaat voordat we hem lezen!
+          // N.B.: UNINSTALL of older GhostScript versions (no idea if more recent
+          // versions do the same) an empty registry key 8.xx [xx=number] stayed behind.
+          // Which caused problems with our old implementation
+          // Therefore we changed it to searching for the newest key first and
+          // also checking if the value exists before we try to read it.
 
-          // 3-4-2007
+          // 2007-04-03
           // We begin with the last key (which is in most cases the latest version of GhostScript)
           i := SubKeys.Count;
           while i > 0 do
           begin
             VersionKey := SubKeys[i-1];
-            // lees string: als niet bestaat returns ''
+            // read string: if not exists returns ''
   //          gsdll32 := RegReadStringDef(HKLM,GhostScriptRegKey+'\'+VersionKey,'GS_DLL','');
             gsdll32 := RegReadStringDef(GhostRoot,GhostRegKey+'\'+VersionKey,'GS_DLL','');
             gsVer := VersionKey;
-            // Verwijder SOFTWARE/ uit de key om de naam te krijgen:
+            // Remove SOFTWARE/ from the key to get the name:
             gsName := Copy(GhostRegKey,10,Length(GhostRegKey)-9);
-            // 7-4-2007: voor de zekerheid hieronder ook nog maar een controle
-            // toegevoegd of het bestand ook daadwerkelijk op die locatie bestaat!
+            // 2007-04-07: Extra security check: looks to see if dll really exists
+            // at that location!
             if gsdll32 <> '' then
             begin
               if not FileExists(gsdll32) then
-                gsdll32 := ''; // Kan bestand daar niet vinden zet lege string terug
-              break; // GhostScript dll gevonden!
+                gsdll32 := ''; // Cannot find file: set it back to empty string
+              break; // GhostScript dll found!
             end;
-            Dec(i); // verlaag de waarde van i
+            Dec(i);
           end;
         end;
       finally
@@ -490,9 +493,9 @@ var //SubKeys: TStringList;
     end;
 begin
   gsdll32 := '';
-  // 9-6-2008: we moeten altijd alle keys bijlangs omdat het kan zijn
-  // dat de Ghostscript key wel in HCKU voorkomt maar zonder GS_DLL,
-  // en dat dat laatste te vinden is onder HKLM
+  // 2008-06-09: We always need to enumerate over all keys because
+  // it's possible that the GhostScript key exists in HCKU but without GS_DLL
+  // while that value may be found under HKLM.
   if
      GhostScriptRegKeyExists(HKCU,GhostScriptRegKey_GPL_64) or
      GhostScriptRegKeyExists(HKLM,GhostScriptRegKey_GPL_64) or
@@ -501,43 +504,6 @@ begin
      GhostScriptRegKeyExists(HKLM,GhostScriptRegKey_AFPL) then
   begin
     // GhostScript found, nothing to do here at the moment (9-6-2008)
-(****
-    // GhostScript exists, try to find the version
-    SubKeys := TStringList.Create;
-    try
-//      if RegGetKeyNames(HKLM,GhostScriptRegKey,SubKeys) and (SubKeys.Count >= 1) then
-      if RegGetKeyNames(GhostRoot,GhostRegKey,SubKeys) and (SubKeys.Count >= 1) then
-      begin
-        // N.B. bij UNINSTALL oude versie Ghostscript blijft blijkbaar de lege
-        // Key 8.xx [xx=nummer] bestaan maar zonder keys erin, dit gaf bij onze
-        // oude implementatie hieronder een exception
-        // Dus nu: begin bij de laatste key en controleer vervolgens ook of
-        // de value bestaat voordat we hem lezen!
-
-        // 3-4-2007
-        // We begin with the last key (which is in most cases the latest version of GhostScript)
-        i := SubKeys.Count;
-        while i > 0 do
-        begin
-          VersionKey := SubKeys[i-1];
-          // lees string: als niet bestaat returns ''
-//          gsdll32 := RegReadStringDef(HKLM,GhostScriptRegKey+'\'+VersionKey,'GS_DLL','');
-          gsdll32 := RegReadStringDef(GhostRoot,GhostRegKey+'\'+VersionKey,'GS_DLL','');
-          // 7-4-2007: voor de zekerheid hieronder ook nog maar een controle
-          // toegevoegd of het bestand ook daadwerkelijk op die locatie bestaat!
-          if gsdll32 <> '' then
-          begin
-            if not FileExists(gsdll32) then
-              gsdll32 := ''; // Kan bestand daar niet vinden zet lege string terug
-            break; // GhostScript dll gevonden!
-          end;
-          Dec(i); // verlaag de waarde van i
-        end;
-      end;
-    finally
-      SubKeys.Free;
-    end;
-****)
   end;
 end;
 
