@@ -1807,8 +1807,7 @@ DSMENTRYPROC = function (pOrigin : pTW_IDENTITY;
 var
   DSM_Entry : DSMENTRYPROC;
 
-// JGB: veranderinge: init/final... procs toegevoegd zodat niet direct
-// bij opstarten geladen wordt
+// JGB: Changes: added initialization/finalization
 
 procedure InitializeTwain; //jgb
 procedure FinalizeTwain; //jgb
@@ -1823,7 +1822,7 @@ var
 
 procedure InitializeTwain; // jgb
 begin
-  if twainHandle <> 0 then // jgb added: allen laden als nog niet eerder geladen was
+  if twainHandle <> 0 then // jgb added: only load when not loaded before
     Exit;
   twainHandle := LoadLibraryEx (twainDLLName, 0, 0);
   if twainHandle <> 0 then
@@ -1832,8 +1831,7 @@ end;
 
 procedure FinalizeTwain; // jgb
 begin
-  // jgb NB: er is geen reference counting: gaat er dus van uit dat er maar
-  // 1 twain component per programma is!
+  // jgb NB: there is no reference counting thus only 1 twain component per program
   if twainHandle <> 0 then
   begin
     FreeLibrary (twainHandle);
@@ -1844,15 +1842,6 @@ end;
 
 
 initialization
-{jgb nu hierboven
-  twainHandle := LoadLibraryEx (twainDLLName, 0, 0);
-  if twainHandle <> 0 then
-    DSM_Entry := DSMENTRYPROC (GetProcAddress (twainHandle, 'DSM_Entry'));
-}
 finalization
   FinalizeTwain;
-{jgb zie boven
-  if twainHandle <> 0 then
-    FreeLibrary (twainHandle)
-}
 end.

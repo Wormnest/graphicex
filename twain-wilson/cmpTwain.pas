@@ -11,8 +11,9 @@ uses
 type
   TOnImage = procedure (sender : TObject; bitmap : TBitmap; var release : boolean) of object;
 
-// JGB: ik zou hier nog een Event willen hebben:
-//      OnScanningDone evt met een var die aangeeft of er iets gescand is of niet
+// JGB: I would like to have another Event here:
+//      OnScanningDone - possiblye with a var that signifies whether something
+//      was scanned or not
   TOnScanningDone = procedure (sender : TObject; ImageScanned: Boolean) of object;
 
   TTransferFormat = (tfBmp, tfJpg, tfTiff);
@@ -44,7 +45,7 @@ type
   protected
     procedure WndProc (var Msg : TMessage); override;
   public
-    fPict : TPicture;  // jgb hier ipv private als test!
+    fPict : TPicture;  // jgb here instead of private as a test
     destructor Destroy; override;
     function SelectSource : boolean;
     procedure GetSingleImage (parent : TWinControl; pict : TPicture);
@@ -255,6 +256,10 @@ begin
   fTransferFormat := Value;
 end;
 
+// 2013-01-09 Delphi incorrectly things that twMemXFer, twSetupMemXFer and twImageInfo
+// are not used and issues Hints to that end. Therefore we turn off hints for
+// this fundtion only.
+{$HINTS OFF}
 procedure TcwTwain.TransferImage;
 var
   h : THandle;
@@ -262,7 +267,6 @@ var
   twMemXFer : TW_IMAGEMEMXFER;        // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twSetupMemXFer : TW_SETUPMEMXFER;   // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twImageInfo : TW_IMAGEINFO;         // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
-  //ImageGelukt: Boolean; // jgb - gebruikt nu FImageAvailable
 
   function CreateTBitmapFromTwainHandle (h : THandle) : TBitmap;
   var
@@ -333,9 +337,7 @@ begin
   begin
     TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_IMAGE, DAT_IMAGENATIVEXFER, MSG_GET, @h));
     try
-      fPict.Graphic := CreateTBitmapFromTwainHandle (h); //ORIGINEEL
-//      fPict.Graphic.Assign(CreateTBitmapFromTwainHandle(h)); // *** JGB TEST
-//      fPict.Bitmap.Assign(CreateTBitmapFromTwainHandle(h)); // *** JGB TEST
+      fPict.Graphic := CreateTBitmapFromTwainHandle (h); //ORIGINAL
 {$IFDEF DEBUG}
       {if fPict.Width = 0 then
         MessageBeep(MB_IconInformation);}
@@ -350,6 +352,7 @@ begin
 //    OnImage (self, bmp, release);
 
 end;
+{$HINTS ON}
 
 function TcwTwain.TwainCheck(code: Integer): Integer;
 var
@@ -392,7 +395,7 @@ begin
         MSG_XFERREADY :
           begin
             TransferImage;
-{JGB toegevoegd: (zie ook ...\Overige\Twain2\Twain.pas) }
+{JGB added: (see also ...\Overige\Twain2\Twain.pas) }
             FillChar (twUserInterface, SizeOf (twUserInterface), 0);
             TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface));
             EnableTaskWindows (fWindowList);
@@ -400,13 +403,13 @@ begin
             SetOpen (False);
             if Assigned(FOnScanningDone) then
               FOnScanningDone(Self,FImageAvailable);
-{einde jgb toegevoegd}
+{end jgb added}
           end;
 
         MSG_CLOSEDSREQ:
 {JGB:
         MSG_CLOSEDSOK :
-//einde jgb}
+//end jgb}
           begin
             FillChar (twUserInterface, SizeOf (twUserInterface), 0);
             TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface));
