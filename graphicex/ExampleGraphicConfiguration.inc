@@ -11,7 +11,10 @@
 // The initial developer of the original code is Mike Lischke (Pleiﬂa, Germany, www.delphi-gems.com),
 //
 // Portions created by Mike Lischke are
-// Copyright (C) 1999-2004 Mike Lischke. All Rights Reserved.
+// Copyright (C) 1999-2005 Mike Lischke. All Rights Reserved.
+//
+// Portions created by Jacob Boerema are
+// Copyright (C) 2013-2013 Jacob Boerema. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
@@ -23,30 +26,45 @@
 // Other configuration options include to limit the number of available image formats to
 // save memory, if necessary.
 //
+// 2013-06-21 jb To make it easier to have different configurations we
+// rename the default configuration file to ExampleGraphicConfiguration.inc.
+// If you are sure that you will always use the same configuration then you
+// can change the name back to GraphicConfiguration.inc. To be able to
+// support multiple configurations copy this file to your project's folder
+// and then change the name to GraphicConfiguration.inc.
+// Additionally we add a Define GraphicExConfigured to be able to detect
+// multiple includes.
+// IMPORTANT: a change in this include file always requires a REBUILD of your project!
+//
 //----------------------------------------------------------------------------------------------------------------------
+
+{$IFNDEF GraphicExConfigured}
 
 // Pick your preferred image formats here or leave them all enabled. By disabling
 // certain formats which are not of interest you can save some memory.
-
-// JGB 15-5-2006: EEN AANTAL DOOR MIJ UITGESCHAKELD DOOR EEN . ERVOOR TE ZETTEN
-
-{.$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images are supported
-{.$define AutodeskGraphic}        // *.cel, *.pic images
+{$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images are supported
+{$define AutodeskGraphic}        // *.cel, *.pic images
 {$define TIFFGraphic}            // *.tif, *.tiff images
-{.$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
-{.$define PCXGraphic}             // *.pcx, *.pcc, *.scr images
+{$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
+{$define PCXGraphic}             // *.pcx, *.pcc, *.scr images
 {$define PCDGraphic}             // *.pcd images
 {$define PortableMapGraphic}     // *.ppm, *.pgm, *.pbm images
-{.$define CUTGraphic}             // *.cut (+ *.pal) images
-{.$define GIFGraphic}             // *.gif images
-{.$define RLAGraphic}             // *.rla, *.rpf images
+{$define CUTGraphic}             // *.cut (+ *.pal) images
+{$define GIFGraphic}             // *.gif images
+{$define RLAGraphic}             // *.rla, *.rpf images
 {$define PhotoshopGraphic}       // *.psd, *.pdd images
 {$define PaintshopProGraphic}    // *.psp images
-// JGB: png doen we d.n.v Gustavo Daud's unit so we can also save the png!
-{.$define PortableNetworkGraphic} // *.png images
-{.$define EPSGraphic}             // *.eps images
-{.$define ArtsAndLettersGraphic}  // *.ged images
+{$define PortableNetworkGraphic} // *.png images
+{$define EPSGraphic}             // *.eps images
+{$define ArtsAndLettersGraphic}  // *.ged images
 
 // adjust dependent definitions
 {$ifndef TIFFGraphic} {$undef EPSGraphic} {$endif}
+
+// Set status to configured
+{$DEFINE GraphicExConfigured}
+
+{$ELSE}
+  Warning: another GraphicEx configuration is already loaded!
+{$ENDIF ~GraphicExConfigured}
 
