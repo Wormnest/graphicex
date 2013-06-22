@@ -36,6 +36,8 @@
 // multiple includes.
 // IMPORTANT: a change in this include file always requires a REBUILD of your project!
 //
+// 2013-06-22 jb Add JpegGraphic define in preparation for better jpeg support.
+//
 //----------------------------------------------------------------------------------------------------------------------
 
 {$IFNDEF GraphicExConfigured}
@@ -57,6 +59,7 @@
 {$define PortableNetworkGraphic} // *.png images
 {$define EPSGraphic}             // *.eps images
 {$define ArtsAndLettersGraphic}  // *.ged images
+{$define JpegGraphic}            // *.jpg, *.jpeg, *.jpe, *.jfif
 
 // adjust dependent definitions
 {$ifndef TIFFGraphic} {$undef EPSGraphic} {$endif}
