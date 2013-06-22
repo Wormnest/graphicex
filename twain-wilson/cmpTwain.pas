@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  unitCallbackComponent, Twain_Wilson, SyncObjs, jpeg;
+  unitCallbackComponent, Twain_Wilson, SyncObjs;
 
 {.$DEFINE DEBUG}
 
@@ -256,7 +256,7 @@ begin
   fTransferFormat := Value;
 end;
 
-// 2013-01-09 Delphi incorrectly things that twMemXFer, twSetupMemXFer and twImageInfo
+// 2013-01-09 Delphi incorrectly thinks that twMemXFer, twSetupMemXFer and twImageInfo
 // are not used and issues Hints to that end. Therefore we turn off hints for
 // this fundtion only.
 {$HINTS OFF}
