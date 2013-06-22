@@ -12,7 +12,7 @@ type
   TOnImage = procedure (sender : TObject; bitmap : TBitmap; var release : boolean) of object;
 
 // JGB: I would like to have another Event here:
-//      OnScanningDone - possiblye with a var that signifies whether something
+//      OnScanningDone - possibly with a var that signifies whether something
 //      was scanned or not
   TOnScanningDone = procedure (sender : TObject; ImageScanned: Boolean) of object;
 
@@ -258,7 +258,7 @@ end;
 
 // 2013-01-09 Delphi incorrectly thinks that twMemXFer, twSetupMemXFer and twImageInfo
 // are not used and issues Hints to that end. Therefore we turn off hints for
-// this fundtion only.
+// this function only.
 {$HINTS OFF}
 procedure TcwTwain.TransferImage;
 var
