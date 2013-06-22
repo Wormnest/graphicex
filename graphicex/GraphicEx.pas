@@ -66,7 +66,10 @@ interface
 {$endif COMPILER_7_UP}
 
 uses
-  Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs, JPEG, TIFF,
+  Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs, TIFF,
+  {$ifdef JpegGraphic}
+  jpeg,
+  {$endif ~JpegGraphic}
   GraphicCompression, GraphicStrings, GraphicColor;
 
 const
@@ -10055,9 +10058,8 @@ initialization
   FileFormatList := TFileFormatList.Create;
   with FileFormatList do
   begin
-    // Since we are going to add these four image types below, we better unregister them first
-    // in order to avoid double entries.
-    TPicture.UnregisterGraphicClass(TJPEGImage);
+    // Since we are going to add these image types below, we better unregister
+    // them first in order to avoid double entries.
     TPicture.UnregisterGraphicClass(TBitmap);
     TPicture.UnregisterGraphicClass(TIcon);
     TPicture.UnregisterGraphicClass(TMetafile);
@@ -10066,10 +10068,16 @@ initialization
     RegisterFileFormat('ico', gesIcons, '', [ftRaster], False, TIcon);
     RegisterFileFormat('wmf', gesMetaFiles, '', [ftVector], False, TMetafile);
     RegisterFileFormat('emf', gesMetaFiles, gesEnhancedMetaFiles, [ftVector], False, TMetafile);
+
+    // 2013-06-22 in preparation for better jpeg handling use a define
+    // around jpeg specific stuff
+  {$ifdef JpegGraphic}
+    TPicture.UnregisterGraphicClass(TJPEGImage);
     RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
     RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
     RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
     RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
+  {$endif ~JpegGraphic}
 
     // Paintshop pro *.msk files are just grayscale bitmaps.
     RegisterFileFormat('msk', '', '', [ftRaster], False, TBitmap);
