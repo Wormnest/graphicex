@@ -9949,6 +9949,9 @@ var
   S: string;
 
 begin
+  if (GraphicClass = nil) or not GraphicClass.InheritsFrom(TGraphic) then
+    GraphicExError(gesInvalidGraphicClass, [Extension]);
+
   if Extension <> '' then
   begin
     ExtIndex := FindExtension(Extension);
