@@ -71,6 +71,7 @@ resourcestring
 
   // File format registration error messages
   gesRegistration = 'Attempt to register %s twice.';
+  gesInvalidGraphicClass = 'Attempt to register image format %s with invalid GraphicClass';
 
   // image specific error messages
   gesInvalidImage = 'Cannot load image. Invalid or unexpected %s image format.';
