@@ -30,7 +30,6 @@ interface
 resourcestring
   // image file descriptions
   gesAllImages = 'All images';
-  gesRegistration = 'Attempt to register %s twice.';
 
   gesBitmaps = 'Windows bitmaps';
   gesRLEBitmaps = 'Run length encoded Windows bitmaps';
@@ -69,7 +68,10 @@ resourcestring
   gesPaintshopProTubes = 'Paintshop Pro tubes';
   gesPortableNetworkGraphic = 'Portable network graphic images';
   gesArtsAndLettersGraphic = 'Arts & Letters thumbnail images';
-                                                                             
+
+  // File format registration error messages
+  gesRegistration = 'Attempt to register %s twice.';
+
   // image specific error messages
   gesInvalidImage = 'Cannot load image. Invalid or unexpected %s image format.';
   gesInvalidColorFormat = 'Invalid color format in %s file.';
