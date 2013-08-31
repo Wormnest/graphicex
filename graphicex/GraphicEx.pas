@@ -9991,7 +9991,10 @@ begin
     if S = '' then
       S := ClassEntry.Description;
     TPicture.RegisterFileFormat(Extension, S, GraphicClass);
-  end;
+  end
+  else
+    // No extension specified
+    GraphicExError(gesNoExtension, [Extension]);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
