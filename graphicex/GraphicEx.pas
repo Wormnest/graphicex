@@ -9958,6 +9958,9 @@ begin
     ClassIndex := FindGraphicClass(GraphicClass);
     if ExtIndex = -1 then
     begin
+      if Extension[1] = '.' then
+        // Extension should be registered without the '.'
+        GraphicExError(gesInvalidExtension);
       // extension not yet registered
       New(ExtEntry);
       ExtEntry.Extension := Extension;
