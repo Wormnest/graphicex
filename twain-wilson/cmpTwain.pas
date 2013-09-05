@@ -36,7 +36,8 @@ type
     procedure SetActive(const Value: boolean);
     procedure SetOpen (const Value : boolean);
     procedure SetCapability (capability, value : Integer);
-    function HasCapability (capability, value : Integer) : boolean;
+    // Silence a warning about HasCapability never being used.
+    //function HasCapability (capability, value : Integer) : boolean;
     procedure SetTransferCount (value : Integer);
 
     procedure TransferImage;
@@ -106,6 +107,8 @@ begin
   end
 end;
 
+// Silence a warning about HasCapability never being used.
+(*
 function TcwTwain.HasCapability(capability, value: Integer): boolean;
 var
   twCapability : TW_CAPABILITY;
@@ -152,6 +155,7 @@ begin
       end
   end
 end;
+*)
 
 function TcwTwain.SelectSource: boolean;
 begin
