@@ -3104,10 +3104,17 @@ begin
             ColorManager.SourceBitsPerSample := BitsPerSample;
             ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
 
-            if BitsPerSample in [8, 16] then
-              ColorManager.TargetBitsPerSample := 8
+            // TargetBitsPerSample needs to correspond to the TargetPixelFormat
+            // or else the image will not be painted correctly.
+            case BitsPerSample of
+              8, 16, 6: ColorManager.TargetBitsPerSample := 8;
+              2: ColorManager.TargetBitsPerSample := 4;
             else
+              // TODO (jb): explicitly set TargetBitsPerSample for each BitsPerSample
+              // and throw an error for values we don't support
               ColorManager.TargetBitsPerSample := BitsPerSample;
+            end;
+
             ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
 
             // Monochrome images are handled just like indexed images (a gray scale palette is used).
