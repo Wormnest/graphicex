@@ -4470,7 +4470,7 @@ begin
           Result := pf1Bit;
         2..4: // values < 4 should be upscaled
           Result := pf4bit;
-        8..16:
+        6..16: // jb: was 8..16 but seems 6 bit mono is possible too which needs to be upscaled to 8 bits
           // values > 8 bits must be downscaled to 8 bits
           Result := pf8bit;
       else

@@ -3100,6 +3100,7 @@ begin
           if (SamplesPerPixel = 1) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
           begin
             // Monochrome or palette images with 1, 2, 4, 8 and 16 bits per pixel.
+            // jb: mono 6 bpp is possible but discouraged
             ColorManager.SourceBitsPerSample := BitsPerSample;
             ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
 
