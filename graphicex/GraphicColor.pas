@@ -4529,11 +4529,8 @@ begin
 
   case FSourceScheme of
     csG:
-      if (FSourceBPS = 16) or (FTargetBPS = 16) then
-      begin
-        if (FSourceBPS >= 8) and (FTargetBPS >= 8) then
-          FRowConversion := RowConvertGray;
-      end
+      if (FSourceBPS >= 8) and (FTargetBPS >= 8) then
+        FRowConversion := RowConvertGray;
       else
         FRowConversion := RowConvertIndexed8;
     csGA:

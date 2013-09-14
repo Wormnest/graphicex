@@ -3106,14 +3106,14 @@ begin
 
             // TargetBitsPerSample needs to correspond to the TargetPixelFormat
             // or else the image will not be painted correctly.
-            case BitsPerSample of
-              8, 16, 6: ColorManager.TargetBitsPerSample := 8;
-              2: ColorManager.TargetBitsPerSample := 4;
+            if (BitsPerSample >= 6) and (BitsPerSample <= 16) then
+              ColorManager.TargetBitsPerSample := 8
+            else if BitsPerSample in [2, 4] then
+              ColorManager.TargetBitsPerSample := 4
             else
               // TODO (jb): explicitly set TargetBitsPerSample for each BitsPerSample
               // and throw an error for values we don't support
               ColorManager.TargetBitsPerSample := BitsPerSample;
-            end;
 
             ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
 
