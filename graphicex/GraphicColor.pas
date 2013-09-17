@@ -229,6 +229,9 @@ type
     function ComponentNoConvert16(Value: Word): Word;
     function ComponentNoConvert8(Value: Byte): Byte;
     function ComponentScaleConvert(Value: Word): Byte;
+    function ComponentScaleConvert10(Value: Word): Byte;
+    function ComponentScaleConvert12(Value: Word): Byte;
+    function ComponentScaleConvert14(Value: Word): Byte;
     function ComponentScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleConvert(Value: Word): Byte;
@@ -305,7 +308,10 @@ function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
 // general utility functions
 function ClampByte(Value: Integer): Byte;
 function MulDiv16(Number, Numerator, Denominator: Word): Word;
-  
+
+function GetBitsMSB(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
+
 //----------------------------------------------------------------------------------------------------------------------
 
 // Jgb 2012-04-12 Moved to interface so that we can check in try except on
@@ -434,7 +440,7 @@ var
   Delta,
   Max,
   Min:  Extended;
-  
+
 begin
   with RGB, Result do
   begin
@@ -750,6 +756,27 @@ begin
   // Result := MulDiv16(Value, 255, 65535);
   // should be changed to:
   Result := Value shr 8;
+end;
+
+function TColorManager.ComponentScaleConvert14(Value: Word): Byte;
+begin
+  // Convert/scale down from 14 bits to 8 bits
+  // 14 bits 2^14 = 16384 ==> 8 bits = 256
+  Result := MulDiv16(Value, 256, 16384);
+end;
+
+function TColorManager.ComponentScaleConvert12(Value: Word): Byte;
+begin
+  // Convert/scale down from 12 bits to 8 bits
+  // 12 bits 2^12 = 4096 ==> 8 bits = 256
+  Result := MulDiv16(Value, 256, 4096);
+end;
+
+function TColorManager.ComponentScaleConvert10(Value: Word): Byte;
+begin
+  // Convert/scale down from 10 bits to 8 bits
+  // 10 bits 2^10 = 1024 ==> 8 bits = 256
+  Result := MulDiv16(Value, 256, 1024);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2504,6 +2531,56 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+const
+  CBitMask: array [0..17] of Cardinal = (0, $00000001, $00000003, $00000007,
+    $0000000F, $0000001F, $0000003F, $0000007F, $000000FF, $000001FF,
+    $000003FF, $000007FF, $00000FFF, $00001FFF, $00003FFF, $00007FFF,
+    $0000FFFF, $0001FFFF);
+
+// Adapted from GraphicsMagick bit_stream.c and others
+// TODO: Maybe change to a bitstream and update the bit and byte pointers
+// here and not in the caller
+function GetBitsMSB(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+var remaining_quantum_bits,
+    octet_bits,
+    bits_remaining,
+    quantum: Cardinal;
+begin
+  remaining_quantum_bits := NumberOfBits;
+  bits_remaining := 8-BitIndex;
+  quantum := 0;
+  while (remaining_quantum_bits <> 0) do begin
+    octet_bits := remaining_quantum_bits;
+    if octet_bits > bits_remaining then
+      octet_bits := bits_remaining;
+
+      remaining_quantum_bits := remaining_quantum_bits - octet_bits;
+      bits_remaining := bits_remaining - octet_bits;
+
+      quantum := (quantum shl octet_bits) or
+	((BitData^ shr (bits_remaining)) and CBitMask[octet_bits]);
+
+      if (bits_remaining = 0) then begin
+	  Inc(BitData);
+	  bits_remaining := 8;
+      end;
+  end;
+  Result := quantum;
+end;
+
+function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
+var Sum: Cardinal;
+begin
+  Sum := BitIndex + NumberOfBits;
+  // TODO Copy available bytes first so we dont get AV at end of buffer!
+  // Currently we expect either 10, 12, or 14 bits as NumberOfBits
+  // Since that can be spread over 3 bytes we use a 4 byte Cardinal
+  // First remove the high end bytes we don't need (shl)
+  // Then remove the unneeded low end bytes (BitIndex) (shr)
+  // NOT USED CURRENTLY since we found out we need to do it with MSB first (big endian)
+  Result := (BitData^ shl (32 - Sum)) shr (32 - NumberOfBits);
+end;
+
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // conversion from source grayscale (possibly with alpha) to target grayscale
@@ -2518,6 +2595,8 @@ var
   BitRun: Byte;
   AlphaSkip: Integer;
   Convert16: function(Value: Word): Byte of object;
+  BitOffset: Integer; // Offset in Source byte where first bit starts
+  Bits: Cardinal;
 
 begin
   BitRun := $80;
@@ -2618,6 +2697,60 @@ begin
             end;
           end;
       end;
+
+    10, 12, 14:
+      // jb: try to convert 10, 12 and 14 bits to 8 bits only for now
+      case FTargetBPS of
+        8: // 101010 to 888, or 121212 to 888, or 141414 to 888
+          begin
+            Source16 := Source[0];
+            Target8 := Target;
+            case FSourceBPS of
+              10: Convert16 := ComponentScaleConvert10;
+              12: Convert16 := ComponentScaleConvert12;
+              14: Convert16 := ComponentScaleConvert14;
+            else
+              // To make compiler stop complaining that Convert16 may not be initialized.
+              Convert16 := nil;
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                Bits := GetBitsMSB(BitOffset, FSourceBPS,PByte(Source16));
+                Target8^ := Convert16(Bits);
+                // Update the bit and byte pointers
+                Inc(BitOffset,FSourceBPS);
+                if AlphaSkip = 1 then
+                  // TODO: Needs testing. I'm not sure if this is correct!
+                  Inc(BitOffset,FSourceBPS);
+                Inc( PByte(Source16), BitOffset div 8 );
+                BitOffset := BitOffset mod 8;
+(*
+                if BitOffset >= 16 then begin
+                  // Skip a Word
+                  Inc(Source16, 1);
+                  Dec(BitOffset,16);
+                end
+                else if BitOffset >= 8 then begin
+                  // Skip a Byte
+                  Inc(PByte(Source16),1);
+                  Dec(BitOffset,8)
+                end;
+*)
+
+              end;
+              asm ROR BYTE PTR [BitRun], 1 end;
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+      else
+      end;
+
   end;
 end;
 
@@ -4530,7 +4663,7 @@ begin
   case FSourceScheme of
     csG:
       if (FSourceBPS >= 8) and (FTargetBPS >= 8) then
-        FRowConversion := RowConvertGray;
+        FRowConversion := RowConvertGray
       else
         FRowConversion := RowConvertIndexed8;
     csGA:
@@ -4736,7 +4869,7 @@ procedure TColorManager.ConvertRow(Source: array of Pointer; Target: Pointer; Co
 // - YCbCr parameters if any of the color schemes is csYCbCr
 
 begin
-  // if there are pending changes then apply them 
+  // if there are pending changes then apply them
   if FChanged then
     PrepareConversion;
   // check if there's now a conversion method
