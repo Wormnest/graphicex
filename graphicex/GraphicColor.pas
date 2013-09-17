@@ -229,6 +229,7 @@ type
     function ComponentNoConvert16(Value: Word): Word;
     function ComponentNoConvert8(Value: Byte): Byte;
     function ComponentScaleConvert(Value: Word): Byte;
+    function ComponentScaleConvert6(Value: Word): Byte;
     function ComponentScaleConvert10(Value: Word): Byte;
     function ComponentScaleConvert12(Value: Word): Byte;
     function ComponentScaleConvert14(Value: Word): Byte;
@@ -777,6 +778,13 @@ begin
   // Convert/scale down from 10 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
   Result := MulDiv16(Value, 256, 1024);
+end;
+
+function TColorManager.ComponentScaleConvert6(Value: Word): Byte;
+begin
+  // Convert/scale up from 6 bits to 8 bits
+  // 10 bits 2^10 = 1024 ==> 8 bits = 256
+  Result := MulDiv16(Value, 256, 64);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2698,14 +2706,15 @@ begin
           end;
       end;
 
-    10, 12, 14:
-      // jb: try to convert 10, 12 and 14 bits to 8 bits only for now
+    6, 10, 12, 14:
+      // Conversion of uncommon bit formats 6, 10, 12 and 14 bits to 8 bits only for now
       case FTargetBPS of
         8: // 101010 to 888, or 121212 to 888, or 141414 to 888
           begin
             Source16 := Source[0];
             Target8 := Target;
             case FSourceBPS of
+               6: Convert16 := ComponentScaleConvert6;
               10: Convert16 := ComponentScaleConvert10;
               12: Convert16 := ComponentScaleConvert12;
               14: Convert16 := ComponentScaleConvert14;
@@ -4662,7 +4671,7 @@ begin
 
   case FSourceScheme of
     csG:
-      if (FSourceBPS >= 8) and (FTargetBPS >= 8) then
+      if (FSourceBPS >= 6) and (FTargetBPS >= 8) then
         FRowConversion := RowConvertGray
       else
         FRowConversion := RowConvertIndexed8;
