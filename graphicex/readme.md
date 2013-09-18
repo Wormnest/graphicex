@@ -62,3 +62,36 @@ GraphicEx is released under the Mozilla Public License 1.1 (MPL 1.1).
 
 This library was written by Mike Lischke.
 This fork is currently maintained and updated by Jacob Boerema.
+
+Current implementation
+----------------------
+* GraphicEx was first updated to the last svn version I found except for parts
+that I needed to change to make it working with the .obj files I had.
+* I have not copied the translated strings. I consider it better to use a
+different translation strategy, I recommend using dxgettext.
+* I have incorporated all bugfixes mentioned in the softgems forums and those
+found elsewhere on the internet.
+* Several other bugs fixed, a few extra security checks and some extra 
+functionality added by myself.
+
+Todo
+----
+* Make Unicode safe. Unicode aware fixes have not been added yet.
+* Make 64 bit safe and add pure pascal alternatives to asm functions.
+* Update libtif version (currently using an old libtif 3.5.7) and probably
+* at the same time change to using LibTifDelphi.
+* Integrate jpeg handling more into graphicex.
+* Support more different tiff image types.
+* Add unit tests.
+
+Folder structure
+----------------
+graphicex
+- examples  Folder with examples.
+- external  Folder with units that interface with external libraries.
+- obj       Folder with compiled .obj files for static linked libraries.
+- src       Folder with GraphicEx source files.
+
+Note that the .obj files are not available in the hg repository itself.
+They need to be downloaded from:
+https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip
