@@ -86,11 +86,11 @@ Todo
 
 Folder structure
 ----------------
-graphicex    
-- examples    Folder with examples.    
-- external    Folder with units that interface with external libraries.    
-- obj    Folder with compiled .obj files for static linked libraries.    
-- src    Folder with GraphicEx source files.
+\graphicex    
+- \examples = Folder with examples.    
+- \external = Folder with units that interface with external libraries.    
+- \obj = Folder with compiled .obj files for static linked libraries.    
+- \src = Folder with GraphicEx source files.
 
 Note that the .obj files are not available in the hg repository itself.
 They need to be downloaded from:
