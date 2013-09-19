@@ -2739,23 +2739,9 @@ begin
                 // Update the bit and byte pointers
                 Inc(BitOffset,FSourceBPS);
                 if AlphaSkip = 1 then
-                  // TODO: Needs testing. I'm not sure if this is correct!
                   Inc(BitOffset,FSourceBPS);
                 Inc( PByte(Source16), BitOffset div 8 );
                 BitOffset := BitOffset mod 8;
-(*
-                if BitOffset >= 16 then begin
-                  // Skip a Word
-                  Inc(Source16, 1);
-                  Dec(BitOffset,16);
-                end
-                else if BitOffset >= 8 then begin
-                  // Skip a Byte
-                  Inc(PByte(Source16),1);
-                  Dec(BitOffset,8)
-                end;
-*)
-
               end;
               asm ROR BYTE PTR [BitRun], 1 end;
               Dec(Count);
