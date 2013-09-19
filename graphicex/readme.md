@@ -63,6 +63,14 @@ GraphicEx is released under the Mozilla Public License 1.1 (MPL 1.1).
 This library was written by Mike Lischke.
 This fork is currently maintained and updated by Jacob Boerema.
 
+Bug reports
+-----------
+Please report bugs in the issuetracker using the link below. Bugs concerning
+problems loading a certain image should add the problematic image.
+Without an example image it will be most likely impossible to find
+what's wrong.
+https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open
+
 Current implementation
 ----------------------
 * GraphicEx was first updated to the last svn version I found except for parts
