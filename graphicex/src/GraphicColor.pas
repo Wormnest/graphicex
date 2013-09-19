@@ -179,7 +179,8 @@ type
     coApplyGamma,     // target only, gamma correction must take place
     coNeedByteSwap,   // endian switch needed
     coLabByteRange,   // CIE L*a*b* only, luminance range is from 0..255 instead 0..100
-    coLabChromaOffset // CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
+    coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
+    coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
   );
 
   // format of the raw data to create a color palette from
@@ -2608,7 +2609,11 @@ var
 
 begin
   BitRun := $80;
-  AlphaSkip := Ord(coAlpha in FSourceOptions); // 0 if no alpha must be skipped, otherwise 1
+  // When this is an image with alpha and not planar we need to skip the alpha bits
+  if (coAlpha in FSourceOptions) and not (coSeparatePlanes in FSourceOptions) then
+    AlphaSkip := 1
+  else
+    AlphaSkip := 0;
 
   case FSourceBPS of
     8:
@@ -4606,7 +4611,8 @@ begin
   end;
 
   case SamplesPerPixel of
-    1: // one sample per pixel, this is usually a palette format
+    1, // one sample per pixel, this is usually a palette format
+    2: // 2 samples for grayscale with alpha (extrasamples should be 1)
       case BitsPerSample of
         1:
           Result := pf1Bit;

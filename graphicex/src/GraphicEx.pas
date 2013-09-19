@@ -85,7 +85,8 @@ type
     ioBigEndian,   // byte order in values >= words is reversed (TIF, RLA, SGI)
     ioMinIsWhite,  // minimum value in grayscale palette is white not black (TIF)
     ioReversed,    // bit order in bytes is reveresed (TIF)
-    ioUseGamma     // gamma correction is used
+    ioUseGamma,    // gamma correction is used
+    ioSeparatePlanes // Use separate planes instead of contigious (TIF)
   );
 
   // describes the compression used in the image file
@@ -3097,7 +3098,7 @@ begin
 
           ColorManager.SourceColorScheme := ColorScheme;
           // Split loading image data depending on pixel depth.
-          if (SamplesPerPixel = 1) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
+          if (SamplesPerPixel in [1, 2]) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
           begin
             // Monochrome or palette images with 1, 2, 4, 8 and 16 bits per pixel.
             // jb: now also supporting uncommon 6, 10, 12 and 14 bits per pixel.
@@ -3115,7 +3116,12 @@ begin
               // and throw an error for values we don't support
               ColorManager.TargetBitsPerSample := BitsPerSample;
 
-            ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+            if ioSeparatePlanes in Options then begin
+              ColorManager.TargetSamplesPerPixel := SamplesPerPixel - 1;
+              ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+            end
+            else
+              ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
 
             // Monochrome images are handled just like indexed images (a gray scale palette is used).
             ColorManager.TargetColorScheme := csindexed;
@@ -3295,9 +3301,18 @@ begin
         // Determine whether extra samples must be considered.
         HasAlpha := (ExtraSamples = 1) and
           (SampleInfo^ in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
-        
-        // Currently all bits per sample values are equal.
-        BitsPerPixel := BitsPerSample * SamplesPerPixel;
+
+        // PlanarConfig needed to determine BitsPerPixel in case its Separate
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_PLANARCONFIG, @TIFFValue);
+
+        // Compute Bits per Pixel
+        if TIFFVALUE = PLANARCONFIG_SEPARATE then begin
+          // separate planes
+          Include(Options, ioSeparatePlanes);
+          BitsPerPixel := BitsPerSample * (SamplesPerPixel-ExtraSamples);
+        end
+        else // bits are contigious
+          BitsPerPixel := BitsPerSample * SamplesPerPixel;
 
         // Convert compression identifier.
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_COMPRESSION, @TIFFCompression);
@@ -3360,11 +3375,17 @@ begin
         case PhotometricInterpretation of
           PHOTOMETRIC_MINISWHITE:
             begin
-              ColorScheme := csG;
+              if HasAlpha then
+                ColorScheme := csGA
+              else
+                ColorScheme := csG;
               Include(Options, ioMinIsWhite);
             end;
           PHOTOMETRIC_MINISBLACK:
-            ColorScheme := csG;
+            if HasAlpha then
+              ColorScheme := csGA
+            else
+              ColorScheme := csG;
           PHOTOMETRIC_RGB:
             begin
               if (SamplesPerPixel < 4) then
@@ -3373,7 +3394,10 @@ begin
                 ColorScheme := csRGBA;
             end;
           PHOTOMETRIC_PALETTE:
-            ColorScheme := csIndexed;
+            if HasAlpha then
+              ColorScheme := csIndexedA
+            else
+              ColorScheme := csIndexed;
           PHOTOMETRIC_SEPARATED:
             ColorScheme := csCMYK;
           PHOTOMETRIC_YCBCR:
