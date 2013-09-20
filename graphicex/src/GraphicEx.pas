@@ -507,7 +507,7 @@ type
   end;
   
   TPSDGraphic = class;
-  
+
   TPhotoshopLayer = class
   private
     FGraphic: TPSDGraphic;
@@ -578,7 +578,7 @@ type
     Location: Single;        // Either X or Y coordinate of the guide depending on IsHorizontal.
     IsHorizontal: Boolean;   // True if it is a horizontal guide, otherwise False.
   end;
-  
+
   TPSDGridSettings = record
     HorizontalCycle,         // Number of dots per cycle relative to 72 dpi.
     VerticalCycle: Single;
@@ -595,12 +595,12 @@ type
     procedure CombineChannels(Layer: TPhotoshopLayer);
     function ConvertCompression(Value: Word): TCompressionType;
     function DetermineColorScheme(ChannelCount: Integer): TColorScheme;
-    procedure LoadAdjustmentLayer(var Run: PChar; Layer: TPhotoshopLayer);
-    procedure ReadChannelData(var Run: PChar; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
-    procedure ReadDescriptor(var Run: PChar; var Descriptor: TPSDDescriptor);
-    procedure ReadMergedImage(var Source: PChar; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
-    procedure ReadLayers(Run: PChar);
-    procedure ReadResources(Run: PChar);
+    procedure LoadAdjustmentLayer(var Run: PAnsiChar; Layer: TPhotoshopLayer);
+    procedure ReadChannelData(var Run: PAnsiChar; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
+    procedure ReadDescriptor(var Run: PAnsiChar; var Descriptor: TPSDDescriptor);
+    procedure ReadMergedImage(var Source: PAnsiChar; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
+    procedure ReadLayers(Run: PAnsiChar);
+    procedure ReadResources(Run: PAnsiChar);
     function SetupColorManager(Channels: Integer): TPixelFormat;
   public
     constructor Create; override;
@@ -1618,7 +1618,7 @@ end;
 
 procedure SwapDouble(const Source; var Target);
 
-// Reverses the byte order in Source which must be 8 bytes in size (as well as the target). 
+// Reverses the byte order in Source which must be 8 bytes in size (as well as the target).
 
 var
   I: Int64;
@@ -1630,7 +1630,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianCardinal(var Run: PChar): Cardinal;
+function ReadBigEndianCardinal(var Run: PAnsiChar): Cardinal;
 
 // Reads the next four bytes from the memory pointed to by Run, converts this into a cardinal number (inclusive byte
 // order swapping) and advances Run.
@@ -1642,7 +1642,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianDouble(var Run: PChar): Double;
+function ReadBigEndianDouble(var Run: PAnsiChar): Double;
 
 // Reads the next two bytes from the memory pointed to by Run, converts this into a word number (inclusive byte
 // order swapping) and advances Run.
@@ -1654,7 +1654,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianInteger(var Run: PChar): Integer;
+function ReadBigEndianInteger(var Run: PAnsiChar): Integer;
 
 // Reads the next four bytes from the memory pointed to by Run, converts this into a cardinal number (inclusive byte
 // order swapping) and advances Run.
@@ -1680,7 +1680,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianString(var Run: PChar): WideString; overload;
+function ReadBigEndianString(var Run: PAnsiChar): WideString; overload;
 
 // Same as ReadBigEndianString with length parameter. However the length must first be retrieved.
 
@@ -1694,7 +1694,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianWord(var Run: PChar): Word;
+function ReadBigEndianWord(var Run: PAnsiChar): Word;
 
 // Reads the next two bytes from the memory pointed to by Run, converts this into a word number (inclusive byte
 // order swapping) and advances Run.
@@ -5959,7 +5959,7 @@ const
   PSD_COMPRESSION_NONE = 0;
   PSD_COMPRESSION_RLE = 1; // RLE compression (same as TIFF packed bits)
 
-  PSDBlendModeMapping: array[TPSDLayerBlendMode] of PChar = (
+  PSDBlendModeMapping: array[TPSDLayerBlendMode] of PAnsiChar = (
     'norm', // lbmNormal
     'dark', // lbmDarken
     'lite', // lbmLighten
@@ -6072,7 +6072,7 @@ const
 type
   PPSDHeader = ^TPSDHeader;
   TPSDHeader = packed record
-    Signature: array[0..3] of Char; // always '8BPS'
+    Signature: array[0..3] of AnsiChar; // always '8BPS'
     Version: Word;                  // always 1
     Reserved: array[0..5] of Byte;  // reserved, always 0
     Channels: Word;                 // 1..24, number of channels in the image (including alpha)
@@ -6515,14 +6515,14 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.LoadAdjustmentLayer(var Run: PChar; Layer: TPhotoshopLayer);
+procedure TPSDGraphic.LoadAdjustmentLayer(var Run: PAnsiChar; Layer: TPhotoshopLayer);
 
 // Reads an adjustment layer whose identification is given by the first 4 bytes pointed to by Run.
 // An adjustment layer is kind of a sub layer for the current layer.
 
 const
   KeyCount = 36;
-  AdjustmentKey: array[0..KeyCount - 1] of PChar = (
+  AdjustmentKey: array[0..KeyCount - 1] of PAnsiChar = (
     'levl', //  0, Levels
     'curv', //  1, Curves
     'brit', //  2, Brightness/Contrast
@@ -6562,7 +6562,7 @@ const
   );
 
   // Signatures used in an effects adjustment layer.
-  EffectSignature: array[0..5] of PChar = (
+  EffectSignature: array[0..5] of PAnsiChar = (
     'cmnS', // 0, common state
     'dsdw', // 1, drop shadow
     'isdw', // 2, inner shadow
@@ -6574,8 +6574,8 @@ const
 var
   I: Integer;
   Size: Cardinal;
-  Temp: PChar;
-  
+  Temp: PAnsiChar;
+
 begin
   // Find out which data there is.
   I := 0;
@@ -6632,7 +6632,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadChannelData(var Run: PChar; var Channel: TPSDChannel; Width, Height: Integer;
+procedure TPSDGraphic.ReadChannelData(var Run: PAnsiChar; var Channel: TPSDChannel; Width, Height: Integer;
   IsIrrelevant: Boolean);
 
 // Reads and optionally decompresses image data for one channel.
@@ -6697,12 +6697,12 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadDescriptor(var Run: PChar; var Descriptor: TPSDDescriptor);
+procedure TPSDGraphic.ReadDescriptor(var Run: PAnsiChar; var Descriptor: TPSDDescriptor);
 
 const
   // Identifiers used in the descriptor structures.
   KeyCount = 20;
-  OSTypeKey: array[0..KeyCount - 1] of PChar = (
+  OSTypeKey: array[0..KeyCount - 1] of PAnsiChar = (
     'obj ', // Reference
     'Objc', // Descriptor
     'VlLs', // List
@@ -6751,7 +6751,7 @@ const
 
   //---------------------------------------------------------------------------
 
-  function ReadANSIID: string;
+  function ReadANSIID: AnsiString;
 
   // Reads an ID which is an ANSI string.
 
@@ -6915,7 +6915,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadMergedImage(var Source: PChar; Layer: TPhotoshopLayer; Compression: TCompressionType;
+procedure TPSDGraphic.ReadMergedImage(var Source: PAnsiChar; Layer: TPhotoshopLayer; Compression: TCompressionType;
   Channels: Byte);
 
 // Reads the image data of the composite image (if Layer = nil) or the given layer.
@@ -7120,7 +7120,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadLayers(Run: PChar);
+procedure TPSDGraphic.ReadLayers(Run: PAnsiChar);
 
 // Recreates the layer structure given in the file. Run points to the layer section size.
 
@@ -7153,8 +7153,8 @@ var
   BlendMode: TPSDLayerBlendMode;
   Dummy: Byte;
   BlockSize: Cardinal;
-  S: string;
-  BlockStart: PChar;
+  S: AnsiString;
+  BlockStart: PAnsiChar;
 
 begin
   // Skip the layer section size. We are going to read the full section.
@@ -7284,7 +7284,7 @@ begin
         // Skip whatever left over.
         Run := BlockStart + BlockSize;
       end;
-      
+
       // Read the pascal style (ANSI) layer name. This might get overwritten by the Unicode name.
       I := Byte(Run^);
       SetString(S, Run + 1, I);
@@ -7360,12 +7360,12 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadResources(Run: PChar);
+procedure TPSDGraphic.ReadResources(Run: PAnsiChar);
 
 var
   ID: Word;
   I: Cardinal;
-  Name: string;
+  Name: AnsiString;
   Size: Cardinal;
 
 begin
@@ -7507,7 +7507,7 @@ end;
 procedure TPSDGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
-  Run: PChar;           // Pointer to the current position in the given memory.
+  Run: PAnsiChar;           // Pointer to the current position in the given memory.
   Count: Cardinal;
 
 begin
@@ -7631,17 +7631,17 @@ begin
         Height := Header.Rows;
 
         // Read the size of the palette.
-        Count := ReadBigEndianCardinal(PChar(Run));
+        Count := ReadBigEndianCardinal(PAnsiChar(Run));
         // Skip palette (count is always given, might be 0 however, e.g. for RGB).
         Inc(Run, Count);
 
         // Skip resource and layers section.
-        Count := ReadBigEndianCardinal(PChar(Run));
+        Count := ReadBigEndianCardinal(PAnsiChar(Run));
         Inc(Run, Count);
-        Count := ReadBigEndianCardinal(PChar(Run));
+        Count := ReadBigEndianCardinal(PAnsiChar(Run));
         Inc(Run, Count);
 
-        Compression := ConvertCompression(ReadBigEndianWord(PChar(Run)));
+        Compression := ConvertCompression(ReadBigEndianWord(PAnsiChar(Run)));
         Result := True;
       end
       else
