@@ -9404,7 +9404,7 @@ var
   Run: PByte;
 
 begin
-  Result := (Size > Length(GEDMagic)) and (StrLIComp(PChar(Memory), PChar(GEDMagic), Length(GEDMagic)) = 0);
+  Result := (Size > Length(GEDMagic)) and (StrLIComp(PChar(Memory), PAnsiChar(GEDMagic), Length(GEDMagic)) = 0);
   if Result then
   begin
     Run := Memory;
@@ -9448,7 +9448,7 @@ begin
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
     Run := Memory;
-    
+
     // Skip Arts & Letters ID string.
     Inc(Run, Length(GEDMagic));
     // Seek to the start of the tags.
@@ -9481,7 +9481,7 @@ begin
 
     // Calculate palette size. The image data directly follows the bitmap info.
     TableSize := (1 shl BI.bmiHeader.biBitCount) * SizeOf(TRGBQuad);
-    Bits := PChar(BI) + SizeOf(TBitmapInfoHeader) + TableSize;
+    Bits := PAnsiChar(BI) + SizeOf(TBitmapInfoHeader) + TableSize;
     // ... and place them into our bitmap.
     SetDIBitsToDevice(Canvas.Handle, 0, 0, BI.bmiHeader.biWidth, BI.bmiHeader.biHeight, 0, 0, 0,
       BI.bmiHeader.biHeight, Bits, BI^, DIB_RGB_COLORS);
@@ -9506,7 +9506,7 @@ begin
     with FImageProperties do
     begin
       Run := Memory;
-    
+
       // Skip Arts & Letters ID string.
       Inc(Run, Length(GEDMagic));
       // Seek to the start of the tags.
