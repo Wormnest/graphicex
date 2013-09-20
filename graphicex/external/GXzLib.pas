@@ -83,15 +83,15 @@ type
 
   z_streamp = ^z_stream;
   z_stream = record
-    next_in: PChar;     // next input byte
+    next_in: PAnsiChar; // next input byte
     avail_in: Integer;  // number of bytes available at next_in
     total_in: Integer;  // total nb of input bytes read so far
 
-    next_out: PChar;    // next output byte should be put here
+    next_out: PAnsiChar;// next output byte should be put here
     avail_out: Integer; // remaining free space at next_out
     total_out: Integer; // total nb of bytes output so far
 
-    msg: PChar;         // last error message, NULL if no error
+    msg: PAnsiChar;     // last error message, NULL if no error
     state: Pointer;     // not visible by applications
 
     zalloc: alloc_func; // used to allocate the internal state
@@ -106,20 +106,20 @@ type
 function adler32(adler: Cardinal; buf: Pointer; len: Integer): Cardinal;
 function crc32(crc: Cardinal; buf: Pointer; len: Cardinal): Cardinal;
 
-function deflateInit_(var strm: z_stream; level: Integer; version: PChar; recsize: Integer): Integer;
-function deflateInit2_(var strm: z_stream; level, method, windowBits, memLevel, strategy: Integer; version: PChar;
-  stream_size: Integer): Integer; 
+function deflateInit_(var strm: z_stream; level: Integer; version: PAnsiChar; recsize: Integer): Integer;
+function deflateInit2_(var strm: z_stream; level, method, windowBits, memLevel, strategy: Integer; version: PAnsiChar;
+  stream_size: Integer): Integer;
 function deflate(var strm: z_stream; flush: Integer): Integer;
 function deflateEnd(var strm: z_stream): Integer;
-function deflateParams(var strm: z_stream; level, strategy: Integer): Integer; 
+function deflateParams(var strm: z_stream; level, strategy: Integer): Integer;
 function deflateReset(var strm: z_stream): Integer;
 
 function InflateInit(var Z: z_stream): Integer;
-function inflateInit_(var strm: z_stream; version: PChar; recsize: Integer): Integer;
+function inflateInit_(var strm: z_stream; version: PAnsiChar; recsize: Integer): Integer;
 function inflate(var strm: z_stream; flush: Integer): Integer;
 function inflateEnd(var strm: z_stream): Integer;
-function inflateReset(var strm: z_stream): Integer; 
-function inflateSync(var strm: z_stream): Integer;         
+function inflateReset(var strm: z_stream): Integer;
+function inflateSync(var strm: z_stream): Integer;
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -147,8 +147,8 @@ uses
 function adler32(adler: Cardinal; buf: Pointer; len: Integer): Cardinal; external;
 function crc32(crc: Cardinal; buf: Pointer; len: Cardinal): Cardinal; external;
 
-function deflateInit_(var strm: z_stream; level: Integer; version: PChar; recsize: Integer): Integer; external;
-function deflateInit2_(var strm: z_stream; level, method, windowBits, memLevel, strategy: Integer; version: PChar;
+function deflateInit_(var strm: z_stream; level: Integer; version: PAnsiChar; recsize: Integer): Integer; external;
+function deflateInit2_(var strm: z_stream; level, method, windowBits, memLevel, strategy: Integer; version: PAnsiChar;
   stream_size: Integer): Integer; external;
 
 function deflate(var strm: z_stream; flush: Integer): Integer; external;
@@ -156,7 +156,7 @@ function deflateEnd(var strm: z_stream): Integer; external;
 function deflateParams(var strm: z_stream; level, strategy: Integer): Integer; external;
 function deflateReset(var strm: z_stream): Integer; external;
 
-function inflateInit_(var strm: z_stream; version: PChar; recsize: Integer): Integer; external;
+function inflateInit_(var strm: z_stream; version: PAnsiChar; recsize: Integer): Integer; external;
 function inflate(var strm: z_stream; flush: Integer): Integer; external;
 function inflateEnd(var strm: z_stream): Integer; external;
 function inflateReset(var strm: z_stream): Integer; external;
