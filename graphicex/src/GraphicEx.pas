@@ -5088,7 +5088,7 @@ begin
   begin
     with FImageProperties do
     begin
-      Source := Pointer(PChar(Memory) + 6);
+      Source := Pointer(PAnsiChar(Memory) + 6);
 
       FProgressRect := Rect(0, 0, Width, 0);
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
@@ -5123,7 +5123,7 @@ function TCUTGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; Ima
 
 var
   Run: PWord;
-  
+
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
@@ -5152,7 +5152,7 @@ type
   // image file's header, funny...
   PHaloPaletteHeader = ^THaloPaletteHeader;
   THaloPaletteHeader = packed record
-    ID: array[0..1] of Char;  // should be 'AH'
+    ID: array[0..1] of AnsiChar;  // should be 'AH'
     Version,
     Size: Word;
     FileType,
@@ -5163,7 +5163,7 @@ type
     MaxRed,
     MaxGreen,
     MaxBlue: Word; // colors = MaxIndex + 1
-    Signature: array[0..7] of Char; // 'Dr. Halo'
+    Signature: array[0..7] of AnsiChar; // 'Dr. Halo'
     Filler: array[0..11] of Byte;
   end;
 
