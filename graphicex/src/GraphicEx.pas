@@ -2436,7 +2436,7 @@ type
     PixMin,                  // Minimum pixel value
     PixMax: Cardinal;        // Maximum pixel value
     Dummy: Cardinal;         // ignored
-    ImageName: array[0..79] of Char;
+    ImageName: array[0..79] of AnsiChar;
     ColorMap: Integer;       // Colormap ID
                              //  0 - default, almost all images are stored with this flag
                              //  1 - dithered, only one channel of data (pixels are packed), obsolete
@@ -2457,10 +2457,10 @@ begin
  RowWidth := Row * Width * FImageProperties.BitsPerSample div 8;
  PlaneSize := Width * Height * FImageProperties.BitsPerSample div 8;
 
- Red := PChar(Memory) + 512 + RowWidth;
- Green := PChar(Memory) + 512 + RowWidth + PlaneSize;
- Blue := PChar(Memory) + 512 + RowWidth + 2 * PlaneSize;
- Alpha := PChar(Memory) + 512 + RowWidth + 3 * PlaneSize;
+ Red := PAnsiChar(Memory) + 512 + RowWidth;
+ Green := PAnsiChar(Memory) + 512 + RowWidth + PlaneSize;
+ Blue := PAnsiChar(Memory) + 512 + RowWidth + 2 * PlaneSize;
+ Alpha := PAnsiChar(Memory) + 512 + RowWidth + 3 * PlaneSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2469,33 +2469,33 @@ procedure TSGIGraphic.ReadAndDecode(const Memory: Pointer; Red, Green, Blue, Alp
 
 var
   Count: Cardinal;
-  Run: PChar;
+  Run: PAnsiChar;
 
 begin
   if Assigned(Red) then
   begin
-    Run := PChar(Memory) + FRowStart[Row + 0 * Height];
+    Run := PAnsiChar(Memory) + FRowStart[Row + 0 * Height];
     Count := BPC * FRowSize[Row + 0 * Height];
     Decoder.Decode(Pointer(Run), Red, Count, Width);
   end;
 
   if Assigned(Green) then
   begin
-    Run := PChar(Memory) + FRowStart[Row + 1 * Height];
+    Run := PAnsiChar(Memory) + FRowStart[Row + 1 * Height];
     Count := BPC * FRowSize[Row + 1 * Height];
     Decoder.Decode(Pointer(Run), Green, Count, Width);
   end;
 
   if Assigned(Blue) then
   begin
-    Run := PChar(Memory) + FRowStart[Row + 2 * Height];
+    Run := PAnsiChar(Memory) + FRowStart[Row + 2 * Height];
     Count := BPC * FRowSize[Row + 2 * Height];
     Decoder.Decode(Pointer(Run), Blue, Count, Width);
   end;
 
   if Assigned(Alpha) then
   begin
-    Run := PChar(Memory) + FRowStart[Row + 3 * Height];
+    Run := PAnsiChar(Memory) + FRowStart[Row + 3 * Height];
     Count := BPC * FRowSize[Row + 3 * Height];
     Decoder.Decode(Pointer(Run), Alpha, Count, Width);
   end;
@@ -2521,7 +2521,7 @@ end;
 procedure TSGIGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
-  Run: PChar;
+  Run: PAnsiChar;
   Y: Integer;
   RedBuffer,
   GreenBuffer,
