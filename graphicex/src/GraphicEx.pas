@@ -213,7 +213,7 @@ type
     destructor Destroy; override;
 
     procedure Assign(Source: TPersistent); override;
-    class function CanLoad(const FileName: string): Boolean; overload; 
+    class function CanLoad(const FileName: string): Boolean; overload;
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; overload; virtual;
     class function CanLoad(Stream: TStream): Boolean; overload;
     procedure LoadFromFile(const FileName: string); override;
@@ -481,7 +481,7 @@ type
 
   // One entry in a PSD descriptor stored as part of e.g. the type tool adjustment layer.
   TPSDDescriptorItem = record
-    Key: string;                  // Item name.
+    Key: AnsiString;                  // Item name.
     Data: TPSDItemData;           // The value of the item.
   end;
 
@@ -1666,11 +1666,11 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianString(var Run: PChar; Len: Cardinal): WideString; overload;
+function ReadBigEndianString(var Run: PAnsiChar; Len: Cardinal): WideString; overload;
 
 // Reads the next Len bytes from the memory pointed to by Run, converts this into a Unicode string (inclusive byte
 // order swapping) and advances Run.
-// Run is not really a PChar type, but an untyped pointer using PChar for easier pointer maths.
+// Run is not really a PAnsiChar type, but an untyped pointer using PAnsiChar for easier pointer maths.
 
 begin
   SetString(Result, PWideChar(Run), Len);
@@ -1762,7 +1762,7 @@ var
   CreationFlag: Cardinal;
   SizeLow,
   SizeHigh: Cardinal;
-  
+
 begin
   FFileName := FileName;
 
@@ -2329,7 +2329,7 @@ end;
 procedure TAutodeskGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
-  Run: PChar;
+  Run: PAnsiChar;
   LogPalette: TMaxLogPalette;
   I: Integer;
 
@@ -2371,7 +2371,7 @@ begin
     begin
       Move(Run^, Scanline[I]^, Width);
       Inc(Run, Width);
-                                                        
+
       Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
       OffsetRect(FProgressRect, 0, 1);
     end;
@@ -2387,7 +2387,7 @@ end;
 function TAutodeskGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Run: PChar;
+  Run: PAnsiChar;
   Header: PAutodeskHeader;
 
 begin
@@ -8433,7 +8433,7 @@ begin
           Inc(Run, SizeOf(ChunkSize));
         end;
         Move(Run^, Image, SizeOf(Image));
-        Run := Pointer(PChar(LastPosition) + TotalBlockLength);
+        Run := Pointer(PAnsiChar(LastPosition) + TotalBlockLength);
 
         if Image.BitDepth = 24 then
         begin
@@ -9404,7 +9404,7 @@ var
   Run: PByte;
 
 begin
-  Result := (Size > Length(GEDMagic)) and (StrLIComp(PChar(Memory), PAnsiChar(GEDMagic), Length(GEDMagic)) = 0);
+  Result := (Size > Length(GEDMagic)) and (StrLIComp(PAnsiChar(Memory), PAnsiChar(GEDMagic), Length(GEDMagic)) = 0);
   if Result then
   begin
     Run := Memory;
@@ -9850,7 +9850,7 @@ end;
 
 function TFileFormatList.GraphicFromContent(const FileName: string): TGraphicExGraphicClass;
 
-// Tries to determine the type of the image in the file. 
+// Tries to determine the type of the image in the file.
 
 begin
   with TFileMapping.Create(FileName, fmmReadOnly) do
@@ -10222,7 +10222,7 @@ finalization
     {$ifdef PortableMapGraphic} UnregisterFileFormat('', TPPMGraphic); {$endif PortableMapGraphic}
     {$ifdef CUTGraphic} UnregisterFileFormat('', TCUTGraphic); {$endif CUTGraphic}
     {$ifdef GIFGraphic} UnregisterFileFormat('', TGIFGraphic); {$endif GIFGraphic}
-    {$ifdef RLAGraphic} UnregisterFileFormat('', TRLAGraphic); {$endif RLAGraphic} 
+    {$ifdef RLAGraphic} UnregisterFileFormat('', TRLAGraphic); {$endif RLAGraphic}
     {$ifdef PortableNetworkGraphic} UnregisterFileFormat('', TPNGGraphic); {$endif PortableNetworkGraphic}
     {$ifdef ArtsAndLettersGraphic} UnregisterFileFormat('', TGEDGraphic); {$endif ArtsAndLettersGraphic}
 
