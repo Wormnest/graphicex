@@ -426,16 +426,16 @@ type
   TTIFFMapFileProc = function(fd: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer;
   TTIFFUnmapFileProc = procedure(fd: thandle_t; base: tdata_t; size: toff_t);
 
-  TIFFErrorHandler = procedure(Module: PChar; const Format: PChar; Params: va_list);
+  TIFFErrorHandler = procedure(Module: PAnsiChar; const Format: PAnsiChar; Params: va_list);
 
-function TIFFClientOpen(name, mode: PChar; clientdata: thandle_t; readproc: TTIFFReadWriteProc;
+function TIFFClientOpen(name, mode: PAnsiChar; clientdata: thandle_t; readproc: TTIFFReadWriteProc;
   writeproc: TTIFFReadWriteProc; seekproc: TTIFFSeekProc; closeproc: TTIFFCloseProc; sizeproc: TTIFFSizeProc;
   mapproc: TTIFFMapFileProc; unmapproc: TTIFFUnmapFileProc): PTIFF;
 procedure TIFFClose(tif: PTIFF);
 function TIFFCreateDirectory(tif: PTIFF): Integer;
 function TIFFDefaultDirectory(tif: PTIFF): Integer;
 function TIFFFlushData(tif: PTIFF): Integer;
-function TIFFOpen(name, mode: PChar): PTIFF;
+function TIFFOpen(name, mode: PAnsiChar): PTIFF;
 function TIFFReadRGBAImage(tif: PTIFF; rwidth, rheight: Cardinal; raster: Pointer; stop: LONGBOOL): BOOL;
 function TIFFReassignTagToIgnore(task: TTIFFIgnoreSense; TIFFtagID: Integer): Integer;
 function TIFFSetCompressionScheme(tif: PTIFF; scheme: Integer): Integer;
@@ -485,22 +485,22 @@ procedure TIFFFaxMainTable; external;      // Not really a procedure but a struc
 procedure TIFFFaxWhiteTable; external;     // Not really a procedure but a structure.
 procedure TIFFFaxBlackTable; external;     // Not really a procedure but a structure.
 
-function _TIFFgetMode(mode, module: PChar): Integer; external;
+function _TIFFgetMode(mode, module: PAnsiChar): Integer; external;
 procedure _TIFFMergeFieldInfo(tif: PTIFF; const info; n: Integer); external;
 function _TIFFNoPreCode(tif: TTIFF; s: tsample_t): Integer; external;
 function _TIFFSampleToTagType(tif: PTIFF): TTIFFDataType; external;
 procedure _TIFFSetDefaultCompressionState; external;
-procedure _TIFFsetString(cpp: PPChar; cp: PChar); external;
+procedure _TIFFsetString(cpp: PPChar; cp: PAnsiChar); external;
 procedure _TIFFsetByteArray(vpp: PPointer; vp: Pointer; n: Integer); external;
 
-function TIFFClientOpen(name, mode: PChar; clientdata: thandle_t; readproc: TTIFFReadWriteProc;
+function TIFFClientOpen(name, mode: PAnsiChar; clientdata: thandle_t; readproc: TTIFFReadWriteProc;
   writeproc: TTIFFReadWriteProc; seekproc: TTIFFSeekProc; closeproc: TTIFFCloseProc; sizeproc: TTIFFSizeProc;
   mapproc: TTIFFMapFileProc; unmapproc: TTIFFUnmapFileProc): PTIFF; external;
 procedure TIFFClose(tif: PTIFF); external;
 function TIFFCreateDirectory(tif: PTIFF): Integer; external;
 function TIFFDefaultDirectory(tif: PTIFF): Integer; external;
 function TIFFFlushData(tif: PTIFF): Integer; external;
-function TIFFOpen(name, mode: PChar): PTIFF; external;
+function TIFFOpen(name, mode: PAnsiChar): PTIFF; external;
 function TIFFReadRGBAImage(tif: PTIFF; rwidth, rheight: Cardinal; raster: Pointer; stop: LONGBOOL): BOOL; external;
 function TIFFReassignTagToIgnore(task: TTIFFIgnoreSense; TIFFtagID: Integer): Integer; external;
 function TIFFSetCompressionScheme(tif: PTIFF; scheme: Integer): Integer; external;
@@ -577,11 +577,11 @@ procedure GraphicExTIFFError(Module: PChar; const Format: PChar; Params: va_list
 
 var
   Buffer: array[0..1000] of Char;
-  
+
 begin
   wvsprintf(Buffer, Format, Params);
   GraphicExError(Buffer);
-end;                                     
+end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -590,9 +590,9 @@ procedure GraphicExTIFFWarning(Module: PChar; const Format: PChar; Params: va_li
 var
   Buffer: array[0..1000] of Char;
 
-begin                                                   
+begin
   wvsprintf(Buffer, Format, Params);
-  OutputDebugString(Buffer);     
+  OutputDebugString(Buffer);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
