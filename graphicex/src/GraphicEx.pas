@@ -2792,11 +2792,11 @@ begin
     SEEK_CUR:
       Inc(Graphic.FCurrentPointer, off);
     SEEK_END:
-      Graphic.FCurrentPointer := Pointer(PChar(Graphic.FMemory) + Graphic.FSize - off);
+      Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Graphic.FSize - off);
   else
-    Graphic.FCurrentPointer := Pointer(PChar(Graphic.FMemory) + off);
+    Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + off);
   end;
-  Result := toff_t(PChar(Graphic.FCurrentPointer) - PChar(Graphic.FMemory));
+  Result := toff_t(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2852,7 +2852,7 @@ var
   RowCount,
   LineSize: Integer;
   RowsPerStrip: Integer;
-  Source: PChar;
+  Source: PAnsiChar;
   Line: Pointer;
   RowInc: Integer;
   LineOffset: Integer;
@@ -2877,7 +2877,7 @@ begin
       RowInc := 1
     else
       RowInc := -1;
-      
+
     Row := 0;
     while Row < Height do
     begin
@@ -2889,7 +2889,7 @@ begin
       TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, 0), Buffer, (Row mod RowsPerStrip + RowCount) * LineSize);
       Pos := (Row mod RowsPerStrip) * LineSize;
 
-      Source := PChar(Buffer) + Pos;
+      Source := PAnsiChar(Buffer) + Pos;
       Inc(Row, RowCount);
       LineOffset := Ceil(BitsPerPixel * (Width + FromSkew) / 8);
       while RowCount > 0 do
@@ -2920,8 +2920,8 @@ var
   FromSkew: Integer;
   RowCount: Integer;
   PixelCount: Integer;
-  Source: PChar;
-  Line: PChar;
+  Source: PAnsiChar;
+  Line: PAnsiChar;
   RowInc: Integer;
   ColumnOffset: Integer;
 
@@ -2951,7 +2951,7 @@ begin
         TIFFReadTile(tif, Buffer, Column, Row, 0, 0);
         Pos := (Row mod TileHeight) * Integer(TIFFTileRowSize(tif));
 
-        Source := PChar(Buffer) + Pos;
+        Source := PAnsiChar(Buffer) + Pos;
 
         Y := Row;
         if Column + TileWidth > Width then
@@ -3053,7 +3053,7 @@ procedure TTIFFGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageI
 
 var
   TIFFImage: PTIFF;
-  Run: PChar;
+  Run: PAnsiChar;
   Count: Cardinal;
   Pixels: Pointer;
   I: Integer;
