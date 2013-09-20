@@ -881,13 +881,13 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure Upsample(Width, Height, ScaledWidth: Cardinal; Pixels: PChar);
+procedure Upsample(Width, Height, ScaledWidth: Cardinal; Pixels: PAnsiChar);
 
 // Creates a new image that is a integral size greater than an existing one.
 
 var
   X, Y: Cardinal;
-  P, Q, R: PChar;
+  P, Q, R: PAnsiChar;
 
 begin
   for Y := 0 to Height - 1 do
@@ -901,9 +901,9 @@ begin
       Dec(P);
       Dec(Q, 2);
       Q^ := P^;
-      (Q + 1)^ := Char((Word(P^) + Word((P + 1)^) + 1) shr 1);
+      (Q + 1)^ := AnsiChar((Word(P^) + Word((P + 1)^) + 1) shr 1);
     end;
-  end;            
+  end;
 
   for Y := 0 to Height - 2 do
   begin
@@ -912,16 +912,16 @@ begin
     R := Q + ScaledWidth;
     for X := 0 to Width - 2 do
     begin
-      Q^ := Char((Word(P^) + Word(R^) + 1) shr 1);
-      (Q + 1)^ := Char((Word(P^) + Word((P + 2)^) + Word(R^) + Word((R + 2)^) + 2) shr 2);
+      Q^ := AnsiChar((Word(P^) + Word(R^) + 1) shr 1);
+      (Q + 1)^ := AnsiChar((Word(P^) + Word((P + 2)^) + Word(R^) + Word((R + 2)^) + 2) shr 2);
       Inc(Q, 2);
       Inc(P, 2);
       Inc(R, 2);
     end;
-    Q^ := Char((Word(P^) + Word(R^) + 1) shr 1);
+    Q^ := AnsiChar((Word(P^) + Word(R^) + 1) shr 1);
     Inc(P);
     Inc(Q);
-    Q^ := Char((Word(P^) + Word(R^) + 1) shr 1);
+    Q^ := AnsiChar((Word(P^) + Word(R^) + 1) shr 1);
   end;
   P := Pixels + (2 * Height - 2) * ScaledWidth;
   Q := Pixels + (2 * Height - 1) * ScaledWidth;
