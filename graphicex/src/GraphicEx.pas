@@ -5256,8 +5256,8 @@ const
 type
   PGIFHeader = ^TGIFHeader;
   TGIFHeader = packed record
-    Signature: array[0..2] of Char; // magic ID 'GIF'
-    Version: array[0..2] of Char;   // '87a' or '89a' 
+    Signature: array[0..2] of AnsiChar; // magic ID 'GIF'
+    Version: array[0..2] of AnsiChar;   // '87a' or '89a'
   end;
 
   TLogicalScreenDescriptor = packed record
@@ -5283,7 +5283,7 @@ class function TGIFGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 
 begin
   Result := (Size > (SizeOf(TGIFHeader) + SizeOf(TLogicalScreenDescriptor) + SizeOf(TImageDescriptor))) and
-    (StrLIComp(PChar(Memory), 'GIF', 3) = 0);
+    (StrLIComp(PAnsiChar(Memory), 'GIF', 3) = 0);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -5295,11 +5295,11 @@ function TGIFGraphic.SkipExtensions: Byte;
 
 var
   Increment: Byte;
-  Content : array[0..255] of Char; // Gif comment sub-block has a maximum size of 255 bytes
+  Content : array[0..255] of AnsiChar; // Gif comment sub-block has a maximum size of 255 bytes
 
 begin
   FImageProperties.Comment := '';
-  
+
   // Iterate through the blocks until first image is found.
   repeat
     Result := FSource^;
@@ -5338,7 +5338,7 @@ begin
               begin
                 // Image is transparent, read index.
                 Transparent := True;
-                FTransparentIndex := Byte((PChar(FSource) + 3)^);
+                FTransparentIndex := Byte((PAnsiChar(FSource) + 3)^);
               end;
               Inc(FSource, Increment);
             end;
@@ -5410,7 +5410,7 @@ begin
       Inc(FSource, SizeOf(Header));
 
       PixelFormat := pf8Bit;
-      
+
       // Read general information.
       Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
       Inc(FSource, SizeOf(ScreenDescriptor));
