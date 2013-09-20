@@ -627,14 +627,16 @@ type
 
   {$ifdef PortableNetworkGraphic}
   // *.png images
-  TChunkType = array[0..3] of Char;
+  TChunkType = array [0..3] of AnsiChar;
 
   // This header is followed by a variable number of data bytes, which are followed by the CRC for this data.
   // The actual size of this data is given by field length in the chunk header.
   // CRC is Cardinal (4 byte unsigned integer).
   TPNGChunkHeader = packed record
     Length: Cardinal;  // size of data (entire chunk excluding itself, CRC and type)
-    ChunkType: TChunkType;
+    case Integer of
+      0: (ChunkType: TChunkType);
+      1: (ChunkMask: DWORD);
   end;
 
   TPNGGraphic = class(TGraphicExGraphic)
@@ -8483,17 +8485,17 @@ end;
 {$ifdef PortableNetworkGraphic}
 
 const
-  PNGMagic: PChar = #137'PNG'#13#10#26#10;
+  PNGMagic: PAnsiChar = #137'PNG'#13#10#26#10;
 
   // Recognized and handled chunk types.
-  IHDR = 'IHDR';
-  IDAT = 'IDAT';
-  IEND = 'IEND';
-  PLTE = 'PLTE';
-  gAMA = 'gAMA';
-  tRNS = 'tRNS';
-  bKGD = 'bKGD';
-  tEXt = 'tEXt';
+  IHDR: TChunkType = 'IHDR';
+  IDAT: TChunkType = 'IDAT';
+  IEND: TChunkType = 'IEND';
+  PLTE: TChunkType = 'PLTE';
+  gAMA: TChunkType = 'gAMA';
+  tRNS: TChunkType = 'tRNS';
+  bKGD: TChunkType = 'bKGD';
+  tEXt: TChunkType = 'tEXt';
 
   CHUNKMASK = $20; // used to check bit 5 in chunk types
 
@@ -8527,7 +8529,7 @@ type
 class function TPNGGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 
 begin
-  Result := (Size > SizeOf(PNGMagic) + SizeOf(TIHDRChunk)) and (StrLIComp(PChar(Memory), PNGMagic, 8) = 0);
+  Result := (Size > SizeOf(PNGMagic) + SizeOf(TIHDRChunk)) and (StrLIComp(PAnsiChar(Memory), PNGMagic, 8) = 0);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8541,7 +8543,7 @@ const
   Mask = not $20202020;
 
 begin
-  Result := (Cardinal(FHeader.ChunkType) and Mask) = (Cardinal(ChunkType) and Mask);
+  Result := (FHeader.ChunkMask and Mask) = (PDWORD(@ChunkType)^ and Mask);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8593,7 +8595,7 @@ procedure TPNGGraphic.ApplyFilter(Filter: Byte; Line, PrevLine, Target: PByte; B
 //       Raw refers to the current, not yet decoded value. Decoded refers to the current, already
 //       decoded value (this one is called "raw" in the docs) and Prior is the current value in the
 //       previous line. For the Paeth prediction scheme a fourth pointer is used (PriorDecoded) to describe
-//       the value in the previous line but less the BPP value (Prior[x - BPP]).      
+//       the value in the previous line but less the BPP value (Prior[x - BPP]).
 
 var
   I: Integer;
@@ -8717,7 +8719,7 @@ begin
   begin
     with FImageProperties do
     begin
-      Run := Pointer(PChar(Memory) + 8); // skip magic
+      Run := Pointer(PAnsiChar(Memory) + 8); // skip magic
 
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
@@ -8825,7 +8827,7 @@ end;
 function TPNGGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Magic: array[0..7] of Char;
+  Magic: array[0..7] of AnsiChar;
   Description: TIHDRChunk;
   Run: PByte;
 
@@ -8954,7 +8956,7 @@ begin
           begin
             R := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
             G := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            B := MulDiv16(Swap(Run^), 255, 65535); 
+            B := MulDiv16(Swap(Run^), 255, 65535);
           end
           else
           begin
@@ -8987,7 +8989,7 @@ const
 var
   Row: Integer;
   TargetBPP: Integer;
-  RowBuffer: array[Boolean] of PChar; // I use PChar here instead of simple pointer to ease pointer math below
+  RowBuffer: array[Boolean] of PAnsiChar; // I use PAnsiChar here instead of simple pointer to ease pointer math below
   EvenRow: Boolean; // distincts between the two rows we need to hold for filtering
   Pass: Integer;
   BytesPerRow,
@@ -9116,21 +9118,21 @@ end;
 procedure TPNGGraphic.LoadText(var Source: PByte);
 
 var
-  Keyword: string;
+  Keyword: AnsiString;
   Offset: Cardinal;
-  Contents: array of Char;
-  
+  Contents: array of AnsiChar;
+
 begin
   ReadDataAndCheckCRC(Source);
   with FImageProperties do
   begin
-    Keyword := PChar(FRawBuffer); // Keyword is zero terminated in file
+    Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
     if Keyword = 'Comment' then   // Only text chunks with the 'Comment' keyword are loaded
     begin
       Offset := Length(Keyword) + 1;
       SetLength(Contents, FHeader.Length - Offset + 1);
-      StrLCopy(PChar(Contents), PChar(FRawBuffer) + Offset, FHeader.Length - Offset);
-      Comment := Comment + PChar(Contents);
+      StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
+      Comment := Comment + PAnsiChar(Contents);
     end;
   end;
 end;
@@ -9169,7 +9171,7 @@ begin
           begin
             R := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
             G := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            B := MulDiv16(Swap(Run^), 255, 65535); 
+            B := MulDiv16(Swap(Run^), 255, 65535);
           end
           else
           begin
@@ -9181,7 +9183,7 @@ begin
         end;
       4, 6:
         // Formats with full alpha channel, they shouldn't have a transparent color.
-        ; 
+        ;
     else
       // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
       SetLength(FTransparency, 256);
@@ -9354,7 +9356,7 @@ begin
         TargetSamplesPerPixel := 1;
         SourceBitsPerSample := BitDepth;
         TargetBitsPerSample := 8;
-        SourceColorScheme := csGA; 
+        SourceColorScheme := csGA;
         TargetColorScheme := csIndexed;
         PixelFormat := pf8Bit;
         FPalette := CreateGrayScalePalette(False);
