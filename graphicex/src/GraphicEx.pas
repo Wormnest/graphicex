@@ -4021,7 +4021,7 @@ var
         pf8Bit:
           begin
             // 256 colors with 3 components plus one marker byte
-            PaletteData := Pointer(PChar(Memory) + Size - 769);
+            PaletteData := Pointer(PAnsiChar(Memory) + Size - 769);
             if PaletteData^ <> $0C then
             begin
               // palette ID is wrong, perhaps gray scale?
@@ -4151,9 +4151,9 @@ begin
           for I := 0 to Height - 1 do
           begin
             Plane1 := Run;
-            PChar(Plane2) := PChar(Run) + Increment div 4;
-            PChar(Plane3) := PChar(Run) + 2 * (Increment div 4);
-            PChar(Plane4) := PChar(Run) + 3 * (Increment div 4);
+            Plane2 := PByte(PAnsiChar(Run) + Increment div 4);
+            Plane3 := PByte(PAnsiChar(Run) + 2 * (Increment div 4));
+            Plane4 := PByte(PAnsiChar(Run) + 3 * (Increment div 4));
 
             Line := ScanLine[I];
             // number of bytes to write
@@ -4200,7 +4200,7 @@ begin
               end;
             end;
             Inc(Run, Increment);
-            
+
             Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
             OffsetRect(FProgressRect, 0, 1);
           end;
@@ -4213,8 +4213,8 @@ begin
             begin
               Line := ScanLine[I];
               Plane1 := Run;
-              PChar(Plane2) := PChar(Run) + Increment div 3;
-              PChar(Plane3) := PChar(Run) + 2 * (Increment div 3);
+              Plane2 := PByte(PAnsiChar(Run) + Increment div 3);
+              Plane3 := PByte(PAnsiChar(Run) + 2 * (Increment div 3));
               ColorManager.ConvertRow([Plane1, Plane2, Plane3], Line, Width, $FF);
               Inc(Run, Increment);
 
