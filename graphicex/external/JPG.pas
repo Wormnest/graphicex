@@ -20,6 +20,7 @@ unit JPG;
 
 {$Include Compilers.inc}
 
+{$TYPEDADDRESS OFF}
 {$Z4}      // enum size = dword
 
 // Align record structures to 8 byte boundaries.

@@ -22,6 +22,7 @@ interface
 
 {$Include Compilers.inc}
 
+{$TYPEDADDRESS OFF}
 {$Z2}      // enum size = word
 // Align record structures to 4 byte boundaries.
 {$ifdef COMPILER_7_UP}
