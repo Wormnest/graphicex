@@ -2629,7 +2629,8 @@ var
   AlphaSkip: Integer;
   Convert16: function(Value: Word): Byte of object;
   ConvertAny: function(Value: Word; BitsPerSampe: Byte): Byte of object;
-  BitOffset: Integer; // Offset in Source byte where first bit starts
+  BitOffset: Cardinal; // Offset in Source byte where first bit starts
+  BitIncrement: Cardinal; // Value to increment bits with, depends on FSourceBPS and AlphaSkip
   Bits, Bits2: Cardinal;
   FirstNibble: Boolean;
 
@@ -2637,9 +2638,14 @@ begin
   BitRun := $80;
   // When this is an image with alpha and not planar we need to skip the alpha bits
   if (coAlpha in FSourceOptions) and not (coSeparatePlanes in FSourceOptions) then
-    AlphaSkip := 1
-  else
+  begin
+    AlphaSkip := 1;
+    BitIncrement := 2*FSourceBPS; // bits and alpha value
+  end
+  else begin
     AlphaSkip := 0;
+    BitIncrement := FSourceBPS; // bits only
+  end;
 
   case FSourceBPS of
     8:
@@ -2762,9 +2768,7 @@ begin
                 Bits := GetBitsMSB(BitOffset, FSourceBPS,PByte(Source16));
                 Target8^ := ConvertAny(Bits,FSourceBPS);
                 // Update the bit and byte pointers
-                Inc(BitOffset,FSourceBPS);
-                if AlphaSkip = 1 then
-                  Inc(BitOffset,FSourceBPS);
+                Inc(BitOffset, BitIncrement);
                 Inc( PByte(Source16), BitOffset div 8 );
                 BitOffset := BitOffset mod 8;
               end;
@@ -2801,9 +2805,7 @@ begin
                 end;
                 FirstNibble := not FirstNibble;
                 // Update the bit and byte pointers
-                Inc(BitOffset,FSourceBPS);
-                if AlphaSkip = 1 then
-                  Inc(BitOffset,FSourceBPS);
+                Inc(BitOffset, BitIncrement);
                 if BitOffset >= 8 then begin
                   Inc(Source8);
                   BitOffset := BitOffset mod 8;
