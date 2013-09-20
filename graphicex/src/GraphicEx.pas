@@ -5654,7 +5654,7 @@ end;
 
 {$ifdef RLAGraphic}
 
-// This implementation is based on code from Dipl. Ing. Ingo Neumann (ingo@upstart.de, ingo_n@dialup.nacamar.de).
+// This implementation is based on code from Dipl. Ing. Ingo Neumann (ingo (AT) upstart.de, ingo_n (AT) dialup.nacamar.de).
 
 type
   TRLAWindow = packed record
@@ -5674,31 +5674,31 @@ type
     Num_matte,                         // number of matte channels (usually only 1)
     Num_aux,                           // number of auxiliary channels, usually 0
     Revision: SmallInt;                // always $FFFE
-    Gamma: array[0..15] of Char;       // gamma single value used when writing the image
-    Red_pri: array[0..23] of Char;     // used chromaticity for red channel (typical format: "%7.4f %7.4f")
-    Green_pri: array[0..23] of Char;   // used chromaticity for green channel
-    Blue_pri: array[0..23] of Char;    // used chromaticity for blue channel
-    White_pt: array[0..23] of Char;    // used chromaticity for white point
-    Job_num: Integer;                  // rendering speciifc
-    Name: array[0..127] of Char;       // original file name
-    Desc: array[0..127] of Char;       // a file description
-    ProgramName: array[0..63] of Char; // name of program which created the image
-    Machine: array[0..31] of Char;     // name of computer on which the image was rendered
-    User: array[0..31] of Char;        // user who ran the creation program of the image
-    Date: array[0..19] of Char;        // creation data of image (ex: Sep 30 12:29 1993)
-    Aspect: array[0..23] of Char;      // aspect format of the file (external resource)
-    Aspect_ratio: array[0..7] of Char; // float number Width /Height
-    Chan: array[0..31] of Char;        // color space (can be: rgb, xyz, sampled or raw)
-    Field: SmallInt;                   // 0 - non-field rendered data, 1 - field rendered data
-    Time: array[0..11] of Char;        // time needed to create the image (used when rendering)
-    Filter: array[0..31] of Char;      // filter name to post-process image data
+    Gamma: array[0..15] of AnsiChar;       // gamma single value used when writing the image
+    Red_pri: array[0..23] of AnsiChar;     // used chromaticity for red channel (typical format: "%7.4f %7.4f")
+    Green_pri: array[0..23] of AnsiChar;   // used chromaticity for green channel
+    Blue_pri: array[0..23] of AnsiChar;    // used chromaticity for blue channel
+    White_pt: array[0..23] of AnsiChar;    // used chromaticity for white point
+    Job_num: Integer;                      // rendering speciifc
+    Name: array[0..127] of AnsiChar;       // original file name
+    Desc: array[0..127] of AnsiChar;       // a file description
+    ProgramName: array[0..63] of AnsiChar; // name of program which created the image
+    Machine: array[0..31] of AnsiChar;     // name of computer on which the image was rendered
+    User: array[0..31] of AnsiChar;        // user who ran the creation program of the image
+    Date: array[0..19] of AnsiChar;        // creation data of image (ex: Sep 30 12:29 1993)
+    Aspect: array[0..23] of AnsiChar;      // aspect format of the file (external resource)
+    Aspect_ratio: array[0..7] of AnsiChar; // float number Width /Height
+    Chan: array[0..31] of AnsiChar;        // color space (can be: rgb, xyz, sampled or raw)
+    Field: SmallInt;                       // 0 - non-field rendered data, 1 - field rendered data
+    Time: array[0..11] of AnsiChar;        // time needed to create the image (used when rendering)
+    Filter: array[0..31] of AnsiChar;      // filter name to post-process image data
     Chan_bits,                         // bits per sample
     Matte_type,                        // type of matte channel (see aux_type)
     Matte_bits,                        // precision of a pixel's matte channel (1..32)
     Aux_type,                          // type of aux channel (0 - integer data; 4 - single (float) data
     Aux_bits: SmallInt;                // bits precision of the pixel's aux channel (1..32 bits)
-    Aux: array[0..31] of Char;         // auxiliary channel as either range or depth
-    Space: array[0..35] of Char;       // unused
+    Aux: array[0..31] of AnsiChar;     // auxiliary channel as either range or depth
+    Space: array[0..35] of Byte;       // unused
     Next: Integer;                     // offset for next header if multi-frame image
   end;
   
@@ -5798,7 +5798,7 @@ begin
         // no go for each scanline
         for Y := 0 to Height - 1 do
         begin
-          Run := Pointer(PChar(Memory) + Offsets[Y]);
+          Run := Pointer(PAnsiChar(Memory) + Offsets[Y]);
           if BottomUp then
             Line := ScanLine[Height - Y - 1]
           else
@@ -5887,7 +5887,7 @@ begin
       BitsPerSample := Header.Chan_bits;
       BitsPerPixel := SamplesPerPixel * BitsPerSample;
 
-      if LowerCase(Header.Chan) = 'rgb' then
+      if LowerCase(String(Header.Chan)) = 'rgb' then
       begin
         if Header.num_matte > 0 then
           ColorScheme := csRGBA
@@ -5898,7 +5898,7 @@ begin
         // if LowerCase(Header.Chan) = 'xyz' then
         ColorScheme := csUnknown;
 
-      FileGamma := StrToFloatDef(Header.Gamma, 1);
+      FileGamma := StrToFloatDef(String(Header.Gamma), 1);
 
       Compression := ctRLE;
 
