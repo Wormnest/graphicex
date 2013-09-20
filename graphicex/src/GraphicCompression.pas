@@ -1951,7 +1951,7 @@ begin
           Break;
     until (RunLength = G3_EOL) or (FPackedSize = 0);
     AdjustEOL;
-  until (FPackedSize = 0) or (FTarget - PChar(Dest) >= UnpackedSize);
+  until (FPackedSize = 0) or (Integer(FTarget) - Integer(Dest) >= UnpackedSize);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2127,7 +2127,7 @@ end;
 procedure Internaljpeg_output_message(cinfo: j_common_ptr);
 
 var
-  Buffer: array[0..JMSG_LENGTH_MAX] of Char;
+  Buffer: array[0..JMSG_LENGTH_MAX] of AnsiChar;
   State: PJPEGState;
 
 begin
@@ -2152,7 +2152,7 @@ end;
 
 // JPEG library source data manager. These routines supply compressed data to libjpeg.
 
-procedure std_init_source(cinfo: j_decompress_ptr); 
+procedure std_init_source(cinfo: j_decompress_ptr);
 
 var
   State: PJPEGState;
@@ -2332,7 +2332,7 @@ begin
     end;
 
     FState.BytesPerLine := BytesPerLine;
-    
+
     if (PlanarConfig = PLANARCONFIG_SEPARATE) and (CurrentStrip = StripCount) then
     begin
       // For PC 2, scale down the expected strip/tile size to match a downsampled component
@@ -2644,7 +2644,7 @@ type
 var
   Luma,
   Chroma1,
-  Chroma2: PChar; // hold the actual pointers, PChar to easy pointer maths
+  Chroma2: PAnsiChar; // hold the actual pointers, PChar to easy pointer maths
   Width,
   Height: Cardinal;
 
@@ -2653,7 +2653,7 @@ var
   R: PPCDTable;
   RangeLimit: PQuantumArray;
   P, Q,
-  Buffer: PChar;
+  Buffer: PAnsiChar;
   Accumulator,
   Bits,
   Length,
@@ -2686,7 +2686,7 @@ var
 
 var
   Limit: Cardinal;
-  
+
 begin
   // place the used source values into local variables with proper names to make
   // their usage clearer
@@ -2820,9 +2820,9 @@ begin
         end;
 
         if R.Key < 128 then
-          Q^ := Char(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
         else
-          Q^ := Char(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
         Inc(Q);
         PCDGetBits(R.Length);
       until False;                                     
