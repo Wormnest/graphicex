@@ -3486,7 +3486,7 @@ begin
   with PEPSHeader(Memory)^ do
   begin
     if Code = $C6D3D0C5 then
-      inherited LoadFromMemory(PChar(Memory) + TiffPos, TiffLen)
+      inherited LoadFromMemory(PAnsiChar(Memory) + TiffPos, TiffLen)
     else
       GraphicExError(gesInvalidImage, ['EPS']);
   end;
@@ -3557,7 +3557,7 @@ const
   TARGA_BW_RLE_IMAGE = 11;
 
 type
-  PTargaHeader = ^TTargaHeader; 
+  PTargaHeader = ^TTargaHeader;
   TTargaHeader = packed record
     IDLength,
     ColorMapType,
@@ -3623,7 +3623,7 @@ begin
       Header.ImageDescriptor := Header.ImageDescriptor and $F;
 
       // skip image ID
-      Source := Pointer(PChar(Memory) + SizeOf(Header) + Header.IDLength);
+      Source := Pointer(PAnsiChar(Memory) + SizeOf(Header) + Header.IDLength);
 
       with ColorManager do
       begin
@@ -3636,7 +3636,7 @@ begin
         TargetBitsPerSample := BitsPerSample;
         PixelFormat := TargetPixelFormat;
       end;
-      
+
       if (Header.ColorMapType = TARGA_COLORMAP) or
          (Header.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE]) then
       begin
@@ -3824,7 +3824,7 @@ var
   BPP: Byte;
   Header: TTargaHeader;
   Encoder: TTargaRLEDecoder;
-  
+
 begin
   FProgressRect := Rect(0, 0, Width, 1);
   Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
