@@ -7849,14 +7849,14 @@ type
   // These block header structures are here for informational purposes only because the data of those
   // headers is read member by member to generalize code for the different file versions
   TPSPBlockHeader3 = packed record          // block header file version 3
-    HeaderIdentifier: array[0..3] of Char;  // i.e. "~BK" followed by a zero byte
+    HeaderIdentifier: array[0..3] of AnsiChar; // i.e. "~BK" followed by a zero byte
     BlockIdentifier: Word;                  // one of the block identifiers
     InitialChunkLength,                     // length of the first sub chunk header or similar
     TotalBlockLength: Cardinal;             // length of this block excluding this header
   end;
 
   TPSPBlockHeader4 = packed record          // block header file version 4
-    HeaderIdentifier: array[0..3] of Char;  // i.e. "~BK" followed by a zero byte
+    HeaderIdentifier: array[0..3] of AnsiChar; // i.e. "~BK" followed by a zero byte
     BlockIdentifier: Word;                  // one of the block identifiers
     TotalBlockLength: Cardinal;             // length of this block excluding this header
   end;
@@ -7865,7 +7865,7 @@ type
     EntryCount: Cardinal;                   // number of entries in the palette
   end;
 
-  TPSPColorPaletteChunk = array[0..255] of TRGBQuad; // might actually be shorter 
+  TPSPColorPaletteChunk = array[0..255] of TRGBQuad; // might actually be shorter
 
   TPSPChannelInfoChunk = packed record
     CompressedSize,
@@ -7879,9 +7879,9 @@ type
 
   PPSPFileHeader = ^TPSPFileHeader;
   TPSPFileHeader = packed record
-    Signature: array[0..31] of Char;        // the string "Paint Shop Pro Image File\n\x1a", padded with zeroes
+    Signature: array[0..31] of AnsiChar;    // the string "Paint Shop Pro Image File\n\x1a", padded with zeroes
     MajorVersion,
-    MinorVersion: Word;                
+    MinorVersion: Word;
   end;
 
   TPSPImageAttributes = packed record
@@ -7903,7 +7903,7 @@ type
   end;
 
   TPSPLayerInfoChunk = packed record
-    //LayerName: array[0..255] of Char;     // Name of layer (in ASCII text). Has been replaced in version 4
+    //LayerName: array[0..255] of AnsiChar; // Name of layer (in ASCII text). Has been replaced in version 4
                                             // by a Delphi like short string (length word and variable length string)
     LayerType: Byte;                        // Type of layer.
     ImageRectangle,                         // Rectangle defining image border.
@@ -7956,7 +7956,7 @@ var
   Image: TPSPImageAttributes;
   // To use the code below for file 3 and 4 I read the parts of the block header
   // separately instead as a structure.
-  HeaderIdentifier: array[0..3] of Char;  // i.e. "~BK" followed by a zero byte
+  HeaderIdentifier: array[0..3] of AnsiChar; // i.e. "~BK" followed by a zero byte
   BlockIdentifier: Word;                  // one of the block identifiers
   InitialChunkLength,                     // length of the first sub chunk header or similar
   TotalBlockLength: Cardinal;             // length of this block excluding this header
@@ -7964,7 +7964,7 @@ var
   ChunkSize: Cardinal;
   LayerInfo: TPSPLayerInfoChunk;
   ChannelInfo: TPSPChannelInfoChunk;
-  LayerName: string;
+  LayerName: AnsiString;
   NameLength: Word;
 
   // file version 4 specific data
@@ -7979,14 +7979,14 @@ var
   CompBuffer: Pointer;
   X, Y,
   Index,
-  RowSize: Integer; // size in bytes of one scanline 
+  RowSize: Integer; // size in bytes of one scanline
 
   // other data
   RawPalette: array[0..4 * 256 - 1] of Byte;
 
   LastPosition,
   NextMainBlock,
-  NextLayerPosition: PChar; // PChar, because then direct pointer arithmethic is accepted.
+  NextLayerPosition: PAnsiChar; // PAnsiChar, because then direct pointer arithmethic is accepted.
   Run: PByte;
 
   //--------------- local functions -------------------------------------------
@@ -7997,7 +7997,7 @@ var
   // Returns True if a block header could be read otherwise False (stream end).
 
   begin
-    Result := (PChar(Run) - PChar(Memory)) < Size;
+    Result := (PAnsiChar(Run) - PAnsiChar(Memory)) < Size;
     if Result then
     begin
       Move(Run^, HeaderIdentifier, SizeOf(HeaderIdentifier));
@@ -8143,7 +8143,7 @@ begin
 
       // Read general image attribute block.
       ReadBlockHeader;
-      LastPosition := PChar(Run);
+      LastPosition := PAnsiChar(Run);
       if Version > 3 then
       begin
         Move(Run^, ChunkSize, SizeOf(ChunkSize));
@@ -8189,7 +8189,7 @@ begin
       repeat
         if not ReadBlockHeader then
           Break;
-        NextMainBlock := Pointer(PChar(Run) + TotalBlockLength);
+        NextMainBlock := Pointer(PAnsiChar(Run) + TotalBlockLength);
         // no more blocks?
         if HeaderIdentifier[0] <> '~' then
           Break;
@@ -8211,7 +8211,7 @@ begin
               Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
 
               // calculate start of next (layer) block in case we need to skip this one
-              NextLayerPosition := Pointer(PChar(Run) + TotalBlockLength);
+              NextLayerPosition := Pointer(PAnsiChar(Run) + TotalBlockLength);
               // if all layers have been considered the break loop to continue with other blocks if necessary
               if BlockIdentifier <> PSP_LAYER_BLOCK then
                 Break;
@@ -8219,7 +8219,7 @@ begin
               // layer information chunk
               if Version > 3 then
               begin
-                LastPosition := PChar(Run);
+                LastPosition := PAnsiChar(Run);
                 Move(Run^, ChunkSize, SizeOf(ChunkSize));
                 Inc(Run, SizeOf(ChunkSize));
 
@@ -8244,7 +8244,7 @@ begin
 
                 // in file version 4 there's also an additional bitmap chunk which replaces
                 // two fields formerly located in the LayerInfo chunk
-                LastPosition := PChar(Run);
+                LastPosition := PAnsiChar(Run);
                 Move(Run^, ChunkSize, SizeOf(ChunkSize));
                 Inc(Run, SizeOf(ChunkSize));
               end
@@ -8370,7 +8370,7 @@ var
   Image: TPSPImageAttributes;
   // to use the code below for file 3 and 4 I read the parts of the block header
   // separately instead as a structure
-  HeaderIdentifier: array[0..3] of Char;  // i.e. "~BK" followed by a zero byte
+  HeaderIdentifier: array[0..3] of AnsiChar; // i.e. "~BK" followed by a zero byte
   BlockIdentifier: Word;                  // one of the block identifiers
   InitialChunkLength,                     // length of the first sub chunk header or similar
   TotalBlockLength: Cardinal;             // length of this block excluding this header
@@ -8379,7 +8379,7 @@ var
 
   LastPosition,
   Run: PByte;
-  
+
   //--------------- local functions -------------------------------------------
 
   function ReadBlockHeader: Boolean;
@@ -8388,7 +8388,7 @@ var
   // Returns True if a block header could be read otherwise False (stream end).
 
   begin
-    Result := (PChar(Run) - PChar(Memory)) < Size;
+    Result := (PAnsiChar(Run) - PAnsiChar(Memory)) < Size;
     if Result then
     begin
       Move(Run^, HeaderIdentifier, SizeOf(HeaderIdentifier));
