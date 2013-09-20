@@ -4308,7 +4308,7 @@ const
 class function TPCDGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 
 var
-  ID1, ID2 : PChar;
+  ID1, ID2 : PAnsiChar;
 
 begin
   Result := Size > 3 * $800;
@@ -4325,8 +4325,8 @@ end;
 procedure TPCDGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 2);
 
 var
-  C1, C2, YY: PChar;
-  YCbCrData: array[0..2] of PChar;
+  C1, C2, YY: PAnsiChar;
+  YCbCrData: array[0..2] of PAnsiChar;
   {SourceDummy,
   DestDummy: Pointer;}
 
@@ -4527,7 +4527,7 @@ begin
                     Run := LineBuffer;
                     for X := 0 to Width - 1 do
                     begin
-                      PChar(Line) := PChar(ScanLines[Width - X - 1]) + Y * 3;
+                      PByte(Line) := PByte(PAnsiChar(ScanLines[Width - X - 1]) + Y * 3);
                       Line^ := Run^;
                       Inc(Run);
                     end;
@@ -4548,7 +4548,7 @@ begin
                     Run := LineBuffer;
                     for X := 0 to Width - 1 do
                     begin
-                      PChar(Line) := PChar(ScanLines[X]) + (Height - Y - 1) * 3;
+                      PByte(Line) := PByte(PAnsiChar(ScanLines[X]) + (Height - Y - 1) * 3);
                       Line^ := Run^;
                       Inc(Run);
                     end;
@@ -4596,7 +4596,7 @@ end;
 function TPCDGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Header: PChar;
+  Header: PAnsiChar;
   Temp: Cardinal;
 
 begin
