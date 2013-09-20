@@ -325,11 +325,11 @@ type
   // *.ppm, *.pgm, *.pbm images
   TPPMGraphic = class(TGraphicExGraphic)
   private
-    FSource: PChar;
+    FSource: PAnsiChar;
     FRemainingSize: Int64;
-    function GetChar: Char;
+    function GetChar: AnsiChar;
     function GetNumber: Cardinal;
-    function ReadLine: string;
+    function ReadLine: AnsiString;
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
@@ -4658,13 +4658,13 @@ begin
   if Result then
   begin
     // These are weak criteria here, but there is nothing more to test for this image format.
-    Result := (PChar(Memory)^ = 'P') and (PChar(Memory)[1] in ['1'..'6']);
+    Result := (PAnsiChar(Memory)^ = 'P') and (PAnsiChar(Memory)[1] in ['1'..'6']);
   end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TPPMGraphic.GetChar: Char;
+function TPPMGraphic.GetChar: AnsiChar;
 
 begin
   if FRemainingSize = 0 then
@@ -4681,7 +4681,7 @@ function TPPMGraphic.GetNumber: Cardinal;
 // reads the next number from the stream (and skips all characters which are not in 0..9)
 
 var
-  Ch: Char;
+  Ch: AnsiChar;
 
 begin
   // skip all non-numbers
@@ -4705,12 +4705,12 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TPPMGraphic.ReadLine: string;
+function TPPMGraphic.ReadLine: AnsiString;
 
 // reads one text line from stream and skips comments
 
 var
-  Ch: Char;
+  Ch: AnsiChar;
   I: Integer;
 
 begin
@@ -4727,14 +4727,14 @@ begin
     GetChar;
 
   // delete comments
-  I := Pos('#', Result);
+  I := Pos(AnsiString('#'), Result);
   if I > 0 then
     Delete(Result, I, MaxInt);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPPMGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); 
+procedure TPPMGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
   Line24: PBGR;
@@ -4757,7 +4757,7 @@ begin
 
       if GetChar <> 'P' then
         GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
-      case StrToInt(GetChar) of
+      case StrToInt(String(GetChar)) of
         1: // PBM ASCII format (black & white)
           begin
             PixelFormat := pf1Bit;
@@ -4964,7 +4964,7 @@ begin
 
       if GetChar = 'P' then
       begin
-        case StrToInt(GetChar) of
+        case StrToInt(String(GetChar)) of
           1: // PBM ASCII format (black & white)
             begin
               Width := GetNumber;
