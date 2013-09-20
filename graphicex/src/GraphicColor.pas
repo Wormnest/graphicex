@@ -229,11 +229,13 @@ type
     function ComponentGammaConvert(Value: Byte): Byte;
     function ComponentNoConvert16(Value: Word): Word;
     function ComponentNoConvert8(Value: Byte): Byte;
-    function ComponentScaleConvert(Value: Word): Byte;
-    function ComponentScaleConvert6(Value: Word): Byte;
-    function ComponentScaleConvert10(Value: Word): Byte;
-    function ComponentScaleConvert12(Value: Word): Byte;
-    function ComponentScaleConvert14(Value: Word): Byte;
+    function ComponentScaleConvert16To8(Value: Word): Byte;
+    function ComponentScaleConvert6To8(Value: Word; BitsPerSample: Byte = 6): Byte;
+    function ComponentScaleConvert10To8(Value: Word; BitsPerSample: Byte = 10): Byte;
+    function ComponentScaleConvert12To8(Value: Word; BitsPerSample: Byte = 12): Byte;
+    function ComponentScaleConvert14To8(Value: Word; BitsPerSample: Byte = 14): Byte;
+    function ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
     function ComponentScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleConvert(Value: Word): Byte;
@@ -750,7 +752,13 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TColorManager.ComponentScaleConvert(Value: Word): Byte;
+const
+  // MulDiv Divisor for BitsPerSampe = 0 to 15
+  // Note that our MulDiv is Word based therefore we can't handle 16 bits 65536 here!
+  CBitsDivisor: array [0..15] of Word =
+    (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768);
+
+function TColorManager.ComponentScaleConvert16To8(Value: Word): Byte;
 
 begin
   // JGB 2012-04-12 According to http://www.delphipraxis.net/129051-graphicex-tiff-m-256-farben-laden-falsche-farbe.html
@@ -758,34 +766,50 @@ begin
   // Result := MulDiv16(Value, 255, 65535);
   // should be changed to:
   Result := Value shr 8;
+  // Note we can't do: Result := MulDiv16(Value, 256, 65536);
+  // Because MulDiv16 uses Word parameters (max 65535)!
 end;
 
-function TColorManager.ComponentScaleConvert14(Value: Word): Byte;
+function TColorManager.ComponentScaleConvert14To8(Value: Word; BitsPerSample: Byte = 14): Byte;
 begin
   // Convert/scale down from 14 bits to 8 bits
   // 14 bits 2^14 = 16384 ==> 8 bits = 256
   Result := MulDiv16(Value, 256, 16384);
 end;
 
-function TColorManager.ComponentScaleConvert12(Value: Word): Byte;
+function TColorManager.ComponentScaleConvert12To8(Value: Word; BitsPerSample: Byte = 12): Byte;
 begin
   // Convert/scale down from 12 bits to 8 bits
   // 12 bits 2^12 = 4096 ==> 8 bits = 256
   Result := MulDiv16(Value, 256, 4096);
 end;
 
-function TColorManager.ComponentScaleConvert10(Value: Word): Byte;
+function TColorManager.ComponentScaleConvert10To8(Value: Word; BitsPerSample: Byte = 10): Byte;
 begin
   // Convert/scale down from 10 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
   Result := MulDiv16(Value, 256, 1024);
 end;
 
-function TColorManager.ComponentScaleConvert6(Value: Word): Byte;
+function TColorManager.ComponentScaleConvert6To8(Value: Word; BitsPerSample: Byte = 6): Byte;
 begin
   // Convert/scale up from 6 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
   Result := MulDiv16(Value, 256, 64);
+end;
+
+function TColorManager.ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from uncommmon n bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  Result := MulDiv16(Value, 256, CBitsDivisor[BitsPerSample]);
+end;
+
+function TColorManager.ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from uncommmon n bits to 4 bits
+  // n bits 2^n = ... ==> 4 bits = 16
+  Result := MulDiv16(Value, 16, CBitsDivisor[BitsPerSample]);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1066,13 +1090,13 @@ begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleConvert
                 else
-                  Convert16_8 := ComponentScaleConvert;
+                  Convert16_8 := ComponentScaleConvert16To8;
               end;
               // since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
-                Convert16_8Alpha := ComponentScaleConvert;
+                Convert16_8Alpha := ComponentScaleConvert16To8;
 
               if CopyAlpha then
               begin
@@ -1428,13 +1452,13 @@ begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleConvert
                 else
-                  Convert16_8 := ComponentScaleConvert;
+                  Convert16_8 := ComponentScaleConvert16To8;
               end;
               // since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
-                Convert16_8Alpha := ComponentScaleConvert;
+                Convert16_8Alpha := ComponentScaleConvert16To8;
 
               if CopyAlpha then
               begin
@@ -2604,8 +2628,10 @@ var
   BitRun: Byte;
   AlphaSkip: Integer;
   Convert16: function(Value: Word): Byte of object;
+  ConvertAny: function(Value: Word; BitsPerSampe: Byte): Byte of object;
   BitOffset: Integer; // Offset in Source byte where first bit starts
-  Bits: Cardinal;
+  Bits, Bits2: Cardinal;
+  FirstNibble: Boolean;
 
 begin
   BitRun := $80;
@@ -2661,7 +2687,7 @@ begin
             if coNeedByteSwap in FSourceOptions then
               Convert16 := ComponentSwapScaleConvert
             else
-              Convert16 := ComponentScaleConvert;
+              Convert16 := ComponentScaleConvert16To8;
 
             while Count > 0 do
             begin
@@ -2711,21 +2737,20 @@ begin
           end;
       end;
 
-    6, 10, 12, 14:
-      // Conversion of uncommon bit formats 6, 10, 12 and 14 bits to 8 bits only for now
+    5..7, 9..15:
+      // Conversion of uncommon bit formats to 8 bits only for now
       case FTargetBPS of
-        8: // 101010 to 888, or 121212 to 888, or 141414 to 888
+        8: // Conversion supported for 5..7 bits and 9..15 bits
           begin
             Source16 := Source[0];
             Target8 := Target;
             case FSourceBPS of
-               6: Convert16 := ComponentScaleConvert6;
-              10: Convert16 := ComponentScaleConvert10;
-              12: Convert16 := ComponentScaleConvert12;
-              14: Convert16 := ComponentScaleConvert14;
+               6: ConvertAny := ComponentScaleConvert6To8;
+              10: ConvertAny := ComponentScaleConvert10To8;
+              12: ConvertAny := ComponentScaleConvert12To8;
+              14: ConvertAny := ComponentScaleConvert14To8;
             else
-              // To make compiler stop complaining that Convert16 may not be initialized.
-              Convert16 := nil;
+              ConvertAny := ComponentScaleConvertUncommonTo8;
             end;
 
             BitOffset := 0;
@@ -2735,7 +2760,7 @@ begin
               begin
                 // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                 Bits := GetBitsMSB(BitOffset, FSourceBPS,PByte(Source16));
-                Target8^ := Convert16(Bits);
+                Target8^ := ConvertAny(Bits,FSourceBPS);
                 // Update the bit and byte pointers
                 Inc(BitOffset,FSourceBPS);
                 if AlphaSkip = 1 then
@@ -2750,7 +2775,51 @@ begin
           end;
       else
       end;
-
+    3: // Conversion of uncommon 3 bits to 4 bits only for now
+      case FTargetBPS of
+        4: // Convert to 4 bits
+          begin
+            Source8 := Source[0];
+            Target8 := Target;
+            BitOffset := 0;
+            Bits2 := 0; // Stop Delphi from complaining about Bits2 not being initialized
+            FirstNibble := True;
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                // Since we are converting to 4 bits we need 2 values to fill a byte!
+                Bits := GetBitsMSB(BitOffset, FSourceBPS,Source8);
+                if FirstNibble then begin // First 4 bits
+                  Bits2 := ComponentScaleConvertTo4(Bits,FSourceBPS) shl 4;
+                end
+                else begin
+                  // Second 4 bits, make them into a byte together with the first 4 bits
+                  Target8^ := Bits2 or ComponentScaleConvertTo4(Bits,FSourceBPS);
+                  Inc(Target8);  // Increment target buffer position
+                end;
+                FirstNibble := not FirstNibble;
+                // Update the bit and byte pointers
+                Inc(BitOffset,FSourceBPS);
+                if AlphaSkip = 1 then
+                  Inc(BitOffset,FSourceBPS);
+                if BitOffset >= 8 then begin
+                  Inc(Source8);
+                  BitOffset := BitOffset mod 8;
+                end;
+              end;
+              asm ROR BYTE PTR [BitRun], 1 end;
+              Dec(Count);
+            end;
+            // We need to check if the last nibble got written
+            if not FirstNibble then begin
+              // No second nibble at end of line: write only first nibble
+              Target8^ := Bits2;
+            end;
+          end;
+      else
+      end;
   end;
 end;
 
@@ -3234,13 +3303,13 @@ begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleConvert
                 else
-                  Convert16_8 := ComponentScaleConvert;
+                  Convert16_8 := ComponentScaleConvert16To8;
               end;
               // since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
-                Convert16_8Alpha := ComponentScaleConvert;
+                Convert16_8Alpha := ComponentScaleConvert16To8;
 
               if CopyAlpha then
               begin
@@ -3595,13 +3664,13 @@ begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleConvert
                 else
-                  Convert16_8 := ComponentScaleConvert;
+                  Convert16_8 := ComponentScaleConvert16To8;
               end;
               // since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
-                Convert16_8Alpha := ComponentScaleConvert;
+                Convert16_8Alpha := ComponentScaleConvert16To8;
 
               if CopyAlpha then
               begin
@@ -4663,12 +4732,13 @@ begin
 
   case FSourceScheme of
     csG:
-      if (FSourceBPS >= 6) and (FTargetBPS >= 8) then
+      if ((FSourceBPS in [5..16]) and (FTargetBPS in [8, 16])) or
+         ((FSourceBPS = 3) and (FTargetBPS = 4)) then
         FRowConversion := RowConvertGray
       else
         FRowConversion := RowConvertIndexed8;
     csGA:
-      if (FSourceBPS in [8, 16]) and (FTargetBPS in [8, 16]) then
+      if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
         FRowConversion := RowConvertGray;
     csIndexed:
       begin
@@ -4992,7 +5062,7 @@ begin
           if coNeedByteSwap in FSourceOptions then
             Convert16 := ComponentSwapScaleConvert
           else
-            Convert16 := ComponentScaleConvert;
+            Convert16 := ComponentScaleConvert16To8;
         end;
         
         if RGB then
@@ -5036,7 +5106,7 @@ begin
           if coNeedByteSwap in FSourceOptions then
             Convert16 := ComponentSwapScaleConvert
           else
-            Convert16 := ComponentScaleConvert;
+            Convert16 := ComponentScaleConvert16To8;
         end;
 
         for I := 0 to LogPalette.palNumEntries - 1 do
