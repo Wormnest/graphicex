@@ -1,6 +1,7 @@
 package Twain_Wilson_D6R;
 
 {$R *.res}
+{$R 'Twain_Wilson.dcr'}
 {$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -33,6 +34,7 @@ requires
 
 contains
   unitCallbackComponent in 'unitCallbackComponent.pas',
-  cmpTwain in 'cmpTwain.pas';
+  cmpTwain in 'cmpTwain.pas',
+  Twain_Wilson in 'Twain_Wilson.pas';
 
 end.
