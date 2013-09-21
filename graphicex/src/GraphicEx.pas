@@ -10173,6 +10173,7 @@ initialization
 
     {$ifdef PortableMapGraphic}
       RegisterFileFormat('ppm', gesPortable, gesPortablePixel, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pnm', '', gesPortableAny, [ftRaster], False, TPPMGraphic);
       RegisterFileFormat('pgm', '', gesPortableGray, [ftRaster], False, TPPMGraphic);
       RegisterFileFormat('pbm', '', gesPortableMono, [ftRaster], False, TPPMGraphic);
     {$endif PortableMapGraphic}

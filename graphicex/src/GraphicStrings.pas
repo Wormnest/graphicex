@@ -56,6 +56,7 @@ resourcestring
   gesSGIMono = 'SGI black/white images';
   gesPhotoshop = 'Photoshop images';
   gesPortable = 'Portable map images';
+  gesPortableAny = 'Portable any map images';
   gesPortablePixel = 'Portable pixel map images';
   gesPortableGray = 'Portable gray map images';
   gesPortableMono = 'Portable bitmap images';
