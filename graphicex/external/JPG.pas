@@ -20,6 +20,7 @@ unit JPG;
 
 {$Include Compilers.inc}
 
+{$TYPEDADDRESS OFF}
 {$Z4}      // enum size = dword
 
 // Align record structures to 8 byte boundaries.
@@ -294,7 +295,7 @@ type
     // Routine that actually outputs a trace or error message
     output_message: procedure(cinfo: j_common_ptr); 
     // Format a message string for the most recent JPEG error or message
-    format_message: procedure(cinfo: j_common_ptr; buffer: PChar); 
+    format_message: procedure(cinfo: j_common_ptr; buffer: PAnsiChar); 
     // Reset error state variables at start of a new image
     reset_error_mgr: procedure(cinfo: j_common_ptr); 
 
@@ -304,7 +305,7 @@ type
     msg_parm: record
       case Byte of
         0: (i: array[0..7] of Integer);
-        1: (s: array[0..JMSG_STR_PARM_MAX - 1] of Char);
+        1: (s: array[0..JMSG_STR_PARM_MAX - 1] of AnsiChar);
     end;
     trace_level: Integer;  // max msg_level that will be displayed
     num_warnings: Integer; // number of corrupt-data warnings
@@ -690,7 +691,7 @@ type
   c_derived_tbl_ptr = ^c_derived_tbl;
   c_derived_tbl = record
     ehufco: array[0..255] of Cardinal; // code for each symbol
-    ehufsi: array[0..255] of Char;     // length of code for each symbol
+    ehufsi: array[0..255] of AnsiChar;     // length of code for each symbol
     // If no code has been allocated for a symbol S, ehufsi[S] contains 0.
   end;
 
@@ -737,7 +738,7 @@ type
 procedure JpegError(cinfo: j_common_ptr); forward;
 procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); forward;
 procedure OutputMessage(cinfo: j_common_ptr); forward;
-procedure FormatMessage(cinfo: j_common_ptr; buffer: PChar); forward;
+procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar); forward;
 procedure ResetErrorMgr(cinfo: j_common_ptr); forward;
 
 const
@@ -1181,7 +1182,7 @@ procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer);
     Template: string;
     Message: string;
 
-                                                    
+
   begin
     Template := JPGMessages[cinfo.err.msg_code];
     // The message can either be a string or up to 8 integers.
@@ -1194,7 +1195,7 @@ procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer);
     OutputDebugString(PChar(Message));
   end;
 {$else}
-  begin       
+  begin
   end;
 {$endif D+}
 
@@ -1207,7 +1208,7 @@ end;
                                    
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure FormatMessage(cinfo: j_common_ptr; buffer: PChar);
+procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar);
 
 begin
 end;

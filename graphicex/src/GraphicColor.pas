@@ -1,3 +1,5 @@
+{$TYPEDADDRESS OFF}
+
 unit GraphicColor;
 
 // The contents of this file are subject to the Mozilla Public License
