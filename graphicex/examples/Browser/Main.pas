@@ -1,4 +1,4 @@
-{$WARN SYMBOL_PLATFORM OFF} // Stop warning FileCtrl is specific to a platform
+{$WARN UNIT_PLATFORM OFF} // Stop warning FileCtrl is specific to a platform
 unit Main;
 
 interface
