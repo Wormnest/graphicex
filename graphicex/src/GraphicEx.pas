@@ -2960,7 +2960,7 @@ begin
           PixelCount := Width - Column;
           FromSkew := TileWidth - PixelCount;
           Counter := RowCount;
-          ColumnOffset := BitsPerPixel * PixelCount div 8;
+          ColumnOffset := ColorManager.TargetBitsPerSample * Column div 8;
           while Counter > 0 do
           begin
             Line := Scanline[Y];
@@ -2974,7 +2974,7 @@ begin
         else
         begin
           Counter := RowCount;
-          ColumnOffset := BitsPerPixel * Column div 8;
+          ColumnOffset := ColorManager.TargetBitsPerSample * Column div 8;
           while Counter > 0 do
           begin
             Line := Scanline[Y];
