@@ -2841,14 +2841,12 @@ var
   Value,
   BitRun,
   TargetMask,
-  SourceMask,
-  SourceShift,
   TargetShift,
   MaxInSample,
   MaxOutSample,
-  SourceBPS,          // local copies to ease assembler access
-  TargetBPS: Byte;
+  TargetBPS: Byte;  // local copy to ease assembler access
   Done: Cardinal;
+  BitOffset: Word;  // Current start bit in source
 
 begin
   SourceRun := Source[0];
@@ -2859,35 +2857,31 @@ begin
   else
   begin
     BitRun := $80;
-    // make a copy of these both values from private variables to local variables
+    // make a copy of FTargetBPS from private variable to local variable
     // to ease access during assembler parts in the code
-    SourceBPS := FSourceBPS;
     TargetBPS := FTargetBPS;
-    SourceMask := Byte(not ((1 shl (8 - SourceBPS)) - 1));
-    MaxInSample := (1 shl SourceBPS) - 1;
+    MaxInSample := (1 shl FSourceBPS) - 1;
     TargetMask := (1 shl (8 - TargetBPS)) - 1;
     MaxOutSample := (1 shl TargetBPS) - 1;
-    SourceShift := 8;
     TargetShift := 8 - TargetBPS;
     Done := 0;
+    BitOffset := 0;
     while Done < Count do
     begin
       if Boolean(Mask and BitRun) then
       begin
-        // adjust shift value by source bit depth
-        Dec(SourceShift, SourceBPS);
-        Value := (SourceRun^ and SourceMask) shr SourceShift;
-        Value := MulDiv16(Value, MaxOutSample, MaxInSample);
-        TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
-        if SourceShift = 0 then
-        begin
-          SourceShift := 8;
+        // TODO: Make using MSB big endian bits or not an option.
+        // For now we always assume that bits are in big endian MSB first order! (TIF)
+        // Reason: currently the only image format that we use and that supports
+        // indexed source bits per sample other than 1, 4, 8
+        Value := GetBitsMSB(BitOffset, FSourceBPS, SourceRun);
+        Inc(BitOffset,FSourceBPS);
+        if BitOffset >= 8 then begin
+          BitOffset := BitOffset mod 8;
           Inc(SourceRun);
         end;
-        asm
-          MOV CL, [SourceBPS]
-          ROR BYTE PTR [SourceMask], CL // roll source bit mask with source bit count
-        end;
+        Value := MulDiv16(Value, MaxOutSample, MaxInSample);
+        TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
       end;
 
       asm
