@@ -2842,10 +2842,10 @@ var
   BitRun,
   TargetMask,
   TargetShift,
-  MaxInSample,
   MaxOutSample,
   TargetBPS: Byte;  // local copy to ease assembler access
   Done: Cardinal;
+  MaxInSample,      // Supporting up to and including 15 bits per sample for source input
   BitOffset: Word;  // Current start bit in source
 
 begin
@@ -2876,7 +2876,11 @@ begin
         // indexed source bits per sample other than 1, 4, 8
         Value := GetBitsMSB(BitOffset, FSourceBPS, SourceRun);
         Inc(BitOffset,FSourceBPS);
-        if BitOffset >= 8 then begin
+        if BitOffset >= 16 then begin
+          BitOffset := BitOffset mod 8;
+          Inc(SourceRun,2);
+        end
+        else if BitOffset >= 8 then begin
           BitOffset := BitOffset mod 8;
           Inc(SourceRun);
         end;
