@@ -3146,6 +3146,8 @@ begin
 
               if GotPalette > 0 then
               begin
+                // TODO: Palette with more than 8 bits indexes should be converted to RGB images
+                // Because downscaling a palette is very complicated.
                 // Create the palette from the three maps.
                 Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
               end
