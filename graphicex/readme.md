@@ -81,10 +81,11 @@ different translation strategy, I recommend using dxgettext.
 found elsewhere on the internet.
 * Several other bugs fixed, a few extra security checks and some extra 
 functionality added by myself.
+* Unicode aware fixes have been added, however it needs testing by someone
+that has a Unicode version of Delphi.
 
 Todo
 ----
-* Make Unicode safe. Unicode aware fixes have not been added yet.
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
 * Update libtif version (currently using an old libtif 3.5.7) and probably
 * at the same time change to using LibTifDelphi.
