@@ -5062,7 +5062,7 @@ begin
           else
             Convert16 := ComponentScaleConvert16To8;
         end;
-        
+
         if RGB then
         begin
           for I := 0 to LogPalette.palNumEntries - 1 do
@@ -5120,31 +5120,46 @@ begin
   MaxOut := (1 shl FTargetBPS);
   if (FTargetBPS <= 8) and (MaxIn <> MaxOut) then
   begin
-    // If target resolution and given color depth differ then the palette needs to be adjusted.
-    // Consider the case for 2 bit to 4 bit conversion. Only 4 colors will be given to create
-    // the palette but after scaling all values will be up to 15 for which no color is in the palette.
-    // This and the reverse case need to be accounted for.
-    if MaxIn < MaxOut then
-    begin
-      // palette is too small, enhance it
-      for I := MaxOut downto 0 do
+    if FSourceBPS < 16 then begin
+      // If target resolution and given color depth differ then the palette needs to be adjusted.
+      // Consider the case for 2 bit to 4 bit conversion. Only 4 colors will be given to create
+      // the palette but after scaling all values will be up to 15 for which no color is in the palette.
+      // This and the reverse case need to be accounted for.
+      if MaxIn < MaxOut then
       begin
-        LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
-        LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
-        LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
+        // palette is too small, enhance it
+        for I := MaxOut-1 downto 0 do
+        begin
+          LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
+          LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
+          LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
+        end;
+      end
+      else
+      begin
+        // palette contains too many entries, shorten it
+        if FTargetBPS < 8 then begin
+          for I := 0 to MaxOut-1 do
+          begin
+            LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peRed;
+            LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peGreen;
+            LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peBlue;
+          end;
+        end
+        else if FTargetBPS > 8 then begin
+          // jb This is far more complicated than implemented above because a palette index
+          // is not the same as color where you can just downscale from 16 bit to 8 bit
+          // and only loose a little detail since subsequent palette indexes don't need
+          // to have subsequent color values.
+          // Therefore it's best not to use this function for 16 bit color palettes
+          // Instead it should probably be converted to a 24 bit rgb image.
+          // For now: just leave the palette as it is (already truncated to 256 indexes above)
+        end;
       end;
     end
-    else
-    begin
-      // palette contains too many entries, shorten it
-      for I := 0 to MaxOut do
-      begin
-        LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
-        LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
-        LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
-      end;
+    else begin
     end;
-    LogPalette.palNumEntries := MaxOut + 1;
+    LogPalette.palNumEntries := MaxOut;
   end;
                       
   // finally create palette
