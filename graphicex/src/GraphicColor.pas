@@ -5118,17 +5118,12 @@ begin
 
   MaxIn := (1 shl FSourceBPS) - 1;
   MaxOut := (1 shl FTargetBPS) - 1;
-  // jgb 2012-04-14 also need to check for FSourceBPS <= 8 or we get a crash when FSourceBPS = 16
-  // see tif test image flower-palette-16.tif (Not sure if we should do some additional handling
-  // besides that because when we show this image it looks darker then viewed with IrfanView.)
-  if (FTargetBPS <= 8) and (FSourceBPS <= 8) and (MaxIn <> MaxOut) then
+  if (FTargetBPS <= 8) and (MaxIn <> MaxOut) then
   begin
     // If target resolution and given color depth differ then the palette needs to be adjusted.
     // Consider the case for 2 bit to 4 bit conversion. Only 4 colors will be given to create
     // the palette but after scaling all values will be up to 15 for which no color is in the palette.
     // This and the reverse case need to be accounted for.
-    MaxIn := (1 shl FSourceBPS) - 1;
-    MaxOut := (1 shl FTargetBPS) - 1;
     if MaxIn < MaxOut then
     begin
       // palette is too small, enhance it
