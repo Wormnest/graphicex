@@ -159,7 +159,8 @@ type
     FilterMode: Byte;
 
     // TIFF
-    Orientation: Word;                 
+    Orientation: Word;
+    SampleFormat: Byte;                // DataType of samples (default = 1 = unsigned int)
   end;
 
   // This mode is used when creating a file mapping. See TFileMapping.
@@ -3307,6 +3308,10 @@ begin
         // Determine whether extra samples must be considered.
         HasAlpha := (ExtraSamples = 1) and
           (SampleInfo^ in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
+
+        // SampleFormat determines DataType of samples (default = unsigned int)
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLEFORMAT, @TIFFValue);
+        SampleFormat := TIFFValue;
 
         // PlanarConfig needed to determine BitsPerPixel in case its Separate
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_PLANARCONFIG, @TIFFValue);
