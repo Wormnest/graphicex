@@ -5116,8 +5116,8 @@ begin
       end;
   end;
 
-  MaxIn := (1 shl FSourceBPS) - 1;
-  MaxOut := (1 shl FTargetBPS) - 1;
+  MaxIn := (1 shl FSourceBPS);
+  MaxOut := (1 shl FTargetBPS);
   if (FTargetBPS <= 8) and (MaxIn <> MaxOut) then
   begin
     // If target resolution and given color depth differ then the palette needs to be adjusted.
