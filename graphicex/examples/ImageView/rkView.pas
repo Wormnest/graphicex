@@ -7,8 +7,13 @@ unit rkView;
 //  Mail: roymagne@rmklever.com
 //
 //  version 1.2, april 2010
+//
+//  jb Email correspondence with R.M.Klever September 2013:
+//  rkView is licensed as MPL 1.1.
 
 interface
+
+{$ I Compilers.inc}
 
 uses
   Windows, Messages, WinTypes, SysUtils, Classes, Graphics, Controls, Forms,
@@ -374,8 +379,12 @@ begin
   bugCount := 0;
   w := GetSystemMetrics(SM_CXVSCROLL); // Width of a vertical scrollbar...
   h := GetSystemMetrics(SM_CXHSCROLL); // Width of a horizontal scrollbar...
+  {$IFDEF COMPILER_7_UP}
   ControlStyle := ControlStyle + [csOpaque, csAcceptsControls, csReplicatable,
     csNeedsBorderPaint];
+  {$ELSE}
+  ControlStyle := ControlStyle + [csOpaque, csAcceptsControls, csReplicatable];
+  {$ENDIF}
   Width := 185; // Init width
   Height := 82; //  ""  height
   // Cell data
@@ -416,7 +425,9 @@ begin
   pnlHorz.BevelInner := TBevelCut(0);
   pnlHorz.BevelOuter := TBevelCut(0);
   pnlHorz.Height := h;
+  {$IFDEF COMPILER_7_UP}
   pnlHorz.ParentBackground := false;
+  {$ENDIF}
   pnlHorz.Visible := false;
   pnlVert := TPanel.Create(Self);
   pnlVert.Parent := Self;
@@ -424,7 +435,9 @@ begin
   pnlVert.BevelInner := TBevelCut(0);
   pnlVert.BevelOuter := TBevelCut(0);
   pnlVert.Width := w;
+  {$IFDEF COMPILER_7_UP}
   pnlVert.ParentBackground := false;
+  {$ENDIF}
   pnlVert.Visible := false;
   pnlDummy := TPanel.Create(pnlHorz);
   pnlDummy.Parent := pnlHorz;
@@ -432,7 +445,9 @@ begin
   pnlDummy.BevelInner := TBevelCut(0);
   pnlDummy.BevelOuter := TBevelCut(0);
   pnlDummy.Width := w;
+  {$IFDEF COMPILER_7_UP}
   pnlDummy.ParentBackground := false;
+  {$ENDIF}
   pnlDummy.Visible := false;
   sbVert := TScrollBar.Create(pnlVert);
   sbVert.Parent := pnlVert;
