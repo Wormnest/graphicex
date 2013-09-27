@@ -10,6 +10,10 @@ const
   ZLIB_VERSION = '1.2.1';
 
   Z_NO_FLUSH = 0;
+  // jb next 3 copied from GXzlib
+  Z_PARTIAL_FLUSH = 1; // will be removed, use Z_SYNC_FLUSH instead
+  Z_SYNC_FLUSH    = 2;
+  Z_FULL_FLUSH    = 3;
   Z_FINISH = 4;
 
   Z_OK = 0;
@@ -36,6 +40,11 @@ type
     Reserved: Cardinal;
   end;
 
+// jb copied from GXzlib
+function adler32(adler: Cardinal; buf: Pointer; len: Integer): Cardinal; cdecl; external;
+function crc32(crc: Cardinal; buf: Pointer; len: Cardinal): Cardinal; cdecl; external;
+
+function  InflateInit(strm: Pointer): Integer;
 function  inflateInit_(strm: Pointer; version: Pointer; stream_size: Integer): Integer; cdecl; external;
 function  inflateReset(strm: Pointer): Integer; cdecl; external;
 function  inflate(strm: Pointer; flush: Integer): Integer; cdecl; external;
@@ -53,21 +62,32 @@ implementation
 uses
   LibDelphi;
 
+
+// Initializes the internal stream state for decompression.
+//
+// InflateInit returns Z_OK if success, Z_MEM_ERROR if there was not enough memory, Z_VERSION_ERROR if the zlib library
+// version is incompatible with the version assumed by the caller. Msg is reset if there is no
+// error message. InflateInit does not perform any decompression: this will be done by Inflate.
+function InflateInit(strm: Pointer): Integer;
+begin
+  Result := InflateInit_(strm, PAnsiChar(ZLIB_VERSION), SizeOf(RZStream));
+end;
+
 function deflateInit(strm: Pointer; level: Integer): Integer;
 begin
   Result:=deflateInit_(strm,level,PAnsiChar(ZLIB_VERSION),SizeOf(RZStream));
 end;
 
-{$L Compiled\inflate.obj}
-{$L Compiled\crc32.obj}
-{$L Compiled\adler32.obj}
-{$L Compiled\inftrees.obj}
-{$L Compiled\inffast.obj}
-{$L Compiled\deflate.obj}
-{$L Compiled\zutil.obj}
-{$L Compiled\trees.obj}
-{$L Compiled\compress.obj}
-{$L Compiled\uncompr.obj}
+{$L inflate.obj}
+{$L crc32.obj}
+{$L adler32.obj}
+{$L inftrees.obj}
+{$L inffast.obj}
+{$L deflate.obj}
+{$L zutil.obj}
+{$L trees.obj}
+{$L compress.obj}
+{$L uncompr.obj}
 
 end.
 
