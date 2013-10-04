@@ -1276,8 +1276,11 @@ begin
           Weight := Round(Filter((Center - J) * ScaleX) * ScaleX * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceWidth then // This check is needed for width = 1
+                N := SourceWidth + J + SourceWidth - 1;
+            end
             else
               if J >= SourceWidth then
                 N := SourceWidth - J + SourceWidth - 1
@@ -1307,8 +1310,11 @@ begin
           Weight := Round(Filter(Center - J) * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceWidth then // This check is needed for width = 1
+                N := SourceWidth + J + SourceWidth - 1;
+            end
             else
               if J >= SourceWidth then
                 N := SourceWidth - J + SourceWidth - 1
@@ -1373,8 +1379,11 @@ begin
           Weight := Round(Filter((Center - J) * ScaleY) * ScaleY * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceHeight then // This check is needed for height = 1
+                N := SourceHeight + J + SourceHeight - 1;
+            end
             else
               if J >= SourceHeight then
                 N := SourceHeight - J + SourceHeight - 1
@@ -1404,13 +1413,16 @@ begin
           Weight := Round(Filter(Center - J) * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceHeight then // This check is needed for height = 1
+                N := SourceHeight + J + SourceHeight - 1;
+            end
             else
               if J >= SourceHeight then
                 N := SourceHeight - J + SourceHeight - 1
               else
-                N := J;                       
+                N := J;
             K := ContributorList[I].N;
             Inc(ContributorList[I].N);
             ContributorList[I].Contributors[K].Pixel := N;
@@ -1433,9 +1445,17 @@ begin
       PixelSize := 3;
 
     SourceLine := Work.ScanLine[0];
-    Delta := Integer(Work.ScanLine[1]) - Integer(SourceLine);
+    // For Source or Dest with Height 1 we can't use Scanline[1] to compute Delta.
+    // Since Delta in these cases won't be used anyway we set it to 0.
+    if SourceHeight > 1 then
+      Delta := Integer(Work.ScanLine[1]) - Integer(SourceLine)
+    else
+      Delta := 0;
     DestLine := Target.ScanLine[0];
-    DestDelta := Integer(Target.ScanLine[1]) - Integer(DestLine);
+    if TargetHeight > 1 then
+      DestDelta := Integer(Target.ScanLine[1]) - Integer(DestLine)
+    else
+      DestDelta := 0;
     for K := 0 to TargetWidth - 1 do
     begin
       DestPixel := Pointer(DestLine);
@@ -5356,10 +5376,11 @@ begin
           repeat
             // block size
             Increment := FSource^;
-            Inc(FSource);
+            Inc(FSource); // Skip the count byte
             if Increment = 0 then
               Break;
-            Move(FSource^, Content, Increment);
+            Move(FSource^, Content, Increment); // Copy ansi characters
+            Inc(FSource, Increment); // Skip the characters we just copied
             Content[Increment] := #0;
             FImageProperties.Comment := FImageProperties.Comment + Content;
           until False;
@@ -7951,7 +7972,7 @@ class function TPSPGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 begin
   with PPSPFileHeader(Memory)^ do
     Result := (Size > SizeOf(TPSPFileHeader)) and (StrLIComp(Signature, MagicID, Length(MagicID)) = 0) and
-      (MajorVersion >= 3);
+      (MajorVersion >= 3) and (MajorVersion < 20);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -7985,8 +8006,12 @@ var
   BlueBuffer,
   CompBuffer: Pointer;
   X, Y,
-  Index,
-  RowSize: Integer; // size in bytes of one scanline
+  Index: Integer;
+  AbsoluteRect: TRECT; // Rect holding the position of the current layer within image
+  LayerWidth,
+  LayerHeight,
+  LayerRowSize,
+  LayerStartOfs: Integer;
 
   // other data
   RawPalette: array[0..4 * 256 - 1] of Byte;
@@ -8145,6 +8170,10 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
+      // Check for valid BitsPerSample
+      if not (BitsPerSample in [1, 4, 8]) then
+        GraphicExError(gesInvalidColorFormat, ['PSP']);
+
       Move(Run^, Header, SizeOf(Header));
       Inc(Run, SizeOf(Header));
 
@@ -8167,25 +8196,17 @@ begin
         SourceSamplesPerPixel := SamplesPerPixel;
         TargetSamplesPerPixel := SamplesPerPixel;
         SourceColorScheme := ColorScheme;
-        if ColorScheme = csRGB then
-          TargetColorScheme := csBGR
+        if ColorScheme = csRGB then begin
+          if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
+            // alpha channel present (jb: I haven't encountered this yet, example needed)
+            TargetColorScheme := csBGRA
+          else
+            TargetColorScheme := csBGR;
+        end
         else
           TargetColorScheme := ColorScheme;
 
         PixelFormat := TargetPixelFormat;
-      end;
-
-      // set bitmap properties
-      RowSize := 0; // make compiler quiet
-      case BitsPerSample of
-        1:
-          RowSize := (Image.Width + 7) div 8;
-        4:
-          RowSize := Image.Width div 2 + 1;
-        8:
-          RowSize := Image.Width;
-      else
-        GraphicExError(gesInvalidColorFormat, ['PSP']);
       end;
 
       Self.Width := Width;
@@ -8243,7 +8264,8 @@ begin
                 Run := Pointer(LastPosition + ChunkSize);
 
                 // continue only with undefined or raster chunks
-                if not (LayerInfo.LayerType in [PSP_LAYER_UNDEFINED, PSP_LAYER_RASTER]) then
+                if not (LayerInfo.LayerType in [PSP_LAYER_UNDEFINED, PSP_LAYER_RASTER]) or
+                   not LayerInfo.Visible then
                 begin
                   Run := Pointer(NextLayerPosition);
                   Continue;
@@ -8264,7 +8286,8 @@ begin
                 Move(Run^, LayerInfo, SizeOf(LayerInfo));
                 Inc(Run, SizeOf(LayerInfo));
 
-                // continue only with normal (raster) chunks
+                // Continue only with normal (raster) chunks.
+                // We ignore vector and adjustment layers for now.
                 if LayerInfo.LayerType <> PSP_LAYER_NORMAL then
                 begin
                   Run := Pointer(NextLayerPosition);
@@ -8278,13 +8301,17 @@ begin
               Move(Run^, ChannelCount, SizeOf(ChannelCount));
               Inc(Run, SizeOf(ChannelCount));
 
-              // But now we can reliably say whether we have an alpha channel or not.
+              // By now we can reliably say whether we have an alpha channel or not.
               // This kind of information can only be read very late and causes us to
               // possibly reallocate the entire image (because it is copied by the VCL
               // when changing the pixel format).
               // I don't know another way (preferably before the size of the image is set).
-              if ChannelCount > 3 then
+              // We need to take BitmapCount into consideration. However since most of
+              // the time with BitmapCount = 2 that extra Bitmap is a mask which is
+              // effectively an Alpha layer, we just ignore it for now
+              if ChannelCount{-BitmapCount+1} > 3 then
               begin
+                ColorManager.SourceColorScheme := csRGBA;
                 ColorManager.TargetColorScheme := csBGRA;
                 PixelFormat := pf32Bit;
               end;
@@ -8302,37 +8329,77 @@ begin
               G := GreenBuffer;
               B := BlueBuffer;
               C := CompBuffer;
+
+              // PSP defines for each layer an ImageRectangle that defines the
+              // position of the layer in the image and a SavedImageRectangle that
+              // defines the parts inside ImageRectangle that are used (and thus were saved)
+              // Therefore we should only convert pixels inside that rectangle and not
+              // the entire image!
+              // First compute actual rectangle within image
+              AbsoluteRect := LayerInfo.ImageRectangle;
+              Inc(AbsoluteRect.Left, LayerInfo.SavedImageRectangle.Left);
+              AbsoluteRect.Right := AbsoluteRect.Left + LayerInfo.SavedImageRectangle.Right -
+                LayerInfo.SavedImageRectangle.Left;
+              Inc(AbsoluteRect.Top, LayerInfo.SavedImageRectangle.Top);
+              AbsoluteRect.Bottom := AbsoluteRect.Top + LayerInfo.SavedImageRectangle.Bottom -
+                LayerInfo.SavedImageRectangle.Top;
+              // Saved layer width
+              LayerWidth := LayerInfo.SavedImageRectangle.Right - LayerInfo.SavedImageRectangle.Left;
+              // Precompute LayerHeight for use in Progress
+              LayerHeight := AbsoluteRect.Bottom - AbsoluteRect.Top;
+
               with ColorManager do
               begin
                 if TargetColorScheme in [csIndexed, csG] then
                 begin
-                  for Y := 0 to Height - 1 do
+                  case BitsPerSample of
+                    1: begin
+                         LayerRowSize := (LayerWidth + 7) div 8;
+                         LayerStartOfs := (AbsoluteRect.Left + 7) div 8;
+                       end;
+                    4: begin
+                         LayerRowSize := LayerWidth div 2 + 1;
+                         LayerStartOfs := AbsoluteRect.Left  div 2 + 1;
+                       end;
+                  else // 8
+                    LayerRowSize := LayerWidth;
+                    LayerStartOfs := AbsoluteRect.Left;
+                  end;
+                  for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
                   begin
-                    ColorManager.ConvertRow([C], ScanLine[Y], Width, $FF);
-                    Inc(C, RowSize);
+                    // Note: I don't have any samples for BPS = 1 or 4 and am not
+                    // sure if LayerStartOfs in those cases is correct.
+                    ColorManager.ConvertRow([C], PAnsiChar(ScanLine[Y])+LayerStartOfs, LayerWidth, $FF);
+                    Inc(C, LayerRowSize);
 
-                    Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                    Progress(Self, psRunning, MulDiv(Y, 100, LayerHeight), True, FProgressRect, '');
                     OffsetRect(FProgressRect, 0, 1);
                   end;
                 end
                 else
-                begin
-                  for Y := 0 to Height - 1 do
+                begin // scBGR(A)
+                  // Since BPS should be always 8 here LayerRowSize is the same as LayerWidth
+                  LayerRowSize := LayerWidth;
+                  // Compute start offset in ScanLine for this layer
+                  if ColorManager.TargetColorScheme = csBGR then
+                    LayerStartOfs := AbsoluteRect.Left * 3  // 3 bytes per pixel
+                  else // csBGRA
+                    LayerStartOfs := AbsoluteRect.Left * 4; // 4 bytes per pixel
+                  for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
                   begin
-                    ColorManager.ConvertRow([R, G, B, C], ScanLine[Y], Width, $FF);
-                    Inc(R, RowSize);
-                    Inc(G, RowSize);
-                    Inc(B, RowSize);
-                    Inc(C, RowSize);
+                    ColorManager.ConvertRow([R, G, B, C], PAnsiChar(ScanLine[Y])+LayerStartOfs,
+                      LayerWidth, $FF);
+                    Inc(R, LayerRowSize);
+                    Inc(G, LayerRowSize);
+                    Inc(B, LayerRowSize);
+                    Inc(C, LayerRowSize);
 
-                    Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                    Progress(Self, psRunning, MulDiv(Y, 100, LayerHeight), True, FProgressRect, '');
                     OffsetRect(FProgressRect, 0, 1);
                   end;
                 end;
               end;
               Progress(Self, psEnding, 0, False, FProgressRect, '');
-              // after the raster layer has been read there's no need to loop further
-              Break;
             until False; // layer loop
           PSP_COLOR_BLOCK:  // color palette block (this is also present for gray scale and b&w images)
             begin
@@ -8427,7 +8494,7 @@ begin
       Inc(Run, SizeOf(Header));
 
       if (StrLIComp(Header.Signature, MagicID, Length(MagicID)) = 0) and
-         (Header.MajorVersion >= 3) then
+         (Header.MajorVersion >= 3) and (Header.MajorVersion < 20) then
       begin
         Version := Header.MajorVersion;
 
