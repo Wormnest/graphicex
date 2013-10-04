@@ -70,7 +70,7 @@ interface
 uses
   Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs,
   {$ifdef TIFFGraphic}
-  LibTiffDelphi, LibTiffDelphiHelper,
+  LibTiffDelphi,
   {$endif}
   {$ifdef JpegGraphic}
   jpeg,
@@ -3230,7 +3230,7 @@ begin
                 // We need to convert from rgba that tifflib gives us to bgra that Windows needs
                 // Note that if we ever want to interface directly with Graphics32
                 // we should skip this step since it uses rgba!
-                TIFFReadRGBAImageSwapRB(Width, Height, Scanline[Height - 1]);
+                RGBAToBGRA(Scanline[Height - 1], Width, Height);
                 FinishProgressSection(True);
               end
               else
