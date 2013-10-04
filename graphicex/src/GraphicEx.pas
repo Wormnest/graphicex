@@ -8299,13 +8299,14 @@ begin
               Move(Run^, ChannelCount, SizeOf(ChannelCount));
               Inc(Run, SizeOf(ChannelCount));
 
-              // But now we can reliably say whether we have an alpha channel or not.
+              // By now we can reliably say whether we have an alpha channel or not.
               // This kind of information can only be read very late and causes us to
               // possibly reallocate the entire image (because it is copied by the VCL
               // when changing the pixel format).
               // I don't know another way (preferably before the size of the image is set).
               if ChannelCount > 3 then
               begin
+                ColorManager.SourceColorScheme := csRGBA;
                 ColorManager.TargetColorScheme := csBGRA;
                 PixelFormat := pf32Bit;
               end;
