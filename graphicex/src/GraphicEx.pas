@@ -1433,9 +1433,17 @@ begin
       PixelSize := 3;
 
     SourceLine := Work.ScanLine[0];
-    Delta := Integer(Work.ScanLine[1]) - Integer(SourceLine);
+    // For Source or Dest with Height 1 we can't use Scanline[1] to compute Delta.
+    // Since Delta in these cases won't be used anyway we set it to 0.
+    if SourceHeight > 1 then
+      Delta := Integer(Work.ScanLine[1]) - Integer(SourceLine)
+    else
+      Delta := 0;
     DestLine := Target.ScanLine[0];
-    DestDelta := Integer(Target.ScanLine[1]) - Integer(DestLine);
+    if TargetHeight > 1 then
+      DestDelta := Integer(Target.ScanLine[1]) - Integer(DestLine)
+    else
+      DestDelta := 0;
     for K := 0 to TargetWidth - 1 do
     begin
       DestPixel := Pointer(DestLine);
