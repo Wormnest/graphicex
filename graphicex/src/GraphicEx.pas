@@ -5376,10 +5376,11 @@ begin
           repeat
             // block size
             Increment := FSource^;
-            Inc(FSource);
+            Inc(FSource); // Skip the count byte
             if Increment = 0 then
               Break;
-            Move(FSource^, Content, Increment);
+            Move(FSource^, Content, Increment); // Copy ansi characters
+            Inc(FSource, Increment); // Skip the characters we just copied
             Content[Increment] := #0;
             FImageProperties.Comment := FImageProperties.Comment + Content;
           until False;
