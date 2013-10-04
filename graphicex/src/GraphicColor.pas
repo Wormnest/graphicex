@@ -94,7 +94,7 @@ type
   TCMY16 = packed record
     C, M, Y: Word;
   end;
-  
+
   PRGB = ^TRGB;
   TRGB = packed record
     R, G, B: Byte;
@@ -310,6 +310,19 @@ function MakeHLS(const H, L, S: Byte): THLS; overload;
 function MakeHLS(const H, L, S: Single): THLSFloat; overload;
 function MakeRGB(const R, G, B: Byte): TRGB; overload;
 function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
+
+// Convert RGBA (e.g. TIFF sources) to Windows BGRA
+procedure BGRAToRGBA(Memory: Pointer; Width, Height: Cardinal);
+
+// Alpha channel functions
+// Converts PBGRA Array of length Count into premultiplied BGRA
+procedure BGRAToPremultipliedAlpha(Source: PBGRA; Count: Integer);
+
+// Sets all alpha values for PBGRA Array of length Count to 255
+procedure BGRASetAlpha255(Source: PBGRA; Count: Integer);
+// Sets all alpha values of ABitmap (in BGRA format) to 255
+procedure BitmapSetAlpha255(ABitmap: TBitmap);
+
 
 // HalfToFloat and FloatToHalf taken from ImagingLib (also in GlScene)
 type
@@ -867,6 +880,73 @@ begin
   Result.R := R;
   Result.G := G;
   Result.B := B;
+end;
+
+
+procedure BGRAToRGBA(Memory: Pointer; Width, Height: Cardinal);
+var
+  m: PCardinal;
+  n: Cardinal;
+  o: Cardinal;
+begin
+  m := Memory;
+  for n:=0 to Width*Height-1 do
+  begin
+    o := m^;
+    m^ := (o and $FF00FF00) or             {G and A}
+          ((o and $00FF0000) shr 16) or    {B}
+          ((o and $000000FF) shl 16);      {R}
+    Inc(m);
+  end;
+end;
+
+procedure BitmapSetAlpha255(ABitmap: TBitmap);
+var
+  i: Cardinal;
+  BgraMem: PCardinal;
+  TempBgra: Cardinal;
+  Row: Cardinal;
+begin
+  for Row := 0 to ABitmap.Height-1 do begin
+    BgraMem := ABitmap.ScanLine[Row];
+    for i := 0 to ABitmap.Width - 1 do
+    begin
+      TempBgra := BgraMem^;
+      BgraMem^ := TempBgra or $FF000000;
+      Inc(BgraMem);
+    end;
+  end;
+end;
+
+procedure BGRASetAlpha255(Source: PBGRA; Count: Integer);
+var
+  i: Cardinal;
+  BgraMem: PCardinal;
+  TempBgra: Cardinal;
+begin
+  BgraMem := PCardinal(Source);
+  for i := 0 to Count - 1 do
+  begin
+    TempBgra := BgraMem^;
+    BgraMem^ := TempBgra or $FF000000;  // Add alpha $ff
+    Inc(BgraMem); // Go to next BGRA
+  end;
+end;
+
+// Converts PBGRA Array of length Count into premultiplied BGRA
+procedure BGRAToPremultipliedAlpha(Source: PBGRA; Count: Integer);
+begin
+  while Count > 0 do
+  begin
+    with Source^ do
+    begin
+      R := MulDiv16(R,A,255);
+      G := MulDiv16(G,A,255);
+      B := MulDiv16(B,A,255);
+    end;
+    Inc(Source);
+    Dec(Count);
+  end;
 end;
 
 //----------------- TColorManager --------------------------------------------------------------------------------------
