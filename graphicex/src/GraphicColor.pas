@@ -312,7 +312,7 @@ function MakeRGB(const R, G, B: Byte): TRGB; overload;
 function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
 
 // Convert RGBA (e.g. TIFF sources) to Windows BGRA
-procedure BGRAToRGBA(Memory: Pointer; Width, Height: Cardinal);
+procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal);
 
 // Alpha channel functions
 // Converts PBGRA Array of length Count into premultiplied BGRA
@@ -882,8 +882,7 @@ begin
   Result.B := B;
 end;
 
-
-procedure BGRAToRGBA(Memory: Pointer; Width, Height: Cardinal);
+procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal);
 var
   m: PCardinal;
   n: Cardinal;
