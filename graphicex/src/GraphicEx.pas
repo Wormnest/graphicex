@@ -68,7 +68,10 @@ interface
 {$endif COMPILER_7_UP}
 
 uses
-  Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs, TIFF,
+  Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs,
+  {$ifdef TIFFGraphic}
+  LibTiffDelphi, LibTiffDelphiHelper,
+  {$endif}
   {$ifdef JpegGraphic}
   jpeg,
   {$endif ~JpegGraphic}
@@ -767,7 +770,7 @@ var
 implementation
 
 uses
-  Consts, Math, GXZLib;
+  Consts, Math, ZLibDelphi;//GXZLib;
 
 type
   {$ifndef COMPILER_6_UP}
@@ -879,6 +882,7 @@ procedure GraphicExError(ErrorString: string; Args: array of const); overload;
 begin
   raise EInvalidGraphic.CreateFmt(ErrorString, Args);
 end;
+         
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -2761,6 +2765,7 @@ end;
 
 {$ifdef TIFFGraphic}
 
+const TIFF_STOP_ON_ERROR_TRUE = 1;
 type
   PTIFFHeader = ^TTIFFHeader;
   TTIFFHeader = packed record
@@ -2774,21 +2779,23 @@ type
 // For the libtiff library we need global functions to do the data retrieval. The setup is so that the currently
 // loading TIFF instance is given in the fd parameter.
 
-function TIFFReadProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
+//function TIFFReadProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
+function TIFFReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 
 var
   Graphic: TTIFFGraphic;
 
 begin
-  Graphic := TTIFFGraphic(fd);
-  Move(Graphic.FCurrentPointer^, Pointer(buf)^, size);
-  Inc(Graphic.FCurrentPointer, size);
-  Result := size;
+  Graphic := TTIFFGraphic(Fd);
+  Move(Graphic.FCurrentPointer^, Buffer^, Size);
+  Inc(Graphic.FCurrentPointer, Size);
+  Result := Size;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TIFFWriteProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
+//function TIFFWriteProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
+function TIFFWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 
 begin
   Result := 0; // Writing is not supported yet.
@@ -2796,58 +2803,62 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TIFFSeekProc(fd: thandle_t; off: toff_t; whence: Integer): toff_t;
+//function TIFFSeekProc(fd: thandle_t; off: toff_t; whence: Integer): toff_t;
+function TIFFSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
 
 const
   SEEK_SET = 0; // seek to an absolute position
-  SEEK_CUR = 1; // seek relative to current position 
+  SEEK_CUR = 1; // seek relative to current position
   SEEK_END = 2; // seek relative to end of file
 
 var
   Graphic: TTIFFGraphic;
 
 begin
-  Graphic := TTIFFGraphic(fd);
+  Graphic := TTIFFGraphic(Fd);
 
-  case whence of
+  case Whence of
     SEEK_CUR:
-      Inc(Graphic.FCurrentPointer, off);
+      Inc(Graphic.FCurrentPointer, Off);
     SEEK_END:
-      Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Graphic.FSize - off);
+      Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Graphic.FSize - Off);
   else
-    Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + off);
+    Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Off);
   end;
-  Result := toff_t(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
+  Result := Cardinal(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TIFFCloseProc(fd: thandle_t): Integer;
+//function TIFFCloseProc(fd: thandle_t): Integer;
+function TIFFCloseProc(Fd: Cardinal): Integer; cdecl;
 
 var
   Graphic: TTIFFGraphic;
 
 begin
-  Graphic := TTIFFGraphic(fd);
+  Graphic := TTIFFGraphic(Fd);
   Graphic.FCurrentPointer := nil;
   Result := 0;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TIFFSizeProc(fd: thandle_t): toff_t;
+//function TIFFSizeProc(fd: thandle_t): toff_t;
+function TIFFSizeProc(Fd: Cardinal): Cardinal; cdecl;
 
 var
   Graphic: TTIFFGraphic;
 
 begin
-  Graphic := TTIFFGraphic(fd);
+  Graphic := TTIFFGraphic(Fd);
   Result := Graphic.FSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TIFFMapProc(fd: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer;
+//function TIFFMapProc(fd: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer;
+function TIFFMapProc(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl;
 
 begin
   Result := 0;
@@ -2855,12 +2866,19 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TIFFUnmapProc(fd: thandle_t; base: tdata_t; size: toff_t);
+//procedure TIFFUnmapProc(fd: thandle_t; base: tdata_t; size: toff_t);
+procedure TIFFUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl;
 
 begin
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
+
+// LibTiffDelphi TIFF Error handler proc
+procedure TiffError(const Module, ErrorString: AnsiString);
+begin
+  GraphicExError( Module + ErrorString );
+end;
 
 procedure TTIFFGraphic.ReadContiguous(tif: PTIFF);
 
@@ -2945,9 +2963,11 @@ var
   Line: PAnsiChar;
   RowInc: Integer;
   ColumnOffset: Integer;
+  BufSize: Integer;
 
 begin
-  GetMem(Buffer, TIFFTileSize(tif));
+  BufSize := TIFFTileSize(tif);
+  GetMem(Buffer, BufSize);
   with FImageProperties do
   try
     TIFFGetField(tif, TIFFTAG_TILEWIDTH, @TileWidth);
@@ -2969,7 +2989,8 @@ begin
       Column := 0;
       while Column < Width do
       begin
-        TIFFReadTile(tif, Buffer, Column, Row, 0, 0);
+        //TIFFReadTile(tif, Buffer, Column, Row, 0, 0);
+        TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, 0), Buffer, BufSize);
         Pos := (Row mod TileHeight) * Integer(TIFFTileRowSize(tif));
 
         Source := PAnsiChar(Buffer) + Pos;
@@ -3204,7 +3225,12 @@ begin
               if (Height = 1) or (Integer(Scanline[0]) - Integer(Scanline[1]) > 0) then
               begin
                 StartProgressSection(0, gesLoadingData);
-                TIFFReadRGBAImage(TIFFImage, Width, Height, Scanline[Height - 1], True);
+                TIFFReadRGBAImageOriented(TIFFImage, Width, Height,Scanline[Height - 1],
+                  ORIENTATION_BOTLEFT, TIFF_STOP_ON_ERROR_TRUE);
+                // We need to convert from rgba that tifflib gives us to bgra that Windows needs
+                // Note that if we ever want to interface directly with Graphics32
+                // we should skip this step since it uses rgba!
+                TIFFReadRGBAImageSwapRB(Width, Height, Scanline[Height - 1]);
                 FinishProgressSection(True);
               end
               else
@@ -3213,7 +3239,7 @@ begin
                 GetMem(Pixels, Count * SizeOf(Cardinal));
                 try
                   StartProgressSection(70, gesLoadingData);
-                  if TIFFReadRGBAImage(TIFFImage, Width, Height, Pixels, True) then
+                  if TIFFReadRGBAImage(TIFFImage, Width, Height, Pixels, TIFF_STOP_ON_ERROR_TRUE) = 1 then
                   begin
                     FinishProgressSection(False);
 
@@ -3311,7 +3337,7 @@ begin
         BitsPerSample := TIFFValue;
 
         // Determine whether image is tiled.
-        if TIFFIsTiled(TIFFImage) then
+        if TIFFIsTiled(TIFFImage) > 0 then
           Include(Options, ioTiled);
 
         // Photometric interpretation determines the color space.
@@ -10214,6 +10240,8 @@ initialization
     {$endif TargaGraphic}
 
     {$ifdef TIFFGraphic}
+      // Set the TIFF error handler
+      LibTiffDelphiSetErrorHandler(TiffError);
       RegisterFileFormat('tif', gesTIFF, gesPCTIF, [ftRaster, ftMultiImage], False, TTIFFGraphic);
       RegisterFileFormat('tiff', '', gesMacTIFF, [ftRaster, ftMultiImage], False, TTIFFGraphic);
       RegisterFileFormat('fax', '', gesGFIFax, [ftRaster, ftMultiImage], False, TTIFFGraphic);
