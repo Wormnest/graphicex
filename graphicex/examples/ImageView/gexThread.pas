@@ -188,7 +188,6 @@ type
   TThumbnailThreadException = class(Exception);
 
 
-
 implementation
 
 uses Dialogs, Math;
@@ -222,12 +221,8 @@ end;
 
 function CompareFileName(P1, P2: Pointer): Integer;
 begin
-  if PgexThumbData(P1).Name > PgexThumbData(P2).Name then
-    Result := 1
-  else if PgexThumbData(P1).Name < PgexThumbData(P2).Name then
-    Result := -1
-  else
-    Result := 0;
+  // Compare case insensitive
+  Result := CompareText(PgexThumbData(P1).Name,PgexThumbData(P2).Name);
 end;
 
 // http://www.swissdelphicenter.ch/en/showcode.php?id=1698
@@ -434,7 +429,7 @@ end;
 
 
 type
-  // jb Corrects the wrong declararions of TRIVERTEX and GradientFill in Delphi unit WINDOWS.PAS
+  // Corrects the wrong declarartions of TRIVERTEX and GradientFill in Delphi unit WINDOWS.PAS
   TRIVERTEX = packed record
     X, Y: DWORD;
     Red, Green, Blue, Alpha: Word;
@@ -445,7 +440,7 @@ function GradientFill(DC: hDC; pVertex: Pointer; dwNumVertex: DWORD; pMesh: Poin
 
 procedure WinGradient( DC: HDC; ARect: TRect; AColor2, AColor1: TColor );
 var
-  Vertexs: array [ 0 .. 1 ] of TRIVERTEX; // jgb was TTriVertex;
+  Vertexs: array [ 0 .. 1 ] of TRIVERTEX; // was TTriVertex;
   GRect: TGradientRect;
 begin
   Vertexs[ 0 ].x := ARect.Left;
@@ -592,7 +587,7 @@ end;
 
 procedure TgexBaseForm.SetThumbSize(Value: Integer; UpdateTrackbar: Boolean);
 var
-  w, h, HSX: Integer;
+  w, h: Integer;
 begin
   case Value of
     32..63: CellJpeg.Scale := jsQuarter;
@@ -608,7 +603,6 @@ begin
     h := h + 20
   else
     h := h + 40;
-  HSX := (w - 70) shr 1; // Help for calculating rating...
   ThumbView.CellWidth := w;
   ThumbView.CellHeight := h;
   CellScale := Value;
@@ -632,12 +626,12 @@ begin
   bmp := TBitmap.Create;
   try
     bmp.PixelFormat := pf24Bit;
-    bmp.Width := ImgW; //ThumbJpeg.Width;
-    bmp.Height := ImgH; //ThumbJpeg.Height;
+    bmp.Width := ImgW;
+    bmp.Height := ImgH;
     Thumb.IWidth := ImgW;
     Thumb.IHeight := ImgH;
     bmp.Canvas.Lock;
-    bmp.Canvas.Draw(0, 0, Img{ThumbJpeg});
+    bmp.Canvas.Draw(0, 0, Img);
     try
       ThumbBmp := TBitmap.Create;
       ThumbBmp.Canvas.Lock;
@@ -668,7 +662,7 @@ end;
 procedure TgexBaseForm.CreateJpegThumbnail( ThumbBmp: TBitmap; Thumb: PgexThumbData);
 var MS: TMemoryStream;
 begin
-  // jb This converts the thumbnail from bitmap to compressed jpg and stores
+  // This converts the thumbnail from bitmap to compressed jpg and stores
   // it in Thumb.Image
   if ThumbBmp <> nil then
   begin
@@ -687,7 +681,7 @@ begin
       Thumb.ThumbWidth := ThumbBmp.Width;
       Thumb.ThumbHeight := ThumbBmp.Height;
     finally
-      ThumbBmp.Canvas.UnLock;
+      // Do NOT FREE the MS stream here because that's the thumbnail image
       ThumbBmp.Free;
     end;
   end
@@ -741,13 +735,10 @@ end;
 procedure TgexBaseForm.ThumbsGetThumbnail(Sender: TObject; Thumb: PgexThumbData);
 var
   FName: string;
-//  newW, newH: Integer;
   WI, HI: Integer;
   sf: Integer;
   fail: Boolean;
   ThumbBmp: TBitmap;
-//  AGraphic: TGraphic;
-//  GraphicClass: TGraphicExGraphicClass;
   ImageExtraData: Pointer;
   ABitmap: TBitmap;
 begin
@@ -761,7 +752,7 @@ begin
 
     if Thumb.ImageFormat = CgexJpeg then
     begin
-      // jgb This part determines the dimensions of a jpeg, the optimal jpeg scale
+      // This part determines the dimensions of a jpeg, the optimal jpeg scale
       // and then loads the jpeg image
       FThumbJpeg.Scale := jsFullSize;
       GetJPGSize(FName, WI, HI);
@@ -781,7 +772,7 @@ begin
         ExceptionMessage := 'Error loading jpeg: ' + FName;
         fail := True;
       end;
-      // jgb This draws the full image to a Bitmap and then makes a
+      // This draws the full image to a Bitmap and then makes a
       // thumbnail image in the required size for it
       if not fail then
         ThumbBmp := CreateThumbnail(FThumbJpeg.Width, FThumbJpeg.Height,
@@ -800,7 +791,7 @@ begin
           FExceptionMessage := 'Error loading bitmap: ' + FName;
           fail := True;
         end;
-        // jb This draws the full image to a Bitmap and then makes a
+        // This draws the full image to a Bitmap and then makes a
         // thumbnail image in the required size for it
         if not fail then
           ThumbBmp := CreateThumbnail(ABitmap.Width, ABitmap.Height, ABitmap, Thumb);
@@ -953,10 +944,6 @@ begin
     ThreadDone := False;
     ThumbThr := TgexThumbnailThread.Create(Self, ThumbView, Items);
   end;
-  // TODO ...................................................................................
-{
-  UpdateStatus;
-}
 end;
 
 procedure TgexBaseForm.BiResample(Src, Dest: TBitmap; Sharpen: Boolean);
@@ -1133,26 +1120,36 @@ begin
       Bmp.PixelFormat := pf24bit;
       pt := CalcThumbSize(CellJPEG.Width, CellJPEG.Height, CellScale,
         CellScale);
-      if pt.x <> CellJPEG.Width then
-      begin
-        tmp := TBitmap.Create;
-        tmp.PixelFormat := pf24bit;
-        tmp.Width := CellJPEG.Width;
-        tmp.Height := CellJPEG.Height;
-        tmp.Canvas.Draw(0, 0, CellJPEG);
-        Bmp.Width := pt.x;
-        Bmp.Height := pt.y;
-        if (Bmp.Width > 4) and (Bmp.Height > 4) then
-          BiReSample(tmp, Bmp, False)
+      Bmp.Canvas.Lock;
+      try
+        if pt.x <> CellJPEG.Width then
+        begin
+          tmp := TBitmap.Create;
+          try
+            tmp.Canvas.Lock;
+            tmp.PixelFormat := pf24bit;
+            tmp.Width := CellJPEG.Width;
+            tmp.Height := CellJPEG.Height;
+            tmp.Canvas.Draw(0, 0, CellJPEG);
+            Bmp.Width := pt.x;
+            Bmp.Height := pt.y;
+            if (Bmp.Width > 4) and (Bmp.Height > 4) then
+              BiReSample(tmp, Bmp, False)
+            else
+              bmp.Canvas.StretchDraw(Rect(0, 0, pt.X, pt.Y), tmp);
+          finally
+            tmp.Canvas.Unlock;
+            tmp.Free;
+          end;
+        end
         else
-          bmp.Canvas.StretchDraw(Rect(0, 0, pt.X, pt.Y), tmp);
-        tmp.Free;
-      end
-      else
-      begin
-        Bmp.Width := CellJPEG.Width;
-        Bmp.Height := CellJPEG.Height;
-        Bmp.Canvas.Draw(0, 0, CellJPEG);
+        begin
+          Bmp.Width := CellJPEG.Width;
+          Bmp.Height := CellJPEG.Height;
+          Bmp.Canvas.Draw(0, 0, CellJPEG);
+        end;
+      finally
+        Bmp.Canvas.Unlock;
       end;
       New(p);
       p.Idx := Idx;
@@ -1240,34 +1237,39 @@ var
   Thumb: PgexThumbData;
   pt: TPoint;
 begin
-  Thumb := PgexThumbData(Items[idx]);
-  pt := CalcThumbSize(Thumb.ThumbWidth, Thumb.ThumbHeight, CellScale,
-    CellScale);
-  TW := pt.X;
-  TH := pt.Y;
-  ItemPaintBasic(Canvas, Cell, State);
-  F := ThumbView.Focused;
-  S := State = svSelected;
-  x := Cell.Left + ((Cell.Right - (Cell.Left + TW)) shr 1);
-  y := Cell.Top + ((Cell.Bottom - (Cell.Top + TH)) shr 1);
-  y := y - 10;
-  if (Thumb.Image <> nil) and (Thumb.GotThumb) then
-    Canvas.Draw(x, y, GetThumbBitmap(idx));
-  R.Left := X;
-  R.Top := Y;
-  R.Right := X + TW;
-  R.Bottom := Y + TH;
-  Canvas.Pen.Color := CellBrdColor[F, S];
-  InflateRect(R, 2, 2);
-  Canvas.Rectangle(R);
-  Canvas.Pen.Color := clWhite;
-  InflateRect(R, -1, -1);
-  Canvas.Rectangle(R);
-  R := Cell;
-  R.Top := R.Bottom - 20;
-  txt := Thumb.Name;
-  DrawText(Canvas.Handle, PChar(txt), Length(txt), R, DT_END_ELLIPSIS or
-    DT_SINGLELINE or DT_NOPREFIX or DT_CENTER or DT_VCENTER);
+  Canvas.Lock; // Since we're in a thread always lock our canvas during painting
+  try
+    Thumb := PgexThumbData(Items[idx]);
+    pt := CalcThumbSize(Thumb.ThumbWidth, Thumb.ThumbHeight, CellScale,
+      CellScale);
+    TW := pt.X;
+    TH := pt.Y;
+    ItemPaintBasic(Canvas, Cell, State);
+    F := ThumbView.Focused;
+    S := State = svSelected;
+    x := Cell.Left + ((Cell.Right - (Cell.Left + TW)) shr 1);
+    y := Cell.Top + ((Cell.Bottom - (Cell.Top + TH)) shr 1);
+    y := y - 10;
+    if (Thumb.Image <> nil) and (Thumb.GotThumb) then
+      Canvas.Draw(x, y, GetThumbBitmap(idx));
+    R.Left := X;
+    R.Top := Y;
+    R.Right := X + TW;
+    R.Bottom := Y + TH;
+    Canvas.Pen.Color := CellBrdColor[F, S];
+    InflateRect(R, 2, 2);
+    Canvas.Rectangle(R);
+    Canvas.Pen.Color := clWhite;
+    InflateRect(R, -1, -1);
+    Canvas.Rectangle(R);
+    R := Cell;
+    R.Top := R.Bottom - 20;
+    txt := Thumb.Name;
+    DrawText(Canvas.Handle, PChar(txt), Length(txt), R, DT_END_ELLIPSIS or
+      DT_SINGLELINE or DT_NOPREFIX or DT_CENTER or DT_VCENTER);
+  finally
+    Canvas.Unlock;
+  end;
 end;
 
 // -----------------------------------------------------------------------------
@@ -1280,7 +1282,7 @@ begin
   if not Supports(AParentForm, IThumbnail, FIThumbnail) then
     raise TThumbnailThreadException.Create('ParentForm doesn''t support IThumbnail interface!');
 
-  FParentForm := AParentForm;  
+  FParentForm := AParentForm;
   XPView := xpThumbs;
   XPList := Items;
   FreeOnTerminate := False;
