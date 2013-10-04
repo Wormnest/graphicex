@@ -1276,8 +1276,11 @@ begin
           Weight := Round(Filter((Center - J) * ScaleX) * ScaleX * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceWidth then // This check is needed for width = 1
+                N := SourceWidth + J + SourceWidth - 1;
+            end
             else
               if J >= SourceWidth then
                 N := SourceWidth - J + SourceWidth - 1
@@ -1307,8 +1310,11 @@ begin
           Weight := Round(Filter(Center - J) * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceWidth then // This check is needed for width = 1
+                N := SourceWidth + J + SourceWidth - 1;
+            end
             else
               if J >= SourceWidth then
                 N := SourceWidth - J + SourceWidth - 1
@@ -1373,8 +1379,11 @@ begin
           Weight := Round(Filter((Center - J) * ScaleY) * ScaleY * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceHeight then // This check is needed for height = 1
+                N := SourceHeight + J + SourceHeight - 1;
+            end
             else
               if J >= SourceHeight then
                 N := SourceHeight - J + SourceHeight - 1
@@ -1404,13 +1413,16 @@ begin
           Weight := Round(Filter(Center - J) * 256);
           if Weight <> 0 then
           begin
-            if J < 0 then
-              N := -J
+            if J < 0 then begin
+              N := -J;
+              if N >= SourceHeight then // This check is needed for height = 1
+                N := SourceHeight + J + SourceHeight - 1;
+            end
             else
               if J >= SourceHeight then
                 N := SourceHeight - J + SourceHeight - 1
               else
-                N := J;                       
+                N := J;
             K := ContributorList[I].N;
             Inc(ContributorList[I].N);
             ContributorList[I].Contributors[K].Pixel := N;
