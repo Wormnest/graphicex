@@ -7972,7 +7972,7 @@ class function TPSPGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 begin
   with PPSPFileHeader(Memory)^ do
     Result := (Size > SizeOf(TPSPFileHeader)) and (StrLIComp(Signature, MagicID, Length(MagicID)) = 0) and
-      (MajorVersion >= 3);
+      (MajorVersion >= 3) and (MajorVersion < 20);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8449,7 +8449,7 @@ begin
       Inc(Run, SizeOf(Header));
 
       if (StrLIComp(Header.Signature, MagicID, Length(MagicID)) = 0) and
-         (Header.MajorVersion >= 3) then
+         (Header.MajorVersion >= 3) and (Header.MajorVersion < 20) then
       begin
         Version := Header.MajorVersion;
 
