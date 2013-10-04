@@ -8197,7 +8197,6 @@ begin
       end;
 
       // set bitmap properties
-      RowSize := 0; // make compiler quiet
       case BitsPerSample of
         1:
           RowSize := (Image.Width + 7) div 8;
@@ -8206,6 +8205,7 @@ begin
         8:
           RowSize := Image.Width;
       else
+        RowSize := 0; // make compiler quiet
         GraphicExError(gesInvalidColorFormat, ['PSP']);
       end;
 
