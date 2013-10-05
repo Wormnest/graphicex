@@ -195,13 +195,13 @@ type
   TGraphicExGraphic = class(TBitmap)
   private
     FColorManager: TColorManager;
-    FImageProperties: TImageProperties;
 
     // Advanced progress display support.
     FProgressStack: TStack;       // Used to manage nested progress sections.
     FProgressRect: TRect;
     FPercentDone: Single;         // Progress over all parts of the load process.
   protected
+    FImageProperties: TImageProperties; // Can't be private because we need access from other units
     Decoder: TDecoder;            // The decoder used to decompress the image data.
 
     procedure AdvanceProgress(Amount: Single; OffsetX, OffsetY: Integer; DoRedraw: Boolean);
