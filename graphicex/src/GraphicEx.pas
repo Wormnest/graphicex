@@ -9688,7 +9688,7 @@ end;
 procedure TFileFormatList.Clear;
 
 var
-  I: Integer;                         
+  I: Integer;
 
 begin
   for I := 0 to FClassList.Count - 1 do
@@ -10284,24 +10284,8 @@ initialization
     {$endif ArtsAndLettersGraphic}
   end;
 finalization
-  with FileFormatList do
-  begin
-    {$ifdef PaintshopProGraphic} UnregisterFileFormat('', TPSPGraphic); {$endif PaintshopProGraphic}
-    {$ifdef PhotoshopGraphic} UnregisterFileFormat('', TPSDGraphic); {$endif PhotoshopGraphic}
-    {$ifdef TargaGraphic} UnregisterFileFormat('', TTargaGraphic); {$endif TargaGraphic}
-    {$ifdef TIFFGraphic} UnregisterFileFormat('', TTIFFGraphic); {$endif TIFFGraphic}
-    {$ifdef SGIGraphic} UnregisterFileFormat('', TSGIGraphic); {$endif SGIGraphic}
-    {$ifdef PCXGraphic} UnregisterFileFormat('', TPCXGraphic); {$endif PCXGraphic}
-    {$ifdef AutodeskGraphic} UnregisterFileFormat('', TAutodeskGraphic); {$endif AutodeskGraphic}
-    {$ifdef PCDGraphic} UnregisterFileFormat('', TPCDGraphic); {$endif PCDGraphic}
-    {$ifdef PortableMapGraphic} UnregisterFileFormat('', TPPMGraphic); {$endif PortableMapGraphic}
-    {$ifdef CUTGraphic} UnregisterFileFormat('', TCUTGraphic); {$endif CUTGraphic}
-    {$ifdef GIFGraphic} UnregisterFileFormat('', TGIFGraphic); {$endif GIFGraphic}
-    {$ifdef RLAGraphic} UnregisterFileFormat('', TRLAGraphic); {$endif RLAGraphic}
-    {$ifdef PortableNetworkGraphic} UnregisterFileFormat('', TPNGGraphic); {$endif PortableNetworkGraphic}
-    {$ifdef ArtsAndLettersGraphic} UnregisterFileFormat('', TGEDGraphic); {$endif ArtsAndLettersGraphic}
-
-    Free;
-  end;
+  // No need to unregister specific file formats here since all formats
+  // will be Unregistered in FileFormatList.Clear, which is called by Destroy.
+  FileFormatList.Free;
 end.
 
