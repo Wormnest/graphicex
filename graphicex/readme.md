@@ -68,7 +68,7 @@ Please report bugs in the issuetracker using the link below. Bugs concerning
 problems loading a certain image should add the problematic image.
 Without an example image it will be most likely impossible to find
 what's wrong.    
-Link: [issuetracker.] (https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open)
+Link: [issuetracker](https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open)
 
 Current implementation
 ----------------------
@@ -101,5 +101,4 @@ Folder structure
 - \src = Folder with GraphicEx source files.
 
 Note that the .obj files are not available in the hg repository itself.
-They need to be downloaded from [bitbucket.]
-(https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip)
+They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip)
