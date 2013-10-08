@@ -75,6 +75,8 @@ const
   DefaultDisplayGamma = 2.2;
 
 type
+  // Color layout records
+  // ------------------------- CMYK -------------------------
   PCMYK = ^TCMYK;
   TCMYK = packed record
     C, M, Y, K: Byte;
@@ -95,24 +97,11 @@ type
     C, M, Y: Word;
   end;
 
+  // ------------------------- RGB(A) -------------------------
+  // RGB(A) 8 bit
   PRGB = ^TRGB;
   TRGB = packed record
     R, G, B: Byte;
-  end;
-
-  PRGB16 = ^TRGB16;
-  TRGB16 = packed record
-    R, G, B: Word;
-  end;
-
-  PRGB32 = ^TRGB32;
-  TRGB32 = packed record
-    R, G, B: Cardinal;
-  end;
-
-  PRGBFloat = ^TRGBFloat;
-  TRGBFloat = packed record
-    R, G, B: Single;
   end;
 
   PRGBA = ^TRGBA;
@@ -120,19 +109,43 @@ type
     R, G, B, A: Byte;
   end;
 
+  // RGB(A) 16 bit
+  PRGB16 = ^TRGB16;
+  TRGB16 = packed record
+    R, G, B: Word;
+  end;
+
   PRGBA16 = ^TRGBA16;
   TRGBA16 = packed record
     R, G, B, A: Word;
   end;
 
+  // Use TRGBInt only for cases where temp results are stored here that can be negative.
+  TRGBInt = record
+    R, G, B: Integer;
+  end;
+
+  TRGBAInt = record
+    R, G, B, A: Integer;
+  end;
+
+  // RGB 32 bit
+  PRGB32 = ^TRGB32;
+  TRGB32 = packed record
+    R, G, B: Cardinal;
+  end;
+
+  // RGB 32 bit float
+  PRGBFloat = ^TRGBFloat;
+  TRGBFloat = packed record
+    R, G, B: Single;
+  end;
+
+  // ------------------------- BGR(A) -------------------------
+  // BGR(A) 8 bit
   PBGR = ^TBGR;
   TBGR = packed record
     B, G, R: Byte;
-  end;
-
-  PBGR16 = ^TBGR16;
-  TBGR16 = packed record
-    B, G, R: Word;
   end;
 
   PBGRA = ^TBGRA;
@@ -140,11 +153,18 @@ type
     B, G, R, A: Byte;
   end;
 
+  // BGR(A) 16 bit
+  PBGR16 = ^TBGR16;
+  TBGR16 = packed record
+    B, G, R: Word;
+  end;
+
   PBGRA16 = ^TBGRA16;
   TBGRA16 = packed record
     B, G, R, A: Word;
   end;
 
+  // ------------------------- HLS -------------------------
   PHLS = ^THLS;
   THLS = packed record
     H, L, S: Byte;
@@ -155,6 +175,7 @@ type
     H, L, S: Single;
   end;
 
+  // Color formats currently known to GraphicEx
   TColorScheme = (
     csUnknown,
     csIndexed,    // Palette format.
@@ -174,7 +195,8 @@ type
     csYCbCr,      // Another format using luminance and chromaticities.
     csPhotoYCC    // A modified YCbCr version used for photo CDs.
   );
-  
+
+  // Color Manager conversion settings
   TConvertOptions = set of (
     coAlpha,          // alpha channel is to be considered (this value is usually automatically set depending on
                       // the color scheme)
@@ -185,7 +207,7 @@ type
     coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
   );
 
-  // format of the raw data to create a color palette from
+  // Format of the raw data to create a color palette from
   TRawPaletteFormat = (
     pfInterlaced8Triple, // rgb triple with 8 bits per component
     pfInterlaced8Quad,   // rgb quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
@@ -200,7 +222,7 @@ type
   // TConversionMethod describes the general parameter list to which each implemented conversion method conforms.
   // Note: Source is defined as open array parameter to allow plane and interlaced source data.
   TConversionMethod = procedure(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte) of object;
-  
+
   TColorManager = class
   private
     FChanged: Boolean;                 // set if any of the parameters changed

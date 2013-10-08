@@ -773,51 +773,11 @@ type
   {$ifndef COMPILER_6_UP}
     PCardinal = ^Cardinal;
   {$endif COMPILER_6_UP}
-  // resampling support types
-  TRGBInt = record
-    R, G, B: Integer;
-  end;
 
-  TRGBAInt = record
-    R, G, B, A: Integer;
-  end;
-
-  PRGBWord = ^TRGBWord;
-  TRGBWord = record
-    R, G, B: Word;
-  end;
-
-  PRGBAWord = ^TRGBAWord;
-  TRGBAWord = record
-    R, G, B, A: Word;
-  end;
-
-  PBGR = ^TBGR;
-  TBGR = packed record
-    B, G, R: Byte;
-  end;
-
-  PBGRA = ^TBGRA;
-  TBGRA = packed record
-    B, G, R, A: Byte;
-  end;
-
-  PRGB = ^TRGB;
-  TRGB = packed record
-    R, G, B: Byte;
-  end;
-
-  PRGBA = ^TRGBA;
-  TRGBA = packed record
-    R, G, B, A: Byte;
-  end;
-
-  PPixelArray = ^TPixelArray;
-  TPixelArray = array[0..0] of TBGR;
-
+  // Stretch filter function
   TFilterFunction = function(Value: Single): Single;
 
-  // contributor for a Pixel
+  // Contributor for a Pixel
   PContributor = ^TContributor;
   TContributor = record
     Weight: Integer; // Pixel Weight
@@ -826,7 +786,7 @@ type
 
   TContributors = array of TContributor;
 
-  // list of source pixels contributing to a destination pixel
+  // List of source pixels contributing to a destination pixel
   TContributorEntry = record
     N: Integer;
     Contributors: TContributors;
@@ -842,7 +802,7 @@ type
     TransformFactor: Single;      // Accumulated factor to transform a step in this section to an overall value.
     Message: string;              // Message to display for this section.
   end;
-  
+
 const
   DefaultFilterRadius: array[TResamplingFilter] of Single = (0.5, 1, 1, 1.5, 2, 3, 2);
 
