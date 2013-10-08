@@ -38,15 +38,15 @@ const
   GraphicExString = GraphicExBase + ' ' + GraphicExFork + ' '+ GraphicExStatus;
   GraphicExVersion = (GraphicExMajorVersion shl 8) or GraphicExMinorVersion;
 
+var
+  GraphicExVersionString: string;
+
 implementation
 
 uses SysUtils;
 
-var
-  GraphicExVersionString: string;
-
 initialization
-  GraphicExVersionString := GraphicExString +
+  GraphicExVersionString := GraphicExString + ' ' +
     IntToStr(GraphicExMajorVersion) + '.' +
     IntToStr(GraphicExMinorVersion);
 end.
