@@ -1034,55 +1034,6 @@ begin
   Inc(Run, SizeOf(Word));
 end;
 
-//----------------- various conversion routines ------------------------------------------------------------------------
-
-procedure Depredict1(P: Pointer; Count: Cardinal);
-
-// EAX contains P and EDX Count
-
-asm
-@@1:
-        MOV     CL, [EAX]
-        ADD     [EAX + 1], CL
-        INC     EAX
-        DEC     EDX
-        JNZ     @@1
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure Depredict3(P: Pointer; Count: Cardinal); 
-
-// EAX contains P and EDX Count
-
-asm
-        MOV     ECX, EDX
-        SHL     ECX, 1
-        ADD     ECX, EDX  // 3 * Count
-@@1:
-        MOV     DL, [EAX]
-        ADD     [EAX + 3], DL
-        INC     EAX
-        DEC     ECX
-        JNZ     @@1
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure Depredict4(P: Pointer; Count: Cardinal);
-
-// EAX contains P and EDX Count
-
-asm
-        SHL     EDX, 2 // 4 * Count
-@@1:
-        MOV     CL, [EAX]
-        ADD     [EAX + 4], CL
-        INC     EAX
-        DEC     EDX
-        JNZ     @@1
-end;
-
 //----------------- TFileMapping ---------------------------------------------------------------------------------------
 
 constructor TFileMapping.Create(const FileName: string; Mode: TFileMappingMode);
