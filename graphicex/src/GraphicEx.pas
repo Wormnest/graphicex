@@ -17,13 +17,16 @@ unit GraphicEx;
 // Portions created by Mike Lischke are
 // Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 //
+// Portions created by Jacob Boerema are
+// Copyright (C) 2012, 2013 Jacob Boerema. All Rights Reserved.
+//
 // Credits:
 //   Haukur K. Bragason, Ingo Neumann, Craig Peterson
 //----------------------------------------------------------------------------------------------------------------------
 //
 // See help file for a description of supported image formats.
 //
-// Version II.1.17
+// Version: see gexVersion.
 //
 // Note: This library can be compiled with Delphi 5 or newer versions.
 //
@@ -73,9 +76,6 @@ uses
   jpeg,
   {$endif ~JpegGraphic}
   GraphicCompression, GraphicStrings, GraphicColor;
-
-const
-  GraphicExVersion = 'II.1.17';
 
 type
   TCardinalArray = array of Cardinal;
@@ -752,7 +752,7 @@ var
 implementation
 
 uses
-  Consts, Math, GXZLib;
+  gexVersion, Consts, Math, GXZLib;
 
 type
   {$ifndef COMPILER_6_UP}
