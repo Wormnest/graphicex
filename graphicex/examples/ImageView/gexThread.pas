@@ -595,6 +595,8 @@ procedure TgexBaseForm.SetThumbSize(Value: Integer; UpdateTrackbar: Boolean);
 var
   w, h: Integer;
 begin
+  if FThumbView = nil then
+    InitView;
   case Value of
     32..63: CellJpeg.Scale := jsQuarter;
     64..127: CellJpeg.Scale := jsHalf;
