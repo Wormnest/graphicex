@@ -483,6 +483,9 @@ begin
   CellJpeg.Performance := jpBestSpeed;
   CellStyle := -1;
   CellScale := 0;
+
+  // Make sure multi threaded is set
+  IsMultiThread := True;
 end;
 
 destructor TgexBaseForm.Destroy;
@@ -490,7 +493,7 @@ var
   i: Integer;
   Item: PgexThumbData;
 begin
-  CellJpeg.Free;
+  StopThumbThread;
   for i := Items.Count - 1 downto 0 do
   begin
     Item := Items[i];
@@ -498,8 +501,11 @@ begin
       Item.Image.Free;
     Dispose(Item);
   end;
+  ClearThumbsPool;
   ThumbsPool.Free;
   Items.Free;
+  CellJpeg.Free;
+  FThumbJpeg.Free;
   inherited Destroy;
 end;
 
@@ -1237,13 +1243,13 @@ var
   Thumb: PgexThumbData;
   pt: TPoint;
 begin
-  Canvas.Lock; // Since we're in a thread always lock our canvas during painting
+  Thumb := PgexThumbData(Items[idx]);
+  pt := CalcThumbSize(Thumb.ThumbWidth, Thumb.ThumbHeight, CellScale,
+    CellScale);
+  TW := pt.X;
+  TH := pt.Y;
+  Canvas.Lock; // Lock Canvas since we're in a thread
   try
-    Thumb := PgexThumbData(Items[idx]);
-    pt := CalcThumbSize(Thumb.ThumbWidth, Thumb.ThumbHeight, CellScale,
-      CellScale);
-    TW := pt.X;
-    TH := pt.Y;
     ItemPaintBasic(Canvas, Cell, State);
     F := ThumbView.Focused;
     S := State = svSelected;
