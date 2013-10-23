@@ -1,10 +1,13 @@
 { gexThread A Threaded thumbnail creator based on R.M. Klever's Threaded ThumbNail Demo.
   License: MPL 1.1.
-  Portions Copyright Jacob Boerema 2013.
+  Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+  All Rights Reserved.
 }
 unit gexThread;
 
 interface
+
+{$WARN SYMBOL_PLATFORM OFF} // FindFirst: faHidden, faSysFile, faArchive
 
 uses SysUtils, Forms, Classes, Windows, Messages, Graphics, ComCtrls,
      jpeg,
@@ -906,7 +909,7 @@ begin
     Forms.Application.ProcessMessages;
     if FImageFolder[length(FImageFolder)] <> '\' then
       FImageFolder := FImageFolder + '\';
-    if FindFirst(FImageFolder + '*.*', faAnyFile - faDirectory, SR) = 0 then
+    if FindFirst(FImageFolder + '*.*', faAnyFile - faDirectory - faHidden - faSysFile - faArchive, SR) = 0 then
     begin
       Items.Capacity := 1000;
       repeat
