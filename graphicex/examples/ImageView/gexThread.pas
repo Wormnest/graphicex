@@ -2,6 +2,7 @@
   License: MPL 1.1.
   Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
   All Rights Reserved.
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
 }
 unit gexThread;
 
