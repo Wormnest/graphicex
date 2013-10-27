@@ -13,7 +13,7 @@ unit rkView;
 
 interface
 
-{$ I Compilers.inc}
+{$I Compilers.inc}
 
 uses
   Windows, Messages, WinTypes, SysUtils, Classes, Graphics, Controls, Forms,
@@ -637,6 +637,11 @@ var
 begin
   if not vsbVisible then
     Exit;
+  // Only scroll if mouse is inside our view.
+  if not PtInRect(BoundsRect, ScreenToClient(Point(Msg.XPos, Msg.YPos))) then begin
+    inherited; // Give other components a chance to handle scrollwheel event.
+    Exit;
+  end;
   if Msg.WheelDelta <> 0 then
   begin
     if Msg.WheelDelta < 0 then
