@@ -7132,6 +7132,7 @@ var
   NextMainBlock,
   NextLayerPosition: PAnsiChar; // PAnsiChar, because then direct pointer arithmethic is accepted.
   Run: PByte;
+  iLayer: Integer; // Current layer used for progress updating
 
   //--------------- local functions -------------------------------------------
 
@@ -7279,8 +7280,12 @@ begin
     CompBuffer := nil;
     with FImageProperties do
     try
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+      // Initialize outermost progress display.
+      InitProgress(Width, 1);
+      StartProgressSection(0, '');
+
+      // Start of first progress subsection, guessed at 1%
+      StartProgressSection(1, gesLoadingData);
 
       // Check for valid BitsPerSample
       if not (BitsPerSample in [1, 4, 8]) then
@@ -7323,7 +7328,9 @@ begin
 
       Self.Width := Width;
       Self.Height := Height;
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+      // Finish first progress subsection
+      FinishProgressSection(False);
 
       // go through main blocks and read what is needed
       repeat
@@ -7344,11 +7351,13 @@ begin
               Break;
             end;}
           PSP_LAYER_START_BLOCK:
+          begin
+            iLayer := Image.LayerCount;
+            // Start next/last progress subsection: loading layers
+            StartProgressSection(0, gesLoadingData);
             repeat
               if not ReadBlockHeader then
                 Break;
-
-              Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
 
               // calculate start of next (layer) block in case we need to skip this one
               NextLayerPosition := Pointer(PAnsiChar(Run) + TotalBlockLength);
@@ -7434,9 +7443,7 @@ begin
               // allocate memory for all channels and read raw data
               for X := 0 to ChannelCount - 1 do
                 ReadChannelData;
-              Progress(Self, psEnding, 0, False, FProgressRect, '');
 
-              Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
               R := RedBuffer;
               G := GreenBuffer;
               B := BlueBuffer;
@@ -7483,9 +7490,6 @@ begin
                     // sure if LayerStartOfs in those cases is correct.
                     ColorManager.ConvertRow([C], PAnsiChar(ScanLine[Y])+LayerStartOfs, LayerWidth, $FF);
                     Inc(C, LayerRowSize);
-
-                    Progress(Self, psRunning, MulDiv(Y, 100, LayerHeight), True, FProgressRect, '');
-                    OffsetRect(FProgressRect, 0, 1);
                   end;
                 end
                 else
@@ -7505,13 +7509,9 @@ begin
                     Inc(G, LayerRowSize);
                     Inc(B, LayerRowSize);
                     Inc(C, LayerRowSize);
-
-                    Progress(Self, psRunning, MulDiv(Y, 100, LayerHeight), True, FProgressRect, '');
-                    OffsetRect(FProgressRect, 0, 1);
                   end;
                 end;
               end;
-              Progress(Self, psEnding, 0, False, FProgressRect, '');
 
               // Since we're now reading multiple layers we need to free the
               // Channel data here or we might cause leaked memory.
@@ -7533,7 +7533,13 @@ begin
                 FreeMem(CompBuffer);
                 CompBuffer := nil;
               end;
+
+              // Update progress
+              Dec(iLayer);
+              AdvanceProgress( 100 / Image.LayerCount-iLayer, 0, 1, True);
             until False; // layer loop
+            FinishProgressSection(False);
+          end; // PSP_LAYER_START_BLOCK
           PSP_COLOR_BLOCK:  // color palette block (this is also present for gray scale and b&w images)
             begin
               if Version > 3 then
@@ -7554,6 +7560,7 @@ begin
         Run := Pointer(NextMainBlock);
       until False; // main block loop
     finally
+      FinishProgressSection(False);
       if Assigned(RedBuffer) then
         FreeMem(RedBuffer);
       if Assigned(GreenBuffer) then
