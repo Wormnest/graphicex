@@ -124,6 +124,20 @@ type
     ctSGILog24          // SGI Log 24-bit packed
   );
 
+  // Image orientation, enumeration based on the TIFF Orientation tag
+  TgexOrientation = (
+    gexoUnknown,
+    gexoTopLeft,
+    gexoTopRight,
+    gexoBottomRight,
+    gexoBottomLeft,
+    // Rows and columns switched:
+    gexoLeftTop,
+    gexoRightTop,
+    gexoRightBottom,
+    gexoLeftBottom
+  );
+
   // properties of a particular image which are set while loading an image or when
   // they are explicitly requested via ReadImageProperties
   PImageProperties = ^TImageProperties;
@@ -144,6 +158,7 @@ type
     HasAlpha: Boolean;                 // TIF, PNG
     ImageCount: Cardinal;              // Number of subimages (PCD, TIF, GIF, MNG).
     Comment: WideString;               // Implemented for PNG and GIF.
+    Orientation: TgexOrientation;      // Image orientation (TIFF, Targa, RLA, ...) 
 
     // Informational data, used internally and/or by decoders
     // PCD
@@ -160,7 +175,6 @@ type
     FilterMode: Byte;
 
     // TIFF
-    Orientation: Word;
     SampleFormat: Byte;                // DataType of samples (default = 1 = unsigned int)
   end;
 
@@ -2080,7 +2094,7 @@ begin
     else
       FromSkew := 0;
 
-    if FImageProperties.Orientation = ORIENTATION_TOPLEFT then
+    if Ord(FImageProperties.Orientation) = ORIENTATION_TOPLEFT then
       RowInc := 1
     else
       RowInc := -1;
@@ -2138,7 +2152,7 @@ begin
   try
     TIFFGetField(tif, TIFFTAG_TILEWIDTH, @TileWidth);
     TIFFGetField(tif, TIFFTAG_TILELENGTH, @TileHeight);
-    if Orientation = ORIENTATION_TOPLEFT then
+    if Ord(Orientation) = ORIENTATION_TOPLEFT then
       RowInc := 1
     else
       RowInc := -1;
@@ -2208,7 +2222,7 @@ end;
 function TTIFFGraphic.SetOrientation(tif: PTIFF; H: Cardinal): Cardinal;
 
 begin
-  case FImageProperties.Orientation of
+  case Ord(FImageProperties.Orientation) of
     ORIENTATION_BOTRIGHT,
     ORIENTATION_RIGHTBOT,
     ORIENTATION_LEFTBOT,
@@ -2218,7 +2232,7 @@ begin
     // ORIENTATION_TOPRIGHT
     // ORIENTATION_RIGHTTOP
     // ORIENTATION_LEFTTOP etc.
-    FImageProperties.Orientation := ORIENTATION_TOPLEFT;
+    FImageProperties.Orientation := TgexOrientation(ORIENTATION_TOPLEFT);
     Result := 0;
   end;
 end;
@@ -2486,7 +2500,8 @@ begin
         TIFFSetDirectory(TIFFImage, ImageIndex);
         TIFFGetField(TIFFImage, TIFFTAG_IMAGEWIDTH, @Width);
         TIFFGetField(TIFFImage, TIFFTAG_IMAGELENGTH, @Height);
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_ORIENTATION, @Orientation);
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_ORIENTATION, @TIFFValue);
+        Orientation := TgexOrientation(TIFFValue);
 
         // Number of color components per pixel (1 for b&w, 16 and 256 colors, 3 for RGB, 4 for CMYK etc.).
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLESPERPIXEL, @TIFFValue);
