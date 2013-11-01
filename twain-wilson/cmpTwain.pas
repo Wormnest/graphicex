@@ -7,13 +7,12 @@ uses
   unitCallbackComponent, Twain_Wilson, SyncObjs;
 
 {.$DEFINE DEBUG}
+{.$DEFINE SELECT_FORMAT} // Setting image format is currently not working.
 
 type
   TOnImage = procedure (sender : TObject; bitmap : TBitmap; var release : boolean) of object;
 
-// JGB: I would like to have another Event here:
-//      OnScanningDone - possibly with a var that signifies whether something
-//      was scanned or not
+  // Event: OnScanningDone - Called when scanning finishes
   TOnScanningDone = procedure (sender : TObject; ImageScanned: Boolean) of object;
 
   TTransferFormat = (tfBmp, tfJpg, tfTiff);
@@ -25,11 +24,13 @@ type
     fAppID : TW_IDENTITY;
     fSourceID : TW_IDENTITY;
     fOnImage: TOnImage;
+{$IFDEF SELECT_FORMAT}
     fTransferFormat: TTransferFormat;
+{$ENDIF}
     fWindowList : pointer;
     fActiveWindow : HWND;
+    fPict : TPicture;  // jgb here instead of private as a test
 
-    //jgb:
     FOnScanningDone: TOnScanningDone;
     FImageAvailable: Boolean;
 
@@ -41,19 +42,22 @@ type
     procedure SetTransferCount (value : Integer);
 
     procedure TransferImage;
+{$IFDEF SELECT_FORMAT}
     procedure SetTransferFormat(const Value: TTransferFormat);
+{$ENDIF}
     function TwainCheck (code : Integer) : Integer;
   protected
     procedure WndProc (var Msg : TMessage); override;
   public
-    fPict : TPicture;  // jgb here instead of private as a test
     destructor Destroy; override;
     function SelectSource : boolean;
     procedure GetSingleImage (parent : TWinControl; pict : TPicture);
 
     { Public declarations }
   published
+{$IFDEF SELECT_FORMAT}
     property TransferFormat : TTransferFormat read fTransferFormat write SetTransferFormat;
+{$ENDIF}
     property OnImage : TOnImage read fOnImage write fOnImage;
     property OnScanningDone: TOnScanningDone read FOnScanningDone write FOnScanningDone;
   end;
@@ -86,12 +90,13 @@ begin
   SetOpen (True);
   SetTransferCount (1);
 
-(*
+{$IFDEF SELECT_FORMAT}
   if TransferFormat = tfJPg then
   begin
     SetCapability (ICAP_IMAGEFILEFORMAT, TWFF_JFIF)
   end;
-*)
+{$ENDIF}
+
   twUserInterface.ShowUI := True;
   twUserInterface.hParent := parent.Handle;
   twUserInterface.ModalUI := True;
@@ -255,22 +260,23 @@ begin
   SetCapability (CAP_XFERCOUNT, value);
 end;
 
+{$IFDEF SELECT_FORMAT}
 procedure TcwTwain.SetTransferFormat(const Value: TTransferFormat);
 begin
   fTransferFormat := Value;
 end;
+{$ENDIF}
 
-// 2013-01-09 Delphi incorrectly thinks that twMemXFer, twSetupMemXFer and twImageInfo
-// are not used and issues Hints to that end. Therefore we turn off hints for
-// this function only.
-{$HINTS OFF}
+{$DEFINE DISABLE_MEM_TRANSFER} // This code is disabled and doesn't seem to be finised.
 procedure TcwTwain.TransferImage;
 var
   h : THandle;
   twPendingXfers : TW_PENDINGXFERS;
+{$IFNDEF DISABLE_MEM_TRANSFER}
   twMemXFer : TW_IMAGEMEMXFER;        // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twSetupMemXFer : TW_SETUPMEMXFER;   // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twImageInfo : TW_IMAGEINFO;         // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
+{$ENDIF}
   TwainCode: Integer;
 
   function CreateTBitmapFromTwainHandle (h : THandle) : TBitmap;
@@ -298,10 +304,6 @@ var
         mems.Seek(0, soFromBeginning);
 
         bmp.LoadFromStream(mems);
-{$IFDEF DEBUG}
-        {if bmp.Width = 0 then
-          MessageBeep(MB_IconInformation);}
-{$ENDIF}
       except
         FreeAndNil (bmp)
       end;
@@ -316,6 +318,7 @@ var
 
 begin
   FImageAvailable := False;
+{$IFNDEF DISABLE_MEM_TRANSFER}
   if False then // HasCapability (ICAP_XFERMECH, TWSX_MEMORY) then
   begin
     SetCapability (ICAP_XFERMECH, TWSX_MEMORY);
@@ -339,6 +342,7 @@ begin
 
   end
   else
+{$ENDIF}
   begin
     TwainCode := TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_IMAGE, DAT_IMAGENATIVEXFER, MSG_GET, @h));
     // We need to check here if everything went fine.
@@ -362,7 +366,6 @@ begin
 //    OnImage (self, bmp, release);
 
 end;
-{$HINTS ON}
 
 function TcwTwain.TwainCheck(code: Integer): Integer;
 var
@@ -417,9 +420,6 @@ begin
           end;
 
         MSG_CLOSEDSREQ:
-{JGB:
-        MSG_CLOSEDSOK :
-//end jgb}
           begin
             FillChar (twUserInterface, SizeOf (twUserInterface), 0);
             TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface));
@@ -428,19 +428,10 @@ begin
             SetOpen (False)
           end;
 
-{JGB}
-        MSG_CLOSEDSOK :
+        MSG_CLOSEDSOK:
           begin
             SetOpen (False);
-            // 18-3-2012 why is testing only code still present here????????????????
-            // 26-3-2012 turned off beep
-            //MessageBeep (MB_ICONEXCLAMATION);  // for testing only!
           end;
-{}
-{$IFDEF DEBUG}
-        MSG_NULL :
-          MessageBeep (MB_ICONEXCLAMATION)
-{$ENDIF}
       end
     end;
 

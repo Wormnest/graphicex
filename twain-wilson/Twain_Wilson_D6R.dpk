@@ -29,8 +29,7 @@ package Twain_Wilson_D6R;
 
 requires
   rtl,
-  vcl,
-  vcljpg;
+  vcl;
 
 contains
   unitCallbackComponent in 'unitCallbackComponent.pas',
