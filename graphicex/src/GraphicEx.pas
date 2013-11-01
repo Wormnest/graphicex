@@ -288,14 +288,89 @@ type
   {$endif TIFFGraphic}
 
   {$ifdef TargaGraphic}
+type
+  PTargaHeader = ^TTargaHeader;
+  TTargaHeader = packed record
+    IDLength,
+    ColorMapType,
+    ImageType: Byte;
+    ColorMapOrigin,
+    ColorMapSize: Word;
+    ColorMapEntrySize: Byte;
+    XOrigin,
+    YOrigin,
+    Width,
+    Height: Word;
+    PixelSize: Byte;
+    ImageDescriptor: Byte;
+  end;
+
+  TTargaV2Footer = packed record
+    ExtAreaOffset: Cardinal;
+    DevDirOffset:  Cardinal;
+    Signature: array [0..17] of AnsiChar;
+  end;
+
+  TTargaDate = packed record
+    Month: Word;
+    Day: Word;
+    Year: Word;
+  end;
+  TTargaTime = packed record
+    Hour: Word;
+    Minute: Word;
+    Second: Word;
+  end;
+
+  TTargaAlphaAttributes = ( NoAlphaData, UndefinedAlphaCanBeIgnored,
+    UndefinedAlphaButKeep, AlphaDataPresent, PreMultipliedAlpha );
+
+  TExtensionArea = packed record
+    Size: Word;                           // Should always be 495 for Version 2
+    Author: array [0..40] of AnsiChar;    // Null terminated Author name
+    Comments: array [0..3, 0..80] of AnsiChar; // Four lines of 80 characters each followed by a null terminator
+    SaveDate: TTargaDate;
+    SaveTime: TTargaTime;
+    JobName: array [0..40] of AnsiChar;   // Null terminated job name or id
+    JobTime: TTargaTime;
+    Software: array [0..40] of AnsiChar;  // Null terminated name of the Software used to create this image
+    SoftwareVersionNumber: Word;
+    SoftwareVersionLetter: AnsiChar;
+    KeyColor: TBGRA;                      // Background or transparent color at the time of saving
+    PixelRatioNumerator: Word;
+    PixelRatioDenominator: Word;
+    GammaRatioNumerator: Word;            // The resulting value should be in the range of 0.0 to 10.0,
+    GammaRatioDenominator: Word;          // with only one decimal place of precision necessary.
+    ColorCorrectionOffset: Cardinal;      // This is an offset from the beginning of the file
+                                          // to the start of the Color Correction table.
+    PostageStampOffset: Cardinal;         // This is an offset from the beginning of the file
+                                          // to the start of the Postage Stamp Image.
+                                          // (i.e. a Thumbnail, same format as full image)
+    ScanLineOffset: Cardinal;             // This is an offset from the beginning of the file
+                                          // to the start of the Scan Line Table.
+    Attributes: TTargaAlphaAttributes;
+  end;
+  PExtensionArea = ^TExtensionArea;
+
   // *.tga; *.vst; *.icb; *.vda; *.win images
   TTargaGraphic = class(TGraphicExGraphic)
+   private
+     FTargaHeader: TTargaHeader;
+     FTargaFooter: TTargaV2Footer;
+     FExtensionArea: PExtensionArea;
    public
+    constructor Create; override;
+    destructor Destroy; override;
+
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
     procedure SaveToStream(Stream: TStream); overload; override;
     procedure SaveToStream(Stream: TStream; Compressed: Boolean); reintroduce; overload;
+
+    property TargaHeader: TTargaHeader read FTargaHeader;
+    property TargaFooter: TTargaV2Footer read FTargaFooter;
+    property ExtensionArea: PExtensionArea read FExtensionArea;
   end;
   {$endif TargaGraphic}
 
@@ -314,7 +389,7 @@ type
 
   {$ifdef PCDGraphic}
   // *.pcd images
-  // Note: By default the BASE resolution of a PCD image is loaded with LoadFromStream. 
+  // Note: By default the BASE resolution of a PCD image is loaded with LoadFromStream.
   TPCDGraphic = class(TGraphicExGraphic)
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
@@ -2642,7 +2717,7 @@ end;
 
 {$endif TIFFGraphic}
 
-//----------------- TTargaGraphic --------------------------------------------------------------------------------------
+//----------------- TTargaGraphic ----------------------------------------------
 
 {$ifdef TargaGraphic}
 
@@ -2683,36 +2758,39 @@ end;
 //    FIELD 8: IMAGE DATA FIELD (WIDTH AND HEIGHT SPECIFIED IN FIELD 5.3 AND 5.4)
 
 const
-  TARGA_NO_COLORMAP = 0;
-  TARGA_COLORMAP = 1;
+  // ColorMap presence (indexed images)
+  TARGA_NO_COLORMAP         = 0;
+  TARGA_COLORMAP            = 1;
 
-  TARGA_EMPTY_IMAGE = 0;
-  TARGA_INDEXED_IMAGE = 1;
-  TARGA_TRUECOLOR_IMAGE = 2;
-  TARGA_BW_IMAGE = 3;
-  TARGA_INDEXED_RLE_IMAGE = 9;
+  // Targa image types
+  TARGA_EMPTY_IMAGE         = 0;
+  TARGA_INDEXED_IMAGE       = 1;
+  TARGA_TRUECOLOR_IMAGE     = 2;
+  TARGA_BW_IMAGE            = 3;
+  TARGA_INDEXED_RLE_IMAGE   = 9;
   TARGA_TRUECOLOR_RLE_IMAGE = 10;
-  TARGA_BW_RLE_IMAGE = 11;
+  TARGA_BW_RLE_IMAGE        = 11;
 
-type
-  PTargaHeader = ^TTargaHeader;
-  TTargaHeader = packed record
-    IDLength,
-    ColorMapType,
-    ImageType: Byte;
-    ColorMapOrigin,
-    ColorMapSize: Word;
-    ColorMapEntrySize: Byte;
-    XOrigin,
-    YOrigin,
-    Width,
-    Height: Word;
-    PixelSize: Byte;
-    ImageDescriptor: Byte;
-  end;
+  // Targa version 2 signature and extension area size
+  TARGA_SIGNATURE: array [0..17] of AnsiChar = 'TRUEVISION-XFILE.'+#0;
+  TARGA_V2_EXTENSION_AREA_SIZE = 495;
 
+//------------------------------------------------------------------------------
 
-//----------------------------------------------------------------------------------------------------------------------
+constructor TTargaGraphic.Create;
+begin
+  inherited Create;
+  FExtensionArea := nil;
+end;
+
+destructor TTargaGraphic.Destroy;
+begin
+  if Assigned(FExtensionArea) then
+    FreeMem(FExtensionArea);
+  inherited Destroy;
+end;
+
+//------------------------------------------------------------------------------
 
 class function TTargaGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 
@@ -2721,7 +2799,7 @@ begin
   if Result then
     with PTargaHeader(Memory)^ do
     begin
-      // Targa images are hard to determine because there is no magic id or something like that.
+      // Targa version 1 images are hard to determine because there is no magic id or something like that.
       // Hence all we can do is to check if all values from the header are within correct limits.
       Result := (ImageType in [TARGA_EMPTY_IMAGE, TARGA_INDEXED_IMAGE, TARGA_TRUECOLOR_IMAGE, TARGA_BW_IMAGE,
         TARGA_INDEXED_RLE_IMAGE, TARGA_TRUECOLOR_RLE_IMAGE, TARGA_BW_RLE_IMAGE]) and
@@ -2731,7 +2809,7 @@ begin
     end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TTargaGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
@@ -2743,7 +2821,6 @@ var
   LineSize: Integer;
   LineBuffer: Pointer;
   LogPalette: TMaxLogPalette;
-  Header: TTargaHeader;
   FlipV: Boolean;
   Decoder: TTargaRLEDecoder;
   ColorMapBufSize: Integer;
@@ -2758,12 +2835,10 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
-      Move(Memory^, Header, SizeOf(Header));
-      FlipV := (Header.ImageDescriptor and $20) <> 0;
-      Header.ImageDescriptor := Header.ImageDescriptor and $F;
+      FlipV := (FTargaHeader.ImageDescriptor and $20) <> 0;
 
       // skip image ID
-      Source := Pointer(PAnsiChar(Memory) + SizeOf(Header) + Header.IDLength);
+      Source := Pointer(PAnsiChar(Memory) + SizeOf(TTargaHeader) + FTargaHeader.IDLength);
 
       with ColorManager do
       begin
@@ -2777,10 +2852,10 @@ begin
         PixelFormat := TargetPixelFormat;
       end;
 
-      if (Header.ColorMapType = TARGA_COLORMAP) or
-         (Header.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE]) then
+      if (FTargaHeader.ColorMapType = TARGA_COLORMAP) or
+         (FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE]) then
       begin
-        if Header.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
+        if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
           Palette := ColorManager.CreateGrayscalePalette(False)
         else
         begin
@@ -2788,19 +2863,21 @@ begin
           // by 15/16 bits color map entries. However since it is planned to move
           // that code to the ColorManager to we will leave this as is since it
           // will be needed there too after the move.
-          ColorMapBufSize := (Header.ColorMapEntrySize div 8) * Header.ColorMapSize;
+          ColorMapBufSize := (FTargaHeader.ColorMapEntrySize div 8) * FTargaHeader.ColorMapSize;
           GetMem(ColorMapBuffer, ColorMapBufSize);
           try
             Move(Source^, ColorMapBuffer^, ColorMapBufSize);
-            case Header.ColorMapEntrySize of
+            case FTargaHeader.ColorMapEntrySize of
               32:
                 begin
-                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer], pfInterlaced8Quad, Header.ColorMapSize, True);
+                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
+                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, True);
                   Inc(Source, ColorMapBufSize);
                 end;
               24:
                 begin
-                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer], pfInterlaced8Triple, Header.ColorMapSize, True);
+                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
+                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, True);
                   Inc(Source, ColorMapBufSize);
                 end;
               15, 16:
@@ -2809,13 +2886,13 @@ begin
                   // read palette entries and create a palette
                   ZeroMemory(@LogPalette, SizeOf(LogPalette));
                   palVersion := $300;
-                  palNumEntries := Header.ColorMapSize;
+                  palNumEntries := FTargaHeader.ColorMapSize;
 
                   // TODO: This Color Palette creation algorithm should be moved to
                   // ColorManager.CreateColorPalette!
                   // 15 and 16 bits per color map entry (handle both like 555 color format
                   // but make 8 bit from 5 bit per color component)
-                  for I := 0 to Header.ColorMapSize - 1 do
+                  for I := 0 to FTargaHeader.ColorMapSize - 1 do
                   begin
                     palPalEntry[I].peBlue := Byte((PWord(Source)^ and $1F) shl 3);
                     palPalEntry[I].peGreen := Byte((PWord(Source)^ and $3E0) shr 2);
@@ -2835,14 +2912,14 @@ begin
         end;
       end;
 
-      Self.Width := Header.Width;
-      Self.Height := Header.Height;
+      Self.Width := FTargaHeader.Width;
+      Self.Height := FTargaHeader.Height;
 
-      LineSize := Width * (Header.PixelSize div 8);
+      LineSize := Width * (FTargaHeader.PixelSize div 8);
       Progress(Self, psEnding, 0, False, FProgressRect, '');
 
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
-      case Header.ImageType of
+      case FTargaHeader.ImageType of
         TARGA_EMPTY_IMAGE: // nothing to do here
           ;
         TARGA_BW_IMAGE,
@@ -2854,7 +2931,7 @@ begin
               if FlipV then
                 LineBuffer := ScanLine[I]
               else
-                LineBuffer := ScanLine[Header.Height - (I + 1)];
+                LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
               Move(Source^, LineBuffer^, LineSize);
               Inc(Source, LineSize);
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
@@ -2866,7 +2943,7 @@ begin
         TARGA_TRUECOLOR_RLE_IMAGE:
           begin
             Buffer := nil;
-            Decoder := TTargaRLEDecoder.Create(Header.PixelSize);
+            Decoder := TTargaRLEDecoder.Create(FTargaHeader.PixelSize);
             try
               // Targa RLE is not line oriented. Convert all the RLE data in one rush.
               GetMem(Buffer, Height * LineSize);
@@ -2879,7 +2956,7 @@ begin
                 if FlipV then
                   LineBuffer := ScanLine[I]
                 else
-                  LineBuffer := ScanLine[Header.Height - (I + 1)];
+                  LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
                 Move(Run^, LineBuffer^, LineSize);
                 Inc(Run, LineSize);
                 Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
@@ -2894,16 +2971,27 @@ begin
       else
         GraphicExError(gesInvalidImage, ['TGA']);
       end;
+
+      // 32 bit TGA images may not be using the alpha channel, in that case we
+      // replace it by Alpha is 255 or else the image will be invisible
+      if (FTargaHeader.PixelSize = 32) then begin
+        if (FTargaHeader.ImageDescriptor and $F = 0) or
+           ((FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) and
+           (FExtensionArea.Attributes in
+           [NoAlphaData, UndefinedAlphaCanBeIgnored, UndefinedAlphaButKeep])) then
+          for i := 0 to Height-1 do
+            BGRASetAlpha255(ScanLine[i], Width);
+      end;
       Progress(Self, psEnding, 0, False, FProgressRect, '');
     end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TTargaGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Header: TTargaHeader;
+  Run: PByte;
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
@@ -2911,17 +2999,16 @@ begin
   if Result then
     with FImageProperties do
     begin
-      Move(Memory^, Header, SizeOf(Header));
-      Header.ImageDescriptor := Header.ImageDescriptor and $F;
+      Move(Memory^, FTargaHeader, SizeOf(TTargaHeader));
 
-      Width := Header.Width;
-      Height := Header.Height;
+      Width := FTargaHeader.Width;
+      Height := FTargaHeader.Height;
       BitsPerSample := 8;
 
-      case Header.PixelSize of
+      case FTargaHeader.PixelSize of
         8:
           begin
-            if Header.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
+            if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
               ColorScheme := csG
             else
               ColorScheme := csIndexed;
@@ -2947,16 +3034,55 @@ begin
       end;
 
       BitsPerPixel := SamplesPerPixel * BitsPerSample;
-      if Header.ImageType in [TARGA_BW_RLE_IMAGE, TARGA_INDEXED_RLE_IMAGE, TARGA_TRUECOLOR_RLE_IMAGE] then
+      if FTargaHeader.ImageType in [TARGA_BW_RLE_IMAGE, TARGA_INDEXED_RLE_IMAGE, TARGA_TRUECOLOR_RLE_IMAGE] then
         Compression := ctRLE
       else
         Compression := ctNone;
+
+      // Check for Targa version 1 id field, if present use it as comment
+      if FTargaHeader.IDLength > 0 then begin
+        Run := Memory;
+        Inc(Run, SizeOf(TTargaHeader));
+        SetString(FImageProperties.Comment, PAnsiChar(Run), FTargaHeader.IDLength);
+      end;
+
+      FImageProperties.Version := 1;
+      // Check if Targa version 2 Footer is present
+      if (SizeOf(TTargaHeader) + SizeOf(TTargaV2Footer) < Size) then begin
+        Run := Memory;
+        Inc(Run, Size-SizeOf(TTargaV2Footer));
+        Move(Run^, FTargaFooter, SizeOf(TTargaV2Footer));
+
+        // Does it have the version 2 signature?
+        if CompareStr(FTargaFooter.Signature, TARGA_SIGNATURE) = 0 then begin
+          FImageProperties.Version := 2; // Yes, it is version 2.
+
+          // Does it have the optional ExtensionArea?
+          if FTargaFooter.ExtAreaOffset > 0 then begin
+            Run := Memory;
+            Inc(Run, FTargaFooter.ExtAreaOffset);
+
+            // Does the ExtensionArea have the correct size?
+            if PWord(Run)^ = TARGA_V2_EXTENSION_AREA_SIZE then begin // The expected size of ExtensionArea
+              if not Assigned(FExtensionArea) then
+                GetMem(FExtensionArea, SizeOf(TExtensionArea));
+              Move(Run^, FExtensionArea^, SizeOf(TExtensionArea));
+              if FExtensionArea.Comments[0][0] <> '' then begin
+                // Comment present, for now we only copy the first line.
+                FImageProperties.Comment := FExtensionArea.Comments[0];
+              end;
+            end
+            else // Unexpected size don't know how to handle.
+              FTargaFooter.ExtAreaOffset := 0;
+          end;
+        end;
+      end;
 
       Result := True;
     end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TTargaGraphic.SaveToStream(Stream: TStream);
 
@@ -2964,7 +3090,7 @@ begin
   SaveToStream(Stream, True);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TTargaGraphic.SaveToStream(Stream: TStream; Compressed: Boolean);
 
