@@ -21,6 +21,7 @@ unit GraphicColor;
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
 //
 // GraphicColor contains the implementation of the color conversion manager.
 // This class is responsible for converting between these color schemes/formats:

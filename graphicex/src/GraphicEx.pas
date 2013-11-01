@@ -27,6 +27,7 @@ unit GraphicEx;
 // See help file for a description of supported image formats.
 //
 // Version: see gexVersion.
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
 //
 // Note: This library can be compiled with Delphi 5 or newer versions.
 //
@@ -7121,7 +7122,7 @@ var
   Index: Integer;
   AbsoluteRect: TRECT; // Rect holding the position of the current layer within image
   LayerWidth,
-  LayerHeight,
+//  LayerHeight,
   LayerRowSize,
   LayerStartOfs: Integer;
 
@@ -7465,7 +7466,8 @@ begin
               // Saved layer width
               LayerWidth := LayerInfo.SavedImageRectangle.Right - LayerInfo.SavedImageRectangle.Left;
               // Precompute LayerHeight for use in Progress
-              LayerHeight := AbsoluteRect.Bottom - AbsoluteRect.Top;
+              // Currently not used for progress, progress needs to be revised for multilayer support.
+              //LayerHeight := AbsoluteRect.Bottom - AbsoluteRect.Top;
 
               with ColorManager do
               begin
