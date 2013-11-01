@@ -5006,7 +5006,7 @@ type
     Next: Integer;                     // offset for next header if multi-frame image
   end;
   
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 class function TRLAGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 
@@ -5017,7 +5017,7 @@ begin
       Result := (Word(Revision) = $FEFF) and ((StrLIComp(Chan, 'rgb', 3) = 0) or (StrLIComp(Chan, 'xyz', 3) = 0));
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TRLAGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); 
 
@@ -5045,7 +5045,7 @@ begin
     with FImageProperties do
     begin
       Run := Memory;
-      
+
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
@@ -5082,6 +5082,7 @@ begin
       // Each scanline is organized in RLE compressed strips whose location in the stream
       // is determined by the offsets table.
       SetLength(Offsets, Height);
+      Inc(Run, SizeOf(TRLAHeader)); // Offsets are located right after the header
       Move(Run^, Offsets[0], Height * SizeOf(Cardinal));
       Inc(Run, Height * SizeOf(Cardinal));
       SwapLong(Pointer(Offsets), Height);
@@ -5164,7 +5165,29 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+// RLA data can have leading spaces that we need to remove and we also need to
+// convert the '.' decimal separator to the system default decimal separator.
+function ConvertAnsiFloatToString(const s: string): string;
+var i, j: Integer;
+begin
+  i := 1;
+  j := 1;
+  SetLength(Result, Length(s));
+  while i <= Length(s) do begin
+    if s[i] <> ' ' then begin
+      if s[i] = '.' then begin
+        Result[j] := DecimalSeparator;
+      end
+      else
+        Result[j] := s[i];
+      Inc(j);
+    end;
+    Inc(i);
+  end;
+  SetLength(Result, j-1);
+end;
 
 function TRLAGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
@@ -5191,7 +5214,7 @@ begin
       BitsPerSample := Header.Chan_bits;
       BitsPerPixel := SamplesPerPixel * BitsPerSample;
 
-      if LowerCase(String(Header.Chan)) = 'rgb' then
+      if LowerCase(AnsiString(Header.Chan)) = 'rgb' then
       begin
         if Header.num_matte > 0 then
           ColorScheme := csRGBA
@@ -5202,7 +5225,9 @@ begin
         // if LowerCase(Header.Chan) = 'xyz' then
         ColorScheme := csUnknown;
 
-      FileGamma := StrToFloatDef(String(Header.Gamma), 1);
+      // The onely RLA sample image I have seems to use the screen default gamma
+      // of 2.2. We need to convert that value to an expected default value of 1.
+      FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
 
       Compression := ctRLE;
 
@@ -5213,6 +5238,8 @@ begin
         Orientation := gexoBottomLeft
       else
         Orientation := gexoTopLeft;
+
+      Comment := AnsiString(Header.Desc);
 
       Result := True;
     end;
