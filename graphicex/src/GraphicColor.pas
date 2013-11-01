@@ -5183,7 +5183,7 @@ begin
 
   case FSourceScheme of
     csG:
-      if ((FSourceBPS in [5..16]) and (FTargetBPS in [8, 16])) or
+      if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
          ((FSourceBPS = 3) and (FTargetBPS = 4)) then
         FRowConversion := RowConvertGray
       else
@@ -5310,7 +5310,7 @@ end;
 procedure TColorManager.SetSourceBitsPerSample(const Value: Byte);
 
 begin
-  if not (Value in [1..16]) then
+  if not (Value in [1..64]) then
     ShowError(gesInvalidSampleDepth);
   if FSourceBPS <> Value then
   begin

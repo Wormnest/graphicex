@@ -2323,13 +2323,13 @@ begin
           if (SamplesPerPixel in [1, 2]) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
           begin
             // Monochrome or palette images with 1, 2, 4, 8 and 16 bits per pixel.
-            // Now also supporting uncommon 3, 5..7, 9..15 bits per pixel.
+            // Now also supporting uncommon 3, 5..7, 9..15, 17..64 bits per pixel.
             ColorManager.SourceBitsPerSample := BitsPerSample;
             ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
 
             // TargetBitsPerSample needs to correspond to the TargetPixelFormat
             // or else the image will not be painted correctly.
-            if (BitsPerSample >= 5) and (BitsPerSample <= 16) then
+            if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
               ColorManager.TargetBitsPerSample := 8
             else if BitsPerSample in [2, 3, 4] then
               ColorManager.TargetBitsPerSample := 4
