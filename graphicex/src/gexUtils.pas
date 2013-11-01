@@ -48,6 +48,14 @@ function ReadBigEndianString(var Run: PByte; Len: Cardinal): WideString; overloa
 // However the length will first be retrieved.
 function ReadBigEndianString(var Run: PByte): WideString; overload;
 
+// Reads the next Len bytes from the memory pointed to by Run, converts this into a
+// wide string and advances Run with Len bytes.
+function ReadUtf8String(var Run: PByte; Len: Cardinal): WideString;
+
+// Same as previous ReadUtf8String, however it first reads the length and converts it
+// from BigEndian.
+function ReadUtf8StringBigEndianLength(var Run: PByte): WideString;
+
 
 // swaps high and low byte of 16 bit values
 procedure SwapShort(P: PWord; Count: Cardinal);
@@ -219,5 +227,28 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+function ReadUtf8String(var Run: PByte; Len: Cardinal): WideString;
+
+// Reads the next Len bytes from the memory pointed to by Run, converts this into a
+// wide string and advances Run with Len bytes.
+
+begin
+  SetString(Result, PAnsiChar(Run), Len); // Not PWideChar!
+  Inc(Run, Len);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+function ReadUtf8StringBigEndianLength(var Run: PByte): WideString;
+var Len: Cardinal;
+// Same as previous ReadUtf8String, however it first reads the length and converts it
+// from BigEndian.
+
+begin
+  Len := ReadBigEndianCardinal(Run);
+  Result := ReadUtf8String(Run, Len);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
 
 end.
