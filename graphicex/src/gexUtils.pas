@@ -36,6 +36,10 @@ function ReadBigEndianInteger(var Run: PByte): Integer;
 // word number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianWord(var Run: PByte): Word;
 
+// Reads the next four bytes from the memory pointed to by Run, converts this into a
+// single number (inclusive byte order swapping) and advances Run.
+function ReadBigEndianSingle(var Run: PByte): Single;
+
 // Reads the next eight bytes from the memory pointed to by Run, converts this into a
 // double number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianDouble(var Run: PByte): Double;
@@ -183,6 +187,21 @@ function ReadBigEndianWord(var Run: PByte): Word;
 begin
   Result := Swap(PWord(Run)^);
   Inc(Run, SizeOf(Word));
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// Reads the next four bytes from the memory pointed to by Run, converts this into a
+// single number (inclusive byte order swapping) and advances Run.
+function ReadBigEndianSingle(var Run: PByte): Single;
+type TSingleCardinal = record
+       case Integer of
+         0: (SingleValue: Single);
+         1: (CardinalValue: Cardinal);
+     end;
+begin
+  TSingleCardinal(Result).SingleValue := TSingleCardinal(SwapLong(PCardinal(Run)^)).SingleValue;
+  Inc(PCardinal(Run));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
