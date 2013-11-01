@@ -142,7 +142,7 @@ type
     Interlaced,                        // GIF, PNG
     HasAlpha: Boolean;                 // TIF, PNG
     ImageCount: Cardinal;              // Number of subimages (PCD, TIF, GIF, MNG).
-    Comment: string;                   // Implemented for PNG and GIF.
+    Comment: WideString;               // Implemented for PNG and GIF.
 
     // Informational data, used internally and/or by decoders
     // PCD
