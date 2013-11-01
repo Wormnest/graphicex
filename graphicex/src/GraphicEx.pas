@@ -158,7 +158,7 @@ type
     HasAlpha: Boolean;                 // TIF, PNG
     ImageCount: Cardinal;              // Number of subimages (PCD, TIF, GIF, MNG).
     Comment: WideString;               // Implemented for PNG and GIF.
-    Orientation: TgexOrientation;      // Image orientation (TIFF, Targa, RLA, ...) 
+    Orientation: TgexOrientation;      // Image orientation (TIFF, Targa, RLA, ...)
 
     // Informational data, used internally and/or by decoders
     // PCD
@@ -167,9 +167,6 @@ type
 
     // GIF
     LocalColorTable: Boolean;          // image uses an own color palette instead of the global one
-
-    // RLA
-    BottomUp: Boolean;                 // images is bottom to top
 
     // PNG
     FilterMode: Byte;
@@ -5097,9 +5094,9 @@ begin
         for Y := 0 to Height - 1 do
         begin
           Run := Pointer(PAnsiChar(Memory) + Offsets[Y]);
-          if BottomUp then
+          if Orientation = gexoBottomLeft then
             Line := ScanLine[Height - Y - 1]
-          else
+          else // TopLeft
             Line := ScanLine[Y];
           // read channel data to decode
           // red
@@ -5203,7 +5200,10 @@ begin
       // dimension of image, top might be larger than bottom denoting a bottom up image
       Width := Header.Active_window.Right - Header.Active_window.Left + 1;
       Height := Abs(Header.Active_window.Bottom - Header.Active_window.Top) + 1;
-      BottomUp := (Header.Active_window.Bottom - Header.Active_window.Top) < 0;
+      if (Header.Active_window.Bottom - Header.Active_window.Top) < 0 then
+        Orientation := gexoBottomLeft
+      else
+        Orientation := gexoTopLeft;
 
       Result := True;
     end;
