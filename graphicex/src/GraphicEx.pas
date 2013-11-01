@@ -230,12 +230,12 @@ type
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; overload; virtual;
     class function CanLoad(Stream: TStream): Boolean; overload;
     procedure LoadFromFile(const FileName: string); override;
-    procedure LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0);
+    procedure LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0); virtual;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); virtual;
-    procedure LoadFromResourceID(Instance: THandle; ResID: Integer; ImageIndex: Cardinal = 0);
-    procedure LoadFromResourceName(Instance: THandle; const ResName: string; ImageIndex: Cardinal = 0);
+    procedure LoadFromResourceID(Instance: THandle; ResID: Integer; ImageIndex: Cardinal = 0); virtual;
+    procedure LoadFromResourceName(Instance: THandle; const ResName: string; ImageIndex: Cardinal = 0); virtual;
     procedure LoadFromStream(Stream: TStream); override;
-    procedure LoadFromStreamByIndex(Stream: TStream; ImageIndex: Cardinal = 0);
+    procedure LoadFromStreamByIndex(Stream: TStream; ImageIndex: Cardinal = 0); virtual;
     function ReadImageProperties(const Name: string; ImageIndex: Cardinal): Boolean; overload; virtual;
     function ReadImageProperties(Stream: TStream; ImageIndex: Cardinal): Boolean; overload; virtual;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; overload; virtual;
