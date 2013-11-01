@@ -16,10 +16,8 @@ unit GraphicStrings;
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
-// GraphicStrings contains the english version of the strings used in GraphicEx, which can be localized.
+// GraphicStrings contains the English version of the strings used in GraphicEx, which can be localized.
 // Translation done by Mike Lischke (public@delphi-gems.com).
-//
-// Rename the file to GraphicStrings.pas to use it as your favourite language file.
 //
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -107,7 +105,7 @@ resourcestring
   gesPreparing = 'Preparing...';
   gesLoadingData = 'Loading data...';
   gesUpsampling = 'Upsampling...';
-  gesTransfering = 'Transfering...';
+  gesTransfering = 'Transferring...';
 
   // compression errors
   gesLZ77Error = 'LZ77 decompression error.';
