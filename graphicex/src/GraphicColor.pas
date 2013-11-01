@@ -16,6 +16,8 @@ unit GraphicColor;
 //
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
+// Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+// All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
@@ -51,6 +53,8 @@ unit GraphicColor;
 //       + indexed schemes with planes (e.g. 16 colors indexed as 4 planes each with one bit per sample)
 //   - For now there is no conversion between indexed and non-indexed formats. Also between grayscale
 //     and any other scheme is no conversion possible.
+//   - jb: The notes above have not been adapted yet to any possible changes and
+//         additions that have been done by me.
 //
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -198,10 +202,10 @@ type
 
   // Color Manager conversion settings
   TConvertOptions = set of (
-    coAlpha,          // alpha channel is to be considered (this value is usually automatically set depending on
-                      // the color scheme)
-    coApplyGamma,     // target only, gamma correction must take place
-    coNeedByteSwap,   // endian switch needed
+    coAlpha,          // Alpha channel is to be considered (this value is usually automatically
+                      // set depending on the color scheme)
+    coApplyGamma,     // Target only, gamma correction must take place
+    coNeedByteSwap,   // Endian switch needed
     coLabByteRange,   // CIE L*a*b* only, luminance range is from 0..255 instead 0..100
     coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
     coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
@@ -209,11 +213,11 @@ type
 
   // Format of the raw data to create a color palette from
   TRawPaletteFormat = (
-    pfInterlaced8Triple, // rgb triple with 8 bits per component
-    pfInterlaced8Quad,   // rgb quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
+    pfInterlaced8Triple, // RGB triple with 8 bits per component
+    pfInterlaced8Quad,   // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
     pfPlane8Triple,      // 3 separate planes of data with 8 bits per component
     pfPlane8Quad,
-    pfInterlaced16Triple,// rgb triple with 16 bits per component
+    pfInterlaced16Triple,// RGB triple with 16 bits per component
     pfInterlaced16Quad,
     pfPlane16Triple,     // 3 separate planes of data with 16 bits per component
     pfPlane16Quad
@@ -225,29 +229,29 @@ type
 
   TColorManager = class
   private
-    FChanged: Boolean;                 // set if any of the parameters changed
-    FSourceBPS,                        // bits per sample of source data (allowed values are 1, 2, 4, 8, 16)
-    FTargetBPS,                        // bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
-    FSourceSPP,                        // samples per source pixel (allowed values are 1, 3, 4)
-    FTargetSPP: Byte;                  // samples per target pixel (allowed values are 1, 3, 4)
-    FMainGamma,                        // primary gamma value which is usually read from a file (default is 1)
-    FDisplayGamma: Single;             // (constant) gamma value of the current monitor (default is 2.2)
-    FGammaTable: array[Byte] of Byte;  // contains precalculated gamma values for each possible component value
+    FChanged: Boolean;                 // Set if any of the parameters changed
+    FSourceBPS,                        // Bits per sample of source data (allowed values are 1, 2, 4, 8, 16)
+    FTargetBPS,                        // Bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
+    FSourceSPP,                        // Samples per source pixel (allowed values are 1, 3, 4)
+    FTargetSPP: Byte;                  // Samples per target pixel (allowed values are 1, 3, 4)
+    FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
+    FDisplayGamma: Single;             // (Constant) gamma value of the current monitor (default is 2.2)
+    FGammaTable: array[Byte] of Byte;  // Contains precalculated gamma values for each possible component value
                                        // (range is 0..255)
     FYCbCrCoefficients: array[0..2] of Single;
     FHSubsampling,
-    FVSubSampling: Byte;               // additional parameters used for YCbCr conversion
-    FCrToRedTable,                     // lookup tables used for YCbCr conversion
+    FVSubSampling: Byte;               // Additional parameters used for YCbCr conversion
+    FCrToRedTable,                     // Lookup tables used for YCbCr conversion
     FCbToBlueTable,
-    FCrToGreenTable,                                       
+    FCrToGreenTable,
     FCbToGreenTable: array of Integer;
 
     FSourceScheme,
     FTargetScheme: TColorScheme;
-    FRowConversion: TConversionMethod; // procedure variable for the actual conversion method used
+    FRowConversion: TConversionMethod; // Procedure variable for the actual conversion method used
     FSourceOptions,
     FTargetOptions: TConvertOptions;
-    procedure SetSourceOptions(const Value: TConvertOptions);   // options to control conversion
+    procedure SetSourceOptions(const Value: TConvertOptions);   // Options to control conversion
   protected
     // Low level conversion helper used to convert one pixel component.
     function ComponentGammaConvert(Value: Byte): Byte;
@@ -265,7 +269,7 @@ type
     function ComponentSwapScaleConvert(Value: Word): Byte;
     function ComponentSwapConvert(Value: Word): Word;
 
-    // row conversion routines
+    // Row conversion routines
     procedure RowConvertBGR2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertBGR2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertCIELAB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -284,7 +288,7 @@ type
     procedure RowConvertYCbCr2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertYCbCr2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-    // other general routines
+    // Other general routines
     procedure CreateYCbCrLookup;
     function GetPixelFormat(Index: Integer): TPixelFormat;
     procedure PrepareConversion;
@@ -316,14 +320,14 @@ type
     property TargetSamplesPerPixel: Byte read FTargetSPP write SetTargetSamplesPerPixel;
   end;
 
-// common color convertion functions
+// Common color conversion functions
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 function RGBToHLS(const RGB: TRGBFloat): THLSFloat;
 function HLSInterpolation(const HLS1, HLS2: THLSFloat; Ratio: Extended): THLSFloat;
 function RGBInterpolation(const RGB1, RGB2: TRGBFloat; Ratio: Extended): TRGBFloat; overload;
 function RGBInterpolation(const RGB1, RGB2: TRGB; Ratio: Extended): TRGB; overload;
 
-// color utility functions
+// Color utility functions
 function BrightenColor(const Color: TColor; Amount: Extended): TColor; overload;
 function BrightenColor(const Color: TRGB; Amount: Extended): TRGB; overload;
 function DarkenColor(const Color: TColor; Amount: Extended): TColor; overload;
@@ -365,10 +369,9 @@ function MulDiv16(Number, Numerator, Denominator: Word): Word;
 function GetBitsMSB(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
 function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-// Jgb 2012-04-12 Moved to interface so that we can check in try except on
-// this except and handle error reporting ourself
+// Moved to interface so that we can check in try except on this exception and handle error reporting ourselves
 type
   EColorConversionError = class(Exception);
 
@@ -379,7 +382,7 @@ uses
   Math;
 
 
-//----------------- helper functions -----------------------------------------------------------------------------------
+//----------------- Helper functions -------------------------------------------
 
 procedure ShowError(const Msg: String);
 
@@ -387,11 +390,11 @@ begin
   raise EColorConversionError.Create(Msg);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function ClampByte(Value: Integer): Byte;
 
-// ensures Value is in the range 0..255, values < 0 are clamped to 0 and values > 255 are clamped to 255
+// Ensures Value is in the range 0..255, values < 0 are clamped to 0 and values > 255 are clamped to 255
 
 asm
          OR EAX, EAX
@@ -406,11 +409,11 @@ asm
 @@OK:
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function MulDiv16(Number, Numerator, Denominator: Word): Word;
 
-// faster equivalent to Windows' MulDiv function
+// Faster equivalent to Windows' MulDiv function
 // Number is passed via AX
 // Numerator is passed via DX
 // Denominator is passed via CX
@@ -422,14 +425,14 @@ asm
          DIV CX
 end;
 
-//----------------- common color conversion functions ------------------------------------------------------------------
+//----------------- Common color conversion functions --------------------------
 
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 
-// converts from HLS (hue, luminance, saturation) to RGB using floating point math
+// Converts from HLS (hue, luminance, saturation) to RGB using floating point math
 // Input parameters and result values are all in the range 0..1.
 
-  //--------------- local function --------------------------------------------
+  //--------------- Local function --------------------------------------------
 
   function HueToRGB(m1, m2, hue: Extended): Extended;
 
@@ -452,7 +455,7 @@ function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
           Result := m1;
   end;
 
-  //--------------- end local function ----------------------------------------
+  //--------------- End local function ----------------------------------------
 
 var
   m1, m2: Single;
@@ -462,7 +465,7 @@ begin
   begin
     if S = 0 then
     begin
-      // achromatic case (no hue)
+      // Achromatic case (no hue)
       R := L;
       G := L;
       B := L
@@ -482,11 +485,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function RGBToHLS(const RGB: TRGBFloat): THLSFloat;
 
-// converts from RGB to HLS using floating point math
+// Converts from RGB to HLS using floating point math
 // Input parameters and result values are all in the range 0..1.
 
 var
@@ -504,7 +507,7 @@ begin
 
     if Max = Min then
     begin
-      // achromatic case 
+      // Achromatic case
       S := 0;
       H := 0; // undefined
     end
@@ -534,11 +537,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function HLSInterpolation(const HLS1, HLS2: THLSFloat; Ratio: Extended): THLSFloat;
 
-// interpolates linearly from HLS1 to HLS2 with the given ratio
+// Interpolates linearly from HLS1 to HLS2 with the given ratio
 // Parameters as well as result are in the range 0..1.
 
 begin
@@ -555,11 +558,11 @@ begin
     end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function RGBInterpolation(const RGB1, RGB2: TRGB; Ratio: Extended): TRGB;
 
-// interpolates linearly from RGB1 to RGB2 with the given ratio using the HLS color space
+// Interpolates linearly from RGB1 to RGB2 with the given ratio using the HLS color space
 // which produces more natural results
 // Parameters as well as result are in the range 0..255.
 
@@ -588,11 +591,11 @@ begin
     end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function RGBInterpolation(const RGB1, RGB2: TRGBFloat; Ratio: Extended): TRGBFloat;
 
-// interpolates linearly from RGB1 to RGB2 with the given ratio using the HLS color space
+// Interpolates linearly from RGB1 to RGB2 with the given ratio using the HLS color space
 // which produces more natural results
 // Parameters as well as result are in the range 0..1.
 
@@ -785,7 +788,7 @@ begin
   end;
 end;
 
-//----------------- color utility functions ----------------------------------------------------------------------------
+//----------------- Color utility functions ------------------------------------
 
 function BrightenColor(const Color: TColor; Amount: Extended): TColor;
 
@@ -801,14 +804,14 @@ var
 begin
   WinColor := ColorToRGB(Color);
   HLS := RGBToHLS(MakeRGB((WinColor and $FF) / 255, ((WinColor shr 8) and $FF) / 255, ((WinColor shr 16) and $FF) / 255));
-  // brighten means to increase luminance
+  // Brighten means to increase luminance
   HLS.L := (1 + Amount) * HLS.L;
 
   RGB := HLSToRGB(HLS);
   Result := Windows.RGB(ClampByte(Round(255 * RGB.R)), ClampByte(Round(255 * RGB.G)), ClampByte(Round(255 * RGB.B)));
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function BrightenColor(const Color: TRGB; Amount: Extended): TRGB;
 
@@ -824,7 +827,7 @@ begin
   Result := MakeRGB(ClampByte(Round(255 * RGB.R)), ClampByte(Round(255 * RGB.G)), ClampByte(Round(255 * RGB.B)));
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function DarkenColor(const Color: TColor; Amount: Extended): TColor;
 
@@ -840,14 +843,14 @@ var
 begin
   WinColor := ColorToRGB(Color);
   HLS := RGBToHLS(MakeRGB((WinColor and $FF) / 255, ((WinColor shr 8) and $FF) / 255, ((WinColor shr 16) and $FF) / 255));
-  // darken means to decrease luminance
+  // Darken means to decrease luminance
   HLS.L := (1 - Amount) * HLS.L;
 
   RGB := HLSToRGB(HLS);
   Result := Windows.RGB(ClampByte(Round(255 * RGB.R)), ClampByte(Round(255 * RGB.G)), ClampByte(Round(255 * RGB.B)));
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function DarkenColor(const Color: TRGB; Amount: Extended): TRGB;
 
@@ -857,14 +860,14 @@ var
 
 begin
   HLS := RGBToHLS(MakeRGB(Color.R / 255, Color.G / 255, Color.B / 255));
-  // darken means to decrease luminance
+  // Darken means to decrease luminance
   HLS.L := (1 - Amount) * HLS.L;
 
   RGB := HLSToRGB(HLS);
   Result := MakeRGB(ClampByte(Round(255 * RGB.R)), ClampByte(Round(255 * RGB.G)), ClampByte(Round(255 * RGB.B)));
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function MakeHLS(const H, L, S: Byte): THLS;
 
@@ -874,7 +877,7 @@ begin
   Result.S := S;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function MakeHLS(const H, L, S: Single): THLSFloat;
 
@@ -884,7 +887,7 @@ begin
   Result.S := S;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function MakeRGB(const R, G, B: Byte): TRGB;
 
@@ -894,7 +897,7 @@ begin
   Result.B := B;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function MakeRGB(const R, G, B: Single): TRGBFloat;
 
@@ -970,11 +973,11 @@ begin
   end;
 end;
 
-//----------------- TColorManager --------------------------------------------------------------------------------------
+//----------------- TColorManager ----------------------------------------------
 
 constructor TColorManager.Create;
 
-// set some default values
+// Set some default values
 
 begin
   FSourceBPS := 8;
@@ -996,7 +999,7 @@ begin
   FChanged := True;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetSourceOptions(const Value: TConvertOptions);
 
@@ -1008,7 +1011,7 @@ begin
   end;
 end;
 
-//----------------- low level conversion routines ----------------------------------------------------------------------
+//----------------- Low level conversion routines ------------------------------
 
 // These routines are used for conversions from 16 to 8 bit values, either with gamma correction or byte swap (or both).
 
@@ -1018,7 +1021,7 @@ begin
   Result := Value;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentNoConvert16(Value: Word): Word;
 
@@ -1026,7 +1029,7 @@ begin
   Result := Value;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentGammaConvert(Value: Byte): Byte;
 
@@ -1034,7 +1037,7 @@ begin
   Result := FGammaTable[Value];
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 const
   // MulDiv Divisor for BitsPerSampe = 0 to 15
@@ -1096,7 +1099,7 @@ begin
   Result := MulDiv16(Value, 16, CBitsDivisor[BitsPerSample]);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentScaleGammaConvert(Value: Word): Byte;
 
@@ -1104,7 +1107,7 @@ begin
   Result := FGammaTable[MulDiv16(Value, 255, 65535)];
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentSwapScaleGammaConvert(Value: Word): Byte;
 
@@ -1112,7 +1115,7 @@ begin
   Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentSwapScaleConvert(Value: Word): Byte;
 
@@ -1120,7 +1123,7 @@ begin
   Result := MulDiv16(Swap(Value), 255, 65535);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.ComponentSwapConvert(Value: Word): Word;
 
@@ -1128,7 +1131,7 @@ begin
   Result := Swap(Value);
 end;
 
-//----------------- row conversion routines ----------------------------------------------------------------------------
+//----------------- Row conversion routines ------------------------------------
 
 // Notes: Each method takes parameters for source and target data as well as the count of pixels to work on. This count
 //        determines the number of pixels in the target buffer. The actual source count may differ for special color
@@ -1861,11 +1864,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertCIELAB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// conversion of the CIE L*a*b color space to BGR using a two way approach assuming a D65 white point,
+// Conversion of the CIE L*a*b color space to BGR using a two way approach assuming a D65 white point,
 // first a conversion to CIE XYZ is performed and then from there to RGB
 
 var
@@ -1876,9 +1879,9 @@ var
   aRun16,
   bRun16: PWord;
   L, a, b,
-  X, Y, Z, // color values in float format
+  X, Y, Z, // Color values in float format
   T,
-  YYn3: Extended;  // intermediate results
+  YYn3: Extended;  // Intermediate results
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -1952,7 +1955,7 @@ begin
                     Z := T * T * T;
                   end;
 
-                  // once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   // blue
                   Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
                   Inc(Target8);
@@ -1996,7 +1999,7 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2076,7 +2079,7 @@ begin
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2135,7 +2138,7 @@ begin
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2172,11 +2175,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertCIELAB2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// just like RowConvertCIELAB2BGR but for RGB target schemes
+// Just like RowConvertCIELAB2BGR but for RGB target schemes
 
 var
   LRun8,
@@ -2186,9 +2189,9 @@ var
   aRun16,
   bRun16: PWord;
   L, a, b,
-  X, Y, Z, // color values in float format
+  X, Y, Z, // Color values in float format
   T,
-  YYn3: Extended;  // intermediate results
+  YYn3: Extended;  // Intermediate results
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -2245,7 +2248,7 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2261,7 +2264,7 @@ begin
                     Z := T * T * T;
                   end;
 
-                  // once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   // red
                   Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
                   Inc(Target8);
@@ -2305,7 +2308,7 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2384,7 +2387,7 @@ begin
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2443,7 +2446,7 @@ begin
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
                   if L < 7.9996 then
                   begin
                     Y := L / 903.3;
@@ -2480,11 +2483,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertCMYK2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts a stream of Count CMYK values to BGR
+// Converts a stream of Count CMYK values to BGR
 
 var
   C8, M8, Y8, K8: PByte;
@@ -2504,7 +2507,7 @@ begin
       begin
         if Length(Source) = 4 then
         begin
-          // plane mode
+          // Plane mode
           C8 := Source[0];
           M8 := Source[1];
           Y8 := Source[2];
@@ -2513,7 +2516,7 @@ begin
         end
         else
         begin
-          // interleaved mode
+          // Interleaved mode
           C8 := Source[0];
           M8 := C8; Inc(M8);
           Y8 := M8; Inc(Y8);
@@ -2584,7 +2587,7 @@ begin
       begin
         if Length(Source) = 4 then
         begin
-          // plane mode
+          // Plane mode
           C16 := Source[0];
           M16 := Source[1];
           Y16 := Source[2];
@@ -2593,7 +2596,7 @@ begin
         end
         else
         begin
-          // interleaved mode
+          // Interleaved mode
           C16 := Source[0];
           M16 := C16; Inc(M16);
           Y16 := M16; Inc(Y16);
@@ -2663,11 +2666,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertCMYK2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts a stream of Count CMYK values to RGB,
+// Converts a stream of Count CMYK values to RGB,
 
 var
   C8, M8, Y8, K8: PByte;
@@ -2687,7 +2690,7 @@ begin
       begin
         if Length(Source) = 4 then
         begin
-          // plane mode
+          // Plane mode
           C8 := Source[0];
           M8 := Source[1];
           Y8 := Source[2];
@@ -2696,7 +2699,7 @@ begin
         end
         else
         begin
-          // interleaved mode
+          // Interleaved mode
           C8 := Source[0];
           M8 := C8; Inc(M8);
           Y8 := M8; Inc(Y8);
@@ -2767,7 +2770,7 @@ begin
       begin
         if Length(Source) = 4 then
         begin
-          // plane mode
+          // Plane mode
           C16 := Source[0];
           M16 := Source[1];
           Y16 := Source[2];
@@ -2776,7 +2779,7 @@ begin
         end
         else
         begin
-          // interleaved mode
+          // Interleaved mode
           C16 := Source[0];
           M16 := C16; Inc(M16);
           Y16 := M16; Inc(Y16);
@@ -2846,7 +2849,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 const
   CBitMask: array [0..17] of Cardinal = (0, $00000001, $00000003, $00000007,
@@ -2900,7 +2903,7 @@ end;
 
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// conversion from source grayscale (possibly with alpha) to target grayscale
+// Conversion from source grayscale (possibly with alpha) to target grayscale
 // Note: Currently this also handles 8 bps source/target Indexed with alpha!
 // Note: For indexed and grayscale with alpha the alpha channel is skipped/removed!
 // Note: Since grayscale is basically handled like indexed mode (palette), there is no need to
@@ -2926,11 +2929,11 @@ begin
   if (coAlpha in FSourceOptions) and not (coSeparatePlanes in FSourceOptions) then
   begin
     AlphaSkip := 1;
-    BitIncrement := 2*FSourceBPS; // bits and alpha value
+    BitIncrement := 2*FSourceBPS; // Bits and alpha value
   end
   else begin
     AlphaSkip := 0;
-    BitIncrement := FSourceBPS; // bits only
+    BitIncrement := FSourceBPS; // Bits only
   end;
 
   case FSourceBPS of
@@ -3111,13 +3114,14 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertIndexed8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // This is the core conversion routine for indexed pixel formats.
 // This routine takes care about sample scaling and interlacing.
 // Note: 16 bit indexed mode is a bit different (words instead bytes and byte swap) and handled separately.
+// Note: 8 bit indexed with alpha is currently handled by RowConvertGray.
 
 var
   SourceRun,
@@ -3127,7 +3131,7 @@ var
   TargetMask,
   TargetShift,
   MaxOutSample,
-  TargetBPS: Byte;  // local copy to ease assembler access
+  TargetBPS: Byte;  // Local copy to ease assembler access
   Done: Cardinal;
   MaxInSample,      // Supporting up to and including 15 bits per sample for source input
   BitOffset: Word;  // Current start bit in source
@@ -3141,7 +3145,7 @@ begin
   else
   begin
     BitRun := $80;
-    // make a copy of FTargetBPS from private variable to local variable
+    // Make a copy of FTargetBPS from private variable to local variable
     // to ease access during assembler parts in the code
     TargetBPS := FTargetBPS;
     MaxInSample := (1 shl FSourceBPS) - 1;
@@ -3182,14 +3186,14 @@ begin
       else
         Dec(TargetShift, TargetBPS);
       Inc(Done);
-      // advance target pointer every (8 div target bit count)
+      // Advance target pointer every (8 div target bit count)
       if (Done mod (8 div TargetBPS)) = 0 then
         Inc(TargetRun);
     end;
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertIndexedBoth16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
@@ -3239,7 +3243,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertIndexedSource16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
@@ -3253,13 +3257,13 @@ var
   TargetMask,
   TargetShift,
   MaxOutSample,
-  TargetBPS: Byte;    // local copies to ease assembler access
+  TargetBPS: Byte;    // Local copies to ease assembler access
 
 begin
   SourceRun16 := Source[0];
   TargetRun8 := Target;
   BitRun := $80;
-  // make a copy of these both values from private variables to local variables
+  // Make a copy of these both values from private variables to local variables
   // to ease access during assembler parts in the code
   TargetBPS := FTargetBPS;
   TargetMask := (1 shl (8 - TargetBPS)) - 1;
@@ -3278,22 +3282,22 @@ begin
     end;
 
     asm
-      ROR BYTE PTR [BitRun], 1      // adjust test bit mask
+      ROR BYTE PTR [BitRun], 1      // Adjust test bit mask
       MOV CL, [TargetBPS]
-      ROR BYTE PTR [TargetMask], CL // roll target mask with target bit count
+      ROR BYTE PTR [TargetMask], CL // Roll target mask with target bit count
     end;
     if TargetShift = 0 then
       TargetShift := 8 - TargetBPS
     else
       Dec(TargetShift, TargetBPS);
     Dec(Count);
-    // advance target pointer every (8 div target bit count)
+    // Advance target pointer every (8 div target bit count)
     if (Count mod (8 div TargetBPS)) = 0 then
       Inc(TargetRun8);
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertIndexedTarget16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
@@ -3321,7 +3325,7 @@ begin
   begin
     if Boolean(Mask and BitRun) then
     begin
-      // adjust shift value by source bit depth
+      // Adjust shift value by source bit depth
       Dec(SourceShift, SourceBPS);
       Value := (SourceRun8^ and SourceMask) shr SourceShift;
       Value := MulDiv16(Value, 65535, MaxInSample);
@@ -3336,21 +3340,21 @@ begin
       end;
       asm
         MOV CL, [SourceBPS]
-        ROR BYTE PTR [SourceMask], CL // roll source bit mask with source bit count
+        ROR BYTE PTR [SourceMask], CL // Roll source bit mask with source bit count
       end;
     end;
 
     asm
-      ROR BYTE PTR [BitRun], 1      // adjust test bit mask
+      ROR BYTE PTR [BitRun], 1      // Adjust test bit mask
     end;
 
     Dec(Count);
-    // advance target pointer every (8 div target bit count)
+    // Advance target pointer every (8 div target bit count)
     Inc(TargetRun16);
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
@@ -3385,11 +3389,11 @@ var
 
 begin
   BitRun := $80;
-  // determine alpha handling once
+  // Determine alpha handling once
   CopyAlpha := False;
   if coAlpha in FSourceOptions then
   begin
-    // byte size of components doesn't matter as the increments are applied to
+    // Byte size of components doesn't matter as the increments are applied to
     // pointers whose data types determine the final increment
     SourceIncrement := SizeOf(TRGBA);
     TargetIncrement := SizeOf(TRGB);
@@ -3404,7 +3408,7 @@ begin
     else
       TargetIncrement := SizeOf(TRGB);
   end;
-  // in planar mode source increment is always 1
+  // In planar mode source increment is always 1
   if Length(Source) > 1 then
     SourceIncrement := 1;
 
@@ -3413,7 +3417,7 @@ begin
       begin
         if Length(Source) = 1 then
         begin
-          // interleaved mode
+          // Interleaved mode
           SourceR8 := Source[0];
           SourceG8 := SourceR8; Inc(SourceG8);
           SourceB8 := SourceG8; Inc(SourceB8);
@@ -3447,7 +3451,7 @@ begin
                     TargetRunA8.R := Convert8_8(SourceR8^);
                     TargetRunA8.G := Convert8_8(SourceG8^);
                     TargetRunA8.B := Convert8_8(SourceB8^);
-                    // alpha values are never gamma corrected
+                    // Alpha values are never gamma corrected
                     TargetRunA8.A := SourceA8^;
                   
                     Inc(SourceB8, SourceIncrement);
@@ -3591,7 +3595,7 @@ begin
                 else
                   Convert16_8 := ComponentScaleConvert16To8;
               end;
-              // since alpha channels are never gamma corrected we need a separate conversion routine
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
@@ -3642,7 +3646,7 @@ begin
             end;
           16: // 161616 to 161616
             begin
-              // no gamma correction for 16 bit samples yet
+              // No gamma correction for 16 bit samples yet
               if coNeedByteSwap in FSourceOptions then
                 Convert16_16 := ComponentSwapConvert
               else
@@ -3714,11 +3718,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertRGB2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// same as ConvertRGB2BGR but for RGB target schemes
+// Same as ConvertRGB2BGR but for RGB target schemes
 
 var
   SourceR16,
@@ -3748,7 +3752,7 @@ var
 
 begin
   BitRun := $80;
-  // determine alpha handling once
+  // Determine alpha handling once
   CopyAlpha := False;
   if coAlpha in FSourceOptions then
   begin
@@ -3765,7 +3769,7 @@ begin
     else
       TargetIncrement := SizeOf(TRGB);
   end;
-  // in planar mode source increment is always 1
+  // In planar mode source increment is always 1
   if Length(Source) > 1 then
     SourceIncrement := 1;
 
@@ -3774,7 +3778,7 @@ begin
       begin
         if Length(Source) = 1 then
         begin
-          // interleaved mode
+          // Interleaved mode
           SourceR8 := Source[0];
           SourceG8 := SourceR8; Inc(SourceG8);
           SourceB8 := SourceG8; Inc(SourceB8);
@@ -3808,7 +3812,7 @@ begin
                     TargetRunA8.R := Convert8_8(SourceR8^);
                     TargetRunA8.G := Convert8_8(SourceG8^);
                     TargetRunA8.B := Convert8_8(SourceB8^);
-                    // alpha values are never gamma corrected
+                    // Alpha values are never gamma corrected
                     TargetRunA8.A := SourceA8^;
                   
                     Inc(SourceB8, SourceIncrement);
@@ -3952,7 +3956,7 @@ begin
                 else
                   Convert16_8 := ComponentScaleConvert16To8;
               end;
-              // since alpha channels are never gamma corrected we need a separate conversion routine
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
               if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
@@ -4003,7 +4007,7 @@ begin
             end;
           16: // 161616 to 161616
             begin
-              // no gamma correction for 16 bit samples yet
+              // No gamma correction for 16 bit samples yet
               if coNeedByteSwap in FSourceOptions then
                 Convert16_16 := ComponentSwapConvert
               else
@@ -4075,11 +4079,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertPhotoYCC2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts from PhotoYCC format to BGR(A)
+// Converts from PhotoYCC format to BGR(A)
 
 var
   Y, Cb, Cr: Integer;
@@ -4233,7 +4237,7 @@ begin
             begin
               Target16 := Target;
 
-              // conversion from 16 to 16 is done with full precision, so there is no
+              // Conversion from 16 to 16 is done with full precision, so there is no
               // loss of information, but the code is slower because the lookup tables
               // cannot be used
               while Count > 0 do
@@ -4268,11 +4272,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertPhotoYCC2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts from PhotoYCC format to RGB(A)
+// Converts from PhotoYCC format to RGB(A)
 
 var
   Y, Cb, Cr: Integer;
@@ -4426,7 +4430,7 @@ begin
             begin
               Target16 := Target;
 
-              // conversion from 16 to 16 is done with full precision, so there is no
+              // Conversion from 16 to 16 is done with full precision, so there is no
               // loss of information, but the code is slower because the lookup tables
               // cannot be used
               while Count > 0 do
@@ -4461,11 +4465,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertYCbCr2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts from standard YCbCr to BGR(A)
+// Converts from standard YCbCr to BGR(A)
 
 var
   Y, Cb, Cr: Integer;
@@ -4619,7 +4623,7 @@ begin
             begin
               Target16 := Target;
 
-              // conversion from 16 to 16 is done with full precision, so there is no
+              // Conversion from 16 to 16 is done with full precision, so there is no
               // loss of information, but the code is slower because the lookup tables
               // cannot be used
               while Count > 0 do
@@ -4654,11 +4658,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.RowConvertYCbCr2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// converts from standard YCbCr to RGB(A)
+// Converts from standard YCbCr to RGB(A)
 
 var
   Y, Cb, Cr: Integer;
@@ -4812,7 +4816,7 @@ begin
             begin
               Target16 := Target;
 
-              // conversion from 16 to 16 is done with full precision, so there is no
+              // Conversion from 16 to 16 is done with full precision, so there is no
               // loss of information, but the code is slower because the lookup tables
               // cannot be used
               while Count > 0 do
@@ -4847,7 +4851,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.CreateYCbCrLookup;
 
@@ -4923,11 +4927,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.GetPixelFormat(Index: Integer): TPixelFormat;
 
-// determines the pixel format from the current sample and pixel sizes
+// Determines the pixel format from the current sample and pixel sizes
 // Note: setting pfCustom as pixel format will raise an exception so check the result from this method first
 //       before you actually assign it to a bitmap.
 //
@@ -4952,12 +4956,12 @@ begin
   end;
 
   case SamplesPerPixel of
-    1, // one sample per pixel, this is usually a palette format
+    1, // One sample per pixel, this is usually a palette format
     2: // 2 samples for grayscale with alpha (extrasamples should be 1)
       case BitsPerSample of
         1:
           Result := pf1Bit;
-        2..4: // values < 4 should be upscaled
+        2..4: // Values < 4 should be upscaled
           Result := pf4bit;
         6..16: // jb: was 8..16 but seems 6 bit mono is possible too which needs to be upscaled to 8 bits
           // values > 8 bits must be downscaled to 8 bits
@@ -4968,10 +4972,10 @@ begin
     3: // Typical case is RGB or CIE L*a*b* (565 and 555 16 bit color formats would also be possible, but aren't handled
        // by the manager).
       case BitsPerSample of
-        1..5: // values < 5 should be upscaled
+        1..5: // Values < 5 should be upscaled
           Result := pf15Bit;
       else
-        // values > 8 bits should be downscaled
+        // Values > 8 bits should be downscaled
         Result := pf24bit;
       end;
     4: // Typical cases: RGBA and CMYK (with 8 bps, other formats like PCX's
@@ -4985,11 +4989,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.PrepareConversion;
 
-// depending on the source and target pixel and color formats a conversion function must be
+// Depending on the source and target pixel and color formats a conversion function must be
 // determined which actually carries out the conversion
 //
 // Needed settings:
@@ -5005,7 +5009,7 @@ begin
   if (FSourceScheme in [csIndexed, csIndexedA, csG, csGA]) xor (FTargetScheme  in [csIndexed, csG]) then
     ShowError(gesIndexedNotSupported);
 
-  // set up special conversion options
+  // Set up special conversion options
   if FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA] then
     Include(FSourceOptions, coAlpha)
   else
@@ -5108,7 +5112,7 @@ begin
       end;
     csYCbCr:
       begin
-        // create lookup tables to speed up conversion
+        // Create lookup tables to speed up conversion
         CreateYCbCrLookup;
         case FTargetScheme of
           csRGB,
@@ -5123,7 +5127,7 @@ begin
       end;
     csPhotoYCC:
       begin
-        // create lookup tables to speed up conversion
+        // Create lookup tables to speed up conversion
         CreateYCbCrLookup;
         case FTargetScheme of
           csRGB,
@@ -5140,7 +5144,7 @@ begin
   FChanged := False;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetSourceBitsPerSample(const Value: Byte);
 
@@ -5154,7 +5158,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetSourceColorScheme(const Value: TColorScheme);
 
@@ -5166,7 +5170,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetSourceSamplesPerPixel(const Value: Byte);
 
@@ -5180,7 +5184,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetTargetBitsPerSample(const Value: Byte);
 
@@ -5194,7 +5198,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetTargetColorScheme(const Value: TColorScheme);
 
@@ -5206,7 +5210,7 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetTargetSamplesPerPixel(const Value: Byte);
 
@@ -5220,11 +5224,11 @@ begin
   end;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.ConvertRow(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// initializes the color conversion method if necessary and calls it to do the actual conversion
+// Initializes the color conversion method if necessary and calls it to do the actual conversion
 //
 // Needed settings:
 // - source and target BPS and SPP
@@ -5233,17 +5237,17 @@ procedure TColorManager.ConvertRow(Source: array of Pointer; Target: Pointer; Co
 // - YCbCr parameters if any of the color schemes is csYCbCr
 
 begin
-  // if there are pending changes then apply them
+  // If there are pending changes then apply them
   if FChanged then
     PrepareConversion;
-  // check if there's now a conversion method
+  // Check if there's now a conversion method
   if @FRowConversion = nil then
     ShowError(gesConversionUnsupported)
   else
     FRowConversion(Source, Target, Count, Mask);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
   ColorCount: Cardinal; RGB: Boolean): HPALETTE;
@@ -5264,9 +5268,9 @@ function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TR
 //        Data[1] and the blue one in Data[2]. In this case BGR is not needed.
 //
 // Needed settings:
-// - main and display gamma, if gamma correction is wanted
+// - Main and display gamma, if gamma correction is wanted
 // - Options set as needed (gamma, byte swap)
-// - source and target bits per sample resolution
+// - Source and target bits per sample resolution
 
 var
   I,
@@ -5422,7 +5426,7 @@ begin
       // This and the reverse case need to be accounted for.
       if MaxIn < MaxOut then
       begin
-        // palette is too small, enhance it
+        // Palette is too small, enhance it
         for I := MaxOut-1 downto 0 do
         begin
           LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
@@ -5432,7 +5436,7 @@ begin
       end
       else
       begin
-        // palette contains too many entries, shorten it
+        // Palette contains too many entries, shorten it
         if FTargetBPS < 8 then begin
           for I := 0 to MaxOut-1 do
           begin
@@ -5456,12 +5460,12 @@ begin
     end;
     LogPalette.palNumEntries := MaxOut;
   end;
-                      
-  // finally create palette
+
+  // Finally create palette
   Result := CreatePalette(PLogPalette(@LogPalette)^);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 function TColorManager.CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
 
@@ -5471,9 +5475,9 @@ function TColorManager.CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE
 // a lower palette index has a lower brightness.
 //
 // Needed settings:
-// - target BPS, 16 bits are handled as 8 bits
-// - target SPP should be set to 1 (indicating an indexed image), but is not evaluated here
-// - main and display gamma, if gamma correction is wanted
+// - Target BPS, 16 bits are handled as 8 bits
+// - Target SPP should be set to 1 (indicating an indexed image), but is not evaluated here
+// - Main and display gamma, if gamma correction is wanted
 // Note: Target bps must not be changed between setting gamma and creating the palette.
 
 var
@@ -5486,7 +5490,7 @@ var
 begin
   FillChar(LogPalette, SizeOf(LogPalette), 0);
   LogPalette.palVersion := $300;
-  // the product of BPS and SPP considers planar organizatons correctly
+  // The product of BPS and SPP considers planar organizatons correctly
   // (e.g. PCX has a format 4 planes with 1 bit resulting to 16 color image)
   BPS := FTargetBPS * FTargetSPP;
   if BPS > 8 then
@@ -5536,19 +5540,19 @@ begin
       end;
     end;
   end;
-  // finally create palette
+  // Finally create palette
   Result := CreatePalette(PLogPalette(@LogPalette)^);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
 
-// sets the current gamma values and creates the gamma lookup table
+// Sets the current gamma values and creates the gamma lookup table
 //
 // Needed settings:
-// - source bits per samples must be set
-// - target bits per samples must be set
+// - Source bits per samples must be set
+// - Target bits per samples must be set
 
 var
   I,
@@ -5562,18 +5566,18 @@ begin
   else
     FMainGamma := MainGamma;
   if DisplayGamma <= 0 then
-    FDisplayGamma := 2.2 // default value for a usual CRT
+    FDisplayGamma := 2.2 // Default value for a usual CRT
   else
     FDisplayGamma := DisplayGamma;
 
   Gamma := 1 / (FMainGamma * FDisplayGamma);
 
-  // source high bound is the maximum possible source value which can appear (0..255)
+  // Source high bound is the maximum possible source value which can appear (0..255)
   if FSourceBPS >= 8 then
     SourceHighBound := 255
   else
     SourceHighBound := (1 shl FTargetBPS) - 1;
-  // target high bound is the target value which corresponds to a target sample value of 1 (0..255)
+  // Target high bound is the target value which corresponds to a target sample value of 1 (0..255)
   if FTargetBPS >= 8 then
     TargetHighBound := 255
   else
@@ -5582,14 +5586,14 @@ begin
     FGammaTable[I] := Round(Power((I / SourceHighBound), Gamma) * TargetHighBound);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure TColorManager.SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
 
-// sets coefficients needed to convert from YCbCr color scheme
+// Sets coefficients needed to convert from YCbCr color scheme
 
 begin
-  // there must always be at least one value in an open array
+  // There must always be at least one value in an open array
   FYCbCrCoefficients[0] := Values[0];
   if High(Values) > 0 then
   begin
@@ -5598,7 +5602,7 @@ begin
       FYCbCrCoefficients[2] := Values[2];
   end;
 
-  // subsampling can be 1, 2 or 4 and vertical subsampling must always be <= horizontal subsampling
+  // Subsampling can be 1, 2 or 4 and vertical subsampling must always be <= horizontal subsampling
   if not (HSubSampling in [1, 2, 4]) then
     ShowError(gesInvalidSubSampling);
   if not (VSubSampling in [1, 2, 4]) then
@@ -5609,6 +5613,6 @@ begin
   FVSubSampling := VSubSampling;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 end.
