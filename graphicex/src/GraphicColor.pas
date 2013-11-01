@@ -103,6 +103,8 @@ type
 
   // ------------------------- RGB(A) -------------------------
   // RGB(A) 8 bit
+  TRGBAColor32 = Cardinal; // Define Graphics32 compatible color type
+
   PRGB = ^TRGB;
   TRGB = packed record
     R, G, B: Byte;
