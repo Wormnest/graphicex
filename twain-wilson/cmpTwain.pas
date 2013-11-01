@@ -68,6 +68,21 @@ type
     constructor Create (ACode, AStatus : Integer);
   end;
 
+var DefaultIdentity: TW_IDENTITY = (
+    Id: 0; // ID
+    Version: (
+      MajorNum: 1; MinorNum: 0;
+      Language: TWLG_ENGLISH; Country: TWCY_NETHERLANDS;
+      Info: 'TcwTwain Component';
+    );
+    ProtocolMajor: 0; ProtocolMinor: 0;
+    SupportedGroups: 0;
+    Manufacturer: 'TcwTwain';
+    ProductFamily: '';
+    ProductName: '';
+  );
+
+
 implementation
 
 { TcwTwain }
@@ -187,17 +202,17 @@ begin
       begin
         FillChar (fSourceId, SizeOf (fSourceID), 0);
         h := WindowHandle;
-        fAppId.Version.MajorNum := 1;
-        fAppId.Version.MinorNum := 0;
-        fAppId.Version.Language := TWLG_ENGLISH_UK;
-        fAppId.Version.Country := TWCY_UNITEDKINGDOM;
-        lstrcpy (fAppId.Version.Info, 'Image View');
+        fAppId.Version.MajorNum := DefaultIdentity.Version.MajorNum;
+        fAppId.Version.MinorNum := DefaultIdentity.Version.MinorNum;
+        fAppId.Version.Language := DefaultIdentity.Version.Language;
+        fAppId.Version.Country  := DefaultIdentity.Version.Country;
+        lstrcpy(fAppId.Version.Info, DefaultIdentity.Version.Info);
         fAppID.ProtocolMajor := TWON_PROTOCOLMAJOR;
         fAppID.ProtocolMinor := TWON_PROTOCOLMINOR;
         fAppID.SupportedGroups := DG_IMAGE or DG_CONTROL;
-        lstrcpy (fAppID.Manufacturer, 'Colin Wilson');
-        lstrcpy (fAppID.ProductFamily, '');
-        lstrcpy (fAppID.ProductName, 'Image Viewer');
+        lstrcpy(fAppID.Manufacturer, DefaultIdentity.Manufacturer);
+        lstrcpy(fAppID.ProductFamily, DefaultIdentity.ProductFamily);
+        lstrcpy(fAppID.ProductName, DefaultIdentity.ProductName);
 
         TwainCheck (DSM_Entry (@fAppId, Nil, DG_CONTROL, DAT_PARENT, MSG_OPENDSM, @h));
         fActive := True
