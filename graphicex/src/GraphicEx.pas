@@ -7512,6 +7512,27 @@ begin
                 end;
               end;
               Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+              // Since we're now reading multiple layers we need to free the
+              // Channel data here or we might cause leaked memory.
+              // Since we may get another check for assigned in ReadChannelData or
+              // when finishing this function, we need to set all of them to nil.
+              if Assigned(RedBuffer) then begin
+                FreeMem(RedBuffer);
+                RedBuffer := nil;
+              end;
+              if Assigned(GreenBuffer) then begin
+                FreeMem(GreenBuffer);
+                GreenBuffer := nil;
+              end;
+              if Assigned(BlueBuffer) then begin
+                FreeMem(BlueBuffer);
+                BlueBuffer := nil;
+              end;
+              if Assigned(CompBuffer) then begin
+                FreeMem(CompBuffer);
+                CompBuffer := nil;
+              end;
             until False; // layer loop
           PSP_COLOR_BLOCK:  // color palette block (this is also present for gray scale and b&w images)
             begin
