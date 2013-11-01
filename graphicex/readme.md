@@ -12,37 +12,10 @@ Take a look below to see the image formats which can be used in
 connection with this software.
  
 
-* **TIFF images (.tif; .tiff)**, extended base line implementation
+* **TIFF images (.tif; .tiff)**
     + 1..16 bits per sample
     + indexed, grayscale, RGB(A), CMYK, L*a*b*
     + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new style JPEG
-* **GFI fax images (.fax)**, uses TTIFFGraphic to read
-* **SGI images (.bw, *.rgb, *.rgba, *.sgi)**
-    + 1..16 bits per sample
-    + indexed, grayscale, RGB(A)
-    + uncompressed, RLE
-* **Autodesk images files (.cel; .pic)**, old style only
-    + 8 bits per sample, indexed and uncompressed
-* **Truevision images (.tga; .vst; .icb; .vda; .win)**, write support included
-    + 5 and 8 bits per sample
-    + grayscale, indexed, 15 bits RGB (555), 24 bits RGB(A)(888)
-    + uncompressed, RLE
-* **ZSoft Paintbrush images (.pcx, .pcc; .scr)**
-    + 1..8 bits per sample
-    + grayscale, indexed, RGB
-    + uncompressed, RLE
-* **Kodak Photo-CD images (.pcd)**
-    + 8 bits per sample in YCbCr in any resolution (192 x 128 up to 6144 x 4096)
-* **Portable pixel/gray map images (.ppm, .pgm, .pbm)**
-    + 1 and 8 bits per sample
-    + grayscale, indexed, RGB uncompressed
-* **Dr. Halo images (.cut, .pal)**
-    + 8 bits per sample indexed, RLE compressed
-* **CompuServe images (.gif)**
-    + 1, 4, 8 bits per sample indexed, LZW compressed
-* **SGI Alias/Wavefront images (.rla, .rpf)**
-    + 8 bits per sample RGB(A), RLE compressed
-* **Standard Windows bitmap images (.bmp, .rle, .dib)**
 * **Photoshop images (.psd, .pdd)**
     + 1, 8, 16 bits per sample
     + indexed, RGB, CMYK, CIE L*a*b*
@@ -51,10 +24,36 @@ connection with this software.
     + 1, 4, 8 bits per sample
     + indexed, grayscale, RGB
     + uncompressed, RLE and LZ77
-    + single-layered files only!
 * **Portable network graphic images (.png)**
     + 1, 2, 4, 8, 16 bits per sample
     + indexed, grayscale alpha, RGB(A), LZ77 compressd
+* **CompuServe images (.gif)**
+    + 1, 4, 8 bits per sample indexed, LZW compressed
+* **Truevision images (.tga; .vst; .icb; .vda; .win)**, write support included
+    + 5 and 8 bits per sample
+    + grayscale, indexed, 15 bits RGB (555), 24 bits RGB(A)(888)
+    + uncompressed, RLE
+* **Kodak Photo-CD images (.pcd)**
+    + 8 bits per sample in YCbCr in any resolution (192 x 128 up to 6144 x 4096)
+* **Portable pixel/gray map images (.ppm, .pgm, .pbm)**
+    + 1 and 8 bits per sample
+    + grayscale, indexed, RGB uncompressed
+* **ZSoft Paintbrush images (.pcx, .pcc; .scr)**
+    + 1..8 bits per sample
+    + grayscale, indexed, RGB
+    + uncompressed, RLE
+* **GFI fax images (.fax)**, uses TTIFFGraphic to read
+* **SGI images (.bw, .rgb, .rgba, .sgi)**
+    + 1..16 bits per sample
+    + indexed, grayscale, RGB(A)
+    + uncompressed, RLE
+* **SGI Alias/Wavefront images (.rla, .rpf)**
+    + 8 bits per sample RGB(A), RLE compressed
+* **Autodesk images files (.cel; .pic)**, old style only
+    + 8 bits per sample, indexed and uncompressed
+* **Dr. Halo images (.cut, .pal)**
+    + 8 bits per sample indexed, RLE compressed
+* **Standard Windows bitmap images (.bmp, .rle, .dib)**
 
 License:
 --------
@@ -68,8 +67,8 @@ Bug reports
 Please report bugs in the issuetracker using the link below. Bugs concerning
 problems loading a certain image should add the problematic image.
 Without an example image it will be most likely impossible to find
-what's wrong.
-https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open
+what's wrong.    
+Link: [issuetracker](https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open)
 
 Current implementation
 ----------------------
@@ -102,5 +101,4 @@ Folder structure
 - \src = Folder with GraphicEx source files.
 
 Note that the .obj files are not available in the hg repository itself.
-They need to be downloaded from:
-https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip
+They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip)
