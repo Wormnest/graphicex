@@ -4939,7 +4939,7 @@ begin
           // if there is a local color table then override the already set one
           LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
           if LocalColorTable then
-            BitsPerSample := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) + 1;
+            BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
           Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
         end;
 
