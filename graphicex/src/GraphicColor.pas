@@ -80,6 +80,12 @@ const
   DefaultDisplayGamma = 2.2;
 
 type
+  // Define UInt64 as Int64 for Delphi versions not having UInt64
+  {$IF NOT Declared(UInt64)}
+  UInt64 = Int64;
+  PUint64 = ^UInt64;
+  {$IFEND}
+
   // Color layout records
   // ------------------------- CMYK -------------------------
   PCMYK = ^TCMYK;
@@ -267,6 +273,11 @@ type
     function ComponentScaleConvert14To8(Value: Word; BitsPerSample: Byte = 14): Byte;
     function ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSample: Byte): Byte;
     function ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert17_24To8(Value: LongWord; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert25_31To8(Value: LongWord; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte;
     function ComponentScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleConvert(Value: Word): Byte;
@@ -1206,6 +1217,13 @@ const
   CBitsDivisor: array [0..15] of Word =
     (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768);
 
+  // Our MulDiv for 17 bits and up is LongWord based, thus we can't handle 2^32!
+  C32BitsDivisor: array [0..31] of LongWord =
+    (1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
+    {16:} 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608,
+    {24:} 16777216, 33554432, 67108864, 134217728, 268435456, 536870912,
+    1073741824, 2147483648);
+
 function TColorManager.ComponentScaleConvert16To8(Value: Word): Byte;
 
 begin
@@ -1258,6 +1276,46 @@ begin
   // Convert/scale up or down from uncommmon n bits to 4 bits
   // n bits 2^n = ... ==> 4 bits = 16
   Result := MulDiv16(Value, 16, CBitsDivisor[BitsPerSample]);
+end;
+
+function TColorManager.ComponentScaleConvert17_24To8(Value: LongWord; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from uncommmon n bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  //Result := MulDiv(Value, 256, C32BitsDivisor[BitsPerSample]);
+  // This gives a better result, not sure why:
+  Result := Value shr (BitsPerSample-8);
+end;
+
+function TColorManager.ComponentScaleConvert25_31To8(Value: LongWord; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from 25..31 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  Result := Value shr (BitsPerSample-8);
+end;
+
+function TColorManager.ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from 32 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  // Note: I'm not sure why we need 32 here since we should leave  the hight 8 bits in.
+  // I expected that we needed to shift by 24 since that's the value we also use
+  // in the functions above (BitsPerSample-8).
+  Result := Value shr 32;
+end;
+
+function TColorManager.ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from 33..63 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  Result := Value shr (BitsPerSample-8);
+end;
+
+function TColorManager.ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from 64 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  Result := Byte(Value shr 56);
 end;
 
 //------------------------------------------------------------------------------
@@ -3049,6 +3107,40 @@ begin
   Result := quantum;
 end;
 
+const
+  CBitMask64: array [0..17] of UInt64 = (0, $00000001, $00000003, $00000007,
+    $0000000F, $0000001F, $0000003F, $0000007F, $000000FF, $000001FF,
+    $000003FF, $000007FF, $00000FFF, $00001FFF, $00003FFF, $00007FFF,
+    $0000FFFF, $0001FFFF);
+
+function GetBitsMSB64(BitIndex, NumberOfBits: Cardinal; BitData: PByte): UInt64;
+var remaining_quantum_bits,
+    octet_bits,
+    bits_remaining: Cardinal;
+    quantum: UInt64;
+begin
+  remaining_quantum_bits := NumberOfBits;
+  bits_remaining := 8-BitIndex;
+  quantum := 0;
+  while (remaining_quantum_bits <> 0) do begin
+    octet_bits := remaining_quantum_bits;
+    if octet_bits > bits_remaining then
+      octet_bits := bits_remaining;
+
+      remaining_quantum_bits := remaining_quantum_bits - octet_bits;
+      bits_remaining := bits_remaining - octet_bits;
+
+      quantum := (quantum shl octet_bits) or
+	((BitData^ shr (bits_remaining)) and CBitMask[octet_bits]);
+
+      if (bits_remaining = 0) then begin
+	  Inc(BitData);
+	  bits_remaining := 8;
+      end;
+  end;
+  Result := quantum;
+end;
+
 function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
 var Sum: Cardinal;
 begin
@@ -3075,13 +3167,18 @@ var
   Target16: PWord;
   Source8: PByte;
   Source16: PWord;
+  Source32: PLongWord;
+  Source64: PUInt64;
   BitRun: Byte;
   AlphaSkip: Integer;
   Convert16: function(Value: Word): Byte of object;
   ConvertAny: function(Value: Word; BitsPerSampe: Byte): Byte of object;
+  Convert32: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
+  Convert64: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
   BitOffset: Cardinal; // Offset in Source byte where first bit starts
   BitIncrement: Cardinal; // Value to increment bits with, depends on FSourceBPS and AlphaSkip
   Bits, Bits2: Cardinal;
+  Bits64: UInt64;
   FirstNibble: Boolean;
 
 begin
@@ -3228,6 +3325,64 @@ begin
             end;
           end;
       else
+      end;
+    17..32: // Support for high bits per samples (mainly 24/32 bits)
+      case FTargetBPS of
+        8:  // Default 8 bits per sample target
+          begin
+            Source32 := Source[0];
+            Target8 := Target;
+            case FSourceBPS of
+               32:     Convert32 := ComponentScaleConvert32To8;
+               17..24: Convert32 := ComponentScaleConvert17_24To8;
+            else // Use else for 25..31 or else compiler will complain about uninitialized
+              {25..31:} Convert32 := ComponentScaleConvert25_31To8;
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+              Bits := GetBitsMSB(BitOffset, FSourceBPS, PByte(Source32));
+              Target8^ := Convert32(Bits, FSourceBPS);
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source32), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+      else
+        // Other targets unsupported for now
+      end;
+    33..64: // Support for high bits per samples (mainly 64 bits)
+      case FTargetBPS of
+        8:  // Default 8 bits per sample target
+          begin
+            Source64 := Source[0];
+            Target8 := Target;
+            if FSourceBPS = 64 then
+              Convert64 := ComponentScaleConvert64To8
+            else
+              Convert64 := ComponentScaleConvert33_63To8;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+              Bits64 := GetBitsMSB64(BitOffset, FSourceBPS, PByte(Source64));
+              Target8^ := Convert64(Bits64, FSourceBPS);
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source64), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+      else
+        // Other targets unsupported for now
       end;
     3: // Conversion of uncommon 3 bits to 4 bits only for now
       case FTargetBPS of
