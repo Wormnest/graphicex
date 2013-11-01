@@ -2746,6 +2746,8 @@ var
   Header: TTargaHeader;
   FlipV: Boolean;
   Decoder: TTargaRLEDecoder;
+  ColorMapBufSize: Integer;
+  ColorMapBuffer: Pointer;
 
 begin
   inherited;
@@ -2782,39 +2784,53 @@ begin
           Palette := ColorManager.CreateGrayscalePalette(False)
         else
         begin
-          LineSize := (Header.ColorMapEntrySize div 8) * Header.ColorMapSize;
-          GetMem(LineBuffer, LineSize);
+          // Note that ColorMapBufSize and ColorMapBuffer are currently not used
+          // by 15/16 bits color map entries. However since it is planned to move
+          // that code to the ColorManager to we will leave this as is since it
+          // will be needed there too after the move.
+          ColorMapBufSize := (Header.ColorMapEntrySize div 8) * Header.ColorMapSize;
+          GetMem(ColorMapBuffer, ColorMapBufSize);
           try
-            Move(Source^, LineBuffer^, LineSize);
-            Inc(Source, LineSize);
+            Move(Source^, ColorMapBuffer^, ColorMapBufSize);
             case Header.ColorMapEntrySize of
               32:
-                Palette := ColorManager.CreateColorPalette([LineBuffer], pfInterlaced8Quad, Header.ColorMapSize, True);
-              24:
-                Palette := ColorManager.CreateColorPalette([LineBuffer], pfInterlaced8Triple, Header.ColorMapSize, True);
-            else
-              with LogPalette do
-              begin
-                // read palette entries and create a palette
-                ZeroMemory(@LogPalette, SizeOf(LogPalette));
-                palVersion := $300;
-                palNumEntries := Header.ColorMapSize;
-
-                // 15 and 16 bits per color map entry (handle both like 555 color format
-                // but make 8 bit from 5 bit per color component)
-                for I := 0 to Header.ColorMapSize - 1 do
                 begin
-                  palPalEntry[I].peBlue := Byte((PWord(Source)^ and $1F) shl 3);
-                  palPalEntry[I].peGreen := Byte((PWord(Source)^ and $3E0) shr 2);
-                  palPalEntry[I].peRed := Byte((PWord(Source)^ and $7C00) shr 7);
-                  Inc(PWord(Source));
+                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer], pfInterlaced8Quad, Header.ColorMapSize, True);
+                  Inc(Source, ColorMapBufSize);
                 end;
-                Palette := CreatePalette(PLogPalette(@LogPalette)^);
-              end;
+              24:
+                begin
+                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer], pfInterlaced8Triple, Header.ColorMapSize, True);
+                  Inc(Source, ColorMapBufSize);
+                end;
+              15, 16:
+                with LogPalette do
+                begin
+                  // read palette entries and create a palette
+                  ZeroMemory(@LogPalette, SizeOf(LogPalette));
+                  palVersion := $300;
+                  palNumEntries := Header.ColorMapSize;
+
+                  // TODO: This Color Palette creation algorithm should be moved to
+                  // ColorManager.CreateColorPalette!
+                  // 15 and 16 bits per color map entry (handle both like 555 color format
+                  // but make 8 bit from 5 bit per color component)
+                  for I := 0 to Header.ColorMapSize - 1 do
+                  begin
+                    palPalEntry[I].peBlue := Byte((PWord(Source)^ and $1F) shl 3);
+                    palPalEntry[I].peGreen := Byte((PWord(Source)^ and $3E0) shr 2);
+                    palPalEntry[I].peRed := Byte((PWord(Source)^ and $7C00) shr 7);
+                    Inc(PWord(Source));
+                  end;
+                  Palette := CreatePalette(PLogPalette(@LogPalette)^);
+                end;
+            else
+              // Other color map entry sizes are not supported
+              GraphicExError(gesInvalidImage, ['TGA']);
             end;
           finally
-            if Assigned(LineBuffer) then
-              FreeMem(LineBuffer);
+            if Assigned(ColorMapBuffer) then
+              FreeMem(ColorMapBuffer);
           end;
         end;
       end;
@@ -2875,6 +2891,8 @@ begin
               FreeAndNil(Decoder);
             end;
           end;
+      else
+        GraphicExError(gesInvalidImage, ['TGA']);
       end;
       Progress(Self, psEnding, 0, False, FProgressRect, '');
     end;
