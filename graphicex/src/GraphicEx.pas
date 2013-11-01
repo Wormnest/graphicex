@@ -9455,6 +9455,8 @@ procedure TFileFormatList.UnregisterFileFormat(const Extension: string; GraphicC
 // If Extension is '' then all associations for the given GraphicClass are removed otherwise the class is ignored and
 // only the one particular extension is removed.
 // Unregistration from TPicture is done here too, if necessary.
+// If Extension is '' and GraphicClass isn't found then we silently ignore unregistering.
+// This makes it possible to unregister a class without being sure if it is registered.
 
 var
   ExtIndex,
@@ -9488,6 +9490,9 @@ begin
     begin
       // all entries for the given graphic class must be removed
       ClassIndex := FindGraphicClass(GraphicClass);
+      // If GraphicClass is not found then silently Exit
+      if ClassIndex = -1 then
+        Exit;
       ClassEntry := FClassList[ClassIndex];
       for ExtIndex := FExtensionList.Count - 1 downto 0 do
       begin
