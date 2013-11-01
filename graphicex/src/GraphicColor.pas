@@ -2901,6 +2901,8 @@ end;
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // conversion from source grayscale (possibly with alpha) to target grayscale
+// Note: Currently this also handles 8 bps source/target Indexed with alpha!
+// Note: For indexed and grayscale with alpha the alpha channel is skipped/removed!
 // Note: Since grayscale is basically handled like indexed mode (palette), there is no need to
 //       handle gamma correction here as this happend already during palette creation.
 
@@ -5000,16 +5002,16 @@ begin
   // Conversion between indexed and non-indexed formats is not supported as well as
   // between source BPS < 8 and target BPS > 8.
   // csGA and csG (grayscale w and w/o alpha) are considered being indexed modes
-  if (FSourceScheme in [csIndexed, csG, csGA]) xor (FTargetScheme  in [csIndexed, csG]) then
+  if (FSourceScheme in [csIndexed, csIndexedA, csG, csGA]) xor (FTargetScheme  in [csIndexed, csG]) then
     ShowError(gesIndexedNotSupported);
 
   // set up special conversion options
-  if FSourceScheme in [csGA, csRGBA, csBGRA] then
+  if FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA] then
     Include(FSourceOptions, coAlpha)
   else
     Exclude(FSourceOptions, coAlpha);
 
-  if FTargetScheme in [csGA, csRGBA, csBGRA] then
+  if FTargetScheme in [csGA, csIndexedA, csRGBA, csBGRA] then
     Include(FTargetOptions, coAlpha)
   else
     Exclude(FTargetOptions, coAlpha);
@@ -5039,6 +5041,13 @@ begin
               FRowConversion := RowConvertIndexedTarget16
             else
               FRowConversion := RowConvertIndexed8;
+      end;
+    csIndexedA:
+      begin
+        // Indexed with alpha is like Grayscale with alpha: meaning that
+        // currently alpha is ignored/skipped on conversion
+        if (FSourceBPS = 8) and (FTargetBPS = 8) then
+          FRowConversion := RowConvertGray;
       end;
     csRGB,
     csRGBA:
