@@ -355,6 +355,13 @@ procedure BGRASetAlpha255(Source: PBGRA; Count: Integer);
 // Sets all alpha values of ABitmap (in BGRA format) to 255
 procedure BitmapSetAlpha255(ABitmap: TBitmap);
 
+// Apply an 8 bits alpha mask to Source for Count pixels.
+// bpp is Bytes per pixel, valid values:
+// 4: 32 bits RGBA/BGRA
+// 2: 16 bits grayscale with alpha or indexed with alpha
+procedure ApplyAlphaMask( Source, AlphaSource: PByte; const Count: Integer;
+  bpp: Integer);
+
 
 // HalfToFloat and FloatToHalf taken from ImagingLib (also in GlScene)
 type
@@ -1098,6 +1105,31 @@ begin
     end;
     Inc(Source);
     Dec(Count);
+  end;
+end;
+
+// Apply an 8 bits alpha mask to Source for Count pixels.
+// bpp is Bytes per pixel, valid values:
+// 4: 32 bits RGBA/BGRA
+// 2: 16 bits grayscale with alpha or indexed with alpha
+procedure ApplyAlphaMask( Source, AlphaSource: PByte; const Count: Integer;
+  bpp: Integer);
+var Skip: Integer;
+  i: Integer;
+begin
+  case bpp of
+    4: Skip := 4;
+    2: Skip := 2;
+  else
+    Exit;
+  end;
+  // Move to alpha component
+  Inc(Source, Skip-1);
+  // Loop over all pixels
+  for i := 0 to Count-1 do begin
+    Source^ := Source^ * AlphaSource^ div 255;
+    Inc(Source, Skip);
+    Inc(AlphaSource);
   end;
 end;
 
