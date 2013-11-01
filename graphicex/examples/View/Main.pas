@@ -77,7 +77,7 @@ var
 implementation
 
 uses
-  ShellAPI, Properties, Math;
+  ShellAPI, Properties, Math, gexStretch;
 
 {$R *.DFM}
 
@@ -576,7 +576,7 @@ begin
   ImageIndexUpDown.Position := 0;
 
   PaintBox1.Width := Max(ClientWidth, FPicture.Width);
-  PaintBox1.Height := Max(ClientHeight, FPicture.Height);
+  PaintBox1.Height := Max(ClientHeight-StatusBar.Height-CoolBar2.Height, FPicture.Height);
 
   Invalidate;
 end;
@@ -626,7 +626,7 @@ procedure TMainForm.FormResize(Sender: TObject);
 
 begin
   PaintBox1.Width := Max(ClientWidth, FPicture.Width);
-  PaintBox1.Height := Max(ClientHeight, FPicture.Height);
+  PaintBox1.Height := Max(ClientHeight-StatusBar.Height-CoolBar2.Height, FPicture.Height);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -913,7 +913,7 @@ begin
       begin
         // Some formats (e.g. Dr. Halo CUT images) cannot be determined from content.
         SecondCaseClass := FileFormatList.GraphicFromExtension(FileName);
-        if SecondCaseClass.InheritsFrom(GraphicClass) then
+        if (SecondCaseClass <> nil) and SecondCaseClass.InheritsFrom(TGraphicExGraphic) then
           GraphicClass := TGraphicExGraphicClass(SecondCaseClass);
       end;
       if GraphicClass = nil then
