@@ -278,6 +278,8 @@ type
     FMemory: PByte;
     FCurrentPointer: PByte;
     FSize: Int64;
+    FMinFloatSample,
+    FMaxFloatSample: Double; // min/max values when floating point sample format is used.
   protected
     procedure ReadContiguous(tif: PTIFF);
     procedure ReadTiled(tif: PTIFF);
@@ -2319,6 +2321,7 @@ begin
           TIFFSetDirectory(TIFFImage, ImageIndex);
 
           ColorManager.SourceColorScheme := ColorScheme;
+          ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
           // Split loading image data depending on pixel depth.
           if (SamplesPerPixel in [1, 2]) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
           begin
@@ -2530,6 +2533,13 @@ begin
         // SampleFormat determines DataType of samples (default = unsigned int)
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLEFORMAT, @TIFFValue);
         SampleFormat := TIFFValue;
+        if SampleFormat in [SAMPLEFORMAT_IEEEFP, SAMPLEFORMAT_COMPLEXIEEEFP] then begin
+          // Get min and max pixel values for floating point pixel data
+          // TODO: Proabably we should be prepared to read min/max values for each sample
+          // thus 1 for grayscale, 3 for rgb
+          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMINSAMPLEVALUE, @FMinFloatSample);
+          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMAXSAMPLEVALUE, @FMaxFloatSample);
+        end;
 
         // PlanarConfig needed to determine BitsPerPixel in case its Separate
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_PLANARCONFIG, @TIFFValue);
