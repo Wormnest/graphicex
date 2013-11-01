@@ -596,12 +596,12 @@ type
     procedure CombineChannels(Layer: TPhotoshopLayer);
     function ConvertCompression(Value: Word): TCompressionType;
     function DetermineColorScheme(ChannelCount: Integer): TColorScheme;
-    procedure LoadAdjustmentLayer(var Run: PAnsiChar; Layer: TPhotoshopLayer);
-    procedure ReadChannelData(var Run: PAnsiChar; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
-    procedure ReadDescriptor(var Run: PAnsiChar; var Descriptor: TPSDDescriptor);
-    procedure ReadMergedImage(var Source: PAnsiChar; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
-    procedure ReadLayers(Run: PAnsiChar);
-    procedure ReadResources(Run: PAnsiChar);
+    procedure LoadAdjustmentLayer(var Run: PByte; Layer: TPhotoshopLayer);
+    procedure ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
+    procedure ReadDescriptor(var Run: PByte; var Descriptor: TPSDDescriptor);
+    procedure ReadMergedImage(var Source: PByte; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
+    procedure ReadLayers(Run: PByte);
+    procedure ReadResources(Run: PByte);
     function SetupColorManager(Channels: Integer): TPixelFormat;
   public
     constructor Create; override;
@@ -5653,7 +5653,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.LoadAdjustmentLayer(var Run: PAnsiChar; Layer: TPhotoshopLayer);
+procedure TPSDGraphic.LoadAdjustmentLayer(var Run: PByte; Layer: TPhotoshopLayer);
 
 // Reads an adjustment layer whose identification is given by the first 4 bytes pointed to by Run.
 // An adjustment layer is kind of a sub layer for the current layer.
@@ -5719,7 +5719,7 @@ begin
   I := 0;
   while I < KeyCount do
   begin
-    if StrLComp(Run, AdjustmentKey[I], 4) = 0 then
+    if StrLComp(PAnsiChar(Run), AdjustmentKey[I], 4) = 0 then
       Break;
     Inc(I);
   end;
@@ -5727,7 +5727,7 @@ begin
 
   // Prepare read address after the adjustment layer, regardless whether we read the data or not.
   Size := ReadBigEndianCardinal(Run);
-  Temp := Run + Size;
+  Temp := PAnsiChar(Run); Inc(Temp, Size);
   // What type is it?
   case I of
     12: // Unicode layer name.
@@ -5765,12 +5765,12 @@ begin
         end;
       end;
   end;
-  Run := Temp;
+  Run := PByte(Temp);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadChannelData(var Run: PAnsiChar; var Channel: TPSDChannel; Width, Height: Integer;
+procedure TPSDGraphic.ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer;
   IsIrrelevant: Boolean);
 
 // Reads and optionally decompresses image data for one channel.
@@ -5835,7 +5835,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadDescriptor(var Run: PAnsiChar; var Descriptor: TPSDDescriptor);
+procedure TPSDGraphic.ReadDescriptor(var Run: PByte; var Descriptor: TPSDDescriptor);
 
 const
   // Identifiers used in the descriptor structures.
@@ -5880,7 +5880,7 @@ const
     I := ReadBigEndianCardinal(Run);
     if I = 0 then
     begin
-      SetString(Result, Run, 4);
+      SetString(Result, PAnsiChar(Run), 4);
       Inc(Run, 4);
     end
     else
@@ -5900,7 +5900,7 @@ const
     I := ReadBigEndianCardinal(Run);
     if I = 0 then
       I := 4;
-    SetString(Result, Run, I);
+    SetString(Result, PAnsiChar(Run), I);
     Inc(Run, I);
   end;
 
@@ -5910,7 +5910,7 @@ const
 
   begin
     Result := 0;
-    while (Result < KeyCount) and (StrLComp(Run, OSTypeKey[Result], 4) <> 0) do
+    while (Result < KeyCount) and (StrLComp(PAnsiChar(Run), OSTypeKey[Result], 4) <> 0) do
       Inc(Result);
     Inc(Run, 4);
   end;
@@ -5969,7 +5969,7 @@ const
           IntValue := Integer(ReadBigEndianCardinal(Run));
         8: // Boolean
           begin
-            BoolValue := Run^ <> #0;
+            BoolValue := Run^ <> 0;
             Inc(Run);
           end;
         10, 11: // Class or global class (undocumented)
@@ -6053,7 +6053,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadMergedImage(var Source: PAnsiChar; Layer: TPhotoshopLayer; Compression: TCompressionType;
+procedure TPSDGraphic.ReadMergedImage(var Source: PByte; Layer: TPhotoshopLayer; Compression: TCompressionType;
   Channels: Byte);
 
 // Reads the image data of the composite image (if Layer = nil) or the given layer.
@@ -6258,7 +6258,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadLayers(Run: PAnsiChar);
+procedure TPSDGraphic.ReadLayers(Run: PByte);
 
 // Recreates the layer structure given in the file. Run points to the layer section size.
 
@@ -6292,7 +6292,7 @@ var
   Dummy: Byte;
   BlockSize: Cardinal;
   S: AnsiString;
-  BlockStart: PAnsiChar;
+  BlockStart: PByte;
 
 begin
   // Skip the layer section size. We are going to read the full section.
@@ -6343,12 +6343,12 @@ begin
       end;
 
       // Next comes the blend mode signature which is always '8BIM'. We can use this for error checking.
-      if StrLIComp(Run, '8BIM', 4) <> 0 then
+      if StrLIComp(PAnsiChar(Run), '8BIM', 4) <> 0 then
         GraphicExError(gesInvalidPSDLayerData);
       Inc(Run, 4);
       // Determine the blend mode from the four character ID.
       for BlendMode := Low(TPSDLayerBlendMode) to High(TPSDLayerBlendMode) do
-        if StrLIComp(Run, PSDBlendModeMapping[BlendMode], 4) = 0 then
+        if StrLIComp(PAnsiChar(Run), PSDBlendModeMapping[BlendMode], 4) = 0 then
         begin
           Layer.BlendMode := BlendMode;
           Break;
@@ -6420,19 +6420,20 @@ begin
           ReadBlendRanges(Layer.Channels[I].BlendTargetRange);
         end;
         // Skip whatever left over.
-        Run := BlockStart + BlockSize;
+        Inc(BlockStart, BlockSize);
+        Run := BlockStart;
       end;
 
       // Read the pascal style (ANSI) layer name. This might get overwritten by the Unicode name.
       I := Byte(Run^);
-      SetString(S, Run + 1, I);
+      SetString(S, PAnsiChar(Run) + 1, I);
       Layer.Name := S;
       // The name is padded to a 4 byte boundary.
       Inc(Run, (I + 4) and not 3);
 
       // From Photoshop version 4 on there might be additional data here. This data is organized in blocks
       // all starting with '8BIM' as tag and is referred to as "adjustment layers" (e.g. Unicode name, effects etc.).
-      while StrLIComp(Run, '8BIM', 4) = 0 do
+      while StrLIComp(PAnsiChar(Run), '8BIM', 4) = 0 do
       begin
         Inc(Run, 4);
         LoadAdjustmentLayer(Run, Layer);
@@ -6492,13 +6493,14 @@ begin
     FLayers.FLayerMaskOpacity := ReadBigEndianWord(Run);
     FLayers.FKind := Byte(Run^);
 
-    Run := BlockStart + BlockSize;
+    Inc(BlockStart, BlockSize);
+    Run := BlockStart;
   end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadResources(Run: PAnsiChar);
+procedure TPSDGraphic.ReadResources(Run: PByte);
 
 var
   ID: Word;
@@ -6507,7 +6509,7 @@ var
   Size: Cardinal;
 
 begin
-  while StrLIComp(Run, '8BIM', 4) = 0 do
+  while StrLIComp(PAnsiChar(Run), '8BIM', 4) = 0 do
   begin
     // Skip signature.
     Inc(Run, 4);
@@ -6516,7 +6518,7 @@ begin
     // Resource name (pascal short string style).
     I := Byte(Run^);
     Inc(Run);
-    SetString(Name, Run, I);
+    SetString(Name, PAnsiChar(Run), I);
     Inc(Run, I);
     Inc(Run, Integer(Run) and 1); // Padded to even size.
 
@@ -6645,7 +6647,7 @@ end;
 procedure TPSDGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
-  Run: PAnsiChar;           // Pointer to the current position in the given memory.
+  Run: PByte;      // Pointer to the current position in the given memory.
   Count: Cardinal;
 
 begin
@@ -6681,8 +6683,8 @@ begin
         csGA:
           Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
         csIndexed:
-          Palette := ColorManager.CreateColorPalette([Run, Run + Count div 3, Run + 2 * Count div 3], pfPlane8Triple,
-            Count, False);
+          Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
+            PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count, False);
       end;
       Inc(Run, Count);
 
@@ -6769,17 +6771,17 @@ begin
         Height := Header.Rows;
 
         // Read the size of the palette.
-        Count := ReadBigEndianCardinal(PAnsiChar(Run));
+        Count := ReadBigEndianCardinal(Run);
         // Skip palette (count is always given, might be 0 however, e.g. for RGB).
         Inc(Run, Count);
 
         // Skip resource and layers section.
-        Count := ReadBigEndianCardinal(PAnsiChar(Run));
+        Count := ReadBigEndianCardinal(Run);
         Inc(Run, Count);
-        Count := ReadBigEndianCardinal(PAnsiChar(Run));
+        Count := ReadBigEndianCardinal(Run);
         Inc(Run, Count);
 
-        Compression := ConvertCompression(ReadBigEndianWord(PAnsiChar(Run)));
+        Compression := ConvertCompression(ReadBigEndianWord(Run));
         Result := True;
       end
       else
