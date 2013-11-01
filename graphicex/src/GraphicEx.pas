@@ -2847,7 +2847,7 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
-      FlipV := (FTargaHeader.ImageDescriptor and $20) <> 0;
+      FlipV := Orientation = gexoTopLeft;
 
       // skip image ID
       Source := Pointer(PAnsiChar(Memory) + SizeOf(TTargaHeader) + FTargaHeader.IDLength);
@@ -3050,6 +3050,15 @@ begin
         Compression := ctRLE
       else
         Compression := ctNone;
+
+      // Get image Orientation
+      case ((FTargaHeader.ImageDescriptor and $30) shr 4) of
+        0: Orientation := gexoBottomLeft;
+        1: Orientation := gexoBottomRight;
+        2: Orientation := gexoTopLeft;
+      else // 3
+        Orientation := gexoTopRight;
+      end;
 
       // Check for Targa version 1 id field, if present use it as comment
       if FTargaHeader.IDLength > 0 then begin
