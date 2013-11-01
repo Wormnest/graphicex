@@ -232,6 +232,17 @@ type
     pfPlane16Quad
   );
 
+  // Data format of samples based on the TIFF definitions
+  TSampleDataFormat = (
+    sdfUnknown,          // Unknown, use default unsigned integer
+    sdfUnsignedInt,      // Unsigned Integer (default)
+    sdfSignedInt,        // Signed Integer
+    sdfFloat,            // IEEE Floating Point
+    sdfUndefined,        // The saving program didn't know data type, try unsigned integer
+    sdfComplexInt,       // Complex Integer
+    sdfComplexFloat      // Complex IEEE Floating Point
+  );
+
   // TConversionMethod describes the general parameter list to which each implemented conversion method conforms.
   // Note: Source is defined as open array parameter to allow plane and interlaced source data.
   TConversionMethod = procedure(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte) of object;
@@ -255,6 +266,8 @@ type
     FCrToGreenTable,
     FCbToGreenTable: array of Integer;
 
+    FSourceDataFormat,
+    FTargetDataFormat: TSampleDataFormat;
     FSourceScheme,
     FTargetScheme: TColorScheme;
     FRowConversion: TConversionMethod; // Procedure variable for the actual conversion method used
@@ -278,6 +291,9 @@ type
     function ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvertFloat16To8(Value: Word): Byte;
+    function ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
     function ComponentScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleConvert(Value: Word): Byte;
@@ -309,9 +325,11 @@ type
     procedure SetSourceBitsPerSample(const Value: Byte);
     procedure SetSourceColorScheme(const Value: TColorScheme);
     procedure SetSourceSamplesPerPixel(const Value: Byte);
+    procedure SetSourceDataFormat(const Value: TSampleDataFormat);
     procedure SetTargetBitsPerSample(const Value: Byte);
     procedure SetTargetColorScheme(const Value: TColorScheme);
     procedure SetTargetSamplesPerPixel(const Value: Byte);
+    procedure SetTargetDataFormat(const Value: TSampleDataFormat);
   public
     constructor Create;
 
@@ -327,11 +345,13 @@ type
     property SourceOptions: TConvertOptions read FSourceOptions write SetSourceOptions;
     property SourcePixelFormat: TPixelFormat index 0 read GetPixelFormat;
     property SourceSamplesPerPixel: Byte read FSourceSPP write SetSourceSamplesPerPixel;
+    property SourceDataFormat: TSampleDataFormat read FSourceDataFormat write SetSourceDataFormat;
     property TargetBitsPerSample: Byte read FTargetBPS write SetTargetBitsPerSample;
     property TargetColorScheme: TColorScheme read FTargetScheme write SetTargetColorScheme;
     property TargetOptions: TConvertOptions read FTargetOptions write FTargetOptions;
     property TargetPixelFormat: TPixelFormat index 1 read GetPixelFormat;
     property TargetSamplesPerPixel: Byte read FTargetSPP write SetTargetSamplesPerPixel;
+    property TargetDataFormat: TSampleDataFormat read FTargetDataFormat write SetTargetDataFormat;
   end;
 
 // Common color conversion functions
@@ -1316,6 +1336,45 @@ begin
   // Convert/scale up or down from 64 bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
   Result := Byte(Value shr 56);
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat16To8(Value: Word): Byte;
+var hf: THalfFloat absolute Value;
+  TempVal: Integer;
+begin
+  TempVal := Trunc(HalfToFloat(hf) * 255);
+  if TempVal < 0 then
+    TempVal := 0
+  else if TempVal > 255 then
+    TempVal := 255;
+  Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte;
+var s: Single absolute Value;
+  TempVal: Integer;
+begin
+  TempVal := Trunc(s * 255);
+  if TempVal < 0 then
+    TempVal := 0
+  else if TempVal > 255 then
+    TempVal := 255;
+  Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+var d: Double absolute Value;
+  TempVal: UInt64;
+begin
+    TempVal := Trunc(d * 255);
+    if TempVal < 0 then
+      TempVal := 0
+    else if TempVal > 255 then
+      TempVal := 255;
+    Result := TempVal;
 end;
 
 //------------------------------------------------------------------------------
@@ -3141,6 +3200,20 @@ begin
   Result := quantum;
 end;
 
+// Function to return 64 bits Double as UInt64.
+// Since apparently for TIFF float values we don't need to handle BigEndian we
+// just return the value where BitData points to without any handling.
+function GetBitsDouble(BitIndex, NumberOfBits: Cardinal; BitData: PByte): UInt64;
+begin
+  Result := PUInt64(BitData)^;
+end;
+
+// Function to return 32 bits Single as Cardinal
+function GetBitsSingle(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+begin
+  Result := PCardinal(BitData)^;
+end;
+
 function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
 var Sum: Cardinal;
 begin
@@ -3180,7 +3253,8 @@ var
   Bits, Bits2: Cardinal;
   Bits64: UInt64;
   FirstNibble: Boolean;
-
+  GetBits32: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+  GetBits64: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): UInt64;
 begin
   BitRun := $80;
   // When this is an image with alpha and not planar we need to skip the alpha bits
@@ -3241,6 +3315,9 @@ begin
               Convert16 := ComponentSwapScaleConvert
             else
               Convert16 := ComponentScaleConvert16To8;
+            // Half Float sample data format needs different conversion.
+            if FSourceDataFormat = sdfFloat then
+              Convert16 := ComponentScaleConvertFloat16To8;
 
             while Count > 0 do
             begin
@@ -3332,8 +3409,16 @@ begin
           begin
             Source32 := Source[0];
             Target8 := Target;
+            GetBits32 := GetBitsMSB;
             case FSourceBPS of
-               32:     Convert32 := ComponentScaleConvert32To8;
+               32:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat32To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert32To8;
+                 end;
                17..24: Convert32 := ComponentScaleConvert17_24To8;
             else // Use else for 25..31 or else compiler will complain about uninitialized
               {25..31:} Convert32 := ComponentScaleConvert25_31To8;
@@ -3343,7 +3428,7 @@ begin
             while Count > 0 do
             begin
               // For now always assuming that bits are in big endian MSB first order!!! (TIF)
-              Bits := GetBitsMSB(BitOffset, FSourceBPS, PByte(Source32));
+              Bits := GetBits32(BitOffset, FSourceBPS, PByte(Source32));
               Target8^ := Convert32(Bits, FSourceBPS);
               // Update the bit and byte pointers
               Inc(BitOffset, BitIncrement);
@@ -3362,16 +3447,25 @@ begin
           begin
             Source64 := Source[0];
             Target8 := Target;
-            if FSourceBPS = 64 then
-              Convert64 := ComponentScaleConvert64To8
-            else
+            if FSourceBPS = 64 then begin
+              if FSourceDataFormat = sdfFloat then begin
+                Convert64 := ComponentScaleConvertFloat64To8;
+                GetBits64 := GetBitsDouble; // Apparently not BigEndian
+              end
+              else begin
+                Convert64 := ComponentScaleConvert64To8;
+                GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+              end;
+            end
+            else begin
               Convert64 := ComponentScaleConvert33_63To8;
+              GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+            end;
 
             BitOffset := 0;
             while Count > 0 do
             begin
-              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
-              Bits64 := GetBitsMSB64(BitOffset, FSourceBPS, PByte(Source64));
+              Bits64 := GetBits64(BitOffset, FSourceBPS, PByte(Source64));
               Target8^ := Convert64(Bits64, FSourceBPS);
               // Update the bit and byte pointers
               Inc(BitOffset, BitIncrement);
@@ -5538,6 +5632,21 @@ begin
     FTargetSPP := Value;
     FChanged := True;
   end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TColorManager.SetSourceDataFormat(const Value: TSampleDataFormat);
+begin
+  FSourceDataFormat := Value;
+  if not (Value in [sdfUnknown..sdfUndefined]) then
+    ShowError(gesDataFormatNotSupported);
+end;
+
+procedure TColorManager.SetTargetDataFormat(const Value: TSampleDataFormat);
+begin
+  // Not supported currently!
+  ShowError(gesDataFormatNotSupported);
 end;
 
 //------------------------------------------------------------------------------
