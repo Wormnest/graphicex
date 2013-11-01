@@ -329,6 +329,10 @@ function HLSInterpolation(const HLS1, HLS2: THLSFloat; Ratio: Extended): THLSFlo
 function RGBInterpolation(const RGB1, RGB2: TRGBFloat; Ratio: Extended): TRGBFloat; overload;
 function RGBInterpolation(const RGB1, RGB2: TRGB; Ratio: Extended): TRGB; overload;
 
+function  HSVToRGB32(const A, H, S, V: Integer): TRGBAColor32;
+procedure RGBToHSV32(const ARGB: TRGBAColor32; var H, S, V: Integer);
+function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32;
+
 // Color utility functions
 function BrightenColor(const Color: TColor; Amount: Extended): TColor; overload;
 function BrightenColor(const Color: TRGB; Amount: Extended): TRGB; overload;
@@ -621,6 +625,128 @@ begin
     end;
 end;
 
+//------------------------------------------------------------------------------
+
+function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32;
+begin
+  Result := (A shl 24) or (R shl 16) or (G shl 8) or B;
+end;
+
+//-- HSV -----------------------------------------------------------------------
+
+// Converted from the GraphicsMagic versions which are based on Earl F. Grey's versions.
+// See GraphicsMagic gmColorSpace but also (in externals) ColorLibrary.pas and RealColorLibrary.pas.
+
+// Floating point fractions, 0..1, replaced with integer values, 0..255.
+// Use integer conversion ONLY for one-way, or a single final conversions.
+// Use floating-point for converting reversibly (see HSVtoRGB above).
+//
+// H = 0 to 360 (corresponding to 0..360 degrees around hexcone)
+//     0 (undefined) for S = 0
+// S = 0 (shade of gray) to 255 (pure color)
+// V = 0 (black) to 255 (white)
+function HSVToRGB32(const A, H, S, V: Integer): TRGBAColor32;
+const
+  Divisor: Integer = 255 * 60;
+var
+  f, hTemp, p, q, t, VS: Integer;
+begin
+  if S = 0 then
+  begin
+    Result := ToRGBAColor32(V, V, V, A)  // Achromatic:  shades of gray
+  end
+  else
+  begin                                  // Chromatic color
+    if H = 360 then
+    begin
+      hTemp := 0;
+    end
+    else
+    begin
+      hTemp := H;
+    end;
+
+    f     := hTemp mod 60;     // f is IN [0, 59]
+    hTemp := hTemp div 60;     // h is now IN [0,6)
+
+    VS := V * S;
+    p  := V - VS div 255;                   // p = v * (1 - s)
+    q  := V - (VS * f) div Divisor;         // q = v * (1 - s * f)
+    t  := V - (VS * (60 - f)) div Divisor;  // t = v * (1 - s * (1 - f))
+
+    case hTemp of
+      0: Result := ToRGBAColor32(V, t, p, A);
+      1: Result := ToRGBAColor32(q, V, p, A);
+      2: Result := ToRGBAColor32(p, V, t, A);
+      3: Result := ToRGBAColor32(p, q, V, A);
+      4: Result := ToRGBAColor32(t, p, V, A);
+      5: Result := ToRGBAColor32(V, p, q, A);
+    else
+      Result := ToRGBAColor32(0, 0, 0, A)  // Should never happen. Avoid compiler warning.
+    end;
+  end;
+end;
+
+// RGB, each 0 to 255, to HSV.
+// H = 0 to 360 (corresponding to 0..360 degrees around hexcone)
+// S = 0 (shade of gray) to 255 (pure color)
+// V = 0 (black) to 255 {white)
+
+// Based on C Code in "Computer Graphics -- Principles and Practice,"
+// Foley et al, 1996, p. 592.  Floating point fractions, 0..1, replaced with
+// integer values, 0..255.
+
+procedure RGBToHSV32(const ARGB: TRGBAColor32; {r, g and b IN [0..255]}
+                     var   H, S, V: Integer);  {h IN 0..359; s,v IN 0..255}
+var
+  Delta, Min, R, G, B: Integer;
+begin
+  R := ARGB shr 16 and $FF;
+  G := ARGB shr 8  and $FF;
+  B := ARGB        and $FF;
+
+  Min := MinIntValue([R, G, B]);
+  V   := MaxIntValue([R, G, B]);
+
+  Delta := V - Min;
+
+  // Calculate saturation:  saturation is 0 if r, g and b are all 0
+  if V =  0 then
+  begin
+    S := 0;
+  end
+  else
+  begin
+    S := MulDiv(Delta, 255, V);
+  end;
+
+  if S  = 0 then
+  begin
+    H := 0; // Achromatic:  When s = 0, h is undefined but assigned the value 0
+  end
+  else
+  begin    // Chromatic
+    if R = V then
+    begin
+      H := MulDiv(G - B, 60, Delta); // Degrees -- between yellow and magenta
+    end
+    else if G = V then
+    begin
+      H := 120 + MulDiv(B - R, 60, Delta); // Between cyan and yellow
+    end
+    else if B = V then
+    begin
+      H := 240 + MulDiv(R - G, 60, Delta); // Between magenta and cyan
+    end;
+
+    if H < 0 then
+    begin
+      H := H + 360;
+    end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
 
 {
   Half/Float conversions inspired by half class from OpenEXR library.
