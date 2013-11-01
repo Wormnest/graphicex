@@ -271,6 +271,7 @@ var
   twMemXFer : TW_IMAGEMEMXFER;        // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twSetupMemXFer : TW_SETUPMEMXFER;   // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
   twImageInfo : TW_IMAGEINFO;         // NB: This is used below in TwainCheck even if Delphi thinks it isn't!
+  TwainCode: Integer;
 
   function CreateTBitmapFromTwainHandle (h : THandle) : TBitmap;
   var
@@ -339,7 +340,12 @@ begin
   end
   else
   begin
-    TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_IMAGE, DAT_IMAGENATIVEXFER, MSG_GET, @h));
+    TwainCode := TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_IMAGE, DAT_IMAGENATIVEXFER, MSG_GET, @h));
+    // We need to check here if everything went fine.
+    // If an image was scanned we will get a TWRC_XFERDONE here.
+    // If the user canceled scanning we get TWRC_CANCEL.
+    if TwainCode <> TWRC_XFERDONE then
+      Exit;
     try
       fPict.Graphic := CreateTBitmapFromTwainHandle (h); //ORIGINAL
 {$IFDEF DEBUG}
