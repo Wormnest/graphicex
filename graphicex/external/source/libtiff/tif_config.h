@@ -1,3 +1,52 @@
+/* jb We need to add some extra defines that would normally be defined by configure. */
+
+/* Delphi/Object Pascal specific for use in tif_ojpeg.c (see explanation there) */
+#define LIBJPEG_ENCAP_EXTERNAL
+
+/*
+ * On windows you should define USE_WIN32_FILEIO if you are using tif_win32.c
+ * or AVOID_WIN32_FILEIO if you are using something else (like tif_unix.c).
+ *
+ * By default tif_unix.c is assumed.
+ */
+#define AVOID_WIN32_FILEIO 1
+
+/* Support ISO JBIG compression (requires JBIG-KIT library) */
+#undef JBIG_SUPPORT // jb Maybe look into supporting this in the future.
+
+/* Support JPEG compression (requires IJG JPEG library) */
+#define JPEG_SUPPORT 1
+
+/* Support Old JPEG compresson (read-only) */
+#define OJPEG_SUPPORT 1
+
+/* Support LogLuv high dynamic range encoding */
+#define LOGLUV_SUPPORT 1
+
+/* Support LZW algorithm */
+#define LZW_SUPPORT 1
+
+/* Support NeXT 2-bit RLE algorithm */
+#define NEXT_SUPPORT 1
+
+/* Support Macintosh PackBits algorithm */
+#define PACKBITS_SUPPORT 1
+
+/* Support Pixar log-format algorithm (requires Zlib) */
+#define PIXARLOG_SUPPORT 1
+
+/* Support ThunderScan 4-bit RLE algorithm */
+#define THUNDER_SUPPORT 1
+
+/* Support CCITT Group 3 & 4 algorithms */
+#define CCITT_SUPPORT 1
+
+/* Support Deflate compression */
+#undef ZIP_SUPPORT
+
+/* jb End of added defines. */ 
+/* --------------------------------------------------------------------------------- */
+
 /* Define to 1 if you have the <assert.h> header file. */
 #define HAVE_ASSERT_H 1
 
