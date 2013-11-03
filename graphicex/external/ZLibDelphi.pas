@@ -7,7 +7,9 @@ uses
 
 const
 
-  ZLIB_VERSION = '1.2.1';
+  // jb Note version number and obj files updated from 1.2.1 to 1.2.8.
+  // However other defines etc have not been updated.
+  ZLIB_VERSION = '1.2.8';
 
   Z_NO_FLUSH = 0;
   // jb next 3 copied from GXzlib
@@ -78,23 +80,26 @@ begin
   Result:=deflateInit_(strm,level,PAnsiChar(ZLIB_VERSION),SizeOf(RZStream));
 end;
 
-{$L inflate.obj}
-{$L crc32.obj}
-{$L adler32.obj}
-{$L inftrees.obj}
-{$L inffast.obj}
+// Needed in zlib 1.2.8
+{$ifndef WIN64}
+procedure _llmod;
+asm
+  jmp System.@_llmod;
+end;
+{$endif}
+
 {$L deflate.obj}
-{$L zutil.obj}
+{$L inflate.obj}
+{$L inftrees.obj}
+{$L infback.obj}
+{$L inffast.obj}
 {$L trees.obj}
 {$L compress.obj}
+{$L adler32.obj}
+{$L crc32.obj}
+// The next 2 are not used in DelphiZLib
+{$L zutil.obj}
 {$L uncompr.obj}
 
 end.
-
-
-
-
-
-
-
 
