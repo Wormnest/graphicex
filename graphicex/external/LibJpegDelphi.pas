@@ -440,10 +440,84 @@ implementation
 uses
   LibDelphi;
 
+{ jb I prefer the method used by both Mike Lischke's JPG.pas and Delphi's own jpeg unit
+  for handling jpeg's error exit over LibJpegDelphi's because the latter needs
+  a change in libjpeg's jerror.c source code. Since the less changes needed to
+  the original source means easier updating, we choose the first method for handling
+  jpeg errors.
+  On second thought. It seems we need to do a lot of extra handling here then,
+  and also need to define all error messages from jpeg here too,
+  so we leave that for now. In the future we do need to have a look at it though.
+  Without source changes would be easier and if there is a way to get the
+  message strings from jpeg that would be even better.
+}
+
 procedure jpeg_error_exit_raise; cdecl;
 begin
   raise Exception.Create('LibJpeg error_exit');
 end;
+
+(***** From GraphicEx JPG.pas
+// Forward declarations of default error routines.
+procedure JpegError(cinfo: PRJpegCommonStruct); cdecl; forward;
+procedure EmitMessage(cinfo: PRJpegCommonStruct; msg_level: Integer); cdecl; forward;
+procedure OutputMessage(cinfo: PRJpegCommonStruct); cdecl; forward;
+procedure FormatMessage(cinfo: PRJpegCommonStruct; buffer: Pointer); cdecl; forward;
+procedure ResetErrorMgr(cinfo: PRJpegCommonStruct); cdecl; forward;
+
+const
+  DefaultErrorManager: RJpegErrorMgr = (
+    ErrorExit: JpegError;
+    EmitMessage: EmitMessage;
+    OutputMessage: OutputMessage;
+    FormatMessage: FormatMessage;
+    ResetErrorMgr: ResetErrorMgr;
+  );
+
+procedure JpegError(cinfo: PRJpegCommonStruct); cdecl;
+var
+  Template: string;
+begin
+  Template := JPGMessages[cinfo.err.msg_code];
+  // The error can either be a string or up to 8 integers.
+  // Search the message template for %s (the string formatter) to decide, which one we have to use.
+  if Pos('%s', Template) > 0 then
+    raise EJPGError.CreateFmt(Template, [cinfo.err.msg_parm.s])
+  else
+    with cinfo.err.msg_parm do
+      raise EJPGError.CreateFmt(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
+end;
+
+procedure EmitMessage(cinfo: PRJpegCommonStruct; msg_level: Integer); cdecl;
+// For debugging only.
+{$ifopt D+}
+  var
+    Template: string;
+    Message: string;
+  begin
+    Template := JPGMessages[cinfo.err.msg_code];
+    // The message can either be a string or up to 8 integers.
+    // Search the message template for %s (the string formatter) to decide, which one we have to use.
+    if Pos('%s', Template) > 0 then
+      Message := Format(Template, [cinfo.err.msg_parm.s])
+    else
+      with cinfo.err.msg_parm do
+        Message := Format(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
+    OutputDebugString(PChar(Message));
+  end;
+{$else}
+  begin
+  end;
+{$endif D+}
+
+procedure OutputMessage(cinfo: PRJpegCommonStruct); cdecl;
+begin
+end;
+
+procedure FormatMessage(cinfo: PRJpegCommonStruct; buffer: Pointer); cdecl;
+begin
+end;
+*****)
 
 procedure jpeg_create_compress(cinfo: PRJpegCompressStruct); cdecl;
 begin
