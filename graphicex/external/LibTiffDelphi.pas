@@ -631,7 +631,7 @@ procedure _TIFFfree(p: Pointer); cdecl;
 implementation
 
 uses
-  Math, LibDelphi, LibJpegDelphi, ZLibDelphi;
+  Math, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
   
 type
 
