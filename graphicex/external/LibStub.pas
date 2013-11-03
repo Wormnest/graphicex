@@ -49,6 +49,9 @@ interface
 
 {$define Underlined}
 
+{.$DEFINE USE_SCANF} // jb No scanf support for now
+{.$DEFINE USE_EXIT}  // jb Disabled because it overrides the default Exit which can lead to unexpected results.
+
 uses
   Windows, Classes;
 
@@ -78,7 +81,7 @@ type
   end;
 
   {$ifdef COMPILER_5}
-    PPChar = ^PChar;
+    PPAnsiChar = ^PAnsiChar;
   {$endif COMPILER_5}
 
   Ptime_t = ^time_t;
@@ -88,30 +91,36 @@ type
   size_t = Cardinal;
 
 procedure Abort;
-procedure _assert(__cond, __file: PChar; __line: Integer); cdecl;
+procedure _assert(__cond, __file: PAnsiChar; __line: Integer); cdecl;
 function atan2(Y, X: Double): Double; cdecl;
 function atan(X: Double): Double; cdecl;
-function atof(Value: PChar): Double; cdecl;
-function atol(Value: PChar): Integer; cdecl;
-function bsearch(const Key, Base: PChar; nelem, size: size_t; Compare: cmp_callback): Pointer; cdecl;
+function atof(Value: PAnsiChar): Double; cdecl;
+function atol(Value: PAnsiChar): Integer; cdecl;
+function bsearch(const Key, Base: PAnsiChar; nelem, size: size_t; Compare: cmp_callback): Pointer; cdecl;
 function calloc(nitems, size: Cardinal): Pointer; cdecl;
 function ceil(Value: Double): Double; cdecl;
+{$IFDEF USE_EXIT}
 procedure cexit;
+{$ENDIF}
 function cos(Value: Double): Double; cdecl;
-function ctime(const clock: Ptime_t): PChar; cdecl;
+function ctime(const clock: Ptime_t): PAnsiChar; cdecl;
+{$IFDEF USE_EXIT}
 procedure exit; cdecl;
+{$ENDIF}
 function exp(Value: Double): Double; cdecl;
 function fabs(Value: Double): Double; cdecl;
 function fclose(Stream: TStream): Integer; cdecl;
 function fflush(Stream: TStream): Integer; cdecl;
 function fgetc(Stream: TStream): Integer; cdecl;
 function floor(Value: Double): Double; cdecl;
-function fopen(const filename, mode: PChar): TStream; cdecl;
+function fopen(const filename, mode: PAnsiChar): TStream; cdecl;
 function fread(var buf; recsize, reccount: Integer; Stream: TStream): Integer; cdecl;
 procedure free(P: Pointer); cdecl;
 function fputc(c: Integer; Stream: TStream): Integer; cdecl;
 function frexp(x: Double; var Exponent: Integer): Double; cdecl;
-function fscanf(Stream: TStream; Format: PChar; Argument: array of Pointer): Integer; cdecl;
+{$IFDEF USE_SCANF}
+function fscanf(Stream: TStream; Format: PAnsiChar; Argument: array of Pointer): Integer; cdecl;
+{$ENDIF}
 function fseek(Stream: TStream; offset, origin: Integer): Integer; cdecl;
 function ftell(Stream: TStream): Integer; cdecl;
 function _ftol: Integer; cdecl;
@@ -138,29 +147,31 @@ function rand: Integer; cdecl;
 procedure qsort(base: Pointer; nelem, width: Cardinal; fcmp: cmp_callback); cdecl;
 function setjmp(const __jmpb): Integer; cdecl;
 function sin(Value: Double): Double; cdecl;
-procedure sprintf(Buffer, Format: PChar; Arguments: va_list); cdecl;
+procedure sprintf(Buffer, Format: PAnsiChar; Arguments: va_list); cdecl;
 function sqrt(Value: Double): Double; cdecl;
-function sscanf(Buffer, Format: PChar; Argument: array of Pointer): Integer; cdecl;
-function strcat(dest, src: PChar): PChar; cdecl;
-function strchr(s: PChar; c: Integer): PChar; cdecl;
-function strcmp(s1, s2: PChar): Integer; cdecl;
-function strcpy(dest, src: PChar): PChar; cdecl;
-function strdup(s: PChar): PChar; cdecl;
-function stricmp(s1, s2: PChar): Integer; cdecl;
-function strlen(s: PChar): Cardinal; cdecl;
-function strncmp(s1, s2: PChar; maxlen: Cardinal): Integer; cdecl;
-function strncpy(strDest, strSource: PChar; count: Cardinal): PChar; cdecl;
-function strstr(s1, s2: PChar): PChar; cdecl;
-function strtod(s: PChar; endptr: PPChar): Double; cdecl;
-procedure swab(__from, __to: PChar; __nbytes: Integer); cdecl;
+{$IFDEF USE_SCANF}
+function sscanf(Buffer, Format: PAnsiChar; Argument: array of Pointer): Integer; cdecl;
+{$ENDIF}
+function strcat(dest, src: PAnsiChar): PAnsiChar; cdecl;
+function strchr(s: PAnsiChar; c: Integer): PAnsiChar; cdecl;
+function strcmp(s1, s2: PAnsiChar): Integer; cdecl;
+function strcpy(dest, src: PAnsiChar): PAnsiChar; cdecl;
+function strdup(s: PAnsiChar): PAnsiChar; cdecl;
+function stricmp(s1, s2: PAnsiChar): Integer; cdecl;
+function strlen(s: PAnsiChar): Cardinal; cdecl;
+function strncmp(s1, s2: PAnsiChar; maxlen: Cardinal): Integer; cdecl;
+function strncpy(strDest, strSource: PAnsiChar; count: Cardinal): PAnsiChar; cdecl;
+function strstr(s1, s2: PAnsiChar): PAnsiChar; cdecl;
+function strtod(s: PAnsiChar; endptr: PPAnsiChar): Double; cdecl;
+procedure swab(__from, __to: PAnsiChar; __nbytes: Integer); cdecl;
 function tan(Value: Double): Double; cdecl;
 function time(__timer: Ptime_t): time_t; cdecl;
-function unlink(FileName: PChar): Integer; cdecl;
-function vfprintf(Stream: TStream; Format: PChar; Arguments: va_list): Integer; cdecl;
-function vprintf(Format: PChar; Arguments: va_list): Integer; cdecl;
-procedure vsprintf(Buffer, Format: PChar; Arguments: va_list); cdecl;
+function unlink(FileName: PAnsiChar): Integer; cdecl;
+function vfprintf(Stream: TStream; Format: PAnsiChar; Arguments: va_list): Integer; cdecl;
+function vprintf(Format: PAnsiChar; Arguments: va_list): Integer; cdecl;
+procedure vsprintf(Buffer, Format: PAnsiChar; Arguments: va_list); cdecl;
 function wcscpy(Destination, Source: PWideChar): PWideChar; cdecl;
-function wcstombs(mbstr: PChar; wcstr: PWideChar; count: Cardinal): Cardinal; cdecl;
+function wcstombs(mbstr: PAnsiChar; wcstr: PWideChar; count: Cardinal): Cardinal; cdecl;
 
 // Note: these functions cannot be emulated by Delphi nor forwarded to external APIs.
 // Using them will raise an exception.
@@ -172,7 +183,9 @@ procedure fputs; cdecl;
 implementation
 
 uses
+{$IFDEF USE_SCANF}
   Scanf,
+{$ENDIF}
   Math, SysUtils, DateUtils;
 
 {$ifndef COMPILER_6_UP}
@@ -212,7 +225,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure _assert(__cond, __file: PChar; __line: Integer);
+procedure _assert(__cond, __file: PAnsiChar; __line: Integer);
 
 // Emulation of the BCB RTL runtime library function assert.
 
@@ -238,7 +251,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function atof(Value: PChar): Double;
+function atof(Value: PAnsiChar): Double;
 
 // Note: this code does not consider changes made with setlocale.
 
@@ -248,7 +261,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function atol(Value: PChar): Integer;
+function atol(Value: PAnsiChar): Integer;
 
 // Note: this code does not consider changes made with setlocale.
 
@@ -258,16 +271,16 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function bsearch(const Key, Base: PChar; nelem, size: size_t; Compare: cmp_callback): Pointer; cdecl;
+function bsearch(const Key, Base: PAnsiChar; nelem, size: size_t; Compare: cmp_callback): Pointer; cdecl;
 
 var
   I: Cardinal;
   J: Integer;
-  kmin, probe: PChar;
+  kmin, probe: PAnsiChar;
 
 begin
   Result := nil;
-  kmin := PChar(Base);
+  kmin := PAnsiChar(Base);
   while nelem > 0 do
   begin
     I := nelem shr 1;
@@ -307,11 +320,13 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$IFDEF USE_EXIT}
 procedure cexit;
 
 begin
   Exit;
 end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -328,7 +343,7 @@ var
   // It is overriden everytime ctime is called (just as the BCB equivalent).
   Staticctime: array[0..25] of Char;
 
-function ctime(const clock: Ptime_t): PChar;
+function ctime(const clock: Ptime_t): PAnsiChar;
 
 var
   Time: TDateTime;
@@ -348,11 +363,13 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$IFDEF USE_EXIT}
 procedure exit;
 
 begin
   System.Exit;
 end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -415,7 +432,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function fopen(const filename, mode: PChar): TStream;
+function fopen(const filename, mode: PAnsiChar): TStream;
 
 // Maps, together with the other file functions, all C file access to a file stream.
 
@@ -500,13 +517,15 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function fscanf(Stream: TStream; Format: PChar; Argument: array of Pointer): Integer;
+{$IFDEF USE_SCANF}
+function fscanf(Stream: TStream; Format: PAnsiChar; Argument: array of Pointer): Integer;
 
 // Note: the actual implementation was provided by Evgeni Sorokin.
 
 begin
   Result := Scanf.fscanf(Stream, Format, Argument);
 end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -781,7 +800,7 @@ function _lfind(const Key, Base: Pointer; num: Psize_t; width: size_t; Compare: 
 
 var
   I: Integer;
-  Run: PChar;
+  Run: PAnsiChar;
 
 begin
   Result := nil;
@@ -911,7 +930,7 @@ threadvar
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure Exchange(Left, Right: PChar);
+procedure Exchange(Left, Right: PAnsiChar);
 
 var
   I: Cardinal;
@@ -930,7 +949,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure qSortHelp(pivotP: PChar; nElem: Cardinal);
+procedure qSortHelp(pivotP: PAnsiChar; nElem: Cardinal);
 
 label
   tailRecursion, qBreak;
@@ -940,7 +959,7 @@ var
   rightP,
   pivotEnd,
   pivotTemp,
-  leftTemp: PChar;
+  leftTemp: PAnsiChar;
   lNum: Cardinal;
   retval: Integer;
 
@@ -1082,7 +1101,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure sprintf(Buffer, Format: PChar; Arguments: va_list);
+procedure sprintf(Buffer, Format: PAnsiChar; Arguments: va_list);
 
 // Optional parameters are passed in a va_list as the last parameter. 
 
@@ -1100,17 +1119,19 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function sscanf(Buffer, Format: PChar; Argument: array of Pointer): Integer;
+{$IFDEF USE_SCANF}
+function sscanf(Buffer, Format: PAnsiChar; Argument: array of Pointer): Integer;
 
 // Note: the actual implementation was provided by Evgeni Sorokin.
 
 begin
   Result := Scanf.sscanf(Buffer, Format, Argument);
 end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strcat(dest, src: PChar): PChar;
+function strcat(dest, src: PAnsiChar): PAnsiChar;
 
 begin
   Result := SysUtils.StrCat(dest, src);
@@ -1118,7 +1139,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strchr(s: PChar; c: Integer): PChar;
+function strchr(s: PAnsiChar; c: Integer): PAnsiChar;
 
 begin
   Result := StrScan(s, Char(c));
@@ -1126,7 +1147,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strcmp(s1, s2: PChar): Integer;
+function strcmp(s1, s2: PAnsiChar): Integer;
 
 begin
   Result := SysUtils.StrComp(s1, s2);
@@ -1134,7 +1155,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strcpy(dest, src: PChar): PChar;
+function strcpy(dest, src: PAnsiChar): PAnsiChar;
 
 begin
   Result := StrCopy(dest, src);
@@ -1142,7 +1163,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strdup(s: PChar): PChar;
+function strdup(s: PAnsiChar): PAnsiChar;
 
 var
   L: Integer;
@@ -1156,7 +1177,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function stricmp(s1, s2: PChar): Integer;
+function stricmp(s1, s2: PAnsiChar): Integer;
 
 begin
   Result := SysUtils.StrIComp(s1, s2);
@@ -1164,7 +1185,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strlen(s: PChar): Cardinal;
+function strlen(s: PAnsiChar): Cardinal;
 
 begin
   Result := SysUtils.StrLen(s);
@@ -1172,7 +1193,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strncmp(s1, s2: PChar; maxlen: Cardinal): Integer;
+function strncmp(s1, s2: PAnsiChar; maxlen: Cardinal): Integer;
 
 begin
   Result := StrLComp(s1, s2, maxlen);
@@ -1180,7 +1201,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strncpy(strDest, strSource: PChar; count: Cardinal): PChar;
+function strncpy(strDest, strSource: PAnsiChar; count: Cardinal): PAnsiChar;
 
 var
   Len: Cardinal;
@@ -1199,7 +1220,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strstr(s1, s2: PChar): PChar;
+function strstr(s1, s2: PAnsiChar): PAnsiChar;
 
 begin
   Result := StrPos(s1, s2);
@@ -1207,7 +1228,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function strtod(s: PChar; endptr: PPChar): Double;
+function strtod(s: PAnsiChar; endptr: PPAnsiChar): Double;
 
 var
   Buffer: Extended;
@@ -1228,7 +1249,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure swab(__from, __to: PChar; __nbytes: Integer);
+procedure swab(__from, __to: PAnsiChar; __nbytes: Integer);
 
 // Swaps a number of words in _from to the opposite byte order and stores it in _to.
 // Areas may overlap, in which case the conversion is done in-place.
@@ -1268,7 +1289,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function unlink(FileName: PChar): Integer;
+function unlink(FileName: PAnsiChar): Integer;
 
 begin
   if DeleteFile(FileName) then
@@ -1279,7 +1300,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function vfprintf(Stream: TStream; Format: PChar; Arguments: va_list): Integer;
+function vfprintf(Stream: TStream; Format: PAnsiChar; Arguments: va_list): Integer;
 
 var
   Buffer: array[0..10000] of Char;
@@ -1292,7 +1313,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function vprintf(Format: PChar; Arguments: va_list): Integer;
+function vprintf(Format: PAnsiChar; Arguments: va_list): Integer;
 
 // In the C RTL this method writes to stdout, which should not be used for Win GUI applications.
 // Hence we write a record to the debug output.
@@ -1309,7 +1330,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure vsprintf(Buffer, Format: PChar; Arguments: va_list);
+procedure vsprintf(Buffer, Format: PAnsiChar; Arguments: va_list);
 
 begin
   wvsprintf(Buffer, Format, Arguments);
@@ -1326,7 +1347,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function wcstombs(mbstr: PChar; wcstr: PWideChar; count: Cardinal): Cardinal;
+function wcstombs(mbstr: PAnsiChar; wcstr: PWideChar; count: Cardinal): Cardinal;
 
 begin
   Result := WideCharToMultibyte(CP_ACP, 0, wcstr, -1, mbstr, -1, nil, nil);
