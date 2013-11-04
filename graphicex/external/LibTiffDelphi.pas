@@ -1,4 +1,5 @@
 { Version found in ImagingLib based on libtiff 3.9.4.
+  jb: Now updated to libtiff 3.9.7.
   jb: Since we want to be able to test difference with the original LibTiffDelphi
   that was based on libtiff 3.7.0 and possible future changes we are going
   to use defines to set the expected libtiff version. You will still have
@@ -6,13 +7,13 @@
   you are defining.
 }
 {.$DEFINE LIBTIFF_3_7_0}
-{$DEFINE LIBTIFF_3_9_4}
+{$DEFINE LIBTIFF_3_9_7}
 
-{$IFDEF LIBTIFF_3_9_4}
+{$IFDEF LIBTIFF_3_9_7}
     {$UNDEF LIBTIFF_3_7_0}
 {$ELSE}
   {$IFNDEF LIBTIFF_3_7_0}
-  Error: Either LIBTIFF_3_9_4 or LIBTIFF_3_7_0 should be defined!
+  Error: Either LIBTIFF_3_9_7 or LIBTIFF_3_7_0 should be defined!
   {$ENDIF}
 {$ENDIF}
 
@@ -27,15 +28,19 @@ uses
   Windows, SysUtils, Classes;
 
 const
-  //DW
-  LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.4.00'#13#10'Pre-compiled LibTiff for Delphi'#13#10'http://www.awaresystems.be/'#13#10'3.9.4 implementation by Do-wan Kim'#13#10;
+  LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Delphi'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
 
-  // jb consts defined in GraphicEx: TIFF.pas, also available in libtiff: tiff.h
-  TIFF_VERSION      = 42;
-  TIFF_BIGENDIAN    = $4D4D;
-  TIFF_LITTLEENDIAN = $4949;
-  // end jb
+  // Defines taken from tiff.h
+  TIFF_VERSION          = 42;
+  TIFF_BIGTIFF_VERSION  = 43;
+  TIFF_BIGENDIAN     = $4D4D;
+  TIFF_LITTLEENDIAN  = $4949;
+  MDI_LITTLEENDIAN   = $5045;
+  MDI_BIGENDIAN      = $4550;
 
+  // TIFFDataType enum
+  // Tag data type information.
+  // Note: RATIONALs are the ratio of two 32-bit integer values.
   TIFF_NOTYPE                           = 0;
   TIFF_BYTE                             = 1;       { 8-bit unsigned integer }
   TIFF_ASCII                            = 2;       { 8-bit bytes w/ last byte null }
@@ -50,13 +55,14 @@ const
   TIFF_FLOAT                            = 11;      { !32-bit IEEE floating point }
   TIFF_DOUBLE                           = 12;      { !64-bit IEEE floating point }
   TIFF_IFD                              = 13;      { %32-bit unsigned integer (offset) }
+  // jb The values below are not defined in tiff.h 3.9.7
   TIFF_UNICODE                          = 14;
   TIFF_COMPLEX                          = 15;
   TIFF_LONG8                            = 16;
   TIFF_SLONG8                           = 17;
   TIFF_IFD8                             = 18;
 
-
+  // TIFF Tag Definitions.
   TIFFTAG_SUBFILETYPE                   = 254;     { subfile data descriptor }
     FILETYPE_REDUCEDIMAGE               = $1;      { reduced resolution version }
     FILETYPE_PAGE                       = $2;      { one page of many }
@@ -68,16 +74,19 @@ const
   TIFFTAG_IMAGEWIDTH                    = 256;     { image width in pixels }
   TIFFTAG_IMAGELENGTH                   = 257;     { image height in pixels }
   TIFFTAG_BITSPERSAMPLE                 = 258;     { bits per channel (sample) }
-  TIFFTAG_COMPRESSION                   = 259;   { data compression technique }
-    COMPRESSION_NONE                    = 1;     { dump mode }
-    COMPRESSION_CCITTRLE                = 2;     { CCITT modified Huffman RLE }
-    COMPRESSION_CCITTFAX3               = 3;     { CCITT Group 3 fax encoding }
+  TIFFTAG_COMPRESSION                   = 259;     { data compression technique }
+    COMPRESSION_NONE                    = 1;       { dump mode }
+    COMPRESSION_CCITTRLE                = 2;       { CCITT modified Huffman RLE }
+    COMPRESSION_CCITTFAX3               = 3;       { CCITT Group 3 fax encoding }
     COMPRESSION_CCITT_T4                = 3;       { CCITT T.4 (TIFF 6 name) }
     COMPRESSION_CCITTFAX4	        = 4;	   { CCITT Group 4 fax encoding }
     COMPRESSION_CCITT_T6                = 4;       { CCITT T.6 (TIFF 6 name) }
     COMPRESSION_LZW		        = 5;       { Lempel-Ziv  & Welch }
     COMPRESSION_OJPEG		        = 6;	   { !6.0 JPEG }
     COMPRESSION_JPEG		        = 7;	   { %JPEG DCT compression }
+    // jb Next 2 values defined in 4.0.3
+    COMPRESSION_T85			= 9;	   {* !TIFF/FX T.85 JBIG compression }
+    COMPRESSION_T43			= 10;	   { !TIFF/FX T.43 colour by layered JBIG compression }
     COMPRESSION_NEXT		        = 32766;   { NeXT 2-bit RLE }
     COMPRESSION_CCITTRLEW	        = 32771;   { #1 w/ word alignment }
     COMPRESSION_PACKBITS	        = 32773;   { Macintosh RLE }
@@ -98,6 +107,12 @@ const
     COMPRESSION_SGILOG		        = 34676;   { SGI Log Luminance RLE }
     COMPRESSION_SGILOG24	        = 34677;   { SGI Log 24-bit packed }
     COMPRESSION_JP2000                  = 34712;   { Leadtools JPEG2000 }
+    // jb Not documented in tiff.h but encountered compression scheme(s):
+    // jb Note that Lead Tools apparently has more proprietary TIFF formats for
+    //    which we don't know the values but most likely around 34710.
+    COMPRESSION_LEADTOOLS_CMP           = 34709;    { LeadTools Proprietary "FILE_TIF_CMP".}
+    // Defined in 4.0.3
+    COMPRESSION_LZMA		        = 34925;   { LZMA2 }
   TIFFTAG_PHOTOMETRIC                   = 262;     { photometric interpretation }
     PHOTOMETRIC_MINISWHITE              = 0;       { min value is white }
     PHOTOMETRIC_MINISBLACK              = 1;       { min value is black }
@@ -149,9 +164,6 @@ const
   TIFFTAG_YPOSITION                     = 287;     { y page offset of image lhs }
   TIFFTAG_FREEOFFSETS                   = 288;     { +byte offset to free block }
   TIFFTAG_FREEBYTECOUNTS                = 289;     { +sizes of free blocks }
-
-  {matched with tag reference up to this point}
-
   TIFFTAG_GRAYRESPONSEUNIT              = 290;     { $gray scale curve accuracy }
     GRAYRESPONSEUNIT_10S                = 1;       { tenths of a unit }
     GRAYRESPONSEUNIT_100S               = 2;       { hundredths of a unit }
@@ -184,6 +196,9 @@ const
   TIFFTAG_ARTIST                        = 315;     { creator of image }
   TIFFTAG_HOSTCOMPUTER                  = 316;     { machine where created }
   TIFFTAG_PREDICTOR                     = 317;     { prediction scheme w/ LZW }
+    PREDICTOR_NONE		        = 1;	   { no prediction scheme used }
+    PREDICTOR_HORIZONTAL	        = 2;	   { horizontal differencing }
+    PREDICTOR_FLOATINGPOINT	        = 3;	   { floating point predictor }
   TIFFTAG_WHITEPOINT                    = 318;     { image white point }
   TIFFTAG_PRIMARYCHROMATICITIES         = 319;     { !primary chromaticities }
   TIFFTAG_COLORMAP                      = 320;     { RGB map for pallette image }
@@ -225,8 +240,35 @@ const
   TIFFTAG_INDEXED                       = 346;     { %Indexed [Adobe TIFF Technote 3] }
   TIFFTAG_JPEGTABLES                    = 347;     { %JPEG table stream }
   TIFFTAG_OPIPROXY                      = 351;     { %OPI Proxy [Adobe TIFF technote] }
+
+  // Tags 400-435 taken from tiff.h 4.0.3
+  // Tags 400-435 are from the TIFF/FX spec.
+  TIFFTAG_GLOBALPARAMETERSIFD	        = 400;	   { ! }
+  TIFFTAG_PROFILETYPE			= 401;	   { ! }
+    PROFILETYPE_UNSPECIFIED	        = 0;	   { ! }
+    PROFILETYPE_G3_FAX		        = 1;	   { ! }
+  TIFFTAG_FAXPROFILE			= 402;	   { ! }
+    FAXPROFILE_S			= 1;	   { !TIFF/FX FAX profile S }
+    FAXPROFILE_F			= 2;	   { !TIFF/FX FAX profile F }
+    FAXPROFILE_J			= 3;	   { !TIFF/FX FAX profile J }
+    FAXPROFILE_C			= 4;	   { !TIFF/FX FAX profile C }
+    FAXPROFILE_L			= 5;	   { !TIFF/FX FAX profile L }
+    FAXPROFILE_M			= 6;	   { !TIFF/FX FAX profile LM }
+  TIFFTAG_CODINGMETHODS		        = 403;	   { !TIFF/FX coding methods }
+    CODINGMETHODS_T4_1D		        = (1 shl 1); { !T.4 1D }
+    CODINGMETHODS_T4_2D		        = (1 shl 2); { !T.4 2D }
+    CODINGMETHODS_T6		        = (1 shl 3); { !T.6 }
+    CODINGMETHODS_T85 		        = (1 shl 4); { !T.85 JBIG }
+    CODINGMETHODS_T42 		        = (1 shl 5); { !T.42 JPEG }
+    CODINGMETHODS_T43		        = (1 shl 6); { !T.43 colour by layered JBIG }
+  TIFFTAG_VERSIONYEAR			= 404;	   { !TIFF/FX version year }
+  TIFFTAG_MODENUMBER			= 405;	   { !TIFF/FX mode number }
+  TIFFTAG_DECODE			= 433;	   { !TIFF/FX decode }
+  TIFFTAG_IMAGEBASECOLOR		= 434;	   { !TIFF/FX image base colour }
+  TIFFTAG_T82OPTIONS			= 435;	   { !TIFF/FX T.82 options }
+
   { Tags 512-521 are obsoleted by Technical Note #2
-  which specifies a revised JPEG-in-TIFF scheme. }
+    which specifies a revised JPEG-in-TIFF scheme. }
   TIFFTAG_JPEGPROC                      = 512;     { !JPEG processing algorithm }
     JPEGPROC_BASELINE                   = 1;       { !baseline sequential }
     JPEGPROC_LOSSLESS                   = 14;      { !Huffman coded lossless }
@@ -257,8 +299,10 @@ const
   TIFFTAG_IMAGEDEPTH                    = 32997;   { z depth of image }
   TIFFTAG_TILEDEPTH                     = 32998;   { z depth/data tile }
   { tags 33300-33309 are private tags registered to Pixar }
-  { TIFFTAG_PIXAR_IMAGEFULLWIDTH and TIFFTAG_PIXAR_IMAGEFULLLENGTH are set when an image has been cropped out of a larger image.
-    They reflect the size of the original uncropped image. The TIFFTAG_XPOSITION and TIFFTAG_YPOSITION can be used to determine the
+  { TIFFTAG_PIXAR_IMAGEFULLWIDTH and TIFFTAG_PIXAR_IMAGEFULLLENGTH are set when
+    an image has been cropped out of a larger image.
+    They reflect the size of the original uncropped image.
+    The TIFFTAG_XPOSITION and TIFFTAG_YPOSITION can be used to determine the
     position of the smaller image in the larger one. }
   TIFFTAG_PIXAR_IMAGEFULLWIDTH          = 33300;   { full image size in x }
   TIFFTAG_PIXAR_IMAGEFULLLENGTH         = 33301;   { full image size in y }
@@ -294,23 +338,84 @@ const
   TIFFTAG_IT8CMYKEQUIVALENT             = 34032;   { CMYK color equivalents }
   { tags 34232-34236 are private tags registered to Texas Instruments }
   TIFFTAG_FRAMECOUNT                    = 34232;   { Sequence Frame Count }
-  { tag 34750 is a private tag registered to Adobe? }
-  TIFFTAG_ICCPROFILE                    = 34675;   { ICC profile data }
   { tag 34377 is private tag registered to Adobe for PhotoShop }
   TIFFTAG_PHOTOSHOP                     = 34377;
+  { tags 34665, 34853 and 40965 are documented in EXIF specification }
+  TIFFTAG_EXIFIFD			= 34665;   { Pointer to EXIF private directory }
+  { tag 34750 is a private tag registered to Adobe? }
+  TIFFTAG_ICCPROFILE                    = 34675;   { ICC profile data }
+  // jb Next one from 4.0.3
+  TIFFTAG_IMAGELAYER		        = 34732;   { !TIFF/FX image layer information }
   { tag 34750 is a private tag registered to Pixel Magic }
   TIFFTAG_JBIGOPTIONS                   = 34750;   { JBIG options }
+  TIFFTAG_GPSIFD			= 34853;   { Pointer to GPS private directory }
   { tags 34908-34914 are private tags registered to SGI }
   TIFFTAG_FAXRECVPARAMS                 = 34908;   { encoded Class 2 ses. parms }
   TIFFTAG_FAXSUBADDRESS                 = 34909;   { received SubAddr string }
   TIFFTAG_FAXRECVTIME                   = 34910;   { receive time (secs) }
+  TIFFTAG_FAXDCS			= 34911;   { encoded fax ses. params, Table 2/T.30 }
   { tags 37439-37443 are registered to SGI <gregl@sgi.com> }
   TIFFTAG_STONITS                       = 37439;   { Sample value to Nits }
   { tag 34929 is a private tag registered to FedEx }
   TIFFTAG_FEDEX_EDR                     = 34929;   { unknown use }
+  TIFFTAG_INTEROPERABILITYIFD	        = 40965;   { Pointer to Interoperability private directory }
+  { Adobe Digital Negative (DNG) format tags }
+  TIFFTAG_DNGVERSION		        = 50706;   { &DNG version number }
+  TIFFTAG_DNGBACKWARDVERSION	        = 50707;   { &DNG compatibility version }
+  TIFFTAG_UNIQUECAMERAMODEL	        = 50708;   { &name for the camera model }
+  TIFFTAG_LOCALIZEDCAMERAMODEL	        = 50709;   { &localized camera model name }
+  TIFFTAG_CFAPLANECOLOR		        = 50710;   { &CFAPattern->LinearRaw space mapping }
+  TIFFTAG_CFALAYOUT		        = 50711;   { &spatial layout of the CFA }
+  TIFFTAG_LINEARIZATIONTABLE	        = 50712;   { &lookup table description }
+  TIFFTAG_BLACKLEVELREPEATDIM	        = 50713;   { &repeat pattern size for the BlackLevel tag }
+  TIFFTAG_BLACKLEVEL		        = 50714;   { &zero light encoding level }
+  TIFFTAG_BLACKLEVELDELTAH	        = 50715;   { &zero light encoding level differences (columns) }
+  TIFFTAG_BLACKLEVELDELTAV	        = 50716;   { &zero light encoding level differences (rows) }
+  TIFFTAG_WHITELEVEL		        = 50717;   { &fully saturated encoding level }
+  TIFFTAG_DEFAULTSCALE		        = 50718;   { &default scale factors }
+  TIFFTAG_DEFAULTCROPORIGIN	        = 50719;   { &origin of the final image area }
+  TIFFTAG_DEFAULTCROPSIZE	        = 50720;   { &size of the final image area }
+  TIFFTAG_COLORMATRIX1		        = 50721;   { &XYZ->reference color space transformation matrix 1 }
+  TIFFTAG_COLORMATRIX2		        = 50722;   { &XYZ->reference color space transformation matrix 2 }
+  TIFFTAG_CAMERACALIBRATION1	        = 50723;   { &calibration matrix 1 }
+  TIFFTAG_CAMERACALIBRATION2	        = 50724;   { &calibration matrix 2 }
+  TIFFTAG_REDUCTIONMATRIX1	        = 50725;   { &dimensionality reduction matrix 1 }
+  TIFFTAG_REDUCTIONMATRIX2	        = 50726;   { &dimensionality reduction matrix 2 }
+  TIFFTAG_ANALOGBALANCE		        = 50727;   { &gain applied the stored raw values}
+  TIFFTAG_ASSHOTNEUTRAL		        = 50728;   { &selected white balance in linear reference space }
+  TIFFTAG_ASSHOTWHITEXY		        = 50729;   { &selected white balance in x-y chromaticity coordinates }
+  TIFFTAG_BASELINEEXPOSURE	        = 50730;   { &how much to move the zero point }
+  TIFFTAG_BASELINENOISE		        = 50731;   { &relative noise level }
+  TIFFTAG_BASELINESHARPNESS	        = 50732;   { &relative amount of sharpening }
+  TIFFTAG_BAYERGREENSPLIT	        = 50733;   { &how closely the values of the green pixels in the
+                                                     blue/green rows track the values of the green pixels
+                                                     in the red/green rows }
+  TIFFTAG_LINEARRESPONSELIMIT	        = 50734;   { &non-linear encoding range }
+  TIFFTAG_CAMERASERIALNUMBER	        = 50735;   { &camera's serial number }
+  TIFFTAG_LENSINFO		        = 50736;   { info about the lens }
+  TIFFTAG_CHROMABLURRADIUS	        = 50737;   { &chroma blur radius }
+  TIFFTAG_ANTIALIASSTRENGTH	        = 50738;   { &relative strength of the camera's anti-alias filter }
+  TIFFTAG_SHADOWSCALE		        = 50739;   { &used by Adobe Camera Raw }
+  TIFFTAG_DNGPRIVATEDATA	        = 50740;   { &manufacturer's private data }
+  TIFFTAG_MAKERNOTESAFETY	        = 50741;   { &whether the EXIF MakerNote tag is safe to preserve
+                                                     along with the rest of the EXIF data }
+  TIFFTAG_CALIBRATIONILLUMINANT1        = 50778;   { &illuminant 1 }
+  TIFFTAG_CALIBRATIONILLUMINANT2        = 50779;   { &illuminant 2 }
+  TIFFTAG_BESTQUALITYSCALE	        = 50780;   { &best quality multiplier }
+  TIFFTAG_RAWDATAUNIQUEID		= 50781;   { &unique identifier for the raw image data }
+  TIFFTAG_ORIGINALRAWFILENAME	        = 50827;   { &file name of the original raw file }
+  TIFFTAG_ORIGINALRAWFILEDATA	        = 50828;   { &contents of the original raw file }
+  TIFFTAG_ACTIVEAREA		        = 50829;   { &active (non-masked) pixels of the sensor }
+  TIFFTAG_MASKEDAREAS		        = 50830;   { &list of coordinates of fully masked pixels }
+  TIFFTAG_ASSHOTICCPROFILE	        = 50831;   { &these two tags used to }
+  TIFFTAG_ASSHOTPREPROFILEMATRIX	= 50832;   { map cameras's color space into ICC profile space }
+  TIFFTAG_CURRENTICCPROFILE	        = 50833;   { & }
+  TIFFTAG_CURRENTPREPROFILEMATRIX	= 50834;   { & }
   { tag 65535 is an undefined tag used by Eastman Kodak }
   TIFFTAG_DCSHUESHIFTVALUES             = 65535;   { hue shift correction data }
-  { The following are ``pseudo tags'' that can be used to control codec-specific functionality. These tags are not written to file.
+
+  { The following are ``pseudo tags'' that can be used to control codec-specific functionality.
+    These tags are not written to file.
     Note that these values start at 0xffff+1 so that they'll never collide with Aldus-assigned tags. }
   TIFFTAG_FAXMODE                       = 65536;   { Group 3/4 format control }
     FAXMODE_CLASSIC                     = $0;      { default, include RTC }
@@ -366,7 +471,68 @@ const
   TIFFTAG_SGILOGENCODE                  = 65561;   { SGILog data encoding control }
     SGILOGENCODE_NODITHER               = 0;       { do not dither encoded values }
     SGILOGENCODE_RANDITHER              = 1;       { randomly dither encd values }
+  TIFFTAG_LZMAPRESET		        = 65562;   { LZMA2 preset (compression level) }
+  TIFFTAG_PERSAMPLE                     = 65563;   { interface for per sample tags }
+    PERSAMPLE_MERGED                    = 0;	   { present as a single value }
+    PERSAMPLE_MULTI                     = 1;	   { present as multiple values }
 
+  { EXIF tags }
+  EXIFTAG_EXPOSURETIME                  = 33434;   { Exposure time, given in seconds }
+  EXIFTAG_FNUMBER                       = 33437;   { F number }
+  EXIFTAG_EXPOSUREPROGRAM               = 34850;   { Exposure program }
+  EXIFTAG_SPECTRALSENSITIVITY           = 34852;   { Spectral sensitivity of each channel of the camera used }
+  EXIFTAG_ISOSPEEDRATINGS               = 34855;   { ISO Speed and ISO Latitude }
+  EXIFTAG_OECF                          = 34856;   { Opto-Electric Conversion factor }
+  EXIFTAG_EXIFVERSION                   = 36864;   { Exif version }
+  EXIFTAG_DATETIMEORIGINAL              = 36867;   { Date and time of original data generation }
+  EXIFTAG_DATETIMEDIGITIZED             = 36868;   { Date and time of digital data generation }
+  EXIFTAG_COMPONENTSCONFIGURATION       = 37121;   { Meaning of each component }
+  EXIFTAG_COMPRESSEDBITSPERPIXEL        = 37122;   { Image compression mode }
+  EXIFTAG_SHUTTERSPEEDVALUE             = 37377;   { Shutter speed }
+  EXIFTAG_APERTUREVALUE                 = 37378;   { Aperture }
+  EXIFTAG_BRIGHTNESSVALUE               = 37379;   { Brightness }
+  EXIFTAG_EXPOSUREBIASVALUE             = 37380;   { Exposure bias }
+  EXIFTAG_MAXAPERTUREVALUE              = 37381;   { Maximum lens aperture }
+  EXIFTAG_SUBJECTDISTANCE               = 37382;   { Subject distance in meters }
+  EXIFTAG_METERINGMODE                  = 37383;   { Metering mode }
+  EXIFTAG_LIGHTSOURCE                   = 37384;   { Light source }
+  EXIFTAG_FLASH                         = 37385;   { Flash }
+  EXIFTAG_FOCALLENGTH                   = 37386;   { Lens focal length }
+  EXIFTAG_SUBJECTAREA                   = 37396;   { Subject area (in exif ver.2.2) }
+  EXIFTAG_MAKERNOTE                     = 37500;   { Manufacturer notes }
+  EXIFTAG_USERCOMMENT                   = 37510;   { User comments }
+  EXIFTAG_SUBSECTIME                    = 37520;   { DateTime subseconds }
+  EXIFTAG_SUBSECTIMEORIGINAL            = 37521;   { DateTimeOriginal subseconds }
+  EXIFTAG_SUBSECTIMEDIGITIZED           = 37522;   { DateTimeDigitized subseconds }
+  EXIFTAG_FLASHPIXVERSION               = 40960;   { Supported FlashPix version }
+  EXIFTAG_COLORSPACE                    = 40961;   { Color space information }
+  EXIFTAG_PIXELXDIMENSION               = 40962;   { Valid image width }
+  EXIFTAG_PIXELYDIMENSION               = 40963;   { Valid image height }
+  EXIFTAG_RELATEDSOUNDFILE              = 40964;   { Related audio file }
+  EXIFTAG_FLASHENERGY                   = 41483;   { Flash energy }
+  EXIFTAG_SPATIALFREQUENCYRESPONSE      = 41484;   { Spatial frequency response }
+  EXIFTAG_FOCALPLANEXRESOLUTION         = 41486;   { Focal plane X resolution }
+  EXIFTAG_FOCALPLANEYRESOLUTION         = 41487;   { Focal plane Y resolution }
+  EXIFTAG_FOCALPLANERESOLUTIONUNIT      = 41488;   { Focal plane resolution unit }
+  EXIFTAG_SUBJECTLOCATION               = 41492;   { Subject location }
+  EXIFTAG_EXPOSUREINDEX                 = 41493;   { Exposure index }
+  EXIFTAG_SENSINGMETHOD                 = 41495;   { Sensing method }
+  EXIFTAG_FILESOURCE                    = 41728;   { File source }
+  EXIFTAG_SCENETYPE                     = 41729;   { Scene type }
+  EXIFTAG_CFAPATTERN                    = 41730;   { CFA pattern }
+  EXIFTAG_CUSTOMRENDERED                = 41985;   { Custom image processing (in exif ver.2.2) }
+  EXIFTAG_EXPOSUREMODE                  = 41986;   { Exposure mode (in exif ver.2.2) }
+  EXIFTAG_WHITEBALANCE                  = 41987;   { White balance (in exif ver.2.2) }
+  EXIFTAG_DIGITALZOOMRATIO              = 41988;   { Digital zoom ratio (in exif ver.2.2) }
+  EXIFTAG_FOCALLENGTHIN35MMFILM         = 41989;   { Focal length in 35mm film camera, in mm }
+  EXIFTAG_SCENECAPTURETYPE              = 41990;   { Scene capture type (in exif ver.2.2) }
+  EXIFTAG_GAINCONTROL                   = 41991;   { Gain control (in exif ver.2.2) }
+  EXIFTAG_CONTRAST                      = 41992;   { Contrast (in exif ver.2.2) }
+  EXIFTAG_SATURATION                    = 41993;   { Saturation (in exif ver.2.2) }
+  EXIFTAG_SHARPNESS                     = 41994;   { Sharpness (in exif ver.2.2) }
+  EXIFTAG_DEVICESETTINGDESCRIPTION      = 41995;   { Device settings description (in exif ver.2.2) }
+  EXIFTAG_SUBJECTDISTANCERANGE          = 41996;   { Subject distance range (in exif ver.2.2) }
+  EXIFTAG_IMAGEUNIQUEID                 = 42016;   { Unique image ID (in exif ver.2.2) }
 
   { Flags to pass to TIFFPrintDirectory to control printing of data structures that are potentially very large. Bit-or these flags to
     enable printing multiple items. }
@@ -386,65 +552,6 @@ const
 
   FIELD_CUSTOM                          = 65;
 
- {added for LibTiff 3.9.4 by Alex (leontyyy@gmail.com) Dec.2011}
-  TIFFTAG_EXIFIFD                       = 34665;   { pointer to the Exif IFD }
-  EXIFTAG_FOCALLENGTH                   = 37386;   { focal length }
-  EXIFTAG_FOCALLENGTHIN35MMFILM         = 41989;   { indicates the equivalent focal length assuming a 35mm film camera, in mm }
-  EXIFTAG_EXIFVERSION                   = 36864;   { version of exif format }
-  EXIFTAG_DATETIMEDIGITIZED             = 36868;   { date and time when the image was stored as digital data }
-  EXIFTAG_DATETIMEORIGINAL              = 36867;   { date and time when the original image data was generated }
-  EXIFTAG_EXPOSURETIME                  = 33434;   { exposure time, given in seconds }
-  EXIFTAG_FNUMBER                       = 33437;   { F number }
-  EXIFTAG_EXPOSUREPROGRAM               = 34850;   { class of the program used by the camera to set exposure }
-  EXIFTAG_SPECTRALSENSITIVITY           = 34852;   { spectral sensitivity of each channel of the camera used }
-  EXIFTAG_ISOSPEEDRATINGS               = 34855;   { ISO Speed and ISO Latitude }
-  EXIFTAG_OECF                          = 34856;   { Opto-Electric Conversion Function }
-  EXIFTAG_COMPONENTSCONFIGURATION       = 37121;   { meaning of each component }
-  EXIFTAG_COMPRESSEDBITSPERPIXEL        = 37122;   { compression mode }
-  EXIFTAG_SHUTTERSPEEDVALUE             = 37377;   { shutter speed }
-  EXIFTAG_APERTUREVALUE                 = 37378;   { lens aperture }
-  EXIFTAG_BRIGHTNESSVALUE               = 37379;   { brightness }
-  EXIFTAG_EXPOSUREBIASVALUE             = 37380;   { exposure bias }
-  EXIFTAG_MAXAPERTUREVALUE              = 37381;   { maximum lens aperture }
-  EXIFTAG_SUBJECTDISTANCE               = 37382;   { distance to the subject in meters }
-  EXIFTAG_METERINGMODE                  = 37383;   { metering mode }
-  EXIFTAG_LIGHTSOURCE                   = 37384;   { light source }
-  EXIFTAG_FLASH                         = 37385;   { flash }
-  EXIFTAG_SUBJECTAREA                   = 37396;   { subject area (in exif ver.2.2) }
-  EXIFTAG_MAKERNOTE                     = 37500;   { manufacturer notes }
-  EXIFTAG_USERCOMMENT                   = 37510;   { user comments }
-  EXIFTAG_SUBSECTIME                    = 37520;   { DateTime subseconds }
-  EXIFTAG_SUBSECTIMEORIGINAL            = 37521;   { DateTimeOriginal subseconds }
-  EXIFTAG_SUBSECTIMEDIGITIZED           = 37522;   { DateTimeDigitized subseconds }
-  EXIFTAG_FLASHPIXVERSION               = 40960;   { FlashPix format version }
-  EXIFTAG_COLORSPACE                    = 40961;   { color space information }
-  EXIFTAG_PIXELXDIMENSION               = 40962;   { valid image width }
-  EXIFTAG_PIXELYDIMENSION               = 40963;   { valid image height }
-  EXIFTAG_RELATEDSOUNDFILE              = 40964;   { related audio file }
-  EXIFTAG_FLASHENERGY                   = 41483;   { flash energy }
-  EXIFTAG_SPATIALFREQUENCYRESPONSE      = 41484;   { spatial frequency response }
-  EXIFTAG_FOCALPLANEXRESOLUTION         = 41486;   { focal plane X resolution }
-  EXIFTAG_FOCALPLANEYRESOLUTION         = 41487;   { focal plane Y resolution }
-  EXIFTAG_FOCALPLANERESOLUTIONUNIT      = 41488;   { focal plane resolution unit }
-  EXIFTAG_SUBJECTLOCATION               = 41492;   { subject location }
-  EXIFTAG_EXPOSUREINDEX                 = 41493;   { exposure index }
-  EXIFTAG_SENSINGMETHOD                 = 41495;   { sensing method }
-  EXIFTAG_FILESOURCE                    = 41728;   { file source }
-  EXIFTAG_SCENETYPE                     = 41729;   { scene type }
-  EXIFTAG_CFAPATTERN                    = 41730;   { CFA pattern }
-  EXIFTAG_CUSTOMRENDERED                = 41985;   { custom image processing (in exif ver.2.2) }
-  EXIFTAG_EXPOSUREMODE                  = 41986;   { exposure mode (in exif ver.2.2) }
-  EXIFTAG_WHITEBALANCE                  = 41987;   { white balance (in exif ver.2.2) }
-  EXIFTAG_DIGITALZOOMRATIO              = 41988;   { digital zoom ratio (in exif ver.2.2) }
-  EXIFTAG_SCENECAPTURETYPE              = 41990;   { scene capture type (in exif ver.2.2) }
-  EXIFTAG_GAINCONTROL                   = 41991;   { gain control (in exif ver.2.2) }
-  EXIFTAG_CONTRAST                      = 41992;   { contrast (in exif ver.2.2) }
-  EXIFTAG_SATURATION                    = 41993;   { saturation (in exif ver.2.2) }
-  EXIFTAG_SHARPNESS                     = 41994;   { sharpness (in exif ver.2.2) }
-  EXIFTAG_DEVICESETTINGDESCRIPTION      = 41995;   { device settings description (in exif ver.2.2) }
-  EXIFTAG_SUBJECTDISTANCERANGE          = 41996;   { subject distance range (in exif ver.2.2) }
-  EXIFTAG_IMAGEUNIQUEID                 = 42016;   { Unique image ID (in exif ver.2.2) }
-
 type
 
   PTIFF = Pointer;
@@ -461,6 +568,29 @@ type
   TIFFExtendProc = procedure(Handle: PTIFF); cdecl;
 
   TIFFInitMethod = function(Handle: PTIFF; Scheme: Integer): Integer; cdecl;
+
+  // From tiff.h
+  TTIFFHeader = record
+    tiff_magic: Word;      // magic number (defines byte order)
+    tiff_version: Word;    // TIFF version number
+    tiff_diroff: Cardinal; // byte offset to first directory
+  end;
+
+  {
+    TIFF Image File Directories are comprised of a table of field descriptors of the form shown
+    below.  The table is sorted in ascending order by tag.  The values associated with each entry
+    are disjoint and may appear anywhere in the file (so long as they are placed on a word boundary).
+
+    If the value is 4 bytes or less, then it is placed in the offset field to save space.  If the value
+    is less than 4 bytes, it is left-justified in the offset field.
+  }
+
+  TTIFFDirEntry = record
+    tdir_tag: Word;        // see below
+    tdir_type: Word;       // data type; see below
+    tdir_count: Cardinal;  // number of items; length in spec
+    tdir_offset: Cardinal; // byte offset to field data
+  end;
 
   PTIFFCodec = ^TIFFCodec;
   TIFFCodec = record
@@ -481,6 +611,7 @@ type
     FieldName: PAnsiChar;                { ASCII name }
   end;
 
+  // tif_dir.h
   PTIFFTagValue = ^TIFFTagValue;
   TIFFTagValue = record
     Info: PTIFFFieldInfo;
@@ -535,8 +666,7 @@ function  TIFFSetTagExtender(Extender: TIFFExtendProc): TIFFExtendProc; cdecl; e
 function  TIFFFlush(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFFlushData(Handle: PTIFF): Integer; cdecl; external;
 
-{$IFDEF LIBTIFF_3_9_4}
-{added for LibTiff 3.9.4 by Alex (leontyyy@gmail.com) Dec.2011}
+{$IFDEF LIBTIFF_3_9_7}
 function  TIFFReadEXIFDirectory(Handle: PTIFF; Diroff: Cardinal): Integer; cdecl; external;
 {$ENDIF}
 
@@ -632,7 +762,7 @@ implementation
 
 uses
   Math, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
-  
+
 type
 
   TCompareFunc = function(a,b: Pointer): Integer; cdecl;
@@ -654,7 +784,6 @@ function  strcmp(a: Pointer; b: Pointer): Integer; cdecl; forward;
 function  strncmp(a: Pointer; b: Pointer; c: Longint): Integer; cdecl; forward;
 procedure qsort(base: Pointer; num: Cardinal; width: Cardinal; compare: TCompareFunc); cdecl; forward;
 
-//DW function  bsearch(key: Pointer; base: Pointer; nelem: Cardinal; width: Cardinal; fcmp: TCompareFunc): Pointer; cdecl; forward;
 function  memmove(dest: Pointer; src: Pointer; n: Cardinal): Pointer; cdecl; forward;
 function  strchr(s: Pointer; c: Integer): Pointer; cdecl; forward;
 
@@ -1002,7 +1131,7 @@ end;
 {tif_read}
 
 procedure _TIFFSwab16BitData(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
-{$IFDEF LIBTIFF_3_9_4}
+{$IFDEF LIBTIFF_3_9_7}
 procedure _TIFFSwab24BitData(tif: pointer; buf: pointer; cc: integer); cdecl; external; //DW 3.8.2
 {$ENDIF}
 procedure _TIFFSwab32BitData(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
@@ -1018,7 +1147,7 @@ function TIFFFillTile(tif: Pointer; tile: longword):integer; cdecl; external; //
 function  _TIFFSampleToTagType(tif: Pointer): Integer; cdecl; external;
 procedure _TIFFSetupFieldInfo(tif: Pointer); cdecl; external;
 function  _TIFFCreateAnonFieldInfo(tif: Pointer; tag: Cardinal; field_type: Integer): Pointer; cdecl; external;
-{$IFDEF LIBTIFF_3_9_4}
+{$IFDEF LIBTIFF_3_9_7}
 function _TIFFGetExifFieldInfo(size : plongint):pointer; cdecl; external; //DW 3.8.2
 function _TIFFDataSize(TIFFDataType : longint):longint; cdecl; external; //DW 3.8.2
 function _TIFFGetFieldInfo(size : plongint):pointer; cdecl; external; //DW 3.8.2
@@ -1106,7 +1235,7 @@ function  _TIFFgetMode(mode: PAnsiChar; module: PAnsiChar): Integer; cdecl; exte
 {tif_predict}
 
 function  TIFFPredictorInit(tif: PTIFF): Integer; cdecl; external;
-{$IFDEF LIBTIFF_3_9_4}
+{$IFDEF LIBTIFF_3_9_7}
 function  TIFFPredictorCleanup(tif: PTIFF):integer; cdecl; external; //DW 3.8.2
 {$ENDIF}
 
@@ -1123,7 +1252,7 @@ function  TIFFPredictorCleanup(tif: PTIFF):integer; cdecl; external; //DW 3.8.2
 {tif_strip}
 
 function  _TIFFDefaultStripSize(tif: Pointer; s: Cardinal): Cardinal; cdecl; external;
-{$IFDEF LIBTIFF_3_9_4}
+{$IFDEF LIBTIFF_3_9_7}
 function TIFFOldScanlineSize(tif: Pointer):Cardinal; cdecl; external; //DW 3.9.1
 {$ENDIF}
 
