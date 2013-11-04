@@ -292,12 +292,14 @@ begin
           Ord('s'):
           begin
             r:=PPointer(n)^;
-            while r^<>0 do
-            begin
-              if buffer<>nil then o^:=r^;
-              Inc(o);
-              Inc(r);
-            end;
+            // jb: It's possible to have a PChar that's nil
+            if r <> nil then
+              while r^<>0 do
+              begin
+                if buffer<>nil then o^:=r^;
+                Inc(o);
+                Inc(r);
+              end;
             Inc(n,SizeOf(Pointer));
             Inc(m);
           end;
