@@ -956,9 +956,9 @@ var
 begin
   if @FLibTiffDelphiWarningHandler<>nil then
   begin
-    m:=sprintfsec(nil,b,@c);
+    m:=sprintfsec(nil,b,c);
     SetLength(n,m);
-    sprintfsec(Pointer(n),b,@c);
+    sprintfsec(Pointer(n),b,c);
     FLibTiffDelphiWarningHandler(PAnsiChar(a),n);
   end;
 end;
@@ -970,9 +970,9 @@ var
 begin
   if @FLibTiffDelphiErrorHandler<>nil then
   begin
-    m:=sprintfsec(nil,b,@c);
+    m:=sprintfsec(nil,b,c);
     SetLength(n,m);
-    sprintfsec(Pointer(n),b,@c);
+    sprintfsec(Pointer(n),b,c);
     FLibTiffDelphiErrorHandler(PAnsiChar(a),n);
   end;
 end;
