@@ -232,7 +232,7 @@ begin
           Ord('d'):
           begin
             case Modifier of
-              0:
+              0, 4:
               begin
                 Append(IntToStr(PInteger(n)^));
                 Inc(m);
