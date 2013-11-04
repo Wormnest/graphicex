@@ -2075,7 +2075,10 @@ end;
 // LibTiffDelphi TIFF Error handler proc
 procedure TiffError(const Module, ErrorString: AnsiString);
 begin
-  GraphicExError( Module + ErrorString );
+  if Length(Module) > 0 then
+    GraphicExError( Module + ':  ' + ErrorString )
+  else
+    GraphicExError( ErrorString );
 end;
 
 procedure TTIFFGraphic.ReadContiguous(tif: PTIFF);
