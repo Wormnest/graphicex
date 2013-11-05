@@ -761,7 +761,7 @@ procedure _TIFFfree(p: Pointer); cdecl;
 implementation
 
 uses
-  Windows, SysUtils, LibStub, LibDelphi, LibJpegDelphi, ZLibDelphi;
+  Windows, SysUtils, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
 
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl; forward;
 procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl; forward;
