@@ -175,6 +175,9 @@ function wcstombs(mbstr: PAnsiChar; wcstr: PWideChar; count: Cardinal): Cardinal
 
 // Note: these functions cannot be emulated by Delphi nor forwarded to external APIs.
 // Using them will raise an exception.
+// jb: For a possible implementation to use them see LibDelphi. However that would
+//     probably need changes to functions related to fputs here too, or using the
+//     versions defined there, thus leave it be for now.
 procedure fprintf; cdecl;
 procedure fputs; cdecl;
 
