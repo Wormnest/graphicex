@@ -1301,9 +1301,12 @@ function  TIFFInitZIP(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 
 {tif_codec}
 
-function NotConfigured(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 
 {$IFDEF LIBTIFF_3_7_0}
+// Only need NotConfigured here. Beware that you need to remove static from the
+// definition of NotConfigured in the C source code or Delphi won't be able to find it.
+function NotConfigured(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
+
 const
   _TIFFBuiltinCODECS: array[0..17] of TIFFCodec = (
        (name:'None'; scheme: COMPRESSION_NONE; init: TIFFInitDumpMode),
