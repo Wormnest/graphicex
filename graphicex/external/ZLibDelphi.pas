@@ -62,7 +62,7 @@ function  deflateParams(strm: Pointer; level: Integer; strategy: Integer): Integ
 implementation
 
 uses
-  LibDelphi;
+  LibStub;
 
 
 // Initializes the internal stream state for decompression.
