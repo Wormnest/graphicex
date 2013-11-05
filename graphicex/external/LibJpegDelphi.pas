@@ -7,24 +7,24 @@ uses
 
 const
 
-  JPEG_LIB_VERSION = 62;    { Version 6b }
+  JPEG_LIB_VERSION    = 62;  { Version 6b }
 
-  JMSG_STR_PARM_MAX = 80;
-  JMSG_LENGTH_MAX = 200;    { recommended size of format_message buffer }
-  NUM_QUANT_TBLS = 4;       { Quantization tables are numbered 0..3 }
-  NUM_HUFF_TBLS = 4;        { Huffman tables are numbered 0..3 }
-  NUM_ARITH_TBLS = 16;      { Arith-coding tables are numbered 0..15 }
-  MAX_COMPS_IN_SCAN = 4;    { JPEG limit on # of components in one scan }
-  C_MAX_BLOCKS_IN_MCU = 10; { compressor's limit on blocks per MCU }
-  D_MAX_BLOCKS_IN_MCU = 10; { decompressor's limit on blocks per MCU }
+  JMSG_STR_PARM_MAX   = 80;
+  JMSG_LENGTH_MAX     = 200; { recommended size of format_message buffer }
+  NUM_QUANT_TBLS      = 4;   { Quantization tables are numbered 0..3 }
+  NUM_HUFF_TBLS       = 4;   { Huffman tables are numbered 0..3 }
+  NUM_ARITH_TBLS      = 16;  { Arith-coding tables are numbered 0..15 }
+  MAX_COMPS_IN_SCAN   = 4;   { JPEG limit on # of components in one scan }
+  C_MAX_BLOCKS_IN_MCU = 10;  { compressor's limit on blocks per MCU }
+  D_MAX_BLOCKS_IN_MCU = 10;  { decompressor's limit on blocks per MCU }
   DCTSIZE2 = 64;
 
-  JCS_UNKNOWN = 0;          { error/unspecified }
-  JCS_GRAYSCALE = 1;        { monochrome }
-  JCS_RGB = 2;              { red/green/blue }
-  JCS_YCbCr = 3;            { Y/Cb/Cr (also known as YUV) }
-  JCS_CMYK = 4;             { C/M/Y/K }
-  JCS_YCCK = 5;             { Y/Cb/Cr/K }
+  JCS_UNKNOWN         = 0;   { error/unspecified }
+  JCS_GRAYSCALE       = 1;   { monochrome }
+  JCS_RGB             = 2;   { red/green/blue }
+  JCS_YCbCr           = 3;   { Y/Cb/Cr (also known as YUV) }
+  JCS_CMYK            = 4;   { C/M/Y/K }
+  JCS_YCCK            = 5;   { Y/Cb/Cr/K }
 
 type
 
@@ -457,6 +457,7 @@ begin
   raise Exception.Create('LibJpeg error_exit');
 end;
 
+// Todo: We should set the default error handlers in initialization.
 (***** From GraphicEx JPG.pas
 // Forward declarations of default error routines.
 procedure JpegError(cinfo: PRJpegCommonStruct); cdecl; forward;
@@ -521,12 +522,12 @@ end;
 
 procedure jpeg_create_compress(cinfo: PRJpegCompressStruct); cdecl;
 begin
-  jpeg_CreateCompress(cinfo,JPEG_LIB_VERSION,SizeOf(RJpegCompressStruct));
+  jpeg_CreateCompress(cinfo, JPEG_LIB_VERSION, SizeOf(RJpegCompressStruct));
 end;
 
 procedure jpeg_create_decompress(cinfo: PRJpegDecompressStruct); cdecl;
 begin
-  jpeg_CreateDecompress(cinfo,JPEG_LIB_VERSION,SizeOf(RJpegDecompressStruct));
+  jpeg_CreateDecompress(cinfo, JPEG_LIB_VERSION, SizeOf(RJpegDecompressStruct));
 end;
 
 function  jpeg_get_small(cinfo: PRJpegCommonStruct; sizeofobject: Cardinal): Pointer; cdecl; external;
@@ -590,6 +591,4 @@ procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: C
 {$L jidctflt.obj}
 
 end.
-
-
 
