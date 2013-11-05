@@ -79,7 +79,7 @@ end;
 
 function sprintf(buffer: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
 begin
-  Result := sprintfsec(buffer,format,@arguments);
+  Result := sprintfsec(buffer,format,arguments);
 end;
 
 function fprintf(stream: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
@@ -88,9 +88,9 @@ var
   n: Pointer;
   o: Cardinal;
 begin
-  m:=sprintfsec(nil,format,@arguments);
+  m:=sprintfsec(nil,format,arguments);
   GetMem(n,m);
-  sprintfsec(n,format,@arguments);
+  sprintfsec(n,format,arguments);
   WriteFile(Cardinal(stream),n^,Cardinal(m),o,nil);
   FreeMem(n);
   Result := m;
