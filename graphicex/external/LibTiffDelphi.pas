@@ -754,21 +754,13 @@ procedure TIFFSwabArrayOfDouble(Dp: PDouble; N: Cardinal); cdecl; external;
 procedure TIFFReverseBits(Cp: Pointer; N: Cardinal); cdecl; external;
 function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external;
 
-function  _TIFFmalloc(s: Longint): Pointer; cdecl;
-function  _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl;
-procedure _TIFFfree(p: Pointer); cdecl;
 
 implementation
 
 uses
   Windows, SysUtils, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
 
-procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl; forward;
-procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl; forward;
-function  _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl; forward;
-
 var
-
   _TIFFwarningHandler: TIFFErrorHandler;
   _TIFFerrorHandler: TIFFErrorHandler;
   FLibTiffDelphiWarningHandler: LibTiffDelphiErrorHandler;
@@ -776,40 +768,40 @@ var
 
 function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl;
 var
-  ma,mb: PByte;
+  ma, mb: PByte;
   n: Integer;
 begin
-  ma:=buf1;
-  mb:=buf2;
-  n:=0;
-  while Cardinal(n)<Count do
+  ma := buf1;
+  mb := buf2;
+  n := 0;
+  while Cardinal(n) < Count do
   begin
-    if ma^<>mb^ then
+    if ma^ <> mb^ then
     begin
-      if ma^<mb^ then
-        Result:=-1
+      if ma^ < mb^ then
+        Result := -1
       else
-        Result:=1;
+        Result := 1;
       exit;
     end;
     Inc(ma);
     Inc(mb);
     Inc(n);
   end;
-  Result:=0;
+  Result := 0;
 end;
 
 procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl;
 begin
-  FillMemory(p,c,v);
+  FillMemory(p, c, v);
 end;
 
 function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl;
 begin
-  if p=nil then
-    Result:=AllocMem(s)
+  if p = nil then
+    Result := AllocMem(s)
   else
-    Result:=ReallocMemory(p,s);
+    Result := ReallocMemory(p,s);
 end;
 
 procedure _TIFFfree(p: Pointer); cdecl;
@@ -819,12 +811,12 @@ end;
 
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl;
 begin
-  CopyMemory(d,s,c);
+  CopyMemory(d, s, c);
 end;
 
 function _TIFFmalloc(s: Longint): Pointer; cdecl;
 begin
-  Result:=AllocMem(s);
+  Result := AllocMem(s);
 end;
 
 {LibTiffDelphi}
@@ -832,25 +824,25 @@ end;
 function  LibTiffDelphiVersion: AnsiString;
 var
   m: AnsiString;
-  na,nb: Integer;
+  na, nb: Integer;
 begin
-  Result:='';
-  m:=TIFFGetVersion;
-  na:=1;
+  Result := '';
+  m := TIFFGetVersion;
+  na := 1;
   while True do
   begin
-    nb:=na;
-    while nb<=Length(m) do
+    nb := na;
+    while nb <= Length(m) do
     begin
-      if m[nb]=#10 then break;
+      if m[nb] = #10 then break;
       Inc(nb);
     end;
-    Result:=Result+System.Copy(m,na,nb-na);
-    if nb>Length(m) then break;
-    Result:=Result+#13#10;
-    na:=nb+1;
+    Result := Result + System.Copy(m, na, nb - na);
+    if nb > Length(m) then break;
+    Result := Result + #13#10;
+    na := nb + 1;
   end;
-  Result:=Result+#13#10+LibTiffDelphiVersionString;
+  Result := Result + #13#10 + LibTiffDelphiVersionString;
 end;
 
 procedure LibTiffDelphiWarningThrp(a: Pointer; b: Pointer; c: Pointer); cdecl;
@@ -858,12 +850,12 @@ var
   m: Integer;
   n: AnsiString;
 begin
-  if @FLibTiffDelphiWarningHandler<>nil then
+  if @FLibTiffDelphiWarningHandler <> nil then
   begin
-    m:=sprintfsec(nil,b,c);
-    SetLength(n,m);
-    sprintfsec(Pointer(n),b,c);
-    FLibTiffDelphiWarningHandler(PAnsiChar(a),n);
+    m := sprintfsec( nil, b, c);
+    SetLength(n, m);
+    sprintfsec(Pointer(n), b, c);
+    FLibTiffDelphiWarningHandler(PAnsiChar(a), n);
   end;
 end;
 
@@ -872,48 +864,48 @@ var
   m: Integer;
   n: AnsiString;
 begin
-  if @FLibTiffDelphiErrorHandler<>nil then
+  if @FLibTiffDelphiErrorHandler <> nil then
   begin
-    m:=sprintfsec(nil,b,c);
-    SetLength(n,m);
-    sprintfsec(Pointer(n),b,c);
-    FLibTiffDelphiErrorHandler(PAnsiChar(a),n);
+    m := sprintfsec(nil, b, c);
+    SetLength(n, m);
+    sprintfsec(Pointer(n), b, c);
+    FLibTiffDelphiErrorHandler(PAnsiChar(a), n);
   end;
 end;
 
 function LibTiffDelphiGetWarningHandler: LibTiffDelphiErrorHandler;
 begin
-  Result:=FLibTiffDelphiWarningHandler;
+  Result := FLibTiffDelphiWarningHandler;
 end;
 
 function LibTiffDelphiSetWarningHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
 begin
-  Result:=FLibTiffDelphiWarningHandler;
-  FLibTiffDelphiWarningHandler:=Handler;
+  Result := FLibTiffDelphiWarningHandler;
+  FLibTiffDelphiWarningHandler := Handler;
 end;
 
 function LibTiffDelphiGetErrorHandler: LibTiffDelphiErrorHandler;
 begin
-  Result:=FLibTiffDelphiErrorHandler;
+  Result := FLibTiffDelphiErrorHandler;
 end;
 
 function LibTiffDelphiSetErrorHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
 begin
-  Result:=FLibTiffDelphiErrorHandler;
-  FLibTiffDelphiErrorHandler:=Handler;
+  Result := FLibTiffDelphiErrorHandler;
+  FLibTiffDelphiErrorHandler := Handler;
 end;
 
 {tif_read}
 
 procedure _TIFFSwab16BitData(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
 {$IFDEF LIBTIFF_3_9_7}
-procedure _TIFFSwab24BitData(tif: pointer; buf: pointer; cc: integer); cdecl; external; //DW 3.8.2
+procedure _TIFFSwab24BitData(tif: pointer; buf: pointer; cc: integer); cdecl; external;
 {$ENDIF}
 procedure _TIFFSwab32BitData(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFSwab64BitData(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFNoPostDecode(tif: Pointer; buf: Pointer; cc: Integer); cdecl; external;
 function  TIFFReadTile(tif: Pointer; buf: Pointer; x: Cardinal; y: Cardinal; z: Cardinal; s: Word): Integer; cdecl; external;
-function TIFFFillTile(tif: Pointer; tile: longword):integer; cdecl; external; //DW 3.8.2
+function TIFFFillTile(tif: Pointer; tile: longword):integer; cdecl; external;
 
 {$L tif_read.obj}
 
@@ -922,11 +914,12 @@ function TIFFFillTile(tif: Pointer; tile: longword):integer; cdecl; external; //
 function  _TIFFSampleToTagType(tif: Pointer): Integer; cdecl; external;
 procedure _TIFFSetupFieldInfo(tif: Pointer); cdecl; external;
 function  _TIFFCreateAnonFieldInfo(tif: Pointer; tag: Cardinal; field_type: Integer): Pointer; cdecl; external;
+
 {$IFDEF LIBTIFF_3_9_7}
-function _TIFFGetExifFieldInfo(size : plongint):pointer; cdecl; external; //DW 3.8.2
-function _TIFFDataSize(TIFFDataType : longint):longint; cdecl; external; //DW 3.8.2
-function _TIFFGetFieldInfo(size : plongint):pointer; cdecl; external; //DW 3.8.2
-function _TIFFMergeFieldInfo(tif: Pointer; fieldinfo : Pointer; n : Integer):Integer; cdecl; external; //DW 3.9.1
+function _TIFFGetExifFieldInfo(size : plongint):pointer; cdecl; external;
+function _TIFFDataSize(TIFFDataType : longint):longint; cdecl; external;
+function _TIFFGetFieldInfo(size : plongint):pointer; cdecl; external;
+function _TIFFMergeFieldInfo(tif: Pointer; fieldinfo : Pointer; n : Integer):Integer; cdecl; external;
 {$ENDIF}
 
 {$L tif_dirinfo.obj}
@@ -1011,7 +1004,7 @@ function  _TIFFgetMode(mode: PAnsiChar; module: PAnsiChar): Integer; cdecl; exte
 
 function  TIFFPredictorInit(tif: PTIFF): Integer; cdecl; external;
 {$IFDEF LIBTIFF_3_9_7}
-function  TIFFPredictorCleanup(tif: PTIFF):integer; cdecl; external; //DW 3.8.2
+function  TIFFPredictorCleanup(tif: PTIFF):integer; cdecl; external;
 {$ENDIF}
 
 {$L tif_predict.obj}
@@ -1028,7 +1021,7 @@ function  TIFFPredictorCleanup(tif: PTIFF):integer; cdecl; external; //DW 3.8.2
 
 function  _TIFFDefaultStripSize(tif: Pointer; s: Cardinal): Cardinal; cdecl; external;
 {$IFDEF LIBTIFF_3_9_7}
-function TIFFOldScanlineSize(tif: Pointer):Cardinal; cdecl; external; //DW 3.9.1
+function TIFFOldScanlineSize(tif: Pointer):Cardinal; cdecl; external;
 {$ENDIF}
 
 {$L tif_strip.obj}
@@ -1071,20 +1064,20 @@ end;
 function TIFFcallvjpeg_jpeg_CreateCompress(cinfo: Pointer; version: Integer; structsize: Cardinal): Integer; cdecl;
 begin
   try
-    jpeg_CreateCompress(cinfo,version,structsize);
-    Result:=1;
+    jpeg_CreateCompress(cinfo, version, structsize);
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcallvjpeg_jpeg_CreateDecompress(cinfo: Pointer; version: Integer; structsize: Cardinal): Integer; cdecl;
 begin
   try
-    jpeg_CreateDecompress(cinfo,version,structsize);
-    Result:=1;
+    jpeg_CreateDecompress(cinfo, version, structsize);
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1092,9 +1085,9 @@ function TIFFcallvjpeg_jpeg_set_defaults(cinfo: Pointer): Integer; cdecl;
 begin
   try
     jpeg_set_defaults(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1102,57 +1095,57 @@ function TIFFcallvjpeg_jpeg_set_colorspace(cinfo: Pointer; colorspace: Integer):
 begin
   try
     jpeg_set_colorspace(cinfo, colorspace);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcallvjpeg_jpeg_set_quality(cinfo: Pointer; quality: Integer; force_baseline: Byte): Integer; cdecl;
 begin
   try
-    jpeg_set_quality(cinfo,quality,force_baseline);
-    Result:=1;
+    jpeg_set_quality(cinfo, quality, force_baseline);
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcallvjpeg_jpeg_suppress_tables(cinfo: PRJpegCompressStruct; suppress: Byte): Integer; cdecl;
 begin
   try
-    jpeg_suppress_tables(cinfo,suppress);
-    Result:=1;
+    jpeg_suppress_tables(cinfo, suppress);
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcallvjpeg_jpeg_start_compress(cinfo: PRJpegCompressStruct; write_all_tables: Byte): Integer; cdecl;
 begin
   try
-    jpeg_start_compress(cinfo,write_all_tables);
-    Result:=1;
+    jpeg_start_compress(cinfo, write_all_tables);
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_write_scanlines(errreturn: Integer; cinfo: PRJpegCompressStruct; scanlines: Pointer; num_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result:=jpeg_write_scanlines(cinfo,scanlines,num_lines);
+    Result := jpeg_write_scanlines(cinfo, scanlines, num_lines);
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_write_raw_data(errreturn: Integer; cinfo: PRJpegCompressStruct; data: Pointer; num_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result:=jpeg_write_raw_data(cinfo,data,num_lines);
+    Result := jpeg_write_raw_data(cinfo, data, num_lines);
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
@@ -1160,9 +1153,9 @@ function TIFFcallvjpeg_jpeg_finish_compress(cinfo: PRJpegCompressStruct): Intege
 begin
   try
     jpeg_finish_compress(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1170,18 +1163,18 @@ function TIFFcallvjpeg_jpeg_write_tables(cinfo: PRJpegCompressStruct): Integer; 
 begin
   try
     jpeg_write_tables(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_read_header(errreturn: Integer; cinfo: PRJpegDecompressStruct; require_image: Byte): Integer; cdecl;
 begin
   try
-    Result:=jpeg_read_header(cinfo,Boolean(require_image));
+    Result := jpeg_read_header(cinfo, Boolean(require_image));
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
@@ -1189,36 +1182,36 @@ function TIFFcallvjpeg_jpeg_start_decompress(cinfo: PRJpegDecompressStruct): Int
 begin
   try
     jpeg_start_decompress(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_read_scanlines(errreturn: Integer; cinfo: PRJpegDecompressStruct; scanlines: Pointer; max_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result:=jpeg_read_scanlines(cinfo,scanlines,max_lines);
+    Result := jpeg_read_scanlines(cinfo, scanlines, max_lines);
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_read_raw_data(errreturn: Integer; cinfo: PRJpegDecompressStruct; data: Pointer; max_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result:=jpeg_read_raw_data(cinfo,data,max_lines);
+    Result := jpeg_read_raw_data(cinfo, data, max_lines);
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
 function TIFFcalljpeg_jpeg_finish_decompress(errreturn: Integer; cinfo: PRJpegDecompressStruct): Integer; cdecl;
 begin
   try
-    Result:=jpeg_finish_decompress(cinfo);
+    Result := jpeg_finish_decompress(cinfo);
   except
-    Result:=errreturn;
+    Result := errreturn;
   end;
 end;
 
@@ -1226,9 +1219,9 @@ function TIFFcallvjpeg_jpeg_abort(cinfo: PRJpegCommonStruct): Integer; cdecl;
 begin
   try
     jpeg_abort(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1236,9 +1229,9 @@ function TIFFcallvjpeg_jpeg_destroy(cinfo: PRJpegCommonStruct): Integer; cdecl;
 begin
   try
     jpeg_destroy(cinfo);
-    Result:=1;
+    Result := 1;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1249,14 +1242,14 @@ function TIFFcalljpeg_alloc_sarray(alloc_sarray: jpeg_alloc_sarray; cinfo: PRJpe
                     numrows: Cardinal): Pointer; cdecl;
 begin
   try
-    Result:=alloc_sarray(cinfo,pool_id,samplesperrow,numrows);
+    Result := alloc_sarray(cinfo, pool_id, samplesperrow, numrows);
   except
-    Result:=nil;
+    Result := nil;
   end;
 end;
 
 function  TIFFInitJPEG(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
-function  TIFFFillStrip(tif : PTIFF; Len : longword): integer; cdecl; external; //DW 3.8.2
+function  TIFFFillStrip(tif : PTIFF; Len : longword): integer; cdecl; external;
 
 {$L tif_jpeg.obj}
 
@@ -1340,7 +1333,6 @@ function jpeg_create_decompress_encap(sp: Pointer; cinfo: Pointer): Integer; cde
 begin
   try
     jpeg_create_decompress(cinfo);
-//    jpeg_CreateDecompress(cinfo,version,structsize);
     Result := 1;
   except
     Result := 0;
@@ -1350,7 +1342,7 @@ end;
 function jpeg_read_header_encap(sp: Pointer; cinfo: Pointer; require_image: Byte): Integer; cdecl;
 begin
   try
-    Result := jpeg_read_header(cinfo,Boolean(require_image));
+    Result := jpeg_read_header(cinfo, Boolean(require_image));
   except
     Result := 0;
   end;
@@ -1370,7 +1362,7 @@ function jpeg_read_scanlines_encap(sp: Pointer; cinfo: Pointer; scanlines: Point
   max_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result := jpeg_read_scanlines(cinfo,scanlines,max_lines);
+    Result := jpeg_read_scanlines(cinfo, scanlines, max_lines);
   except
     Result := 0;
   end;
@@ -1380,7 +1372,7 @@ function jpeg_read_raw_data_encap(sp: Pointer; cinfo: Pointer; data: Pointer;
   max_lines: Cardinal): Integer; cdecl;
 begin
   try
-    Result := jpeg_read_raw_data(cinfo,data,max_lines);
+    Result := jpeg_read_raw_data(cinfo, data, max_lines);
   except
     Result := 0;
   end;
@@ -1411,15 +1403,15 @@ procedure TIFFNoUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl; f
 
 function TIFFFileCloseProc(Fd: Cardinal): Integer; cdecl;
 begin
-  if CloseHandle(Fd)=True then
-    Result:=0
+  if CloseHandle(Fd) = True then
+    Result := 0
   else
-    Result:=-1;
+    Result := -1;
 end;
 
 function TIFFFileSizeProc(Fd: Cardinal): Cardinal; cdecl;
 begin
-  Result:=GetFileSize(Fd,nil);
+  Result := GetFileSize(Fd, nil);
 end;
 
 function TIFFFileSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
@@ -1430,52 +1422,52 @@ const
 var
   MoveMethod: Cardinal;
 begin
-  if Off=$ffffffff then
+  if Off = $ffffffff then
   begin
-    Result:=$ffffffff;
+    Result := $ffffffff;
     exit;
   end;
   case Whence of
-    SEEK_SET: MoveMethod:=FILE_BEGIN;
-    SEEK_CUR: MoveMethod:=FILE_CURRENT;
-    SEEK_END: MoveMethod:=FILE_END;
+    SEEK_SET: MoveMethod := FILE_BEGIN;
+    SEEK_CUR: MoveMethod := FILE_CURRENT;
+    SEEK_END: MoveMethod := FILE_END;
   else
-    MoveMethod:=FILE_BEGIN;
+    MoveMethod := FILE_BEGIN;
   end;
-  Result:=SetFilePointer(Fd,Off,nil,MoveMethod);
+  Result := SetFilePointer(Fd, Off, nil, MoveMethod);
 end;
 
 function TIFFFileReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 var
   m: Cardinal;
 begin
-  if ReadFile(Fd,Buffer^,Cardinal(Size),m,nil)=False then
-    Result:=0
+  if ReadFile(Fd, Buffer^, Cardinal(Size), m, nil) = False then
+    Result := 0
   else
-    Result:=m;
+    Result := m;
 end;
 
 function TIFFFileWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 var
   m: Cardinal;
 begin
-  if WriteFile(Fd,Buffer^,Cardinal(Size),m,nil)=False then
-    Result:=0
+  if WriteFile(Fd, Buffer^, Cardinal(Size), m, nil) = False then
+    Result := 0
   else
-    Result:=m;
+    Result := m;
 end;
 
 function TIFFStreamCloseProc(Fd: Cardinal): Integer; cdecl;
 begin
-  Result:=0;
+  Result := 0;
 end;
 
 function TIFFStreamSizeProc(Fd: Cardinal): Cardinal; cdecl;
 begin
   try
-    Result:=TStream(Fd).Size;
+    Result := TStream(Fd).Size;
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
@@ -1487,46 +1479,46 @@ const
 var
   MoveMethod: Word;
 begin
-  if Off=$ffffffff then
+  if Off = $ffffffff then
   begin
-    Result:=$ffffffff;
+    Result := $ffffffff;
     exit;
   end;
   case Whence of
-    SEEK_SET: MoveMethod:=soFromBeginning;
-    SEEK_CUR: MoveMethod:=soFromCurrent;
-    SEEK_END: MoveMethod:=soFromEnd;
+    SEEK_SET: MoveMethod := soFromBeginning;
+    SEEK_CUR: MoveMethod := soFromCurrent;
+    SEEK_END: MoveMethod := soFromEnd;
   else
-    MoveMethod:=soFromBeginning;
+    MoveMethod := soFromBeginning;
   end;
   try
-    Result:=TStream(Fd).Seek(Off,MoveMethod);
+    Result := TStream(Fd).Seek(Off, MoveMethod);
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFStreamReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 begin
   try
-    Result:=TStream(Fd).Read(Buffer^,Size);
+    Result := TStream(Fd).Read(Buffer^, Size);
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFStreamWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
 begin
   try
-    Result:=TStream(Fd).Write(Buffer^,Size);
+    Result := TStream(Fd).Write(Buffer^, Size);
   except
-    Result:=0;
+    Result := 0;
   end;
 end;
 
 function TIFFNoMapProc(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl;
 begin
-  Result:=0;
+  Result := 0;
 end;
 
 procedure TIFFNoUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl;
@@ -1548,36 +1540,38 @@ var
   FlagsAndAttributes: Cardinal;
   fd: THandle;
 begin
-  m:=_TIFFgetMode(PAnsiChar(Mode),PAnsiChar(Module));
-  if m=o_RDONLY then
-    DesiredAccess:=GENERIC_READ
+  m :=_TIFFgetMode(PAnsiChar(Mode), PAnsiChar(Module));
+  if m = o_RDONLY then
+    DesiredAccess := GENERIC_READ
   else
-    DesiredAccess:=(GENERIC_READ or GENERIC_WRITE);
+    DesiredAccess := (GENERIC_READ or GENERIC_WRITE);
   case m of
-    O_RDONLY: CreateDisposition:=OPEN_EXISTING;
-    O_RDWR: CreateDisposition:=OPEN_ALWAYS;
-    (O_RDWR or O_CREAT): CreateDisposition:=OPEN_ALWAYS;
-    (O_RDWR or O_TRUNC): CreateDisposition:=CREATE_ALWAYS;
-    (O_RDWR or O_CREAT or O_TRUNC): CreateDisposition:=CREATE_ALWAYS;
+    O_RDONLY: CreateDisposition := OPEN_EXISTING;
+    O_RDWR: CreateDisposition := OPEN_ALWAYS;
+    (O_RDWR or O_CREAT): CreateDisposition := OPEN_ALWAYS;
+    (O_RDWR or O_TRUNC): CreateDisposition := CREATE_ALWAYS;
+    (O_RDWR or O_CREAT or O_TRUNC): CreateDisposition := CREATE_ALWAYS;
   else
-    Result:=nil;
+    Result := nil;
     exit;
   end;
-  if m=O_RDONLY then
-    FlagsAndAttributes:=FILE_ATTRIBUTE_READONLY
+  if m = O_RDONLY then
+    FlagsAndAttributes := FILE_ATTRIBUTE_READONLY
   else
-    FlagsAndAttributes:=FILE_ATTRIBUTE_NORMAL;
-  fd:=CreateFileA(PAnsiChar(Name),DesiredAccess,FILE_SHARE_READ,nil,CreateDisposition,FlagsAndAttributes,0);
-  if fd=INVALID_HANDLE_VALUE then
+    FlagsAndAttributes := FILE_ATTRIBUTE_NORMAL;
+  fd := CreateFileA(PAnsiChar(Name), DesiredAccess, FILE_SHARE_READ, nil,
+    CreateDisposition, FlagsAndAttributes, 0);
+  if fd = INVALID_HANDLE_VALUE then
   begin
-    TiffError(PAnsiChar(Module),PAnsiChar('%s: Cannot open'),PAnsiChar(Name));
-    Result:=nil;
+    TiffError(PAnsiChar(Module), PAnsiChar('%s: Cannot open'), PAnsiChar(Name));
+    Result := nil;
     exit;
   end;
-  Result:=TIFFClientOpen(PAnsiChar(Name),PAnsiChar(Mode),fd,@TIFFFileReadProc,@TIFFFileWriteProc,@TIFFFileSeekProc,@TIFFFileCloseProc,
-              @TIFFFileSizeProc,@TIFFNoMapProc,@TIFFNoUnmapProc);
-  if Result<>nil then
-    TIFFSetFileno(Result,fd)
+  Result := TIFFClientOpen(PAnsiChar(Name), PAnsiChar(Mode), fd, @TIFFFileReadProc,
+    @TIFFFileWriteProc, @TIFFFileSeekProc, @TIFFFileCloseProc,
+    @TIFFFileSizeProc, @TIFFNoMapProc, @TIFFNoUnmapProc);
+  if Result <> nil then
+    TIFFSetFileno(Result, fd)
   else
     CloseHandle(fd);
 end;
@@ -1586,22 +1580,17 @@ function TIFFOpenStream(const Stream: TStream; const Mode: AnsiString): PTIFF;
 var
   m: AnsiString;
 begin
-  m:='Stream';
-  Result:=TIFFClientOpen(PAnsiChar(m),PAnsiChar(Mode),Cardinal(Stream),@TIFFStreamReadProc,@TIFFStreamWriteProc,@TIFFStreamSeekProc,@TIFFStreamCloseProc,
-              @TIFFStreamSizeProc,@TIFFNoMapProc,@TIFFNoUnmapProc);
-  if Result<>nil then TIFFSetFileno(Result,Cardinal(Stream));
+  m := 'Stream';
+  Result := TIFFClientOpen(PAnsiChar(m), PAnsiChar(Mode), Cardinal(Stream),
+    @TIFFStreamReadProc, @TIFFStreamWriteProc, @TIFFStreamSeekProc, @TIFFStreamCloseProc,
+    @TIFFStreamSizeProc, @TIFFNoMapProc, @TIFFNoUnmapProc);
+  if Result <> nil then
+    TIFFSetFileno(Result,Cardinal(Stream));
 end;
 
 
 initialization
-
   _TIFFwarningHandler:=LibTiffDelphiWarningThrp;
   _TIFFerrorHandler:=LibTiffDelphiErrorThrp;
-
 end.
-
-
-
-
-
 
