@@ -25,7 +25,7 @@ unit LibTiffDelphi;
 interface
 
 uses
-  Windows, SysUtils, Classes;
+  Classes;
 
 const
   LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Delphi'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
@@ -761,31 +761,7 @@ procedure _TIFFfree(p: Pointer); cdecl;
 implementation
 
 uses
-  Math, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
-
-type
-
-  TCompareFunc = function(a,b: Pointer): Integer; cdecl;
-{$IFDEF LIBTIFF_3_7_0}
-  //// Only needed for older libtif! jb
-  TBsearchFcmp = function(a: Pointer; b: Pointer): Integer; cdecl;
-{$ENDIF}
-
-function  floor(x: Double): Double; cdecl; forward;
-function  pow(x: Double; y: Double): Double; cdecl; forward;
-function  sqrt(x: Double): Double; cdecl; forward;
-function  atan2(y: Double; x: Double): Double; cdecl; forward;
-function  exp(x: Double): Double; cdecl; forward;
-function  log(x: Double): Double; cdecl; forward;
-function  fabs(x: Double): Double; cdecl; forward;
-function  rand: Integer; cdecl; forward;
-function  strlen(s: Pointer): Cardinal; cdecl; forward;
-function  strcmp(a: Pointer; b: Pointer): Integer; cdecl; forward;
-function  strncmp(a: Pointer; b: Pointer; c: Longint): Integer; cdecl; forward;
-procedure qsort(base: Pointer; num: Cardinal; width: Cardinal; compare: TCompareFunc); cdecl; forward;
-
-function  memmove(dest: Pointer; src: Pointer; n: Cardinal): Pointer; cdecl; forward;
-function  strchr(s: Pointer; c: Integer): Pointer; cdecl; forward;
+  Windows, SysUtils, LibStub, LibDelphi, LibJpegDelphi, ZLibDelphi;
 
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl; forward;
 procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl; forward;
@@ -797,60 +773,6 @@ var
   _TIFFerrorHandler: TIFFErrorHandler;
   FLibTiffDelphiWarningHandler: LibTiffDelphiErrorHandler;
   FLibTiffDelphiErrorHandler: LibTiffDelphiErrorHandler;
-
-function fabs(x: Double): Double;
-begin
-  if x<0 then
-    Result:=-x
-  else
-    Result:=x;
-end;
-
-function atan2(y: Double; x: Double): Double;
-begin
-  Result:=ArcTan2(y,x);
-end;
-
-function rand: Integer; cdecl;
-begin
-  Result:=Trunc(Random*($7FFF+1));
-end;
-
-function sqrt(x: Double): Double; cdecl;
-begin
-  Result:=System.Sqrt(x);
-end;
-
-function log(x: Double): Double; cdecl;
-begin
-  Result:=Ln(x);
-end;
-
-function exp(x: Double): Double; cdecl;
-begin
-  Result:=System.Exp(x);
-end;
-
-function strchr(s: Pointer; c: Integer): Pointer; cdecl;
-begin
-  Result:=s;
-  while True do
-  begin
-    if PByte(Result)^=c then exit;
-    if PByte(Result)^=0 then
-    begin
-      Result:=nil;
-      exit;
-    end;
-    Inc(PByte(Result));
-  end;
-end;
-
-function memmove(dest: Pointer; src: Pointer; n: Cardinal): Pointer; cdecl;
-begin
-  MoveMemory(dest,src,n);
-  Result:=dest;
-end;
 
 function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl;
 var
@@ -882,149 +804,12 @@ begin
   FillMemory(p,c,v);
 end;
 
-{$IFDEF LIBTIFF_3_7_0}
-function bsearch(key: Pointer; base: Pointer; nelem: Cardinal; width: Cardinal; fcmp: TBsearchFcmp): Pointer; cdecl;
-begin
-  raise Exception.Create('LibTiffDelphi - call to bsearch - should presumably not occur');
-end;
-{$ENDIF}
-
-procedure qsort(base: Pointer; num: Cardinal; width: Cardinal; compare: TCompareFunc); cdecl;
-var
-  m: Pointer;
-  n: Integer;
-  o: Pointer;
-  oa,ob,oc: Integer;
-  p: Integer;
-begin
-  if num<2 then exit;
-  GetMem(m,num*width);
-  if compare(base,Pointer(Cardinal(base)+width))<=0 then
-    CopyMemory(m,base,(width shl 1))
-  else
-  begin
-    CopyMemory(m,Pointer(Cardinal(base)+width),width);
-    CopyMemory(Pointer(Cardinal(m)+width),base,width);
-  end;
-  n:=2;
-  while Cardinal(n)<num do
-  begin
-    o:=Pointer(Cardinal(base)+Cardinal(n)*width);
-    if compare(m,o)>=0 then
-      ob:=0
-    else
-    begin
-      oa:=0;
-      ob:=n;
-      while oa+1<ob do
-      begin
-        oc:=((oa+ob) shr 1);
-        p:=compare(Pointer(Cardinal(m)+Cardinal(oc)*width),o);
-        if p<0 then
-          oa:=oc
-        else if p=0 then
-        begin
-          ob:=oc;
-          break;
-        end
-        else
-          ob:=oc;
-      end;
-    end;
-    if ob=0 then
-    begin
-      MoveMemory(Pointer(Cardinal(m)+width),m,Cardinal(n)*width);
-      CopyMemory(m,o,width);
-    end
-    else if ob=n then
-      CopyMemory(Pointer(Cardinal(m)+Cardinal(n)*width),o,width)
-    else
-    begin
-      MoveMemory(Pointer(Cardinal(m)+Cardinal(ob+1)*width),Pointer(Cardinal(m)+Cardinal(ob)*width),Cardinal(n-ob)*width);
-      CopyMemory(Pointer(Cardinal(m)+Cardinal(ob)*width),o,width);
-    end;
-    Inc(n);
-  end;
-  CopyMemory(base,m,num*width);
-  FreeMem(m,num*width);
-end;
-
 function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl;
 begin
   if p=nil then
     Result:=AllocMem(s)
   else
     Result:=ReallocMemory(p,s);
-end;
-
-function strncmp(a: Pointer; b: Pointer; c: Longint): Integer; cdecl;
-var
-  ma,mb: PByte;
-  n: Integer;
-begin
-  ma:=a;
-  mb:=b;
-  n:=0;
-  while n<c do
-  begin
-    if ma^<>mb^ then
-    begin
-      if ma^<mb^ then
-        Result:=-1
-      else
-        Result:=1;
-      exit;
-    end;
-    if ma^=0 then
-    begin
-      Result:=0;
-      exit;
-    end;
-    Inc(ma);
-    Inc(mb);
-    Inc(n);
-  end;
-  Result:=0;
-end;
-
-function strcmp(a: Pointer; b: Pointer): Integer; cdecl;
-var
-  ma,mb: PByte;
-begin
-  ma:=a;
-  mb:=b;
-  while True do
-  begin
-    if ma^<>mb^ then
-    begin
-      if ma^<mb^ then
-        Result:=-1
-      else
-        Result:=1;
-      exit;
-    end;
-    if ma^=0 then
-    begin
-      Result:=0;
-      exit;
-    end;
-    Inc(ma);
-    Inc(mb);
-  end;
-  Result:=0;
-end;
-
-function strlen(s: Pointer): Cardinal; cdecl;
-var
-  m: PByte;
-begin
-  Result:=0;
-  m:=s;
-  while m^<>0 do
-  begin
-    Inc(Result);
-    Inc(m);
-  end;
 end;
 
 procedure _TIFFfree(p: Pointer); cdecl;
@@ -1035,16 +820,6 @@ end;
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl;
 begin
   CopyMemory(d,s,c);
-end;
-
-function pow(x: Double; y: Double): Double; cdecl;
-begin
-  Result:=Power(x,y);
-end;
-
-function floor(x: Double): Double; cdecl;
-begin
-  Result:=Trunc(x);
 end;
 
 function _TIFFmalloc(s: Longint): Pointer; cdecl;
