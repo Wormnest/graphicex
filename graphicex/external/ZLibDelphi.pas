@@ -84,7 +84,7 @@ end;
 {$L deflate.obj}
 {$L inflate.obj}
 {$L inftrees.obj}
-{$L infback.obj}
+{.$L infback.obj} // Is most likely not needed, the functions are not declared here anyway.
 {$L inffast.obj}
 {$L trees.obj}
 {$L compress.obj}
@@ -92,7 +92,7 @@ end;
 {$L crc32.obj}
 // The next 2 are not used in DelphiZLib
 {$L zutil.obj}
-{$L uncompr.obj}
+{.$L uncompr.obj} // Seems not to be needed by, uncompress also isn't declared here.
 
 end.
 
