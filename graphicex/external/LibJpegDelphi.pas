@@ -438,7 +438,7 @@ function  jpeg_resync_to_restart(cinfo: PRJpegDecompressStruct; desired: Integer
 implementation
 
 uses
-  LibDelphi;
+  LibStub;
 
 { jb I prefer the method used by both Mike Lischke's JPG.pas and Delphi's own jpeg unit
   for handling jpeg's error exit over LibJpegDelphi's because the latter needs
