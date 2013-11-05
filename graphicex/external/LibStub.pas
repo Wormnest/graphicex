@@ -133,6 +133,11 @@ function isprint(c: Integer): Integer; cdecl;
 function isxdigit(c: Integer): Integer; cdecl;
 function ldexp(x: Double; exp: Integer): Double; cdecl;
 function _lfind(const key, base: Pointer; num: Psize_t; width: size_t; Compare: cmp_callback): Pointer; cdecl;
+
+{$IFNDEF WIN64}
+procedure _llmod;
+{$ENDIF}
+
 function localtime(clock: PInteger): ptm; cdecl;
 function log(Value: Double): Double; cdecl;
 procedure longjmp(const __jmpb, __retval: Integer); cdecl;
@@ -818,6 +823,16 @@ begin
     Inc(Run, width);
   end;
 end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// Needed in zlib 1.2.8
+{$IFNDEF WIN64}
+procedure _llmod;
+asm
+  jmp System.@_llmod;
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 

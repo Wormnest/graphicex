@@ -80,13 +80,6 @@ begin
   Result:=deflateInit_(strm,level,PAnsiChar(ZLIB_VERSION),SizeOf(RZStream));
 end;
 
-// Needed in zlib 1.2.8
-{$ifndef WIN64}
-procedure _llmod;
-asm
-  jmp System.@_llmod;
-end;
-{$endif}
 
 {$L deflate.obj}
 {$L inflate.obj}
