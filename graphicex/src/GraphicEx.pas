@@ -1982,12 +1982,27 @@ function TIFFReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cd
 
 var
   Graphic: TTIFFGraphic;
+  MaxLocation: Cardinal;
+  UsableSize: Cardinal;
 
 begin
   Graphic := TTIFFGraphic(Fd);
-  Move(Graphic.FCurrentPointer^, Buffer^, Size);
-  Inc(Graphic.FCurrentPointer, Size);
-  Result := Size;
+  // Make sure we have a valid location (can happen with invalid or hacked tiff files)
+  MaxLocation := Cardinal(PAnsiChar(Graphic.FMemory) + Graphic.FSize);
+  if (Cardinal(Graphic.FCurrentPointer) + Cardinal(Size) > MaxLocation) then begin
+    if (Cardinal(Graphic.FCurrentPointer) > MaxLocation) then begin
+      // Current position is beyond eof
+      Result := 0;
+      Exit;
+    end
+    else // We can still read a part of the requested data
+      UsableSize := MaxLocation - Cardinal(Graphic.FCurrentPointer);
+  end
+  else
+    UsableSize := Size;
+  Move(Graphic.FCurrentPointer^, Buffer^, UsableSize);
+  Inc(Graphic.FCurrentPointer, UsableSize);
+  Result := UsableSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2023,7 +2038,12 @@ begin
   else
     Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Off);
   end;
-  Result := Cardinal(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
+  // Make sure we have a valid location (can happen with invalid or hacked tiff files)
+  if (Graphic.FCurrentPointer >= PAnsiChar(Graphic.FMemory)+Graphic.FSize) or
+     (Cardinal(Graphic.FCurrentPointer) < Cardinal(Graphic.FMemory)) then
+    Result := 0
+  else
+    Result := Cardinal(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
