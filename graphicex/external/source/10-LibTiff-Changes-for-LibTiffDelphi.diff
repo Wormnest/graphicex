@@ -1,0 +1,291 @@
+# HG changeset patch
+# Parent 7519bb56833e1d559a3124afea123049c979e7cc
+LibTiff: Replace jmps with external calls to be able to use it in LibTiffDelphi.
+
+diff -r 7519bb56833e graphicex/external/source/libtiff/tif_jpeg.c
+--- a/graphicex/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:35:48 2013 +0100
++++ b/graphicex/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:57:43 2013 +0100
+@@ -42,7 +42,14 @@
+  *
+  * Contributed by Tom Lane <tgl@sss.pgh.pa.us>.
+  */
++
++/* jb We use the same LIBJPEG_ENCAP_EXTERNAL define that's also used in ojpeg.c.
++   We define this in tif_config.h.
++   This make it easier to use in Delphi/Object Pascal. */
++
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ #include <setjmp.h>
++#endif
+ 
+ int TIFFFillStrip(TIFF*, tstrip_t);
+ int TIFFFillTile(TIFF*, ttile_t);
+@@ -132,7 +139,9 @@
+         int             cinfo_initialized;
+ 
+ 	jpeg_error_mgr	err;		/* libjpeg error manager */
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	JMP_BUF		exit_jmpbuf;	/* for catching libjpeg failures */
++#endif
+ 	/*
+ 	 * The following two members could be a union, but
+ 	 * they're small enough that it's not worth the effort.
+@@ -214,6 +223,29 @@
+  * messages through the appropriate libtiff handlers.
+  */
+ 
++#ifdef LIBJPEG_ENCAP_EXTERNAL
++extern void TIFFjpeg_error_exit_raise(void);
++extern int TIFFcallvjpeg_jpeg_CreateCompress(j_compress_ptr cinfo, int version, size_t structsize);
++extern int TIFFcallvjpeg_jpeg_CreateDecompress(j_decompress_ptr cinfo, int version, size_t structsize);
++extern int TIFFcallvjpeg_jpeg_set_defaults(j_compress_ptr cinfo);
++extern int TIFFcallvjpeg_jpeg_set_colorspace(j_compress_ptr cinfo, J_COLOR_SPACE colorspace);
++extern int TIFFcallvjpeg_jpeg_set_quality(j_compress_ptr cinfo, int quality, boolean force_baseline);
++extern int TIFFcallvjpeg_jpeg_suppress_tables(j_compress_ptr cinfo, boolean suppress);
++extern int TIFFcallvjpeg_jpeg_start_compress(j_compress_ptr cinfo, boolean write_all_tables);
++extern int TIFFcalljpeg_jpeg_write_scanlines(int errreturn, j_compress_ptr cinfo, JSAMPARRAY scanlines, JDIMENSION num_lines);
++extern int TIFFcalljpeg_jpeg_write_raw_data(int errreturn, j_compress_ptr cinfo, JSAMPIMAGE data, JDIMENSION num_lines);
++extern int TIFFcallvjpeg_jpeg_finish_compress(j_compress_ptr cinfo);
++extern int TIFFcallvjpeg_jpeg_write_tables(j_compress_ptr cinfo);
++extern int TIFFcalljpeg_jpeg_read_header(int errreturn, j_decompress_ptr cinfo, boolean require_image);
++extern int TIFFcallvjpeg_jpeg_start_decompress(j_decompress_ptr cinfo);
++extern int TIFFcalljpeg_jpeg_read_scanlines(int errreturn, j_decompress_ptr cinfo, JSAMPARRAY scanlines, JDIMENSION max_lines);
++extern int TIFFcalljpeg_jpeg_read_raw_data(int errreturn, j_decompress_ptr cinfo,
++					   JSAMPIMAGE data, JDIMENSION max_lines);
++extern int TIFFcalljpeg_jpeg_finish_decompress(int errreturn, j_decompress_ptr cinfo);
++extern int TIFFcallvjpeg_jpeg_abort(j_common_ptr cinfo);
++extern int TIFFcallvjpeg_jpeg_destroy(j_common_ptr cinfo);
++#endif
++
+ /*
+  * Error handling routines (these replace corresponding
+  * IJG routines from jerror.c).  These are used for both
+@@ -228,7 +260,11 @@
+ 	(*cinfo->err->format_message) (cinfo, buffer);
+ 	TIFFErrorExt(sp->tif->tif_clientdata, "JPEGLib", "%s", buffer);		/* display the error message */
+ 	jpeg_abort(cinfo);			/* clean up libjpeg state */
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	LONGJMP(sp->exit_jmpbuf, 1);		/* return to libtiff caller */
++#else
++	TIFFjpeg_error_exit_raise();
++#endif
+ }
+ 
+ /*
+@@ -262,7 +298,11 @@
+ 	sp->err.error_exit = TIFFjpeg_error_exit;
+ 	sp->err.output_message = TIFFjpeg_output_message;
+ 
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_create_compress(&sp->cinfo.c));
++#else
++	return TIFFcallvjpeg_jpeg_CreateCompress(&sp->cinfo.c,JPEG_LIB_VERSION,(size_t)sizeof(struct jpeg_compress_struct));
++#endif
+ }
+ 
+ static int
+@@ -273,118 +313,204 @@
+ 	sp->err.error_exit = TIFFjpeg_error_exit;
+ 	sp->err.output_message = TIFFjpeg_output_message;
+ 
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_create_decompress(&sp->cinfo.d));
++#else
++	return TIFFcallvjpeg_jpeg_CreateDecompress(&sp->cinfo.d,JPEG_LIB_VERSION,(size_t)sizeof(struct jpeg_decompress_struct));
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_set_defaults(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_set_defaults(&sp->cinfo.c));
++#else
++	return TIFFcallvjpeg_jpeg_set_defaults(&sp->cinfo.c);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_set_colorspace(JPEGState* sp, J_COLOR_SPACE colorspace)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_set_colorspace(&sp->cinfo.c, colorspace));
++#else
++	return TIFFcallvjpeg_jpeg_set_colorspace(&sp->cinfo.c, colorspace);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_set_quality(JPEGState* sp, int quality, boolean force_baseline)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp,
+ 	    jpeg_set_quality(&sp->cinfo.c, quality, force_baseline));
++#else
++	return TIFFcallvjpeg_jpeg_set_quality(&sp->cinfo.c, quality, force_baseline);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_suppress_tables(JPEGState* sp, boolean suppress)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_suppress_tables(&sp->cinfo.c, suppress));
++#else
++	return TIFFcallvjpeg_jpeg_suppress_tables(&sp->cinfo.c, suppress);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_start_compress(JPEGState* sp, boolean write_all_tables)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp,
+ 	    jpeg_start_compress(&sp->cinfo.c, write_all_tables));
++#else
++	return TIFFcallvjpeg_jpeg_start_compress(&sp->cinfo.c, write_all_tables);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_write_scanlines(JPEGState* sp, JSAMPARRAY scanlines, int num_lines)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, (int) jpeg_write_scanlines(&sp->cinfo.c,
+ 	    scanlines, (JDIMENSION) num_lines));
++#else
++	return TIFFcalljpeg_jpeg_write_scanlines(-1,&sp->cinfo.c,
++	    scanlines, (JDIMENSION) num_lines);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_write_raw_data(JPEGState* sp, JSAMPIMAGE data, int num_lines)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, (int) jpeg_write_raw_data(&sp->cinfo.c,
+ 	    data, (JDIMENSION) num_lines));
++#else
++	return TIFFcalljpeg_jpeg_write_raw_data(-1,&sp->cinfo.c,
++	    data, (JDIMENSION) num_lines);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_finish_compress(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_finish_compress(&sp->cinfo.c));
++#else
++	return TIFFcallvjpeg_jpeg_finish_compress(&sp->cinfo.c);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_write_tables(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_write_tables(&sp->cinfo.c));
++#else
++	return TIFFcallvjpeg_jpeg_write_tables(&sp->cinfo.c);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_read_header(JPEGState* sp, boolean require_image)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, jpeg_read_header(&sp->cinfo.d, require_image));
++#else
++	return TIFFcalljpeg_jpeg_read_header(-1,&sp->cinfo.d, require_image);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_start_decompress(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_start_decompress(&sp->cinfo.d));
++#else
++	return TIFFcallvjpeg_jpeg_start_decompress(&sp->cinfo.d);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_read_scanlines(JPEGState* sp, JSAMPARRAY scanlines, int max_lines)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, (int) jpeg_read_scanlines(&sp->cinfo.d,
+ 	    scanlines, (JDIMENSION) max_lines));
++#else
++	return TIFFcalljpeg_jpeg_read_scanlines(-1,&sp->cinfo.d,
++	    scanlines, (JDIMENSION) max_lines);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_read_raw_data(JPEGState* sp, JSAMPIMAGE data, int max_lines)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, (int) jpeg_read_raw_data(&sp->cinfo.d,
+ 	    data, (JDIMENSION) max_lines));
++#else
++	return TIFFcalljpeg_jpeg_read_raw_data(-1,&sp->cinfo.d,
++	    data, (JDIMENSION) max_lines); 
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_finish_decompress(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, -1, (int) jpeg_finish_decompress(&sp->cinfo.d));
++#else
++	return TIFFcalljpeg_jpeg_finish_decompress(-1,&sp->cinfo.d);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_abort(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_abort(&sp->cinfo.comm));
++#else
++	return TIFFcallvjpeg_jpeg_abort(&sp->cinfo.comm);
++#endif
+ }
+ 
+ static int
+ TIFFjpeg_destroy(JPEGState* sp)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLVJPEG(sp, jpeg_destroy(&sp->cinfo.comm));
++#else
++	return TIFFcallvjpeg_jpeg_destroy(&sp->cinfo.comm);
++#endif
+ }
+ 
++#ifdef LIBJPEG_ENCAP_EXTERNAL
++typedef JSAMPARRAY (*jpeg_alloc_sarray) (j_common_ptr cinfo, int pool_id,
++				     JDIMENSION samplesperrow,
++				     JDIMENSION numrows);
++
++extern JSAMPARRAY TIFFcalljpeg_alloc_sarray(jpeg_alloc_sarray alloc_sarray,
++		j_common_ptr cinfo, int pool_id, JDIMENSION samplesperrow, JDIMENSION numrows);
++#endif
++
+ static JSAMPARRAY
+ TIFFjpeg_alloc_sarray(JPEGState* sp, int pool_id,
+ 		      JDIMENSION samplesperrow, JDIMENSION numrows)
+ {
++#ifndef LIBJPEG_ENCAP_EXTERNAL
+ 	return CALLJPEG(sp, (JSAMPARRAY) NULL,
+ 	    (*sp->cinfo.comm.mem->alloc_sarray)
+ 		(&sp->cinfo.comm, pool_id, samplesperrow, numrows));
++#else
++	return TIFFcalljpeg_alloc_sarray(sp->cinfo.comm.mem->alloc_sarray,
++		&sp->cinfo.comm, pool_id, samplesperrow, numrows);
++#endif
+ }
+ 
+ /*
