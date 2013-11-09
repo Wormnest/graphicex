@@ -2353,7 +2353,10 @@ begin
       FCurrentPointer := Memory;
       FSize := Size;
 
-      TIFFImage := TIFFClientOpen('', 'r', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
+      // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
+      // Since we are already using a memory mapped file ourselves it is not
+      // necessary to let libtif also use a memory mapped file.
+      TIFFImage := TIFFClientOpen('', 'rm', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
         TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
       try
         // The preparation part is finished. Finish also progress section (which will step the main progress).
@@ -2532,7 +2535,10 @@ begin
       FCurrentPointer := Memory;
       FSize := Size;
 
-      TIFFImage := TIFFClientOpen('', 'r', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
+      // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
+      // Since we are already using a memory mapped file ourselves it is not
+      // necessary to let libtif also use a memory mapped file.
+      TIFFImage := TIFFClientOpen('', 'rm', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
         TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
       if Assigned(TIFFImage) then
       try
