@@ -8280,6 +8280,12 @@ begin
           if IsChunk(IEND) then
             Break;
 
+          // Length = 0 should not happen but I have seen a broken png that has
+          // no IEND chunk but does have length = 0
+          // Also make sure a broken png doesn't set Run to illegal offset
+          if (FHeader.Length = 0) or (Cardinal(Run) >= Cardinal(PAnsiChar(Memory)+Size)) then
+            Break;
+
           // Note: According to the specs an unknown, but as critical marked chunk is a fatal error.
           if (Byte(FHeader.ChunkType[0]) and CHUNKMASK) = 0 then
             GraphicExError(gesUnknownCriticalChunk);
@@ -8386,6 +8392,11 @@ begin
 
             Inc(Run, FHeader.Length + 4);
             if IsChunk(IEND) then
+              Break;
+            // Length = 0 should not happen but I have seen a broken png that has
+            // no IEND chunk but does have length = 0
+            // Also make sure a broken png doesn't set Run to illegal offset
+            if (FHeader.Length = 0) or (Cardinal(Run) >= Cardinal(PAnsiChar(Memory)+Size)) then
               Break;
           until False;
 
