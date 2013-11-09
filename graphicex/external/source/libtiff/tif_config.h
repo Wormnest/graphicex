@@ -1,6 +1,7 @@
 /* jb We need to add some extra defines that would normally be defined by configure. */
 
-/* Delphi/Object Pascal specific for use in tif_ojpeg.c (see explanation there) */
+/* Delphi/Object Pascal specific for use in tif_ojpeg.c (see explanation there)
+   and extended by us also for use in tif_jpeg.c. */
 #define LIBJPEG_ENCAP_EXTERNAL
 
 /*
@@ -44,8 +45,23 @@
 /* Support Deflate compression */
 #define ZIP_SUPPORT 1
 
-/* jb End of added defines. */ 
-/* --------------------------------------------------------------------------------- */
+/* Support strip chopping (whether or not to convert single-strip uncompressed
+   images to mutiple strips of ~8Kb to reduce memory usage) */
+#define STRIPCHOP_DEFAULT TIFF_STRIPCHOP
+
+/* Enable SubIFD tag (330) support */
+#define SUBIFD_SUPPORT 1
+
+/* Treat extra sample as alpha (default enabled). The RGBA interface will
+   treat a fourth sample with no EXTRASAMPLE_ value as being ASSOCALPHA. Many
+   packages produce RGBA files but don't mark the alpha properly. */
+#define DEFAULT_EXTRASAMPLE_AS_ALPHA 1
+
+/* Pick up YCbCr subsampling info from the JPEG data stream to support files
+   lacking the tag (default enabled). */
+#define CHECK_JPEG_YCBCR_SUBSAMPLING 1
+
+/* -------------------------------------------------------------------------- */
 
 /* Define to 1 if you have the <assert.h> header file. */
 #define HAVE_ASSERT_H 1
