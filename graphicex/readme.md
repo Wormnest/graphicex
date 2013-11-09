@@ -13,9 +13,10 @@ connection with this software.
  
 
 * **TIFF images (.tif; .tiff)**
-    + 1..16 bits per sample
-    + indexed, grayscale, RGB(A), CMYK, L*a*b*
-    + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new style JPEG
+    + 1..16 bits per sample, grayscale also 17..32 bits and 64 bit float
+    + indexed(A), grayscale(A), RGB(A), CMYK, L*a*b*
+    + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
+    + uses libtiff version 3.9.7
 * **Photoshop images (.psd, .pdd)**
     + 1, 8, 16 bits per sample
     + indexed, RGB, CMYK, CIE L*a*b*
@@ -24,6 +25,10 @@ connection with this software.
     + 1, 4, 8 bits per sample
     + indexed, grayscale, RGB
     + uncompressed, RLE and LZ77
+* **Gimp XCF images (.xcf)**
+    + 1, 8 bits per sample
+    + indexed(A), grayscale(A), RGB(A)
+    + uncompressed, RLE
 * **Portable network graphic images (.png)**
     + 1, 2, 4, 8, 16 bits per sample
     + indexed, grayscale alpha, RGB(A), LZ77 compressd
@@ -58,9 +63,11 @@ connection with this software.
 License:
 --------
 GraphicEx is released under the Mozilla Public License 1.1 (MPL 1.1).
+Some parts, added by Jacob Boerema, have a dual license: MPL 1.1 and
+LGPL 2.1 with linking exception (the "FPC modified LGPL License").
 
 This library was written by Mike Lischke.
-This fork is currently maintained and updated by Jacob Boerema.
+This fork is currently maintained, updated and extended by Jacob Boerema.
 
 Bug reports
 -----------
@@ -78,16 +85,17 @@ that I needed to change to make it working with the .obj files I had.
 different translation strategy, I recommend using dxgettext.
 * I have incorporated all bugfixes mentioned in the softgems forums and those
 found elsewhere on the internet.
-* Several other bugs fixed, a few extra security checks and some extra 
-functionality added by myself.
+* A lot of other bugs have been fixed by me, a few extra security checks and 
+extra functionality added by myself.
+* I added a Gimp XCF image loader.
 * Unicode aware fixes have been added, however it needs testing by someone
 that has a Unicode version of Delphi.
+* LibTiff updated to version 3.9.7, libjpeg 6b, zlib 1.2.8. The C source code
+and necessary MQ patches have also been added to the repository.
 
 Todo
 ----
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
-* Update libtif version (currently using an old libtif 3.5.7) and probably
-* at the same time change to using LibTifDelphi.
 * Integrate jpeg handling more into graphicex.
 * Support more different tiff image types.
 * Add unit tests.
@@ -101,4 +109,4 @@ Folder structure
 - \src = Folder with GraphicEx source files.
 
 Note that the .obj files are not available in the hg repository itself.
-They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip)
+They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj_libtiff_397.zip)

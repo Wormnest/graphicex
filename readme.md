@@ -16,13 +16,14 @@ Overview of components
 1. graphicex
 ------------
 This is my fork of the latest version of graphicex that I could find
-with all bugfixes that I found online applied and several others fixed
+with all bugfixes that I found online applied and a lot of others fixed
 by me.
 Besides that some changes and enhancements to the code have been made,
 especially in PSP and TIFF loading.
+I have also added support for loading Gimp XCF files.
 The .obj files needed for JPG and TIFF support are available as a
 separate download since versioning them in hg doesn't work well.
-https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj.zip
+https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj_libtiff_397.zip
 
 2. ghostscript
 --------------
@@ -34,5 +35,5 @@ adapted to my needs.
 A twain api interface made by Colin Wilson with bugfixes by me and
 further adapted to my needs.
 
-August-October 2013
+August-November 2013
 Jacob Boerema
