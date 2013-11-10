@@ -288,12 +288,16 @@ type
     function ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert17_24To8(Value: LongWord; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert25_31To8(Value: LongWord; BitsPerSample: Byte): Byte;
-    function ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte; overload;
+    function ComponentScaleConvert32To8(Value: LongWord): Byte; overload;
     function ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
-    function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
+    function ComponentScaleConvert64To8(Value: UInt64): Byte; overload;
     function ComponentScaleConvertFloat16To8(Value: Word): Byte;
-    function ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte;
-    function ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+    function ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte; overload;
+    function ComponentScaleConvertFloat32To8(Value: LongWord): Byte; overload;
+    function ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
+    function ComponentScaleConvertFloat64To8(Value: UInt64): Byte; overload;
     function ComponentScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleGammaConvert(Value: Word): Byte;
     function ComponentSwapScaleConvert(Value: Word): Byte;
@@ -1324,6 +1328,15 @@ begin
   Result := Value shr 32;
 end;
 
+function TColorManager.ComponentScaleConvert32To8(Value: LongWord): Byte;
+begin
+  // Convert/scale up or down from 32 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  // Note: this version is used for RGB color conversion and this one does
+  // need to be shifted 24 bits unlike the version above!
+  Result := Value shr 24;
+end;
+
 function TColorManager.ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
 begin
   // Convert/scale up or down from 33..63 bits to 8 bits
@@ -1332,6 +1345,13 @@ begin
 end;
 
 function TColorManager.ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+begin
+  // Convert/scale up or down from 64 bits to 8 bits
+  // n bits 2^n = ... ==> 8 bits = 256
+  Result := Byte(Value shr 56);
+end;
+
+function TColorManager.ComponentScaleConvert64To8(Value: UInt64): Byte;
 begin
   // Convert/scale up or down from 64 bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
@@ -1365,7 +1385,33 @@ begin
 end;
 
 // WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat32To8(Value: LongWord): Byte;
+var s: Single absolute Value;
+  TempVal: Integer;
+begin
+  TempVal := Trunc(s * 255);
+  if TempVal < 0 then
+    TempVal := 0
+  else if TempVal > 255 then
+    TempVal := 255;
+  Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
 function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
+var d: Double absolute Value;
+  TempVal: UInt64;
+begin
+    TempVal := Trunc(d * 255);
+    if TempVal < 0 then
+      TempVal := 0
+    else if TempVal > 255 then
+      TempVal := 255;
+    Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64): Byte;
 var d: Double absolute Value;
   TempVal: UInt64;
 begin
@@ -3782,6 +3828,16 @@ var
   SourceB8,
   SourceA8: PByte;
 
+  SourceR32,
+  SourceG32,
+  SourceB32,
+  SourceA32: PLongWord;
+
+  SourceR64,
+  SourceG64,
+  SourceB64,
+  SourceA64: PUint64;
+
   TargetRun16: PBGR16;
   TargetRunA16: PBGRA16;
   TargetRun8: PBGR;
@@ -3792,6 +3848,10 @@ var
   Convert16_8: function(Value: Word): Byte of object;
   Convert16_8Alpha: function(Value: Word): Byte of object;
   Convert16_16: function(Value: Word): Word of object;
+  Convert32_8: function(Value: LongWord): Byte of object;
+  Convert32_8Alpha: function(Value: LongWord): Byte of object;
+  Convert64_8: function(Value: UInt64): Byte of object;
+  Convert64_8Alpha: function(Value: UInt64): Byte of object;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
@@ -3863,7 +3923,7 @@ begin
                     TargetRunA8.B := Convert8_8(SourceB8^);
                     // Alpha values are never gamma corrected
                     TargetRunA8.A := SourceA8^;
-                  
+
                     Inc(SourceB8, SourceIncrement);
                     Inc(SourceG8, SourceIncrement);
                     Inc(SourceR8, SourceIncrement);
@@ -3991,7 +4051,10 @@ begin
         case FTargetBPS of
           8: // 161616 to 888
             begin
-              if coApplyGamma in FTargetOptions then
+              // Half Float sample data format needs separate conversion.
+              if FSourceDataFormat = sdfFloat then
+                Convert16_8 := ComponentScaleConvertFloat16To8
+              else if coApplyGamma in FTargetOptions then
               begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleGammaConvert
@@ -4006,7 +4069,9 @@ begin
                   Convert16_8 := ComponentScaleConvert16To8;
               end;
               // Since alpha channels are never gamma corrected we need a separate conversion routine
-              if coNeedByteSwap in FSourceOptions then
+              if FSourceDataFormat = sdfFloat then
+                Convert16_8Alpha := ComponentScaleConvertFloat16To8
+              else if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
                 Convert16_8Alpha := ComponentScaleConvert16To8;
@@ -4022,11 +4087,32 @@ begin
                     TargetRunA8.G := Convert16_8(SourceG16^);
                     TargetRunA8.B := Convert16_8(SourceB16^);
                     TargetRunA8.A := Convert16_8Alpha(SourceA16^);
-                  
+
                     Inc(SourceB16, SourceIncrement);
                     Inc(SourceG16, SourceIncrement);
                     Inc(SourceR16, SourceIncrement);
                     Inc(SourceA16, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else if coAlpha in FTargetOptions then
+              begin // Need to add Alpha (default = opaque = 255)
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert16_8(SourceR16^);
+                    TargetRunA8.G := Convert16_8(SourceG16^);
+                    TargetRunA8.B := Convert16_8(SourceB16^);
+                    TargetRunA8.A := 255;
+
+                    Inc(SourceB16, SourceIncrement);
+                    Inc(SourceG16, SourceIncrement);
+                    Inc(SourceR16, SourceIncrement);
                   end;
                   asm ROR BYTE PTR [BitRun], 1 end;
                   Dec(Count);
@@ -4125,6 +4211,225 @@ begin
             end;
         end;
       end;
+    24: // TODO: 24-bits float
+      ;
+    32: // 32-bits float or 32 bits (un)signed integer.
+        // Currently only conversion to 8 bits supported.
+      begin
+        if Length(Source) = 1 then
+        begin
+          SourceR32 := Source[0];
+          SourceG32 := SourceR32; Inc(SourceG32);
+          SourceB32 := SourceG32; Inc(SourceB32);
+          SourceA32 := SourceB32; Inc(SourceA32);
+        end
+        else
+        begin
+          SourceR32 := Source[0];
+          SourceG32 := Source[1];
+          SourceB32 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA32 := Source[3]
+          else
+            SourceA32 := nil;
+        end;
+
+        case FTargetBPS of
+          8: // 323232 to 888
+            begin
+              // Float sample data format needs separate conversion.
+              if FSourceDataFormat = sdfFloat then
+                Convert32_8 := ComponentScaleConvertFloat32To8
+              else
+              { Gamma conversion not supported here for now.
+              if coApplyGamma in FTargetOptions then
+              begin
+                if coNeedByteSwap in FSourceOptions then
+                  Convert32_8 := ComponentSwapScaleGammaConvert32To8
+                else
+                  Convert32_8 := ComponentScaleGammaConvert32To8;
+              end
+              else}
+              begin
+                { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                  Convert32_8 := ComponentSwapScaleConvert32To8
+                else}
+                  Convert32_8 := ComponentScaleConvert32To8;
+              end;
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
+              if FSourceDataFormat = sdfFloat then
+                Convert32_8Alpha := ComponentScaleConvertFloat32To8
+              else { Byte swapping not supported here for now.
+              if coNeedByteSwap in FSourceOptions then
+                Convert32_8Alpha := ComponentSwapScaleConvert
+              else}
+                Convert32_8Alpha := ComponentScaleConvert32To8;
+
+              if CopyAlpha then
+              begin
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert32_8(SourceR32^);
+                    TargetRunA8.G := Convert32_8(SourceG32^);
+                    TargetRunA8.B := Convert32_8(SourceB32^);
+                    TargetRunA8.A := Convert32_8Alpha(SourceA32^);
+
+                    Inc(SourceB32, SourceIncrement);
+                    Inc(SourceG32, SourceIncrement);
+                    Inc(SourceR32, SourceIncrement);
+                    Inc(SourceA32, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else if coAlpha in FTargetOptions then
+              begin // Need to add Alpha (default = opaque = 255)
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert32_8(SourceR32^);
+                    TargetRunA8.G := Convert32_8(SourceG32^);
+                    TargetRunA8.B := Convert32_8(SourceB32^);
+                    TargetRunA8.A := 255;
+
+                    Inc(SourceB32, SourceIncrement);
+                    Inc(SourceG32, SourceIncrement);
+                    Inc(SourceR32, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else
+              begin
+                TargetRun8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRun8.R := Convert32_8(SourceR32^);
+                    TargetRun8.G := Convert32_8(SourceG32^);
+                    TargetRun8.B := Convert32_8(SourceB32^);
+
+                    Inc(SourceB32, SourceIncrement);
+                    Inc(SourceG32, SourceIncrement);
+                    Inc(SourceR32, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(PByte(TargetRun8), TargetIncrement);
+                end;
+              end;
+            end;
+        end;
+      end;
+    64: // 64-bits float or 64 bits (un)signed integer.
+        // Currently only conversion to 8 bits supported.
+      begin
+        if Length(Source) = 1 then
+        begin
+          SourceR64 := Source[0];
+          SourceG64 := SourceR64; Inc(SourceG64);
+          SourceB64 := SourceG64; Inc(SourceB64);
+          SourceA64 := SourceB64; Inc(SourceA64);
+        end
+        else
+        begin
+          SourceR64 := Source[0];
+          SourceG64 := Source[1];
+          SourceB64 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA64 := Source[3]
+          else
+            SourceA64 := nil;
+        end;
+
+        case FTargetBPS of
+          8: // 646464 to 888
+            begin
+              // Float sample data format needs separate conversion.
+              if FSourceDataFormat = sdfFloat then
+                Convert64_8 := ComponentScaleConvertFloat64To8
+              else
+              { Gamma conversion not supported here for now.
+              if coApplyGamma in FTargetOptions then
+              begin
+                if coNeedByteSwap in FSourceOptions then
+                  Convert64_8 := ComponentSwapScaleGammaConvert64To8
+                else
+                  Convert64_8 := ComponentScaleGammaConvert64To8;
+              end
+              else}
+              begin
+                { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                  Convert64_8 := ComponentSwapScaleConvert64To8
+                else}
+                  Convert64_8 := ComponentScaleConvert64To8;
+              end;
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
+              if FSourceDataFormat = sdfFloat then
+                Convert64_8Alpha := ComponentScaleConvertFloat64To8
+              else { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                Convert64_8Alpha := ComponentSwapScaleConvert64To8
+              else}
+                Convert64_8Alpha := ComponentScaleConvert64To8;
+
+              if CopyAlpha then
+              begin
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert64_8(SourceR64^);
+                    TargetRunA8.G := Convert64_8(SourceG64^);
+                    TargetRunA8.B := Convert64_8(SourceB64^);
+                    TargetRunA8.A := Convert64_8Alpha(SourceA64^);
+
+                    Inc(SourceB64, SourceIncrement);
+                    Inc(SourceG64, SourceIncrement);
+                    Inc(SourceR64, SourceIncrement);
+                    Inc(SourceA64, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else
+              begin
+                TargetRun8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRun8.R := Convert64_8(SourceR64^);
+                    TargetRun8.G := Convert64_8(SourceG64^);
+                    TargetRun8.B := Convert64_8(SourceB64^);
+
+                    Inc(SourceB64, SourceIncrement);
+                    Inc(SourceG64, SourceIncrement);
+                    Inc(SourceR64, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(PByte(TargetRun8), TargetIncrement);
+                end;
+              end;
+            end;
+        end;
+      end;
   end;
 end;
 
@@ -4145,6 +4450,16 @@ var
   SourceB8,
   SourceA8: PByte;
 
+  SourceR32,
+  SourceG32,
+  SourceB32,
+  SourceA32: PLongWord;
+
+  SourceR64,
+  SourceG64,
+  SourceB64,
+  SourceA64: PUint64;
+
   TargetRun16: PRGB16;
   TargetRunA16: PRGBA16;
   TargetRun8: PRGB;
@@ -4155,6 +4470,10 @@ var
   Convert16_8: function(Value: Word): Byte of object;
   Convert16_8Alpha: function(Value: Word): Byte of object;
   Convert16_16: function(Value: Word): Word of object;
+  Convert32_8: function(Value: LongWord): Byte of object;
+  Convert32_8Alpha: function(Value: LongWord): Byte of object;
+  Convert64_8: function(Value: UInt64): Byte of object;
+  Convert64_8Alpha: function(Value: UInt64): Byte of object;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
@@ -4352,7 +4671,10 @@ begin
         case FTargetBPS of
           8: // 161616 to 888
             begin
-              if coApplyGamma in FTargetOptions then
+              if FSourceDataFormat = sdfFloat then
+                // Half Float sample data format needs separate conversion.
+                Convert16_8 := ComponentScaleConvertFloat16To8
+              else if coApplyGamma in FTargetOptions then
               begin
                 if coNeedByteSwap in FSourceOptions then
                   Convert16_8 := ComponentSwapScaleGammaConvert
@@ -4367,7 +4689,9 @@ begin
                   Convert16_8 := ComponentScaleConvert16To8;
               end;
               // Since alpha channels are never gamma corrected we need a separate conversion routine
-              if coNeedByteSwap in FSourceOptions then
+              if FSourceDataFormat = sdfFloat then
+                Convert16_8Alpha := ComponentScaleConvertFloat16To8
+              else if coNeedByteSwap in FSourceOptions then
                 Convert16_8Alpha := ComponentSwapScaleConvert
               else
                 Convert16_8Alpha := ComponentScaleConvert16To8;
@@ -4383,7 +4707,7 @@ begin
                     TargetRunA8.G := Convert16_8(SourceG16^);
                     TargetRunA8.B := Convert16_8(SourceB16^);
                     TargetRunA8.A := Convert16_8Alpha(SourceA16^);
-                  
+
                     Inc(SourceB16, SourceIncrement);
                     Inc(SourceG16, SourceIncrement);
                     Inc(SourceR16, SourceIncrement);
@@ -4481,6 +4805,204 @@ begin
                   asm ROR BYTE PTR [BitRun], 1 end;
                   Dec(Count);
                   Inc(PWord(TargetRun16), TargetIncrement);
+                end;
+              end;
+            end;
+        end;
+      end;
+    24: // TODO: 24-bits float
+      ;
+    32: // 32-bits float or 32 bits (un)signed integer.
+        // Currently only conversion to 8 bits supported.
+      begin
+        if Length(Source) = 1 then
+        begin
+          SourceR32 := Source[0];
+          SourceG32 := SourceR32; Inc(SourceG32);
+          SourceB32 := SourceG32; Inc(SourceB32);
+          SourceA32 := SourceB32; Inc(SourceA32);
+        end
+        else
+        begin
+          SourceR32 := Source[0];
+          SourceG32 := Source[1];
+          SourceB32 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA32 := Source[3]
+          else
+            SourceA32 := nil;
+        end;
+
+        case FTargetBPS of
+          8: // 323232 to 888
+            begin
+              // Float sample data format needs separate conversion.
+              if FSourceDataFormat = sdfFloat then
+                Convert32_8 := ComponentScaleConvertFloat32To8
+              else
+              { Gamma conversion not supported here for now.
+              if coApplyGamma in FTargetOptions then
+              begin
+                if coNeedByteSwap in FSourceOptions then
+                  Convert32_8 := ComponentSwapScaleGammaConvert32To8
+                else
+                  Convert32_8 := ComponentScaleGammaConvert32To8;
+              end
+              else}
+              begin
+                { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                  Convert32_8 := ComponentSwapScaleConvert
+                else}
+                  Convert32_8 := ComponentScaleConvert32To8;
+              end;
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
+              if FSourceDataFormat = sdfFloat then
+                Convert32_8Alpha := ComponentScaleConvertFloat32To8
+              else { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                Convert32_8Alpha := ComponentSwapScaleConvert
+              else}
+                Convert32_8Alpha := ComponentScaleConvert32To8;
+
+              if CopyAlpha then
+              begin
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert32_8(SourceR32^);
+                    TargetRunA8.G := Convert32_8(SourceG32^);
+                    TargetRunA8.B := Convert32_8(SourceB32^);
+                    TargetRunA8.A := Convert32_8Alpha(SourceA32^);
+
+                    Inc(SourceB32, SourceIncrement);
+                    Inc(SourceG32, SourceIncrement);
+                    Inc(SourceR32, SourceIncrement);
+                    Inc(SourceA32, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else
+              begin
+                TargetRun8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRun8.R := Convert32_8(SourceR32^);
+                    TargetRun8.G := Convert32_8(SourceG32^);
+                    TargetRun8.B := Convert32_8(SourceB32^);
+
+                    Inc(SourceB32, SourceIncrement);
+                    Inc(SourceG32, SourceIncrement);
+                    Inc(SourceR32, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(PByte(TargetRun8), TargetIncrement);
+                end;
+              end;
+            end;
+        end;
+      end;
+    64: // 64-bits float or 64 bits (un)signed integer.
+        // Currently only conversion to 8 bits supported.
+      begin
+        if Length(Source) = 1 then
+        begin
+          SourceR64 := Source[0];
+          SourceG64 := SourceR64; Inc(SourceG64);
+          SourceB64 := SourceG64; Inc(SourceB64);
+          SourceA64 := SourceB64; Inc(SourceA64);
+        end
+        else
+        begin
+          SourceR64 := Source[0];
+          SourceG64 := Source[1];
+          SourceB64 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA64 := Source[3]
+          else
+            SourceA64 := nil;
+        end;
+
+        case FTargetBPS of
+          8: // 646464 to 888
+            begin
+              // Float sample data format needs separate conversion.
+              if FSourceDataFormat = sdfFloat then
+                Convert64_8 := ComponentScaleConvertFloat64To8
+              else
+              { Gamma conversion not supported here for now.
+              if coApplyGamma in FTargetOptions then
+              begin
+                if coNeedByteSwap in FSourceOptions then
+                  Convert64_8 := ComponentSwapScaleGammaConvert64To8
+                else
+                  Convert64_8 := ComponentScaleGammaConvert64To8;
+              end
+              else}
+              begin
+                { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                  Convert64_8 := ComponentSwapScaleConvert64To8
+                else}
+                  Convert64_8 := ComponentScaleConvert64To8;
+              end;
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
+              if FSourceDataFormat = sdfFloat then
+                Convert64_8Alpha := ComponentScaleConvertFloat64To8
+              else { Byte swapping not supported here for now.
+                if coNeedByteSwap in FSourceOptions then
+                Convert64_8Alpha := ComponentSwapScaleConvert64To8
+              else}
+                Convert64_8Alpha := ComponentScaleConvert64To8;
+
+              if CopyAlpha then
+              begin
+                TargetRunA8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRunA8.R := Convert64_8(SourceR64^);
+                    TargetRunA8.G := Convert64_8(SourceG64^);
+                    TargetRunA8.B := Convert64_8(SourceB64^);
+                    TargetRunA8.A := Convert64_8Alpha(SourceA64^);
+
+                    Inc(SourceB64, SourceIncrement);
+                    Inc(SourceG64, SourceIncrement);
+                    Inc(SourceR64, SourceIncrement);
+                    Inc(SourceA64, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(TargetRunA8);
+                end;
+              end
+              else
+              begin
+                TargetRun8 := Target;
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    TargetRun8.R := Convert64_8(SourceR64^);
+                    TargetRun8.G := Convert64_8(SourceG64^);
+                    TargetRun8.B := Convert64_8(SourceB64^);
+
+                    Inc(SourceB64, SourceIncrement);
+                    Inc(SourceG64, SourceIncrement);
+                    Inc(SourceR64, SourceIncrement);
+                  end;
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Dec(Count);
+                  Inc(PByte(TargetRun8), TargetIncrement);
                 end;
               end;
             end;

@@ -2112,13 +2112,26 @@ var
   RowCount,
   LineSize: Integer;
   RowsPerStrip: Integer;
-  Source: PAnsiChar;
-  Line: Pointer;
   RowInc: Integer;
   LineOffset: Integer;
+  iPlane: Integer;
+  nPlanes: Integer;
+  nStripSize: Integer;
+  PtrArray: array of pointer;
+  BufPtr: Pointer;
 
 begin
-  GetMem(Buffer, TIFFStripSize(tif));
+  nStripSize := TIFFStripSize(tif);
+  if ioSeparatePlanes in FImageProperties.Options then begin
+    GetMem(Buffer, nStripSize * FImageProperties.SamplesPerPixel);
+    nPlanes := FImageProperties.SamplesPerPixel;
+    SetLength(PtrArray, FImageProperties.SamplesPerPixel);
+  end
+  else begin
+    GetMem(Buffer, nStripSize);
+    nPlanes := 1;
+    SetLength(PtrArray, 1);
+  end;
   with FImageProperties do
   try
     Y := SetOrientation(tif, Height);
@@ -2127,7 +2140,7 @@ begin
     if RowsPerStrip = -1 then
       RowsPerStrip := Height;
 
-    LineSize := TIFFScanlineSize(tif);
+    LineSize := TIFFRasterScanlineSize(tif);  // Take planar into account
     if (BitsPerPixel = 1) and ((Width mod 8) <> 0) then
       FromSkew := ((Width + 7) and not 7) - Width
     else
@@ -2146,17 +2159,33 @@ begin
         RowCount := Height - Row
       else
         RowCount := RowsToRead;
-      TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, 0), Buffer, (Row mod RowsPerStrip + RowCount) * LineSize);
+
       Pos := (Row mod RowsPerStrip) * LineSize;
 
-      Source := PAnsiChar(Buffer) + Pos;
+      if ioSeparatePlanes in Options then begin
+        // Image data is arrange in separate planes: We need to read a strip
+        // for each plane and thus use BitsPerSample for computing Offset/Increment.
+        for iPlane := 0 to nPlanes-1 do begin
+          BufPtr := PAnsiChar(Buffer)+iPlane*nStripSize;
+          TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, iPlane), BufPtr,
+            (Row mod RowsPerStrip + RowCount) * LineSize);
+          PtrArray[iPlane] := PAnsiChar(BufPtr) + Pos;
+        end;
+        LineOffset := Ceil(BitsPerSample * (Width + FromSkew) / 8);
+      end
+      else begin
+        TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, 0), Buffer,
+          (Row mod RowsPerStrip + RowCount) * LineSize);
+        PtrArray[0] := PAnsiChar(Buffer) + Pos;
+        LineOffset := Ceil(BitsPerPixel * (Width + FromSkew) / 8);
+      end;
+
       Inc(Row, RowCount);
-      LineOffset := Ceil(BitsPerPixel * (Width + FromSkew) / 8);
       while RowCount > 0 do
       begin
-        Line := Scanline[Y];
-        ColorManager.ConvertRow([Source], Line, Width, $FF);
-        Inc(Source, LineOffset);
+        ColorManager.ConvertRow(PtrArray, Scanline[Y], Width, $FF);
+        for iPlane := 0 to nPlanes-1 do
+          Inc(PAnsiChar(PtrArray[iPlane]), LineOffset);
         Inc(Y, RowInc);
         Dec(RowCount);
       end;
@@ -2180,15 +2209,29 @@ var
   FromSkew: Integer;
   RowCount: Integer;
   PixelCount: Integer;
-  Source: PAnsiChar;
   Line: PAnsiChar;
   RowInc: Integer;
   ColumnOffset: Integer;
-  BufSize: Integer;
+  TileSize: Integer;
+  TileRowSize: Integer;
+  iPlane,
+  nPlanes: Integer;
+  PtrArray: array of pointer;
+  BufPtr: Pointer;
+  TileOffset: Integer;
 
 begin
-  BufSize := TIFFTileSize(tif);
-  GetMem(Buffer, BufSize);
+  TileSize := TIFFTileSize(tif);
+  if ioSeparatePlanes in FImageProperties.Options then begin
+    GetMem(Buffer, TileSize * FImageProperties.SamplesPerPixel);
+    nPlanes := FImageProperties.SamplesPerPixel;
+    SetLength(PtrArray, FImageProperties.SamplesPerPixel);
+  end
+  else begin
+    GetMem(Buffer, TileSize);
+    nPlanes := 1;
+    SetLength(PtrArray, 1);
+  end;
   with FImageProperties do
   try
     TIFFGetField(tif, TIFFTAG_TILEWIDTH, @TileWidth);
@@ -2198,6 +2241,7 @@ begin
     else
       RowInc := -1;
 
+    TileRowSize := TIFFTileRowSize(tif);
     Row := 0;
     while Row < Height do
     begin
@@ -2210,40 +2254,56 @@ begin
       Column := 0;
       while Column < Width do
       begin
-        //TIFFReadTile(tif, Buffer, Column, Row, 0, 0);
-        TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, 0), Buffer, BufSize);
-        Pos := (Row mod TileHeight) * Integer(TIFFTileRowSize(tif));
-
-        Source := PAnsiChar(Buffer) + Pos;
+        Pos := (Row mod TileHeight) * TileRowSize;
+        if ioSeparatePlanes in Options then begin
+          // Image data is arrange in separate planes: We need to read a tile
+          // for each plane and thus use BitsPerSample for computing Offset/Increment.
+          for iPlane := 0 to nPlanes-1 do begin
+            BufPtr := PAnsiChar(Buffer)+iPlane*TileSize;
+            TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, iPlane), BufPtr, TileSize);
+            PtrArray[iPlane] := PAnsiChar(BufPtr) + Pos;
+          end;
+          TileOffset := Ceil(BitsPerSample * TileWidth / 8);
+        end
+        else begin
+          TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, 0), Buffer, TileSize);
+          PtrArray[0] := PAnsiChar(Buffer) + Pos;
+          TileOffset := Ceil(BitsPerPixel * TileWidth / 8);
+        end;
 
         Y := Row;
+        Counter := RowCount;
+        ColumnOffset := ColorManager.TargetBitsPerSample * ColorManager.TargetSamplesPerPixel * Column div 8;
         if Column + TileWidth > Width then
         begin
           // Tile is clipped horizontally.  Calculate visible portion and skewing factors.
           PixelCount := Width - Column;
           FromSkew := TileWidth - PixelCount;
-          Counter := RowCount;
-          ColumnOffset := ColorManager.TargetBitsPerSample * Column div 8;
+          if ioSeparatePlanes in Options then
+            TileOffset := Ceil(BitsPerSample * (PixelCount + FromSkew) / 8)
+          else
+            TileOffset := Ceil(BitsPerPixel * (PixelCount + FromSkew) / 8);
+
           while Counter > 0 do
           begin
             Line := Scanline[Y];
             Inc(Line, ColumnOffset);
-            ColorManager.ConvertRow([Source], Line, PixelCount, $FF);
-            Inc(Source, BitsPerPixel * (PixelCount + FromSkew) div 8);
+            ColorManager.ConvertRow(PtrArray, Line, PixelCount, $FF);
+            for iPlane := 0 to nPlanes-1 do
+              Inc(PAnsiChar(PtrArray[iPlane]), TileOffset);
             Inc(Y, RowInc);
             Dec(Counter);
           end;
         end
         else
         begin
-          Counter := RowCount;
-          ColumnOffset := ColorManager.TargetBitsPerSample * Column div 8;
           while Counter > 0 do
           begin
             Line := Scanline[Y];
             Inc(Line, ColumnOffset);
-            ColorManager.ConvertRow([Source], Line, TileWidth, $FF);
-            Inc(Source, BitsPerPixel * TileWidth div 8);
+            ColorManager.ConvertRow(PtrArray, Line, TileWidth, $FF);
+            for iPlane := 0 to nPlanes-1 do
+              Inc(PAnsiChar(PtrArray[iPlane]), TileOffset);
             Inc(Y, RowInc);
             Dec(Counter);
           end;
@@ -2369,72 +2429,13 @@ begin
           ColorManager.SourceColorScheme := ColorScheme;
           ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
           // Split loading image data depending on pixel depth.
-          if (SamplesPerPixel in [1, 2]) and (ColorScheme in [csIndexed, csG, csIndexedA, csGA]) then
-          begin
-            // Monochrome or palette images with 1, 2, 4, 8 and 16 bits per pixel.
-            // Now also supporting uncommon 3, 5..7, 9..15, 17..64 bits per pixel.
-            ColorManager.SourceBitsPerSample := BitsPerSample;
-            ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
-
-            // TargetBitsPerSample needs to correspond to the TargetPixelFormat
-            // or else the image will not be painted correctly.
-            if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
-              ColorManager.TargetBitsPerSample := 8
-            else if BitsPerSample in [2, 3, 4] then
-              ColorManager.TargetBitsPerSample := 4
-            else
-              // TODO (jb): explicitly set TargetBitsPerSample for each BitsPerSample
-              // and throw an error for values we don't support
-              ColorManager.TargetBitsPerSample := BitsPerSample;
-
-            if ioSeparatePlanes in Options then begin
-              ColorManager.TargetSamplesPerPixel := SamplesPerPixel - 1;
-              ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-            end
-            else
-              ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
-
-            // Monochrome images are handled just like indexed images (a gray scale palette is used).
-            ColorManager.TargetColorScheme := csindexed;
-            PixelFormat := ColorManager.TargetPixelFormat;
-            Self.Width := Width;
-            Self.Height := Height;
-
-            if ColorScheme = csIndexed then
-            begin
-              {$ifndef DELPHI_7_UP}
-                ExtraInfo.Value1 := @RedMap;
-                ExtraInfo.Value2 := @GreenMap;
-                ExtraInfo.Value3 := @BlueMap;
-                GotPalette := TIFFVGetField(TIFFImage, TIFFTAG_COLORMAP, @ExtraInfo);
-              {$else}
-                GotPalette := TIFFGetField(TIFFImage, TIFFTAG_COLORMAP, @RedMap, @GreenMap, @BlueMap);
-              {$endif DELPHI_7_UP}
-
-              if GotPalette > 0 then
-              begin
-                // TODO: Palette with more than 8 bits indexes should be converted to RGB images
-                // Because downscaling a palette is very complicated.
-                // Create the palette from the three maps.
-                Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
-              end
-              else // If there was no palette then use a grayscale palette.
-                Palette := ColorManager.CreateGrayscalePalette(False);
-            end
-            else
-            begin
-              // Gray scale image data.
-              Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
-            end;
-
-            StartProgressSection(0, gesLoadingData);
-            if ioTiled in Options then
-              ReadTiled(TIFFImage)
-            else
-              ReadContiguous(TIFFImage);
-            FinishProgressSection(False);
-          end
-          else
+          // ReadRGBA only handles 1, 2, 4, 8 and 16 bits per sample, however
+          // 1, 2 and 4 bits apparently only for Indexed/Grayscale
+          if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
+             (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
+             and not (ioSeparatePlanes in Options)) or
+             ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA])) then begin
+             // Generic RGBA reading interface
             if Height > 0 then
             begin
               // 3 or more samples per pixel are used for RGB(A), CMYK, L*a*b*, YCbCr etc.
@@ -2484,6 +2485,96 @@ begin
                 end;
               end;
             end;
+          end
+          else begin
+            // Monochrome and indexed with 1-64 bits per pixel including floating point
+            // RGB(A) 16, 32, 64 bits including floating point
+            // Strip, Tiles, contiguous and planar are all supported
+            ColorManager.SourceBitsPerSample := BitsPerSample;
+            ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+
+            // TargetBitsPerSample needs to correspond to the TargetPixelFormat
+            // or else the image will not be painted correctly.
+            if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
+              ColorManager.TargetBitsPerSample := 8
+            else if BitsPerSample in [2, 3, 4] then
+              ColorManager.TargetBitsPerSample := 4
+            else // 1 BitsPerSample, or values > 64 which we don't support and will throw an error
+              ColorManager.TargetBitsPerSample := BitsPerSample;
+
+            ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+
+            if ColorScheme in [csG, csGA, csIndexed, csIndexedA] then begin
+              // Monochrome images are handled just like indexed images (a gray scale palette is used).
+              if ioSeparatePlanes in Options then begin
+                // Only possible for Grayscale or Indexed with alpha.
+                // Since we're currently not handling the alpha in these cases
+                // we're going to remove planar and reduce SamplesPerPixel.
+                ColorManager.TargetSamplesPerPixel := SamplesPerPixel - 1;
+                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+              end;
+              ColorManager.TargetColorScheme := csIndexed;
+            end
+            else begin
+              // Assume we want BGR(A) for everything else
+              // TODO: For other color schemes than RBG(A) we might need to adjust
+              // other things like TargetSamplesPerPixel
+              if HasAlpha then
+                // Note that if we wanted to add alpha where the source doesn't
+                // have alpha we would need to add the next line:
+                // ColorManager.TargetSamplesPerPixel := 4;
+                ColorManager.TargetColorScheme := csBGRA
+              else
+                ColorManager.TargetColorScheme := csBGR;
+            end;
+
+            PixelFormat := ColorManager.TargetPixelFormat;
+            // TIFF can handle sizes larger than Max(Integer) on 32 bits
+            // We probably won't be able to handle the amount of memory needed
+            // but we will limit the loading to Max(Integer) in these cases.
+            if Width >= 0 then
+              Self.Width := Width
+            else
+              Self.Width := MaxInt;
+            if Height >= 0 then
+              Self.Height := Height
+            else
+              Self.Height := MaxInt;
+
+            if ColorScheme in [csIndexed, csIndexedA] then
+            begin
+              {$ifndef DELPHI_7_UP}
+                ExtraInfo.Value1 := @RedMap;
+                ExtraInfo.Value2 := @GreenMap;
+                ExtraInfo.Value3 := @BlueMap;
+                GotPalette := TIFFVGetField(TIFFImage, TIFFTAG_COLORMAP, @ExtraInfo);
+              {$else}
+                GotPalette := TIFFGetField(TIFFImage, TIFFTAG_COLORMAP, @RedMap, @GreenMap, @BlueMap);
+              {$endif DELPHI_7_UP}
+
+              if GotPalette > 0 then
+              begin
+                // TODO: Palette with more than 8 bits indexes should be converted to RGB images
+                // Because downscaling a palette is very complicated.
+                // Create the palette from the three maps.
+                Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
+              end
+              else // If there was no palette then use a grayscale palette.
+                Palette := ColorManager.CreateGrayscalePalette(False);
+            end
+            else if ColorScheme in [csG, csGA] then
+            begin
+              // Gray scale image data.
+              Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
+            end;
+
+            StartProgressSection(0, gesLoadingData);
+            if ioTiled in Options then
+              ReadTiled(TIFFImage)
+            else
+              ReadContiguous(TIFFImage);
+            FinishProgressSection(False);
+          end
         end;
       finally
         TIFFClose(TIFFImage);
