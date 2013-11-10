@@ -2433,7 +2433,7 @@ begin
           // 1, 2 and 4 bits apparently only for Indexed/Grayscale
           if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
              (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
-             and not (ioSeparatePlanes in Options)) or
+             and not (ioSeparatePlanes in Options) and not (ColorScheme in [csCMYK])) or
              ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA])) then begin
              // Generic RGBA reading interface
             if Height > 0 then
@@ -2526,6 +2526,9 @@ begin
                 ColorManager.TargetColorScheme := csBGRA
               else
                 ColorManager.TargetColorScheme := csBGR;
+              if ColorScheme = csCMYK then
+                // CMYK is using 4 samples without alpha where BGR/RGB has 3
+                ColorManager.TargetSamplesPerPixel := SamplesPerPixel-1;
             end;
 
             PixelFormat := ColorManager.TargetPixelFormat;
