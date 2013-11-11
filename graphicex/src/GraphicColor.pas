@@ -199,8 +199,9 @@ type
     csRGBA,       // RGB with alpha channel
     csBGR,        // RGB in reversed order.
     csBGRA,       // BGR with alpha channel.
-    csCMY,        // Cyan, agenta, yellow.
+    csCMY,        // Cyan, magenta, yellow.
     csCMYK,       // CMY with black.
+    csCMYKA,      // CMYK with alpha channel.
     csCIELab,     // CIE color format using luminance and chromaticities.
     csITULab,     // ITU L*a*b*
     csCIELog2L,   // CIE Log2(L)
@@ -2666,7 +2667,7 @@ begin
             end;
         end;
       end;
-    16: 
+    16:
       begin
         if Length(Source) = 1 then
         begin
@@ -2814,8 +2815,8 @@ procedure TColorManager.RowConvertCMYK2BGR(Source: array of Pointer; Target: Poi
 // Converts a stream of Count CMYK values to BGR
 
 var
-  C8, M8, Y8, K8: PByte;
-  C16, M16, Y16, K16: PWord;
+  C8, M8, Y8, K8, A8: PByte;
+  C16, M16, Y16, K16, A16: PWord;
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -2829,13 +2830,17 @@ begin
   case FSourceBPS of
     8:
       begin
-        if Length(Source) = 4 then
+        if Length(Source) in [4, 5] then
         begin
           // Plane mode
           C8 := Source[0];
           M8 := Source[1];
           Y8 := Source[2];
           K8 := Source[3];
+          if coAlpha in FSourceOptions then
+            A8 := Source[4]
+          else
+            A8 := nil;
           Increment := 1;
         end
         else
@@ -2845,7 +2850,14 @@ begin
           M8 := C8; Inc(M8);
           Y8 := M8; Inc(Y8);
           K8 := Y8; Inc(K8);
-          Increment := 4;
+          if coAlpha in FSourceOptions then begin
+            A8 := K8; Inc(A8);
+            Increment := 5;
+          end
+          else begin
+            A8 := nil;
+            Increment := 4;
+          end;
         end;
 
         case FTargetBPS of
@@ -2862,10 +2874,22 @@ begin
                   // green
                   Target8^ := ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^));
                   Inc(Target8);
-                  // blue
+                  // red
                   Target8^ := ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^));
-                  Inc(Target8, 1 + AlphaSkip);
-                  
+                  Inc(Target8);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target8^ := A8^;
+                      Inc(A8, Increment);
+                    end
+                    else begin
+                      // Add opaque $FF as alpha when source is without alpha
+                      Target8^ := $FF;
+                    end;
+                    Inc(Target8);
+                  end;
+
                   Inc(C8, Increment);
                   Inc(M8, Increment);
                   Inc(Y8, Increment);
@@ -2890,9 +2914,21 @@ begin
                   // green
                   Target16^ := MulDiv16(ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^)), 65535, 255);
                   Inc(Target16);
-                  // blue
+                  // red
                   Target16^ := MulDiv16(ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^)), 65535, 255);
-                  Inc(Target16, 1 + AlphaSkip);
+                  Inc(Target16);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target16^ := A8^ shr 8; // From max 255 to max 65535
+                      Inc(A8, Increment);
+                    end
+                    else begin
+                      // Add opaque $FFFF as alpha when source is without alpha
+                      Target16^ := $FFFF;
+                    end;
+                    Inc(Target16);
+                  end;
 
                   Inc(C8, Increment);
                   Inc(M8, Increment);
@@ -2909,13 +2945,17 @@ begin
       end;
     16:
       begin
-        if Length(Source) = 4 then
+        if Length(Source) in [4, 5] then
         begin
           // Plane mode
           C16 := Source[0];
           M16 := Source[1];
           Y16 := Source[2];
           K16 := Source[3];
+          if coAlpha in FSourceOptions then
+            A16 := Source[4]
+          else
+            A16 := nil;
           Increment := 1;
         end
         else
@@ -2925,7 +2965,14 @@ begin
           M16 := C16; Inc(M16);
           Y16 := M16; Inc(Y16);
           K16 := Y16; Inc(K16);
-          Increment := 4;
+          if coAlpha in FSourceOptions then begin
+            A16 := K16; Inc(A16);
+            Increment := 5;
+          end
+          else begin
+            A16 := nil;
+            Increment := 4;
+          end;
         end;
 
         case FTargetBPS of
@@ -2942,9 +2989,21 @@ begin
                   // green
                   Target8^ := ClampByte(255 - MulDiv16((M16^ - MulDiv16(M16^, K16^, 65535) + K16^), 255, 65535));
                   Inc(Target8);
-                  // blue
+                  // red
                   Target8^ := ClampByte(255 - MulDiv16((C16^ - MulDiv16(C16^, K16^, 65535) + K16^), 255, 65535));
-                  Inc(Target8, 1 + AlphaSkip);
+                  Inc(Target8);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target8^ := A16^ shl 8; // From max 65535 to max 255
+                      Inc(A16, Increment);
+                    end
+                    else begin
+                      // Add opaque $FF as alpha when source is without alpha
+                      Target8^ := $FF;
+                    end;
+                    Inc(Target8);
+                  end;
 
                   Inc(C16, Increment);
                   Inc(M16, Increment);
@@ -2972,7 +3031,19 @@ begin
                   Inc(Target16);
                   // blue
                   Target16^ := 65535 - (C16^ - MulDiv16(C16^, K16^, 65535) + K16^);
-                  Inc(Target16, 1 + AlphaSkip);
+                  Inc(Target16);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target16^ := A16^;
+                      Inc(A16, Increment);
+                    end
+                    else begin
+                      // Add opaque $FFFF as alpha when source is without alpha
+                      Target16^ := $FFFF;
+                    end;
+                    Inc(Target16);
+                  end;
 
                   Inc(C16, Increment);
                   Inc(M16, Increment);
@@ -2997,8 +3068,8 @@ procedure TColorManager.RowConvertCMYK2RGB(Source: array of Pointer; Target: Poi
 // Converts a stream of Count CMYK values to RGB,
 
 var
-  C8, M8, Y8, K8: PByte;
-  C16, M16, Y16, K16: PWord;
+  C8, M8, Y8, K8, A8: PByte;
+  C16, M16, Y16, K16, A16: PWord;
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -3012,13 +3083,17 @@ begin
   case FSourceBPS of
     8:
       begin
-        if Length(Source) = 4 then
+        if Length(Source) in [4, 5] then
         begin
           // Plane mode
           C8 := Source[0];
           M8 := Source[1];
           Y8 := Source[2];
           K8 := Source[3];
+          if coAlpha in FSourceOptions then
+            A8 := Source[4]
+          else
+            A8 := nil;
           Increment := 1;
         end
         else
@@ -3028,7 +3103,14 @@ begin
           M8 := C8; Inc(M8);
           Y8 := M8; Inc(Y8);
           K8 := Y8; Inc(K8);
-          Increment := 4;
+          if coAlpha in FSourceOptions then begin
+            A8 := K8; Inc(A8);
+            Increment := 5;
+          end
+          else begin
+            A8 := nil;
+            Increment := 4;
+          end;
         end;
 
         case FTargetBPS of
@@ -3047,8 +3129,20 @@ begin
                   Inc(Target8);
                   // blue
                   Target8^ := ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^));
-                  Inc(Target8, 1 + AlphaSkip);
-                  
+                  Inc(Target8);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target8^ := A8^;
+                      Inc(A8, Increment);
+                    end
+                    else begin
+                      // Add opaque $FF as alpha when source is without alpha
+                      Target8^ := $FF
+                    end;
+                    Inc(Target8);
+                  end;
+
                   Inc(C8, Increment);
                   Inc(M8, Increment);
                   Inc(Y8, Increment);
@@ -3075,7 +3169,19 @@ begin
                   Inc(Target16);
                   // blue
                   Target16^ := MulDiv16(ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^)), 65535, 255);
-                  Inc(Target16, 1 + AlphaSkip);
+                  Inc(Target16);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target16^ := A8^ shr 8; // From max 255 to max 65535
+                      Inc(A8, Increment);
+                    end
+                    else begin
+                      // Add opaque $FFFF as alpha when source is without alpha
+                      Target16^ := $FFFF;
+                    end;
+                    Inc(Target16);
+                  end;
 
                   Inc(C8, Increment);
                   Inc(M8, Increment);
@@ -3092,13 +3198,17 @@ begin
       end;
     16:
       begin
-        if Length(Source) = 4 then
+        if Length(Source) in [4, 5] then
         begin
           // Plane mode
           C16 := Source[0];
           M16 := Source[1];
           Y16 := Source[2];
           K16 := Source[3];
+          if coAlpha in FSourceOptions then
+            A16 := Source[4]
+          else
+            A16 := nil;
           Increment := 1;
         end
         else
@@ -3108,7 +3218,14 @@ begin
           M16 := C16; Inc(M16);
           Y16 := M16; Inc(Y16);
           K16 := Y16; Inc(K16);
-          Increment := 4;
+          if coAlpha in FSourceOptions then begin
+            A16 := K16; Inc(A16);
+            Increment := 5;
+          end
+          else begin
+            A16 := nil;
+            Increment := 4;
+          end;
         end;
 
         case FTargetBPS of
@@ -3127,7 +3244,19 @@ begin
                   Inc(Target8);
                   // blue
                   Target8^ := ClampByte(255 - MulDiv16((Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^), 255, 65535));
-                  Inc(Target8, 1 + AlphaSkip);
+                  Inc(Target8);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target8^ := A16^ shl 8; // From max 65535 to max 255
+                      Inc(A16, Increment);
+                    end
+                    else begin
+                      // Add opaque $FF as alpha when source is without alpha
+                      Target8^ := $FF;
+                    end;
+                    Inc(Target8);
+                  end;
 
                   Inc(C16, Increment);
                   Inc(M16, Increment);
@@ -3155,7 +3284,19 @@ begin
                   Inc(Target16);
                   // blue
                   Target16^ := 65535 - (Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^);
-                  Inc(Target16, 1 + AlphaSkip);
+                  Inc(Target16);
+
+                  if coAlpha in FTargetOptions then begin
+                    if coAlpha in FSourceOptions then begin
+                      Target16^ := A16^;
+                      Inc(A16, Increment);
+                    end
+                    else begin
+                      // Add opaque $FFFF as alpha when source is without alpha
+                      Target16^ := $FFFF;
+                    end;
+                    Inc(Target16);
+                  end;
 
                   Inc(C16, Increment);
                   Inc(M16, Increment);
@@ -5942,12 +6083,12 @@ begin
     ShowError(gesIndexedNotSupported);
 
   // Set up special conversion options
-  if FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA] then
+  if FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA, csCMYKA] then
     Include(FSourceOptions, coAlpha)
   else
     Exclude(FSourceOptions, coAlpha);
 
-  if FTargetScheme in [csGA, csIndexedA, csRGBA, csBGRA] then
+  if FTargetScheme in [csGA, csIndexedA, csRGBA, csBGRA, csCMYKA] then
     Include(FTargetOptions, coAlpha)
   else
     Exclude(FTargetOptions, coAlpha);
@@ -5994,6 +6135,7 @@ begin
         csBGRA: FRowConversion := RowConvertRGB2BGR;
         csCMY: ;
         csCMYK: ;
+        csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
       end;
@@ -6006,6 +6148,7 @@ begin
         csBGRA: FRowConversion := RowConvertBGR2BGR;
         csCMY: ;
         csCMYK: ;
+        csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
       end;
@@ -6017,10 +6160,12 @@ begin
         csBGRA: ;
         csCMY: ;
         csCMYK: ;
+        csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
       end;
-    csCMYK:
+    csCMYK,
+    csCMYKA:
       case FTargetScheme of
         csRGB,
         csRGBA: FRowConversion := RowConvertCMYK2RGB;
@@ -6028,6 +6173,7 @@ begin
         csBGRA: FRowConversion := RowConvertCMYK2BGR;
         csCMY: ;
         csCMYK: ;
+        csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
       end;
@@ -6039,6 +6185,7 @@ begin
         csBGRA: FRowConversion := RowConvertCIELab2BGR;
         csCMY: ;
         csCMYK: ;
+        csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
       end;
@@ -6053,6 +6200,7 @@ begin
           csBGRA: FRowConversion := RowConvertYCbCr2BGR;
           csCMY: ;
           csCMYK: ;
+          csCMYKA: ;
           csCIELab: ;
           csYCbCr: ;
         end;
@@ -6068,6 +6216,7 @@ begin
           csBGRA: FRowConversion := RowConvertPhotoYCC2BGR;
           csCMY: ;
           csCMYK: ;
+          csCMYKA: ;
           csCIELab: ;
           csYCbCr: ;
         end;
@@ -6107,7 +6256,7 @@ end;
 procedure TColorManager.SetSourceSamplesPerPixel(const Value: Byte);
 
 begin
-  if not (Value in [1..4]) then
+  if not (Value in [1..5]) then
     ShowError(gesInvalidPixelDepth);
   if FSourceSPP <> Value then
   begin
