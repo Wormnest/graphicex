@@ -1924,7 +1924,7 @@ begin
                     TargetRunA8.B := Convert8_8(SourceB8^);
                     // alpha values are never gamma corrected
                     TargetRunA8.A := SourceA8^;
-                  
+
                     Inc(SourceB8, SourceIncrement);
                     Inc(SourceG8, SourceIncrement);
                     Inc(SourceR8, SourceIncrement);
@@ -2186,6 +2186,8 @@ begin
             end;
         end;
       end;
+    1..7: ;
+    9..15: ;
   end;
 end;
 
@@ -3956,7 +3958,7 @@ end;
 procedure TColorManager.RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // Converts RGB source schemes to BGR target schemes and takes care for byte swapping, alpha copy/skip and
-// gamma correction. 
+// gamma correction.
 
 var
   SourceR16,
@@ -3964,6 +3966,7 @@ var
   SourceB16,
   SourceA16: PWord;
 
+  Source8,
   SourceR8,
   SourceG8,
   SourceB8,
@@ -3979,6 +3982,7 @@ var
   SourceB64,
   SourceA64: PUint64;
 
+  Target8: PByte;
   TargetRun16: PBGR16;
   TargetRunA16: PBGRA16;
   TargetRun8: PBGR;
@@ -3993,10 +3997,23 @@ var
   Convert32_8Alpha: function(Value: LongWord): Byte of object;
   Convert64_8: function(Value: UInt64): Byte of object;
   Convert64_8Alpha: function(Value: UInt64): Byte of object;
+  // Convert up to 16 bits to 8 bits
+  ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
+  ConvertAny32To8: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
+  ConvertAny64To8: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
   CopyAlpha: Boolean;
+
+  Bits,
+  BitOffset,
+  BitIncrement: Cardinal;
+  BitOffsetR,
+  BitOffsetG,
+  BitOffsetB,
+  BitOffsetA: Cardinal;
+  AlphaSkip: Cardinal;
 
 begin
   BitRun := $80;
@@ -4010,6 +4027,7 @@ begin
     TargetIncrement := SizeOf(TRGB);
     if coAlpha in FTargetOptions then
       CopyAlpha := True;
+    AlphaSkip := 1;
   end
   else
   begin
@@ -4018,6 +4036,7 @@ begin
       TargetIncrement := SizeOf(TRGBA)
     else
       TargetIncrement := SizeOf(TRGB);
+    AlphaSkip := 0;
   end;
   // In planar mode source increment is always 1
   if Length(Source) > 1 then
@@ -4352,8 +4371,6 @@ begin
             end;
         end;
       end;
-    24: // TODO: 24-bits float
-      ;
     32: // 32-bits float or 32 bits (un)signed integer.
         // Currently only conversion to 8 bits supported.
       begin
@@ -4571,6 +4588,286 @@ begin
             end;
         end;
       end;
+    1..7,
+    9..15:
+      begin
+        // Currently only supporting conversion to 8 bpp target.
+        // Target 1 and 4 bits would need palette handling.
+        // Mask parameter not supported here since I'm not sure how to correctly
+        // implement it here and no material to test it on.
+
+        // Set source data pointers.
+        if Length(Source) = 1 then
+        begin
+          // Interleaved mode
+          Source8 := Source[0];
+        end
+        else
+        begin
+          // Planar mode
+          SourceR8 := Source[0];
+          SourceG8 := Source[1];
+          SourceB8 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA8 := Source[3]
+          else
+            SourceA8 := nil;
+        end;
+
+        BitIncrement := FSourceBPS;
+        case FTargetBPS of
+          8: // ... to 888
+            begin
+              Target8 := Target;
+              case FSourceBPS of
+                 6: ConvertAny16To8 := ComponentScaleConvert6To8;
+                10: ConvertAny16To8 := ComponentScaleConvert10To8;
+                12: ConvertAny16To8 := ComponentScaleConvert12To8;
+                14: ConvertAny16To8 := ComponentScaleConvert14To8;
+              else
+                ConvertAny16To8 := ComponentScaleConvertUncommonTo8;
+              end;
+
+              if Length(Source) = 1 then begin
+                 // Interleaved
+                BitOffset := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PBGRA(Target8)^.A := ConvertAny16To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PBGRA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end
+              else begin
+                // Planar mode
+                BitOffsetR := 0;
+                BitOffsetG := 0;
+                BitOffsetB := 0;
+                BitOffsetA := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  PBGR(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetR, BitIncrement);
+                  Inc( SourceR8, BitOffsetR div 8 );
+                  BitOffsetR := BitOffsetR mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  PBGR(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetG, BitIncrement);
+                  Inc( SourceG8, BitOffsetG div 8 );
+                  BitOffsetG := BitOffsetG mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  PBGR(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetB, BitIncrement);
+                  Inc( SourceB8, BitOffsetB div 8 );
+                  BitOffsetB := BitOffsetB mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetA, BitIncrement);
+                    Inc( SourceA8, BitOffsetA div 8 );
+                    BitOffsetA := BitOffsetA mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PBGRA(Target8)^.A := ConvertAny16To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PBGRA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end;
+            end;
+        end; // case
+      end;
+    17..31: // TODO include support for 24 bits float
+      begin
+        // Currently only supporting conversion to 8 bpp target.
+        // Mask parameter not supported here since I'm not sure how to correctly
+        // implement it here and no material to test it on.
+
+        // Set source data pointers.
+        if Length(Source) = 1 then
+        begin
+          // Interleaved mode
+          Source8 := Source[0];
+        end
+        else
+        begin
+          // Planar mode
+          SourceR8 := Source[0];
+          SourceG8 := Source[1];
+          SourceB8 := Source[2];
+          if coAlpha in FSourceOptions then
+            SourceA8 := Source[3]
+          else
+            SourceA8 := nil;
+        end;
+
+        BitIncrement := FSourceBPS;
+        case FTargetBPS of
+          8: // ... to 888
+            begin
+              Target8 := Target;
+              ConvertAny32To8 := ComponentScaleConvert17_24To8;
+
+              if Length(Source) = 1 then begin
+                 // Interleaved
+                BitOffset := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PBGR(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PBGRA(Target8)^.A := ConvertAny32To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PBGRA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end
+              else begin
+                // Planar mode
+                BitOffsetR := 0;
+                BitOffsetG := 0;
+                BitOffsetB := 0;
+                BitOffsetA := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetR, BitIncrement);
+                  Inc( SourceR8, BitOffsetR div 8 );
+                  BitOffsetR := BitOffsetR mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  PBGR(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetG, BitIncrement);
+                  Inc( SourceG8, BitOffsetG div 8 );
+                  BitOffsetG := BitOffsetG mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  PBGR(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetB, BitIncrement);
+                  Inc( SourceB8, BitOffsetB div 8 );
+                  BitOffsetB := BitOffsetB mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetA, BitIncrement);
+                    Inc( SourceA8, BitOffsetA div 8 );
+                    BitOffsetA := BitOffsetA mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PBGRA(Target8)^.A := ConvertAny32To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PBGRA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end;
+            end;
+        end; // case
+      end;
+    33..63: ;
   end;
 end;
 

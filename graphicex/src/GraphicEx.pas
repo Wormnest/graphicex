@@ -2493,17 +2493,18 @@ begin
             ColorManager.SourceBitsPerSample := BitsPerSample;
             ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
 
-            // TargetBitsPerSample needs to correspond to the TargetPixelFormat
-            // or else the image will not be painted correctly.
-            if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
-              ColorManager.TargetBitsPerSample := 8
-            else if BitsPerSample in [2, 3, 4] then
-              ColorManager.TargetBitsPerSample := 4
-            else // 1 BitsPerSample, or values > 64 which we don't support and will throw an error
-              ColorManager.TargetBitsPerSample := BitsPerSample;
-
             if ColorScheme in [csG, csGA, csIndexed, csIndexedA] then begin
               // Monochrome images are handled just like indexed images (a gray scale palette is used).
+
+              // TargetBitsPerSample needs to correspond to the TargetPixelFormat
+              // or else the image will not be painted correctly.
+              if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
+                ColorManager.TargetBitsPerSample := 8
+              else if BitsPerSample in [2, 3, 4] then
+                ColorManager.TargetBitsPerSample := 4
+              else // 1 BitsPerSample, or values > 64 which we don't support and will throw an error
+                ColorManager.TargetBitsPerSample := BitsPerSample;
+
               ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
               if ioSeparatePlanes in Options then begin
                 // Only possible for Grayscale or Indexed with alpha.
@@ -2516,6 +2517,13 @@ begin
             end
             else begin
               // Assume we want BGR(A) for everything else
+
+              // TargetBitsPerSample needs to correspond to the TargetPixelFormat
+              // or else the image will not be painted correctly.
+              // For BGR/RGB  we are always converting to 8 bits
+              // since target 1, 4 bits would need palette handling.
+              ColorManager.TargetBitsPerSample := 8;
+
               if ColorScheme in [csCMYK, csCMYKA] then
                 // CMYK is using 4 samples without alpha where BGR/RGB has 3
                 ColorManager.TargetSamplesPerPixel := SamplesPerPixel-1
