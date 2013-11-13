@@ -1323,10 +1323,7 @@ function TColorManager.ComponentScaleConvert32To8(Value: LongWord; BitsPerSample
 begin
   // Convert/scale up or down from 32 bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
-  // Note: I'm not sure why we need 32 here since we should leave  the hight 8 bits in.
-  // I expected that we needed to shift by 24 since that's the value we also use
-  // in the functions above (BitsPerSample-8).
-  Result := Value shr 32;
+  Result := Value shr 24;
 end;
 
 function TColorManager.ComponentScaleConvert32To8(Value: LongWord): Byte;
@@ -1356,7 +1353,11 @@ function TColorManager.ComponentScaleConvert64To8(Value: UInt64): Byte;
 begin
   // Convert/scale up or down from 64 bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
-  Result := Byte(Value shr 56);
+  // Note Delphi 6 has only signed Int64 (which we are hiding here by using our
+  // own defined UInt64 = Int64). Shifting for Int64 preserves sign which means
+  // we can't use normal shr 56 for 64 bits. However since shifting in this case
+  // just returns the highest order byte as result we just grab that byte.
+  Result := PByteArray(@Value)^[7];
 end;
 
 // WARNING: Currently assuming values between 0.0 and 1.0!
@@ -3332,10 +3333,26 @@ var remaining_quantum_bits,
     octet_bits,
     bits_remaining,
     quantum: Cardinal;
+    ShiftBits: Cardinal;
 begin
+  quantum := 0;
+  if (BitIndex = 0) and (NumberOfBits mod 8 = 0) then begin
+    // TODO: It would be better for speed to split this case off in a separate
+    // function and determine once in the caller what function to use based on
+    // the number of bits per sample!
+    // Most common and simple case
+    ShiftBits := 0;
+    while NumberOfBits <> 0 do begin
+      quantum := quantum or BitData^ shl ShiftBits;
+      Inc(BitData);
+      Inc(ShiftBits, 8);
+      Dec(NumberOfBits, 8);
+    end;
+    Result := quantum;
+    Exit;
+  end;
   remaining_quantum_bits := NumberOfBits;
   bits_remaining := 8-BitIndex;
-  quantum := 0;
   while (remaining_quantum_bits <> 0) do begin
     octet_bits := remaining_quantum_bits;
     if octet_bits > bits_remaining then
@@ -3366,10 +3383,33 @@ var remaining_quantum_bits,
     octet_bits,
     bits_remaining: Cardinal;
     quantum: UInt64;
+    ShiftBits: Cardinal;
 begin
+  quantum := 0;
+  if (BitIndex = 0) and (NumberOfBits mod 8 = 0) then begin
+    // TODO: It would be better for speed to split this case off in a separate
+    // function and determine once in the caller what function to use based on
+    // the number of bits per sample!
+    // Most common and simple case
+    if NumberOfBits < 64 then begin
+      ShiftBits := 0;
+      while NumberOfBits <> 0 do begin
+        quantum := quantum or BitData^ shl ShiftBits;
+        Inc(BitData);
+        Inc(ShiftBits, 8);
+        Dec(NumberOfBits, 8);
+      end;
+    end
+    else begin
+      // Delphi 6 doesn't have unsigned Int64, can't use shifting because it preserves sign
+      // Thus we just return the 8 bytes here.
+      quantum := PUInt64(BitData)^;
+    end;
+    Result := quantum;
+    Exit;
+  end;
   remaining_quantum_bits := NumberOfBits;
   bits_remaining := 8-BitIndex;
-  quantum := 0;
   while (remaining_quantum_bits <> 0) do begin
     octet_bits := remaining_quantum_bits;
     if octet_bits > bits_remaining then
