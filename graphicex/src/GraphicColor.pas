@@ -4596,24 +4596,6 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        // Set source data pointers.
-        if Length(Source) = 1 then
-        begin
-          // Interleaved mode
-          Source8 := Source[0];
-        end
-        else
-        begin
-          // Planar mode
-          SourceR8 := Source[0];
-          SourceG8 := Source[1];
-          SourceB8 := Source[2];
-          if coAlpha in FSourceOptions then
-            SourceA8 := Source[3]
-          else
-            SourceA8 := nil;
-        end;
-
         BitIncrement := FSourceBPS;
         case FTargetBPS of
           8: // ... to 888
@@ -4630,6 +4612,7 @@ begin
 
               if Length(Source) = 1 then begin
                  // Interleaved
+                Source8 := Source[0];
                 BitOffset := 0;
                 while Count > 0 do
                 begin
@@ -4679,6 +4662,13 @@ begin
               end
               else begin
                 // Planar mode
+                SourceR8 := Source[0];
+                SourceG8 := Source[1];
+                SourceB8 := Source[2];
+                if coAlpha in FSourceOptions then
+                  SourceA8 := Source[3]
+                else
+                  SourceA8 := nil;
                 BitOffsetR := 0;
                 BitOffsetG := 0;
                 BitOffsetB := 0;
@@ -4738,24 +4728,6 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        // Set source data pointers.
-        if Length(Source) = 1 then
-        begin
-          // Interleaved mode
-          Source8 := Source[0];
-        end
-        else
-        begin
-          // Planar mode
-          SourceR8 := Source[0];
-          SourceG8 := Source[1];
-          SourceB8 := Source[2];
-          if coAlpha in FSourceOptions then
-            SourceA8 := Source[3]
-          else
-            SourceA8 := nil;
-        end;
-
         BitIncrement := FSourceBPS;
         case FTargetBPS of
           8: // ... to 888
@@ -4765,6 +4737,7 @@ begin
 
               if Length(Source) = 1 then begin
                  // Interleaved
+                Source8 := Source[0];
                 BitOffset := 0;
                 while Count > 0 do
                 begin
@@ -4814,6 +4787,13 @@ begin
               end
               else begin
                 // Planar mode
+                SourceR8 := Source[0];
+                SourceG8 := Source[1];
+                SourceB8 := Source[2];
+                if coAlpha in FSourceOptions then
+                  SourceA8 := Source[3]
+                else
+                  SourceA8 := nil;
                 BitOffsetR := 0;
                 BitOffsetG := 0;
                 BitOffsetB := 0;
