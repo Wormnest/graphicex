@@ -11,7 +11,7 @@ unit LibTiffDelphi;
 interface
 
 uses
-  Windows, Classes;
+  Windows, SysUtils, Classes;
 
 const
   LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Delphi'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
@@ -540,6 +540,7 @@ const
   FIELD_CUSTOM                          = 65;
 
 type
+  ELibJpegError = class(Exception);
 
   PTIFF = Pointer;
   PTIFFRGBAImage = Pointer;
@@ -859,7 +860,7 @@ function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 implementation
 
 uses
-  SysUtils, LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
+  LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
 
 var
   _TIFFwarningHandler: TIFFErrorHandler;
@@ -1370,7 +1371,7 @@ function  TIFFInitCCITTFax3(tif: PTIFF; scheme: Integer): Integer; cdecl; extern
 
 procedure TIFFjpeg_error_exit_raise; cdecl;
 begin
-  raise Exception.Create('TIFF: Error in jpeg');
+  raise ELibJpegError.Create('LibTiff: Error in jpeg!');
 end;
 
 function TIFFcallvjpeg_jpeg_CreateCompress(cinfo: Pointer; version: Integer; structsize: Cardinal): Integer; cdecl;
