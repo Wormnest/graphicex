@@ -2434,7 +2434,7 @@ begin
           if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
              (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
              and not (ioSeparatePlanes in Options) and not (ColorScheme in [csCMYK, csCMYKA])) or
-             ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA])) then begin
+             ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA, csCIELab])) then begin
              // Generic RGBA reading interface
             if (Height > 0) and (Width > 0) then
             begin
@@ -2527,11 +2527,6 @@ begin
               // since target 1, 4 bits would need palette handling.
               ColorManager.TargetBitsPerSample := 8;
 
-              if ColorScheme in [csCMYK, csCMYKA] then
-                // CMYK is using 4 samples without alpha where BGR/RGB has 3
-                ColorManager.TargetSamplesPerPixel := SamplesPerPixel-1
-              else
-                ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
               if HasAlpha then
                 // Note that if we wanted to add alpha where the source doesn't
                 // have alpha we would need to add the next line:
@@ -2539,6 +2534,32 @@ begin
                 ColorManager.TargetColorScheme := csBGRA
               else
                 ColorManager.TargetColorScheme := csBGR;
+
+              case ColorScheme of
+                csCMYK, csCMYKA:
+                  // CMYK(A) is using 4(5) samples without alpha where BGR/RGB has 3
+                  ColorManager.TargetSamplesPerPixel := SamplesPerPixel-1;
+                csCIELab:
+                  begin
+                    if SamplesPerPixel >= 3 then begin
+                      // Currently not used since it seems our CIELAB to BGR conversion
+                      // seems to be more red than libtif's conversion and IrfanView.
+                      // Investigate if and how we can use libtif's own conversion functions.
+                      ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+                      ColorManager.SourceOptions := ColorManager.SourceOptions +
+                        [coLabByteRange];
+                    end
+                    else begin
+                      ColorManager.TargetSamplesPerPixel := 1;
+                      ColorManager.TargetColorScheme := csG;
+                      // The one example I have has a range from light=1 to dark= 254
+                      // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
+                      Include(Options, ioMinIsWhite);
+                    end;
+                  end;
+              else
+                ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+              end;
             end;
 
             PixelFormat := ColorManager.TargetPixelFormat;
@@ -2584,7 +2605,7 @@ begin
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);
             end
-            else if ColorScheme in [csG, csGA] then
+            else if (ColorScheme in [csG, csGA]) or (ColorManager.TargetColorScheme in [csG, csGA]) then
             begin
               // Gray scale image data.
               Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);

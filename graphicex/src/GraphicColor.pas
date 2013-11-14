@@ -6746,6 +6746,8 @@ begin
         csCMYKA: ;
         csCIELab: ;
         csYCbCr: ;
+        csG,
+        csGA: FRowConversion := RowConvertGray;
       end;
     csYCbCr:
       begin
