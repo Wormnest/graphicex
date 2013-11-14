@@ -94,13 +94,17 @@ resourcestring
   gesPSPFileType = 'File versions other than 3 or 4 are';
 
   // color manager error messages
-  gesIndexedNotSupported = 'Conversion between indexed and non-indexed pixel formats is not supported.';
+  gesIndexedNotSupported = 'Conversion from non-indexed to indexed pixel formats is not supported.';
+  gesGrayscale2NonIndexedNotSupported = 'Conversion between grayscale and non-indexed pixel formats is not supported.';
   gesConversionUnsupported = 'Color conversion failed. Could not find a proper method.';
   gesInvalidSampleDepth = 'Color depth has invalid or unsupported bits per sample.';
   gesInvalidPixelDepth = 'Sample count per pixel does not correspond to the given color scheme.';
   gesInvalidSubSampling = 'Subsampling value is invalid. Allowed are 1, 2 and 4.';
   gesVerticalSubSamplingError = 'Vertical subsampling value must be <= horizontal subsampling value.';
   gesDataFormatNotSupported = 'Unsupported or unknown pixel data format';
+  gesSourcePaletteUndefined = 'Source palette data has not been set.';
+  gesPaletteFormatConversionUnsupported = 'Conversion is not supported for this palette format.';
+  gesIncorrectPaletteDataCount = 'Incorrect amount of palette data for this palette format.';
 
   // progress strings
   gesPreparing = 'Preparing...';

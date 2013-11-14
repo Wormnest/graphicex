@@ -2564,10 +2564,19 @@ begin
 
               if GotPalette > 0 then
               begin
-                // TODO: Palette with more than 8 bits indexes should be converted to RGB images
-                // Because downscaling a palette is very complicated.
-                // Create the palette from the three maps.
-                Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
+                if BitsPerSample in [9..16] then begin
+                  // Palette images with more than 8 bits per sample are converted
+                  // to RGB since Windows palette can have a maximum of 8 bits (256) entries
+                  // ans downscaling a palette is very complicated.
+                  ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
+                  ColorManager.TargetColorScheme := csBGR; // TODO: Also support alpha if HasAlpha!
+                  ColorManager.TargetBitsPerSample := 8;
+                  ColorManager.TargetSamplesPerPixel := 3;
+                  PixelFormat := ColorManager.TargetPixelFormat;
+                end
+                else
+                  // Create the palette from the three maps.
+                  Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
               end
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);

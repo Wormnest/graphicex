@@ -267,6 +267,9 @@ type
     FCrToGreenTable,
     FCbToGreenTable: array of Integer;
 
+    FSourcePaletteFormat: TRawPaletteFormat; // Format of palette data
+    FSourcePaletteData: array of Pointer;    // Pointer(s) to palette data
+
     FSourceDataFormat,
     FTargetDataFormat: TSampleDataFormat;
     FSourceScheme,
@@ -316,6 +319,7 @@ type
     procedure RowConvertIndexedBoth16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertIndexedSource16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertIndexedTarget16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertRGB2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertPhotoYCC2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -344,6 +348,7 @@ type
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
+    procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
 
     property SourceBitsPerSample: Byte read FSourceBPS write SetSourceBitsPerSample;
     property SourceColorScheme: TColorScheme read FSourceScheme write SetSourceColorScheme;
@@ -3995,6 +4000,111 @@ end;
 
 //------------------------------------------------------------------------------
 
+// Convert Indexed to BGR.
+// Source Palette data and format should have been set using SetSourcePalette.
+// Index 0 in palette data should contain the red channel, 1 = green, 2 = blue.
+// Palette channel data as expected from TIF is always 16 bits.
+// Mask is currently ignored here.
+procedure TColorManager.RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+var
+  PalIndex8: Byte;
+  PalIndex: Cardinal;
+  SourceRun8: PByte;
+  SourceRun16: PWord;
+  TargetRun8: PBGR;
+  BitOffset: Cardinal;
+begin
+  if Length(Source) = 0 then begin
+    ShowError(gesSourcePaletteUndefined);
+    Exit;
+  end;
+  case FSourcePaletteFormat of
+    pfPlane16Triple,
+    pfPlane16Quad:
+      if ((FSourcePaletteFormat = pfPlane16Triple) and (Length(FSourcePaletteData) <> 3)) or
+         ((FSourcePaletteFormat = pfPlane16Quad) and (Length(FSourcePaletteData) <> 4)) then begin
+        ShowError(gesIncorrectPaletteDataCount);
+      end
+      else begin
+        case FSourceBPS of
+          8:
+            begin
+              SourceRun8 := Source[0]; // Palette indexes
+              TargetRun8 := Target;
+
+              while Count > 0 do
+              begin
+                // Get palette index
+                PalIndex8 := SourceRun8^;
+
+                // Store color info from palette index in Target
+                TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex8]);
+                TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex8]);
+                TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex8]);
+                Inc(SourceRun8);
+                Inc(TargetRun8);
+
+                Dec(Count);
+              end;
+            end;
+          16:
+            begin
+              SourceRun16 := Source[0]; // Palette indexes
+              TargetRun8 := Target;
+
+              while Count > 0 do
+              begin
+                // Get palette index
+                if coNeedByteSwap in FSourceOptions then
+                  PalIndex := Swap(SourceRun16^)
+                else
+                  PalIndex := SourceRun16^;
+
+                // Store color info from palette index in Target
+                TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex]);
+                TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex]);
+                TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex]);
+                Inc(SourceRun16);
+                Inc(TargetRun8);
+
+                Dec(Count);
+              end;
+            end;
+          1..7,
+          9..15: // Uncommon and unlikely to encounter
+            begin
+              SourceRun16 := Source[0]; // Palette indexes
+              TargetRun8 := Target;
+
+              BitOffset := 0;
+              while Count > 0 do
+              begin
+                // Get palette index
+                PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun16));
+
+                // Update the bit and byte pointers
+                Inc(BitOffset, FSourceBPS);
+                Inc( PByte(SourceRun16), BitOffset div 8 );
+                BitOffset := BitOffset mod 8;
+
+                // Store color info from palette index in Target
+                TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex]);
+                TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex]);
+                TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex]);
+                Inc(TargetRun8);
+
+                Dec(Count);
+              end;
+            end;
+        end;
+      end;
+  else
+    ShowError(gesPaletteFormatConversionUnsupported);
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
 procedure TColorManager.RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // Converts RGB source schemes to BGR target schemes and takes care for byte swapping, alpha copy/skip and
@@ -6393,10 +6503,13 @@ procedure TColorManager.PrepareConversion;
 begin
   FRowConversion := nil;
 
-  // Conversion between indexed and non-indexed formats is not supported as well as
-  // between source BPS < 8 and target BPS > 8.
+  // Grayscale conversion to non indexed is not yet supported.
   // csGA and csG (grayscale w and w/o alpha) are considered being indexed modes
-  if (FSourceScheme in [csIndexed, csIndexedA, csG, csGA]) xor (FTargetScheme  in [csIndexed, csG]) then
+  if (FSourceScheme in [csG, csGA]) and not (FTargetScheme  in [csG, csGA, csIndexed, csIndexedA]) then
+    ShowError(gesGrayscale2NonIndexedNotSupported);
+
+  // Conversion of non indexed to indexed is also not supported.
+  if (FTargetScheme in [csIndexed, csIndexedA]) and not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
     ShowError(gesIndexedNotSupported);
 
   // Set up special conversion options
@@ -6422,19 +6535,30 @@ begin
         FRowConversion := RowConvertGray;
     csIndexed:
       begin
-        // Grayscale is handled like indexed mode.
-        // Generally use indexed conversions (with various possible bit operations),
-        // assign special methods for source only, target only or source and target being 16 bits per sample
-        if (FSourceBPS = 16) and (FTargetBPS = 16) then
-          FRowConversion := RowConvertIndexedBoth16
-        else
-          if FSourceBPS = 16 then
-            FRowConversion := RowConvertIndexedSource16
-          else
-            if FTargetBPS = 16 then
-              FRowConversion := RowConvertIndexedTarget16
-            else
-              FRowConversion := RowConvertIndexed8;
+        case FTargetScheme of
+          csBGR,
+          csBGRA,
+          csRGB,
+          csRGBA:
+            if (FTargetBPS = 8) and (FSourceBPS <= 16) then
+              FRowConversion := RowConvertIndexed2BGR;
+          csIndexed,
+          csIndexedA:
+            begin
+              // Generally use indexed conversions (with various possible bit operations),
+              // assign special methods for source only, target only or source and target being 16 bits per sample
+              if (FSourceBPS = 16) and (FTargetBPS = 16) then
+                FRowConversion := RowConvertIndexedBoth16
+              else
+                if FSourceBPS = 16 then
+                  FRowConversion := RowConvertIndexedSource16
+                else
+                  if FTargetBPS = 16 then
+                    FRowConversion := RowConvertIndexedTarget16
+                  else
+                    FRowConversion := RowConvertIndexed8;
+            end;
+        end; // case
       end;
     csIndexedA:
       begin
@@ -6661,6 +6785,15 @@ begin
 end;
 
 //------------------------------------------------------------------------------
+
+// Set Source Palette needed if we want to convert from indexed to non indexed format.
+procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+begin
+  // No error checking for now.
+  FSourcePaletteFormat := PaletteFormat;
+  SetLength(FSourcePaletteData, Length(Data));
+  Move(Data[Low(Data)], FSourcePaletteData[Low(FSourcePaletteData)], Length(Data)*SizeOf(Pointer));
+end;
 
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
   ColorCount: Cardinal; RGB: Boolean): HPALETTE;
