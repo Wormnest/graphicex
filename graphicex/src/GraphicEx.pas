@@ -2436,7 +2436,7 @@ begin
              and not (ioSeparatePlanes in Options) and not (ColorScheme in [csCMYK, csCMYKA])) or
              ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA])) then begin
              // Generic RGBA reading interface
-            if Height > 0 then
+            if (Height > 0) and (Width > 0) then
             begin
               // 3 or more samples per pixel are used for RGB(A), CMYK, L*a*b*, YCbCr etc.
               // All of these will be converted to RGBA.
@@ -2487,6 +2487,9 @@ begin
             end;
           end
           else begin
+            if (Width = 0) or (Height = 0) then
+              // We can't show broken images where either width or height is 0.
+              Exit;
             // Monochrome and indexed with 1-64 bits per pixel including floating point
             // RGB(A) 16, 32, 64 bits including floating point
             // Strip, Tiles, contiguous and planar are all supported
