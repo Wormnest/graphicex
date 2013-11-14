@@ -298,6 +298,7 @@ type
     function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvert64To8(Value: UInt64): Byte; overload;
     function ComponentScaleConvertFloat16To8(Value: Word): Byte;
+    function ComponentScaleConvertFloat24To8(Value: LongWord; BitsPerSample: Byte): Byte;
     function ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvertFloat32To8(Value: LongWord): Byte; overload;
     function ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
@@ -416,6 +417,16 @@ type
 function HalfToFloat(Half: THalfFloat): Single;
 { Converts 32bit Single to 16bit half floating point.}
 function FloatToHalf(Float: Single): THalfFloat;
+
+type // 24 bit float as defined in TIFF
+  TFloat24 = packed record
+    Mantissa: Word;
+    ExponentSign: Byte;
+  end;
+  PFloat24 = ^TFloat24;
+
+{ Convert 24bit floating point value to 32bit Single. }
+function Float24ToFloat(Float24: TFloat24): Single;
 
 // general utility functions
 function ClampByte(Value: Integer): Byte;
@@ -794,6 +805,87 @@ begin
     end;
   end;
 end;
+
+//------------------------------------------------------------------------------
+
+{
+  Conversion of 24 bits Float to 32 bits Float (Single) based on specification in TIFFTN3d1.pdf.
+  Conversion function based on the HalfToFloat function below.
+  * 24 bit floating point values
+  * 24 bit floating point numbers have 1 sign bit, 7 exponent bits (biased by 64),
+    and 16 mantissa bits.
+  * The interpretation of the sign, exponent and mantissa is analogous to IEEE-754
+    floating-point numbers. The 24 bit floating point format supports normalized
+    and denormalized numbers, infinities and NANs (Not A Number).
+
+  Bit layout of Float24:
+
+    23 (msb)
+    |
+    | 22    16
+    | |     |
+    | |     | 15             0 (lsb)
+    | |     | |              |
+    X XXXXXXX XXXXXXXXXXXXXXXX
+    s e       m
+
+  S is the sign-bit, e is the exponent and m is the significand (mantissa).
+
+}
+
+function Float24ToFloat(Float24: TFloat24): Single;
+var
+  Dst, Sign, Mantissa: LongWord;
+  Exp: LongInt;
+begin
+  Sign := Float24.ExponentSign shr 7;
+  Exp := (Float24.ExponentSign and $7F);
+  Mantissa := Float24.Mantissa;
+
+  if (Exp > 0) and (Exp < 127) then
+  begin
+    // Common normalized number
+    Exp := Exp + (127 - 63);
+    Mantissa := Mantissa shl 7;
+    Dst := (Sign shl 31) or (LongWord(Exp) shl 23) or Mantissa;
+    // Result := Power(-1, Sign) * Power(2, Exp - 15) * (1 + Mantissa / 1024);
+  end
+  else if (Exp = 0) and (Mantissa = 0) then
+  begin
+    // Zero - preserve sign
+    Dst := Sign shl 31;
+  end
+  else if (Exp = 0) and (Mantissa <> 0) then
+  begin
+    // Denormalized number - renormalize it
+    while (Mantissa and $00010000) = 0 do
+    begin
+      Mantissa := Mantissa shl 1;
+      Dec(Exp);
+    end;
+    Inc(Exp);
+    Mantissa := Mantissa and not $00010000;
+    // Now assemble normalized number
+    Exp := Exp + (127 - 63);
+    Mantissa := Mantissa shl 7;
+    Dst := (Sign shl 31) or (LongWord(Exp) shl 23) or Mantissa;
+    // Result := Power(-1, Sign) * Power(2, -14) * (Mantissa / 1024);
+  end
+  else if (Exp = 127) and (Mantissa = 0) then
+  begin
+    // +/- infinity
+    Dst := (Sign shl 31) or $7F800000;
+  end
+  else //if (Exp = 127) and (Mantisa <> 0) then
+  begin
+    // Not a number - preserve sign and mantissa
+    Dst := (Sign shl 31) or $7F800000 or (Mantissa shl 7);
+  end;
+
+  // Reinterpret LongWord as Single
+  Result := PSingle(@Dst)^;
+end;
+
 
 //------------------------------------------------------------------------------
 
@@ -1371,6 +1463,21 @@ var hf: THalfFloat absolute Value;
   TempVal: Integer;
 begin
   TempVal := Trunc(HalfToFloat(hf) * 255);
+  if TempVal < 0 then
+    TempVal := 0
+  else if TempVal > 255 then
+    TempVal := 255;
+  Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentScaleConvertFloat24To8(Value: LongWord; BitsPerSample: Byte): Byte;
+var f24: TFloat24;
+  TempVal: Integer;
+begin
+//  f24 := PFloat24(@PByteArray(@Value)^[1])^;
+  f24 := PFloat24(@Value)^;
+  TempVal := Trunc(Float24ToFloat(f24) * 255);
   if TempVal < 0 then
     TempVal := 0
   else if TempVal > 255 then
@@ -3653,7 +3760,15 @@ begin
                  else begin
                    Convert32 := ComponentScaleConvert32To8;
                  end;
-               17..24: Convert32 := ComponentScaleConvert17_24To8;
+               24:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat24To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert17_24To8;
+                 end;
+               17..23: Convert32 := ComponentScaleConvert17_24To8;
             else // Use else for 25..31 or else compiler will complain about uninitialized
               {25..31:} Convert32 := ComponentScaleConvert25_31To8;
             end;
@@ -4872,7 +4987,7 @@ begin
             end;
         end; // case
       end;
-    17..31: // TODO include support for 24 bits float
+    17..31:
       begin
         // Currently only supporting conversion to 8 bpp target.
         // Mask parameter not supported here since I'm not sure how to correctly
@@ -4883,7 +4998,11 @@ begin
           8: // ... to 888
             begin
               Target8 := Target;
-              ConvertAny32To8 := ComponentScaleConvert17_24To8;
+              // Float sample data format needs separate conversion.
+              if (FSourceDataFormat = sdfFloat) and (FSourceBPS = 24) then
+                ConvertAny32To8 := ComponentScaleConvertFloat24To8
+              else
+                ConvertAny32To8 := ComponentScaleConvert17_24To8;
 
               if Length(Source) = 1 then begin
                  // Interleaved
@@ -5378,8 +5497,6 @@ begin
             end;
         end;
       end;
-    24: // TODO: 24-bits float
-      ;
     32: // 32-bits float or 32 bits (un)signed integer.
         // Currently only conversion to 8 bits supported.
       begin
