@@ -46,18 +46,18 @@ type
 function adler32(adler: Cardinal; buf: Pointer; len: Integer): Cardinal; cdecl; external;
 function crc32(crc: Cardinal; buf: Pointer; len: Cardinal): Cardinal; cdecl; external;
 
-function  InflateInit(strm: Pointer): Integer;
-function  inflateInit_(strm: Pointer; version: Pointer; stream_size: Integer): Integer; cdecl; external;
-function  inflateReset(strm: Pointer): Integer; cdecl; external;
-function  inflate(strm: Pointer; flush: Integer): Integer; cdecl; external;
-function  inflateSync(strm: Pointer): Integer; cdecl; external;
-function  deflateInit(strm: Pointer; level: Integer): Integer;
-function  deflateInit_(strm: Pointer; level: Integer; version: Pointer; stream_size: Integer): Integer; cdecl; external;
-function  deflateReset(strm: Pointer): Integer; cdecl; external;
-function  deflate(strm: Pointer; flush: Integer): Integer; cdecl; external;
-function  deflateEnd(strm: Pointer): Integer; cdecl; external;
-function  inflateEnd(strm: Pointer): Integer; cdecl; external;
-function  deflateParams(strm: Pointer; level: Integer; strategy: Integer): Integer; cdecl; external;
+function  InflateInit(var strm: RZStream): Integer;
+function  inflateInit_(var strm: RZStream; version: PAnsiChar; stream_size: Integer): Integer; cdecl; external;
+function  inflateReset(var strm: RZStream): Integer; cdecl; external;
+function  inflate(var strm: RZStream; flush: Integer): Integer; cdecl; external;
+function  inflateSync(var strm: RZStream): Integer; cdecl; external;
+function  deflateInit(var strm: RZStream; level: Integer): Integer;
+function  deflateInit_(var strm: RZStream; level: Integer; version: PAnsiChar; stream_size: Integer): Integer; cdecl; external;
+function  deflateReset(var strm: RZStream): Integer; cdecl; external;
+function  deflate(var strm: RZStream; flush: Integer): Integer; cdecl; external;
+function  deflateEnd(var strm: RZStream): Integer; cdecl; external;
+function  inflateEnd(var strm: RZStream): Integer; cdecl; external;
+function  deflateParams(var strm: RZStream; level: Integer; strategy: Integer): Integer; cdecl; external;
 
 implementation
 
@@ -70,12 +70,12 @@ uses
 // InflateInit returns Z_OK if success, Z_MEM_ERROR if there was not enough memory, Z_VERSION_ERROR if the zlib library
 // version is incompatible with the version assumed by the caller. Msg is reset if there is no
 // error message. InflateInit does not perform any decompression: this will be done by Inflate.
-function InflateInit(strm: Pointer): Integer;
+function InflateInit(var strm: RZStream): Integer;
 begin
   Result := InflateInit_(strm, PAnsiChar(ZLIB_VERSION), SizeOf(RZStream));
 end;
 
-function deflateInit(strm: Pointer; level: Integer): Integer;
+function deflateInit(var strm: RZStream; level: Integer): Integer;
 begin
   Result:=deflateInit_(strm,level,PAnsiChar(ZLIB_VERSION),SizeOf(RZStream));
 end;

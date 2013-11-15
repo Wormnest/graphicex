@@ -2066,12 +2066,12 @@ begin
   FStream.NextIn := Source;
   FStream.AvailIn := PackedSize;
   if FAutoReset then
-    FZLibResult := InflateReset(@FStream);
+    FZLibResult := InflateReset(FStream);
   if FZLibResult = Z_OK then
   begin
     FStream.NextOut := Dest;
     FStream.AvailOut := UnpackedSize;
-    FZLibResult := Inflate(@FStream, FFlushMode);
+    FZLibResult := Inflate(FStream, FFlushMode);
     // advance pointers so used input can be calculated
     Source := FStream.NextIn;
     Dest := FStream.NextOut;
@@ -2083,7 +2083,7 @@ end;
 procedure TLZ77Decoder.DecodeEnd;
 
 begin
-  if InflateEnd(@FStream) < 0 then
+  if InflateEnd(FStream) < 0 then
     CompressionError(gesLZ77Error);
 end;
 
@@ -2092,7 +2092,7 @@ end;
 procedure TLZ77Decoder.DecodeInit;
 
 begin
-  if InflateInit(@FStream) < 0 then
+  if InflateInit(FStream) < 0 then
     CompressionError(gesLZ77Error);
 end;
 
