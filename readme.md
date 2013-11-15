@@ -18,7 +18,7 @@ Overview of components
 This is my fork of the latest version of graphicex that I could find
 with all bugfixes that I found online applied and a lot of others fixed
 by me.
-Besides that some changes and enhancements to the code have been made,
+Besides that several changes and enhancements to the code have been made,
 especially in PSP and TIFF loading.
 I have also added support for loading Gimp XCF files.
 The .obj files needed for JPG and TIFF support are available as a
@@ -34,6 +34,12 @@ adapted to my needs.
 ---------------
 A twain api interface made by Colin Wilson with bugfixes by me and
 further adapted to my needs.
+
+4. external
+-----------
+Interface code for linking with external C libraries and C rtl replacement
+functions.
+Currently available here are zlib, libtiff and libjpeg.
 
 August-November 2013
 Jacob Boerema

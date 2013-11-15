@@ -13,8 +13,8 @@ connection with this software.
  
 
 * **TIFF images (.tif; .tiff)**
-    + 1..16 bits per sample, grayscale also 17..32 bits and 64 bit float
-    + indexed(A), grayscale(A), RGB(A), CMYK, L*a*b*
+    + 1..64 bits per sample, including 16, 24, 32 and 64 bits floating point
+    + indexed(A), grayscale(A), RGB(A), CMYK(A), L*a*b*, ...
     + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
     + uses libtiff version 3.9.7
 * **Photoshop images (.psd, .pdd)**
@@ -97,14 +97,13 @@ Todo
 ----
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
 * Integrate jpeg handling more into graphicex.
-* Support more different tiff image types.
 * Add unit tests.
 
 Folder structure
 ----------------
+\external = Folder with units that interface with external libraries.    
 \graphicex    
 - \examples = Folder with examples.    
-- \external = Folder with units that interface with external libraries.    
 - \obj = Folder with compiled .obj files for static linked libraries.    
 - \src = Folder with GraphicEx source files.
 
