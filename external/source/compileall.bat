@@ -40,7 +40,7 @@ cd ..
 
 :no errors: then copy obj files to destination
 echo Copying obj files...
-copy obj\*.obj ..\obj\
+:copy obj\*.obj ..\obj\
 
 echo Done.
 pause
