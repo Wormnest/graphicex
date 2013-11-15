@@ -2,9 +2,9 @@
 # Parent 7519bb56833e1d559a3124afea123049c979e7cc
 LibTiff: Replace jmps with external calls to be able to use it in LibTiffDelphi.
 
-diff -r 7519bb56833e graphicex/external/source/libtiff/tif_jpeg.c
---- a/graphicex/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:35:48 2013 +0100
-+++ b/graphicex/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:57:43 2013 +0100
+diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
+--- a/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:35:48 2013 +0100
++++ b/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:57:43 2013 +0100
 @@ -42,7 +42,14 @@
   *
   * Contributed by Tom Lane <tgl@sss.pgh.pa.us>.

@@ -1,11 +1,11 @@
 # HG changeset patch
-# Parent 799b5612aedb7819826c756599755d21a517fda0
+# Parent 45c79bcee196ed153660a26f3998844c244ba522
 LibJpeg: Replace Exit in error_exit with a function call that should raise an
 exception.
 
-diff -r 799b5612aedb -r d706370f41d5 graphicex/external/source/libjpeg/jerror.c
---- a/graphicex/external/source/libjpeg/jerror.c	Sun Nov 03 15:27:44 2013 +0100
-+++ b/graphicex/external/source/libjpeg/jerror.c	Sun Nov 03 15:30:36 2013 +0100
+diff -r 45c79bcee196 external/source/libjpeg/jerror.c
+--- a/external/source/libjpeg/jerror.c	Fri Nov 15 15:03:21 2013 +0100
++++ b/external/source/libjpeg/jerror.c	Fri Nov 15 15:13:42 2013 +0100
 @@ -66,6 +66,12 @@
   * or jpeg_destroy) at some point.
   */
@@ -28,7 +28,7 @@ diff -r 799b5612aedb -r d706370f41d5 graphicex/external/source/libjpeg/jerror.c
 +#else
 +  /* LibTiffDelphi compatible exit */
 +  jpeg_error_exit_raise();
-+#endif
++#endif 
  }
  
  
