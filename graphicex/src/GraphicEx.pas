@@ -2649,6 +2649,7 @@ var
   TIFFCompression: Word;
   ResUnit: Word;
   FillOrder: Word;
+  TiffStringValue: array [0..0] of PAnsiChar;
 
   {$ifndef DELPHI_7_UP}
     // Structure used to build a va_list array.
@@ -2858,6 +2859,11 @@ begin
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_FILLORDER, @FillOrder);
         if FillOrder = FILLORDER_LSB2MSB then
           Include(Options, ioReversed);
+
+        // Get TIFF Image Description (if present)
+        if (TIFFGetField(TIFFImage, TIFFTAG_IMAGEDESCRIPTION, @TiffStringValue) = 1) and
+           (TiffStringValue[0] <> nil) then
+          Comment := TiffStringValue[0];
       finally
         TIFFClose(TIFFImage);
       end
