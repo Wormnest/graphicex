@@ -32,6 +32,7 @@
 // 2007-04-03: fixed initialization bug
 // 2008-03-13: fixed changed registry for GPL Ghostscript
 // 2012-04-06: Added error codes from gs 8.64 gserrors.h
+// 2013-12-03: Add gsapi_set_arg_encoding
 
 
 {$DEFINE USE_IN_TRANSCRIPT} // 2013-01-09 Loads exception handling unit for Transcript first
@@ -144,6 +145,12 @@ const
     DISPLAY_NATIVE_555 = $00000;
     DISPLAY_NATIVE_565 = $40000;
     DISPLAY_555_MASK  = $00040000;
+
+
+    // Values for gsapi_set_arg_encoding
+    GS_ARG_ENCODING_LOCAL   = 0;
+    GS_ARG_ENCODING_UTF8    = 1;
+    GS_ARG_ENCODING_UTF16LE = 2;
 
 type
   TGSAPIrevision = packed record
@@ -279,6 +286,7 @@ type
   gsapi_set_poll_func = function(pinstance:Pgs_main_instance;poll_fn:TPollFunction):Integer; stdcall;
   gsapi_set_display_callback_func = function(pinstance:Pgs_main_instance;
     callback:PDisplayCallback):Integer; stdcall;
+  gsapi_set_arg_encoding_func = function(pinstance:Pgs_main_instance; encoding: Integer): Integer; stdcall;
   gsapi_init_with_args_func = function(pinstance:Pgs_main_instance;
     argc:integer;argv:PPChar):integer; stdcall;
   gsapi_run_string_begin_func = function(pinstance:Pgs_main_instance;
@@ -312,6 +320,8 @@ var
   gsapi_set_display_callback: gsapi_set_display_callback_func = nil;
   {$EXTERNALSYM gsapi_init_with_args}
   gsapi_init_with_args: gsapi_init_with_args_func = nil;
+  {$EXTERNALSYM gsapi_set_arg_encoding}
+  gsapi_set_arg_encoding: gsapi_set_arg_encoding_func = nil;
   {$EXTERNALSYM gsapi_run_string_begin}
   gsapi_run_string_begin: gsapi_run_string_begin_func = nil;
   {$EXTERNALSYM gsapi_run_string_continue}
@@ -407,6 +417,7 @@ begin
       @gsapi_set_poll := GetSymbol('gsapi_set_poll');
       @gsapi_set_display_callback := GetSymbol('gsapi_set_display_callback');
       @gsapi_init_with_args := GetSymbol('gsapi_init_with_args');
+      @gsapi_set_arg_encoding := GetSymbol('gsapi_set_arg_encoding');
       @gsapi_run_string_begin := GetSymbol('gsapi_run_string_begin');
       @gsapi_run_string_continue := GetSymbol('gsapi_run_string_continue');
       @gsapi_run_string_end := GetSymbol('gsapi_run_string_end');
@@ -534,6 +545,7 @@ begin
     @gsapi_set_poll := nil;
     @gsapi_set_display_callback := nil;
     @gsapi_init_with_args := nil;
+    @gsapi_set_arg_encoding := nil;
     @gsapi_run_string_begin := nil;
     @gsapi_run_string_continue := nil;
     @gsapi_run_string_end := nil;
