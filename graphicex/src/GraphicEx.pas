@@ -7890,8 +7890,8 @@ begin
                          LayerStartOfs := (AbsoluteRect.Left + 7) div 8;
                        end;
                     4: begin
-                         LayerRowSize := LayerWidth div 2 + 1;
-                         LayerStartOfs := AbsoluteRect.Left  div 2 + 1;
+                         LayerRowSize := (LayerWidth + 1) div 2;
+                         LayerStartOfs := (AbsoluteRect.Left + 1) div 2;
                        end;
                   else // 8
                     LayerRowSize := LayerWidth;
