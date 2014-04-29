@@ -7897,6 +7897,14 @@ begin
                     LayerRowSize := LayerWidth;
                     LayerStartOfs := AbsoluteRect.Left;
                   end;
+
+                  // From PSP spec: Each scanline in the image data is stored on a 4 byte boundary.
+                  // Therefore we need to make sure LayerRowSize is a multiple of 4.
+                  // Note: Nowhere do I see any mention that 8 BitsPerSample is being excluded
+                  // from this but with the sample images we have this seems to be the case.
+                  if BitsPerSample <> 8 then
+                    LayerRowSize := (LayerRowSize + 3) div 4 * 4;
+
                   for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
                   begin
                     // Note: I don't have any samples for BPS = 1 or 4 and am not
