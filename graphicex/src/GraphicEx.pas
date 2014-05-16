@@ -1807,6 +1807,9 @@ begin
           TargetColorScheme := csIndexed;
         end;
         PixelFormat := TargetPixelFormat;
+        // Uses separate channels thus we need to set that in source options.
+        // Grayscale will only be 1 channel but it's not using the ColorManger for conversion.
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
       end;
       Self.Width := Width;
       Self.Height := Height;
@@ -5356,6 +5359,8 @@ begin
           TargetOptions := TargetOptions + [coApplyGamma];
           Include(Options, ioUseGamma);
         end;
+        // Uses separate channels thus we need to set that in source options.
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
       end;
 
       // dimension of image, top might be larger than bottom denoting a bottom up image
