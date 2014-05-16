@@ -6052,6 +6052,10 @@ end;
 function TPSDGraphic.DetermineColorScheme(ChannelCount: Integer): TColorScheme;
 
 begin
+  // To be able to read images with extra channels we will set any image with
+  // more than the expected number as channels as an image with alpha since
+  // at this moment we don't know exactly how to determine at this point if
+  // the image is with/without alpha channel.
   case FMode of
     PSD_DUOTONE, // duo tone should be handled as grayscale
     PSD_GRAYSCALE:
@@ -6061,7 +6065,7 @@ begin
         2:
           Result := csGA;
       else
-        Result := csUnknown;
+        Result := csGA;
       end;
     PSD_BITMAP:  // B&W
         Result := csG;
@@ -6072,7 +6076,7 @@ begin
         2:
           Result := csIndexedA;
       else
-        Result := csUnknown;
+        Result := csIndexedA;
       end;
     PSD_MULTICHANNEL,
     PSD_RGB:
@@ -6082,7 +6086,7 @@ begin
         4:
           Result := csRGBA;
       else
-        Result := csUnknown;
+        Result := csRGBA;
       end;
     PSD_CMYK:
       if ChannelCount = 4 then
@@ -6090,12 +6094,12 @@ begin
       else if ChannelCount = 5 then
         Result := csCMYKA
       else
-        Result := csUnknown;
+        Result := csCMYKA;
     PSD_LAB:
       if ChannelCount = 3 then
         Result := csCIELab
       else
-        Result := csUnknown;
+        Result := csCIELab;
   else
     Result := csUnknown;
   end;
@@ -7252,14 +7256,11 @@ begin
         // Initialize color manager.
         BitsPerSample := Header.Depth;
         FChannels := Header.Channels;
-        // 1..24 channels are supported in PSD files, we can only use 5.
+        // 1..24 channels are supported in PSD files.
         // The documentation states that main image data (rgb(a), cmyk etc.) is always
         // written with the first channels in their component order.
-        // TODO: Remove this changing of SamplesPerPixel, we want the original value and will ignore unknown channels
-        if FChannels > 5 then
-          SamplesPerPixel := 5
-        else
-          SamplesPerPixel := FChannels;
+        // We accept extra channels but will ignore them unless we know what to do with them.
+        SamplesPerPixel := FChannels;
 
         BitsPerPixel := SamplesPerPixel * BitsPerSample;
 
