@@ -3593,7 +3593,6 @@ var
   I, J: Integer;
   Line: PByte;
   Increment: Integer;
-  NewPixelFormat: TPixelFormat;
 
 begin
   inherited;
@@ -3611,40 +3610,46 @@ begin
       if not (FileID in [$0A, $CD]) then
         GraphicExError(gesInvalidImage, ['PCX, PCC or SCR']);
 
-      with ColorManager do
-      begin
-        SourceColorScheme := ColorScheme;
-        SourceBitsPerSample := BitsPerSample;
-        SourceSamplesPerPixel := SamplesPerPixel;
-        if ColorScheme = csIndexed then
-          TargetColorScheme := csIndexed
+      ColorManager.SourceColorScheme := ColorScheme;
+      ColorManager.SourceBitsPerSample := BitsPerSample;
+      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      if ColorScheme = csIndexed then
+        ColorManager.TargetColorScheme := csIndexed
+      else begin
+        if ColorManager.SourceSamplesPerPixel = 3 then
+          ColorManager.TargetColorScheme := csBGR
         else
-          TargetColorScheme := csBGR;
-        if BitsPerPixel = 2 then
-          TargetBitsPerSample := 4
-        else
-          TargetBitsPerSample := BitsPerSample;
-        // Note: pixel depths of 2 and 4 bits may not be used with more than one plane
-        //       otherwise the image will not show up correctly
-        TargetSamplesPerPixel := SamplesPerPixel;
+          ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
       end;
+      ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+      if (ColorManager.SourceSamplesPerPixel in [3, 4]) then
+        if ColorScheme = csIndexed then begin
+          // Should be 1 bits per pixel x 4 planes special PCX case
+          ColorManager.TargetBitsPerSample := 4;
+          ColorManager.TargetSamplesPerPixel := 1;
+          // To be able to get a correct palette source bits per sample also needs to be 4.
+          ColorManager.SourceBitsPerSample := 4;
+        end
+        else begin
+          // Use 8 bits per samples since we don't have a converter yet to 5 bits in ColorManager.
+          ColorManager.TargetBitsPerSample := 8;
+          // Separate channels thus we need to set that in source options.
+          ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+        end
+      else if BitsPerPixel = 2 then
+        ColorManager.TargetBitsPerSample := 4
+      else
+        ColorManager.TargetBitsPerSample := BitsPerSample;
 
-      NewPixelFormat := ColorManager.TargetPixelFormat;
-      if NewPixelFormat = pfCustom then
-      begin
-        // There can be a special case comprising 4 planes each with 1 bit.
-        if (SamplesPerPixel = 4) and (BitsPerPixel = 4) then
-          NewPixelFormat := pf4Bit
-        else
-          GraphicExError(gesInvalidColorFormat, ['PCX']);
-      end;
+      // Set image pixel format
+      PixelFormat := ColorManager.TargetPixelFormat;
 
-      PixelFormat := NewPixelFormat;
       // 256 colors palette is appended to the actual PCX data.
       PCXSize := Size;
       if PixelFormat = pf8Bit then
         Dec(PCXSize, 769);
-      if PixelFormat <> pf24Bit then
+      if PixelFormat in [pf1Bit, pf4Bit, pf8Bit] then
         MakePalette;
 
       Self.Width := Width;
@@ -3684,9 +3689,9 @@ begin
           for I := 0 to Height - 1 do
           begin
             Plane1 := Run;
-            Plane2 := PByte(PAnsiChar(Run) + Increment div 4);
-            Plane3 := PByte(PAnsiChar(Run) + 2 * (Increment div 4));
-            Plane4 := PByte(PAnsiChar(Run) + 3 * (Increment div 4));
+            Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
+            Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
+            Plane4 := PByte(PAnsiChar(Run) + 3 * Header.BytesPerLine);
 
             Line := ScanLine[I];
             // number of bytes to write
@@ -3739,25 +3744,52 @@ begin
           end;
         end
         else
-          if PixelFormat = pf24Bit then
-          begin
-            // true color
-            for I := 0 to Height - 1 do
-            begin
-              Line := ScanLine[I];
-              Plane1 := Run;
-              Plane2 := PByte(PAnsiChar(Run) + Increment div 3);
-              Plane3 := PByte(PAnsiChar(Run) + 2 * (Increment div 3));
-              ColorManager.ConvertRow([Plane1, Plane2, Plane3], Line, Width, $FF);
-              Inc(Run, Increment);
+          case SamplesPerPixel of
+            3:  // RGB 3 planes
+              begin
+                if BitsPerPixel >= 8 then begin
+                  Plane1 := Run;
+                  Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
+                  Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
+                end
+                else begin
+                  // For some reason 3 planes x 1 pixel has different order of rgb.
+                  Plane3 := Run;
+                  Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
+                  Plane1 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
+                end;
+                for I := 0 to Height - 1 do
+                begin
+                  Line := ScanLine[I];
+                  ColorManager.ConvertRow([Plane1, Plane2, Plane3], Line, Width, $FF);
+                  Inc(Plane1, Increment);
+                  Inc(Plane2, Increment);
+                  Inc(Plane3, Increment);
 
-              Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end
-          end
-          else
-          begin
-            // other indexed formats
+                  Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+                  OffsetRect(FProgressRect, 0, 1);
+                end;
+              end;
+            4:  // RGBA 4 planes (most likely never used in PCX)
+              begin
+                Plane1 := Run;
+                Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
+                Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
+                Plane4 := PByte(PAnsiChar(Run) + 3 * Header.BytesPerLine);
+                for I := 0 to Height - 1 do
+                begin
+                  Line := ScanLine[I];
+                  ColorManager.ConvertRow([Plane1, Plane2, Plane3, Plane4], Line, Width, $FF);
+                  Inc(Plane1, Increment);
+                  Inc(Plane2, Increment);
+                  Inc(Plane3, Increment);
+                  Inc(Plane4, Increment);
+
+                  Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+                  OffsetRect(FProgressRect, 0, 1);
+                end;
+              end;
+          else // indexed formats
             for I := 0 to Height - 1 do
             begin
               Line := ScanLine[I];
@@ -3802,10 +3834,19 @@ begin
         SamplesPerPixel := Header.ColorPlanes;
         BitsPerSample := Header.BitsPerPixel;
         BitsPerPixel := BitsPerSample * SamplesPerPixel;
-        if BitsPerPixel <= 8 then
-          ColorScheme := csIndexed
+
+        case Header.ColorPlanes of
+          1: ColorScheme := csIndexed;
+          3: ColorScheme := csRGB;
+          4: if Header.BitsPerPixel = 1 then
+               // Special PCX case
+               ColorScheme := csIndexed
+             else
+               ColorScheme := csRGBA;
         else
-          ColorScheme := csRGB;
+          ColorScheme := csUnknown;
+        end;
+
         if Header.Encoding = 1 then
           Compression := ctRLE
         else
