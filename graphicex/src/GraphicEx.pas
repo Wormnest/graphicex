@@ -2433,8 +2433,9 @@ begin
           // 1, 2 and 4 bits apparently only for Indexed/Grayscale
           if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
              (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
-             and not (ioSeparatePlanes in Options) and not (ColorScheme in [csCMYK, csCMYKA])) or
-             ((SamplesPerPixel in [1,2]) and not (ColorScheme in [csG, csGA, csIndexed, csIndexedA, csCIELab])) then begin
+             and not (ioSeparatePlanes in Options) and
+             not (ColorScheme in [csCMYK, csCMYKA, csCIELAB])) or
+             ((SamplesPerPixel in [1, 2]) and not ((ColorScheme in [csG, csGA, csIndexed, csIndexedA, csCIELAB]))) then begin
              // Generic RGBA reading interface
             if (Height > 0) and (Width > 0) then
             begin
@@ -2542,7 +2543,7 @@ begin
                 csCIELab:
                   begin
                     if SamplesPerPixel >= 3 then begin
-                      // Currently not used since it seems our CIELAB to BGR conversion
+                      // Currently only used in 16 BPS CIELAB since it seems our CIELAB to BGR conversion
                       // seems to be more red than libtif's conversion and IrfanView.
                       // Investigate if and how we can use libtif's own conversion functions.
                       ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
