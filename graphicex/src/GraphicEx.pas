@@ -438,9 +438,11 @@ type
     FPaletteFile: string;
   protected
     procedure LoadPalette;
+    procedure SetDefaultPaletteFile(const FileName: string);
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromFile(const FileName: string); override;
+    procedure LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0); override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
 
@@ -4633,12 +4635,25 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// Set Default name of Palette file unless FPaletteFile already has a name
+procedure TCUTGraphic.SetDefaultPaletteFile(const FileName: string);
+begin
+  if FPaletteFile = '' then
+    FPaletteFile := ChangeFileExt(FileName, '.pal');
+end;
+
 procedure TCUTGraphic.LoadFromFile(const FileName: string);
 
 // Overridden to extract an implicit palette file name.
 
 begin
-  FPaletteFile := ChangeFileExt(FileName, '.pal');
+  SetDefaultPaletteFile(FileName);
+  inherited;
+end;
+
+procedure TCUTGraphic.LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0);
+begin
+  SetDefaultPaletteFile(FileName);
   inherited;
 end;
 
