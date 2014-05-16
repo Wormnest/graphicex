@@ -2550,13 +2550,10 @@ begin
                 ColorManager.TargetColorScheme := csBGR;
 
               case ColorScheme of
-                csCMYK, csCMYKA:
-                  // CMYK(A) is using 4(5) samples without alpha where BGR/RGB has 3
-                  ColorManager.TargetSamplesPerPixel := SamplesPerPixel-1;
                 csCIELab:
                   begin
                     if SamplesPerPixel >= 3 then begin
-                      ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+                      ColorManager.TargetSamplesPerPixel := 3;
                       ColorManager.SourceOptions := ColorManager.SourceOptions +
                         [coLabByteRange];
                     end
