@@ -7109,7 +7109,9 @@ end;
 procedure TColorManager.SetSourceSamplesPerPixel(const Value: Byte);
 
 begin
-  if not (Value in [1..5]) then
+  // Since some image formats allow extra samples not directly corresponding to
+  // image data we can't check a maximum number of samples per pixel.
+  if Value = 0 then
     ShowError(gesInvalidPixelDepth);
   if FSourceSPP <> Value then
   begin
