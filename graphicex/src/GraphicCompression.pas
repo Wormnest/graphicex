@@ -1011,7 +1011,8 @@ var
 
 begin
   TargetPtr := Dest;
-  // Skip first two bytes per row (I don't know their meaning).
+  // Skip first two bytes per row. This contains a Word value of the number of
+  // encoded bytes in this scan line.
   Inc(PByte(Source), 2);
   while True do
   begin
