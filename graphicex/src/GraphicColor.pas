@@ -4160,20 +4160,64 @@ end;
 // Source Palette data and format should have been set using SetSourcePalette.
 // Index 0 in palette data should contain the red channel, 1 = green, 2 = blue.
 // Palette channel data as expected from TIF is always 16 bits.
+// pfPlane8Triple: PSD indexed
 // Mask is currently ignored here.
 procedure TColorManager.RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   PalIndex8: Byte;
-  PalIndex: Cardinal;
+  PalIndex,
+  AlphaVal16: Cardinal;
   SourceRun8: PByte;
-  SourceRun16: PWord;
-  TargetRun8: PBGR;
+  SourceRun16,
+  SourceRun16A: PWord;
+  SourceRun8A: PByte;
+  TargetRun8: PBGRA;
   BitOffset: Cardinal;
+  AddAlpha,
+  CopyAlpha: Boolean;
+  SourceIncrement,
+  TargetIncrement: Integer;
 begin
   if Length(Source) = 0 then begin
     ShowError(gesSourcePaletteUndefined);
     Exit;
   end;
+  // Mainly support for 8 and 16 bits per sample
+  if not (FSourceBPS in [1..16]) then
+    Exit;
+
+  AddAlpha := False;
+  // Check how we need to handle alpha
+  if coAlpha in FSourceOptions then
+  begin
+    SourceIncrement := 2; // 1 indexed + 1 alpha
+    if coAlpha in FTargetOptions then begin
+      TargetIncrement := SizeOf(TBGRA);
+      CopyAlpha := True;
+    end
+    else begin
+      TargetIncrement := SizeOf(TBGR);
+      CopyAlpha := False;
+    end;
+  end
+  else
+  begin
+    SourceIncrement := 1; // 1 byte grayscale
+    if coAlpha in FTargetOptions then begin
+      TargetIncrement := SizeOf(TBGRA);
+      AddAlpha := True;
+    end
+    else
+      TargetIncrement := SizeOf(TBGR);
+    CopyAlpha := False;
+  end;
+  // In planar mode source increment is always 1
+  if coSeparatePlanes in FSourceOptions then
+    SourceIncrement := 1;
+  // Convert to number of bytes (Don't worry about FSourceBPS being a multiple of 8:
+  // SourceIncrement will not be used in those cases!)
+  SourceIncrement := FSourceBPS div 8 * SourceIncrement;
+
   case FSourcePaletteFormat of
     pfPlane16Triple,
     pfPlane16Quad:
@@ -4186,6 +4230,12 @@ begin
           8:
             begin
               SourceRun8 := Source[0]; // Palette indexes
+              if Length(Source) = 1 then begin
+                SourceRun8A := SourceRun8; Inc(SourceRun8A);
+              end
+              else begin
+                SourceRun8A := Source[1];
+              end;
               TargetRun8 := Target;
 
               while Count > 0 do
@@ -4197,8 +4247,24 @@ begin
                 TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex8]);
                 TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex8]);
                 TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex8]);
-                Inc(SourceRun8);
-                Inc(TargetRun8);
+
+                // Handle alpha channel
+                if CopyAlpha then begin
+                  TargetRun8^.A := SourceRun8A^;
+                end
+                else if AddAlpha then begin
+                  if FSourcePaletteFormat = pfPlane16Quad then begin
+                    // Palette also holds alpha, use that for adding alpha.
+                    // NB! Untested since I don't have any samples using this!
+                    TargetRun8^.A := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[3])^[SourceRun8A^]);
+                  end
+                  else
+                    TargetRun8^.A := $ff;
+                end;
+
+                Inc(SourceRun8, SourceIncrement);
+                Inc(SourceRun8A, SourceIncrement);
+                Inc(PByte(TargetRun8), TargetIncrement);
 
                 Dec(Count);
               end;
@@ -4206,6 +4272,12 @@ begin
           16:
             begin
               SourceRun16 := Source[0]; // Palette indexes
+              if Length(Source) = 1 then begin
+                SourceRun16A := SourceRun16; Inc(SourceRun16A);
+              end
+              else begin
+                SourceRun16A := Source[1];
+              end;
               TargetRun8 := Target;
 
               while Count > 0 do
@@ -4220,14 +4292,34 @@ begin
                 TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex]);
                 TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex]);
                 TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex]);
-                Inc(SourceRun16);
-                Inc(TargetRun8);
+
+                // Handle alpha channel
+                if CopyAlpha then begin
+                  if coNeedByteSwap in FSourceOptions then
+                    AlphaVal16 := Swap(SourceRun16A^)
+                  else
+                    AlphaVal16 := SourceRun16A^;
+                  TargetRun8^.A := ComponentScaleConvert16To8(AlphaVal16);
+                end
+                else if AddAlpha then begin
+                  if FSourcePaletteFormat = pfPlane16Quad then begin
+                    // Palette also holds alpha, use that for adding alpha.
+                    // NB! Untested since I don't have any samples using this!
+                    TargetRun8^.A := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[3])^[PalIndex]);
+                  end
+                  else
+                    TargetRun8^.A := $ff;
+                end;
+
+                Inc(PByte(SourceRun16), SourceIncrement);
+                Inc(PByte(SourceRun16A), SourceIncrement);
+                Inc(PByte(TargetRun8), TargetIncrement);
 
                 Dec(Count);
               end;
             end;
           1..7,
-          9..15: // Uncommon and unlikely to encounter
+          9..15: // See GraphicsMagic test images.
             begin
               SourceRun16 := Source[0]; // Palette indexes
               TargetRun8 := Target;
@@ -4247,7 +4339,51 @@ begin
                 TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex]);
                 TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex]);
                 TargetRun8^.R := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[0])^[PalIndex]);
-                Inc(TargetRun8);
+                // We are ignoring alpha channels here.
+                Inc(PByte(TargetRun8), SizeOf(TBGR));
+
+                Dec(Count);
+              end;
+            end;
+        end;
+      end;
+    pfPlane8Triple:
+      begin
+        if Length(FSourcePaletteData) <> 3 then begin
+          ShowError(gesIncorrectPaletteDataCount);
+          Exit;
+        end;
+        case FSourceBPS of
+          8:
+            begin
+              SourceRun8 := Source[0]; // Palette indexes
+              if Length(Source) = 1 then begin
+                SourceRun8A := SourceRun8; Inc(SourceRun8A);
+              end
+              else begin
+                SourceRun8A := Source[1];
+              end;
+              TargetRun8 := Target;
+
+              while Count > 0 do
+              begin
+                // Get palette index
+                PalIndex8 := SourceRun8^;
+
+                // Store color info from palette index in Target
+                TargetRun8^.B := PByteArray(FSourcePaletteData[2])^[PalIndex8];
+                TargetRun8^.G := PByteArray(FSourcePaletteData[1])^[PalIndex8];
+                TargetRun8^.R := PByteArray(FSourcePaletteData[0])^[PalIndex8];
+                // Handle alpha
+                if CopyAlpha then
+                  TargetRun8^.A := SourceRun8A^
+                else if AddAlpha then
+                  // Source has no alpha but target needs alpha, set it to $ff
+                  TargetRun8^.A := $ff;
+
+                Inc(SourceRun8, SourceIncrement);
+                Inc(SourceRun8A, SourceIncrement);
+                Inc(PByte(TargetRun8), TargetIncrement);
 
                 Dec(Count);
               end;
@@ -4281,11 +4417,17 @@ begin
     Exit;
   end;
 
+  if not (coSeparatePlanes in FSourceOptions) then
+    // Since Tiff can have undetermined extra samples we need to use the correct SourceIncrement
+    SourceIncrement := FSourceSPP
+  else
+    // In planar mode source increment is always 1
+    SourceIncrement := 1;
+
   AddAlpha := False;
   // Check how we need to handle alpha
   if coAlpha in FSourceOptions then
   begin
-    SourceIncrement := 2; // 1 byte grayscale + 1 byte alpha
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       CopyAlpha := True;
@@ -4297,7 +4439,6 @@ begin
   end
   else
   begin
-    SourceIncrement := 1; // 1 byte grayscale
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       AddAlpha := True;
@@ -4322,7 +4463,6 @@ begin
           // Length of source assumed to be 2. No checking necessary: in case
           // there are more values those pointers will just be ignored.
           SourceAlphaRun8 := Source[1];
-          SourceIncrement := 1; // separate planes: always increment by 1
         end;
         TargetRun8 := Target;
 
@@ -6809,17 +6949,27 @@ begin
                 else
                   if FTargetBPS = 16 then
                     FRowConversion := RowConvertIndexedTarget16
+                  else if FSourceSPP = FTargetSPP then
+                    FRowConversion := RowConvertIndexed8
                   else
-                    FRowConversion := RowConvertIndexed8;
+                    // Tiff extrasamples > 0 but apparently not a normal alpha channel
+                    FRowConversion := RowConvertGray;
             end;
         end; // case
       end;
     csIndexedA:
       begin
-        // Indexed with alpha is like Grayscale with alpha: meaning that
-        // currently alpha is ignored/skipped on conversion
-        if (FSourceBPS = 8) and (FTargetBPS = 8) then
-          FRowConversion := RowConvertGray;
+        case FTargetScheme of
+          csBGR,
+          csBGRA,
+          csRGB,
+          csRGBA:
+            if (FTargetBPS = 8) and (FSourceBPS = 8) then
+              FRowConversion := RowConvertIndexed2BGR;
+        else
+          if (FSourceBPS = 8) and (FTargetBPS = 8) then
+            FRowConversion := RowConvertGray;
+        end;
       end;
     csRGB,
     csRGBA:
