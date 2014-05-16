@@ -2550,9 +2550,6 @@ begin
                 csCIELab:
                   begin
                     if SamplesPerPixel >= 3 then begin
-                      // Currently only used in 16 BPS CIELAB since it seems our CIELAB to BGR conversion
-                      // seems to be more red than libtif's conversion and IrfanView.
-                      // Investigate if and how we can use libtif's own conversion functions.
                       ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
                       ColorManager.SourceOptions := ColorManager.SourceOptions +
                         [coLabByteRange];
