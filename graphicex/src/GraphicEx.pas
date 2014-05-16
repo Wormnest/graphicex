@@ -8006,8 +8006,10 @@ begin
                 end
                 else
                 begin // scBGR(A)
-                  // Since BPS should be always 8 here LayerRowSize is the same as LayerWidth
+                  // Since BPS should be always 8 here LayerRowSize is the same as LayerWidth.
                   LayerRowSize := LayerWidth;
+                  // PSP has separate channels thus we need to set that in source options.
+                  ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
                   // Compute start offset in ScanLine for this layer
                   if ColorManager.TargetColorScheme = csBGR then
                     LayerStartOfs := AbsoluteRect.Left * 3  // 3 bytes per pixel
