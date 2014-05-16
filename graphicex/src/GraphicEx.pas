@@ -3429,7 +3429,7 @@ begin
       end;
     end;
 
-    LineSize := Width * (Header.PixelSize div 8);
+    LineSize := Width * ((Header.PixelSize + 7) div 8);
     Progress(Self, psEnding, 0, False, FProgressRect, '');
 
     Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
