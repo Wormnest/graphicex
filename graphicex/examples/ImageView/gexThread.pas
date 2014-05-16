@@ -814,7 +814,12 @@ begin
     else if Thumb.ImageFormat <> CgexUnknown then begin
       // If image format isn't unknown then assume a descendant class will
       // know how to load it
-      ThumbBmp := ConvertImageToThumb(FName, Thumb);
+      try
+        ThumbBmp := ConvertImageToThumb(FName, Thumb);
+      except
+        FExceptionMessage := 'Error loading image: ' + FName;
+        fail := True;
+      end;
     end;
   end
   else begin
