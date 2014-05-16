@@ -3640,10 +3640,13 @@ var
 begin
   BitRun := $80;
   // When this is an image with alpha and not planar we need to skip the alpha bits
-  if (coAlpha in FSourceOptions) and not (coSeparatePlanes in FSourceOptions) then
+  // Tiff can have extrasamples that is not an alpha channel. That's why testing
+  // whether coAlpha is in FSourceOptions may fail in some rare cases.
+  // Thus we will check Source samples per pixel and skip anything above 1.
+  if (FSourceSPP > 1) and not (coSeparatePlanes in FSourceOptions) then
   begin
-    AlphaSkip := 1;
-    BitIncrement := 2*FSourceBPS; // Bits and alpha value
+    AlphaSkip := FSourceSPP - 1;
+    BitIncrement := FSourceSPP * FSourceBPS; // Bits and alpha value (and possibly extra samples)
   end
   else begin
     AlphaSkip := 0;
@@ -4555,13 +4558,20 @@ var
 
 begin
   BitRun := $80;
+
+  if not (coSeparatePlanes in FSourceOptions) then
+    // Since Tiff can have undetermined extra samples we need to use the correct SourceIncrement
+    SourceIncrement := FSourceSPP
+  else
+    // In planar mode source increment is always 1
+    SourceIncrement := 1;
+
   // Determine alpha handling once
   CopyAlpha := False;
   if coAlpha in FSourceOptions then
   begin
     // Byte size of components doesn't matter as the increments are applied to
     // pointers whose data types determine the final increment
-    SourceIncrement := SizeOf(TRGBA);
     TargetIncrement := SizeOf(TRGB);
     if coAlpha in FTargetOptions then
       CopyAlpha := True;
@@ -4569,16 +4579,12 @@ begin
   end
   else
   begin
-    SourceIncrement := SizeOf(TRGB);
     if coAlpha in FTargetOptions then
       TargetIncrement := SizeOf(TRGBA)
     else
       TargetIncrement := SizeOf(TRGB);
     AlphaSkip := 0;
   end;
-  // In planar mode source increment is always 1
-  if Length(Source) > 1 then
-    SourceIncrement := 1;
 
   case FSourceBPS of
     8:
