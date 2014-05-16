@@ -2443,8 +2443,9 @@ begin
           if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
              (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
              and not (ioSeparatePlanes in Options) and
-             not (ColorScheme in [csCMYK, csCMYKA, csCIELAB])) or
-             ((SamplesPerPixel in [1, 2]) and not ((ColorScheme in [csG, csGA, csIndexed, csIndexedA, csCIELAB]))) then begin
+             not (ColorScheme in [csCMYK, csCMYKA, csCIELAB, csUnknown])) or
+             ((SamplesPerPixel in [1, 2]) and not ((ColorScheme in [csG, csGA,
+             csIndexed, csIndexedA, csCIELAB, csUnknown]))) then begin
              // Generic RGBA reading interface
             if (Height > 0) and (Width > 0) then
             begin
@@ -2569,6 +2570,27 @@ begin
                       // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
                       Include(Options, ioMinIsWhite);
                     end;
+                  end;
+                csUnknown: // Do a simple guess what color scheme it could be.
+                  begin
+                    if BitsPerSample in [8, 16] then
+                      case SamplesPerPixel of
+                        1:
+                          begin
+                            ColorManager.SourceColorScheme := csG;
+                            ColorManager.TargetColorScheme := csG;
+                          end;
+                        3:
+                          begin
+                            ColorManager.SourceColorScheme := csRGB;
+                            ColorManager.TargetColorScheme := csBGR;
+                          end;
+                        4:
+                          begin
+                            ColorManager.SourceColorScheme := csRGBA;
+                            ColorManager.TargetColorScheme := csBGRA;
+                          end;
+                      end;
                   end;
               else
                 // Tiff can have extra samples that are not normal alpha channels.
