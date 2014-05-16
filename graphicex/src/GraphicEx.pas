@@ -2517,7 +2517,14 @@ begin
                 ColorManager.TargetSamplesPerPixel := SamplesPerPixel - 1;
                 ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
               end;
-              ColorManager.TargetColorScheme := csIndexed;
+
+              if (ColorScheme = csGA) and (BitsPerSample = 8) then begin
+                // Need to convert to BGRA to be able to show alpha
+                ColorManager.TargetColorScheme := csBGRA;
+                ColorManager.TargetSamplesPerPixel := 4;
+              end
+              else
+                ColorManager.TargetColorScheme := csIndexed;
             end
             else begin
               // Assume we want BGR(A) for everything else
@@ -2609,7 +2616,8 @@ begin
             else if (ColorScheme in [csG, csGA]) or (ColorManager.TargetColorScheme in [csG, csGA]) then
             begin
               // Gray scale image data.
-              Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
+              if ColorManager.TargetColorScheme in [csG, csGA, csIndexed, csIndexedA] then
+                Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
             end;
 
             StartProgressSection(0, gesLoadingData);

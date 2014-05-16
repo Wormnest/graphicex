@@ -321,6 +321,7 @@ type
     procedure RowConvertIndexedSource16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertIndexedTarget16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowConvertGray2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertRGB2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertPhotoYCC2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -4260,6 +4261,98 @@ end;
 
 //------------------------------------------------------------------------------
 
+// Convert Grayscale(A) to BGR(A).
+// Source: Currently only 8 bits grayscale with optional 8 bits alpha
+// Mask is currently ignored.
+// Target BGR(A) = 24/32 bits only at the moment.
+procedure TColorManager.RowConvertGray2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+var
+  SourceRun8: PByte;
+  SourceAlphaRun8: PByte;
+  TargetRun8: PBGRA;
+  GrayValue8: Byte;
+  CopyAlpha,
+  AddAlpha: Boolean;
+  SourceIncrement,
+  TargetIncrement: Integer;
+begin
+  if Length(Source) = 0 then begin
+    ShowError(gesSourcePaletteUndefined);
+    Exit;
+  end;
+
+  AddAlpha := False;
+  // Check how we need to handle alpha
+  if coAlpha in FSourceOptions then
+  begin
+    SourceIncrement := 2; // 1 byte grayscale + 1 byte alpha
+    if coAlpha in FTargetOptions then begin
+      TargetIncrement := SizeOf(TBGRA);
+      CopyAlpha := True;
+    end
+    else begin
+      TargetIncrement := SizeOf(TBGR);
+      CopyAlpha := False;
+    end;
+  end
+  else
+  begin
+    SourceIncrement := 1; // 1 byte grayscale
+    if coAlpha in FTargetOptions then begin
+      TargetIncrement := SizeOf(TBGRA);
+      AddAlpha := True;
+    end
+    else
+      TargetIncrement := SizeOf(TBGR);
+    CopyAlpha := False;
+  end;
+
+  case FSourceBPS of
+    8:
+      begin
+        // Currently only 8BPS target supported.
+        if FTargetBPS <> 8 then
+          Exit;
+        // Set up source and target pointers
+        SourceRun8 := Source[0]; // Grayscale source
+        if Length(Source) = 1 then begin
+          SourceAlphaRun8 := SourceRun8; Inc(SourceAlphaRun8);
+        end
+        else begin
+          // Length of source assumed to be 2. No checking necessary: in case
+          // there are more values those pointers will just be ignored.
+          SourceAlphaRun8 := Source[1];
+          SourceIncrement := 1; // separate planes: always increment by 1
+        end;
+        TargetRun8 := Target;
+
+        while Count > 0 do
+        begin
+          // Get grayscale index
+          GrayValue8 := SourceRun8^;
+
+          // Store grayscale info from palette index in Target
+          TargetRun8^.B := GrayValue8;
+          TargetRun8^.G := GrayValue8;
+          TargetRun8^.R := GrayValue8;
+          if CopyAlpha then
+            TargetRun8^.A := SourceAlphaRun8^
+          else if AddAlpha then
+            // Source has no alpha but target needs alpha, set it to $ff
+            TargetRun8^.A := $ff;
+
+          Inc(SourceRun8, SourceIncrement);
+          Inc(SourceAlphaRun8, SourceIncrement);
+          Inc(PByte(TargetRun8), TargetIncrement);
+
+          Dec(Count);
+        end;
+      end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
 procedure TColorManager.RowConvertRGB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // Converts RGB source schemes to BGR target schemes and takes care for byte swapping, alpha copy/skip and
@@ -6660,11 +6753,6 @@ procedure TColorManager.PrepareConversion;
 begin
   FRowConversion := nil;
 
-  // Grayscale conversion to non indexed is not yet supported.
-  // csGA and csG (grayscale w and w/o alpha) are considered being indexed modes
-  if (FSourceScheme in [csG, csGA]) and not (FTargetScheme  in [csG, csGA, csIndexed, csIndexedA]) then
-    ShowError(gesGrayscale2NonIndexedNotSupported);
-
   // Conversion of non indexed to indexed is also not supported.
   if (FTargetScheme in [csIndexed, csIndexedA]) and not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
     ShowError(gesIndexedNotSupported);
@@ -6688,8 +6776,17 @@ begin
       else
         FRowConversion := RowConvertIndexed8;
     csGA:
-      if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
-        FRowConversion := RowConvertGray;
+      case FTargetScheme of
+        csBGR,
+        csBGRA,
+        csRGB,
+        csRGBA:
+          if (FTargetBPS = 8) and (FSourceBPS = 8) then
+            FRowConversion := RowConvertGray2BGR;
+      else
+        if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
+          FRowConversion := RowConvertGray;
+      end;
     csIndexed:
       begin
         case FTargetScheme of
