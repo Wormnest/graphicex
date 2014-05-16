@@ -372,6 +372,17 @@ function HLSInterpolation(const HLS1, HLS2: THLSFloat; Ratio: Extended): THLSFlo
 function RGBInterpolation(const RGB1, RGB2: TRGBFloat; Ratio: Extended): TRGBFloat; overload;
 function RGBInterpolation(const RGB1, RGB2: TRGB; Ratio: Extended): TRGB; overload;
 
+// Convert from CIE L*a*b* to CIE XYZ with D50 white point.
+procedure CIELabToXYZ(L, a, b: Extended; out X, Y, Z: Extended);
+// Convert from CIE XYZ to 8 bits BGR.
+procedure XYZToBGR(X, Y, Z: Extended; bgr: PBGR);
+// Convert from CIE XYZ to 8 bits RGB.
+procedure XYZToRGB(X, Y, Z: Extended; rgb: PRGB);
+// Convert from CIE XYZ to 16 bits BGR.
+procedure XYZToBGR16(X, Y, Z: Extended; bgr: PBGR16);
+// Convert from CIE XYZ to 16 bits RGB.
+procedure XYZToRGB16(X, Y, Z: Extended; rgb: PRGB16);
+
 function  HSVToRGB32(const A, H, S, V: Integer): TRGBAColor32;
 procedure RGBToHSV32(const ARGB: TRGBAColor32; var H, S, V: Integer);
 function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32;
@@ -2306,9 +2317,191 @@ end;
 
 //------------------------------------------------------------------------------
 
+const
+  // From LibTiff tif_aux.c:
+  // TIFF 6.0 specification tells that it is no default value for the WhitePoint,
+  // but AdobePhotoshop TIFF Technical Note tells that it should be CIE D50.
+
+  // Observer= 2°, Illuminant= D50
+  ref_X =  96.422;
+  ref_Y = 100.000;
+  ref_Z =  82.521;
+
+  // Use a const for 16 / 116 to improve speed.
+  _16_116 = 16.0 / 116.0;
+
+// Convert from CIE L*a*b* to CIE XYZ with D50 white point.
+// http://www.easyrgb.com/index.php?X=MATH&H=08#text8
+// To improve speed only compute Power3 when needed: 0.206893^3 = 0.008856
+procedure CIELabToXYZ(L, a, b: Extended; out X, Y, Z: Extended);
+var vX, vY, vZ: Extended;
+begin
+  vY := (L + 16 ) / 116;
+  vX := a / 500 + vY;
+  vZ := vY - b / 200;
+
+  if vY > 0.206893 then
+    vY := Power(vY, 3)
+  else
+    vY := (vY - _16_116) / 7.787;
+
+  if vX > 0.206893 then
+    vX := Power(vX, 3)
+  else
+    vX := (vX - _16_116) / 7.787;
+
+  if vZ > 0.206893 then
+    vZ := Power(vZ, 3)
+  else
+    vZ := (vZ - _16_116) / 7.787;
+
+  X := ref_X * vX;
+  Y := ref_Y * vY;
+  Z := ref_Z * vZ;
+
+  { Original GraphicEx conversion (using D65 white point)
+  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
+  if L < 7.9996 then
+  begin
+    Y := L / 903.3;
+    X := a / 3893.5 + Y;
+    Z := Y - b / 1557.4;
+  end
+  else
+  begin
+    T := YYn3 + a / 500;
+    X := T * T * T;
+    Y := YYn3 * YYn3 * YYn3;
+    T := YYn3 - b / 200;
+    Z := T * T * T;
+  end; }
+end;
+
+// Convert from CIE XYZ to BGR (Extended Float, range 0-1).
+// http://www.easyrgb.com/index.php?X=MATH&H=01#text1
+procedure XYZToBGRExtended(X, Y, Z: Extended; out b, g, r: Extended);
+var vr, vg, vb: Extended;
+begin
+  X := X / 100;
+  Y := Y / 100;
+  Z := Z / 100;
+  vr := X *  3.2406 + Y * -1.5372 + Z * -0.4986;
+  vg := X * -0.9689 + Y *  1.8758 + Z *  0.0415;
+  vb := X *  0.0557 + Y * -0.2040 + Z *  1.0570;
+
+  if vr > 0.0031308 then
+    r := 1.055 * Power(vr, 1/2.4) - 0.055
+  else
+    r := 12.92 * vr;
+  if vg > 0.0031308 then
+    g := 1.055 * Power(vg, 1/2.4) - 0.055
+  else
+    g := 12.92 * vg;
+  if vb > 0.0031308 then
+    b := 1.055 * Power(vb, 1/2.4) - 0.055
+  else
+    b := 12.92 * vb;
+end;
+
+// Convert from CIE XYZ to 8 bits BGR.
+procedure XYZToBGR(X, Y, Z: Extended; bgr: PBGR);
+var vr, vg, vb: Extended;
+begin
+  XYZToBGRExtended(X, Y, Z, vb, vg, vr);
+
+  bgr^.B := ClampByte(Round(255 * vb));
+  bgr^.G := ClampByte(Round(255 * vg));
+  bgr^.R := ClampByte(Round(255 * vr));
+
+  { Original GraphicEx conversion
+  // blue
+  bgr^.B := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
+  // green
+  bgr^.G := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
+  // red
+  bgr^.R := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
+  }
+end;
+
+// Convert from CIE XYZ to 8 bits RGB.
+procedure XYZToRGB(X, Y, Z: Extended; rgb: PRGB);
+var vr, vg, vb: Extended;
+begin
+  XYZToBGRExtended(X, Y, Z, vb, vg, vr);
+
+  rgb^.R := ClampByte(Round(255 * vr));
+  rgb^.G := ClampByte(Round(255 * vg));
+  rgb^.B := ClampByte(Round(255 * vb));
+
+  { Original GraphicEx conversion
+  // red
+  Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
+  Inc(Target8);
+  // green
+  Target8^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
+  Inc(Target8);
+  // blue
+  Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
+  }
+end;
+
+function ClampWord(w: Integer): Word;
+begin
+  if w < 0 then
+    Result := 0
+  else if w > MaxWord then
+    Result := MaxWord
+  else
+    Result := w;
+end;
+
+// Convert from CIE XYZ to 16 bits BGR.
+procedure XYZToBGR16(X, Y, Z: Extended; bgr: PBGR16);
+var vr, vg, vb: Extended;
+begin
+  XYZToBGRExtended(X, Y, Z, vb, vg, vr);
+
+  bgr^.B := ClampWord(Round(65535 * vb));
+  bgr^.G := ClampWord(Round(65535 * vg));
+  bgr^.R := ClampWord(Round(65535 * vr));
+
+  { Original GraphicEx conversion
+  // blue
+  Target16^ := MulDiv16(ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z))), 65535, 255);
+  Inc(Target16);
+  // green
+  Target16^ := MulDiv16(ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z))), 65535, 255);
+  Inc(Target16);
+  // red
+  Target16^ := MulDiv16(ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z))), 65535, 255);
+  }
+end;
+
+// Convert from CIE XYZ to 16 bits RGB.
+procedure XYZToRGB16(X, Y, Z: Extended; rgb: PRGB16);
+var vr, vg, vb: Extended;
+begin
+  XYZToBGRExtended(X, Y, Z, vb, vg, vr);
+
+  rgb^.R := ClampWord(Round(65535 * vr));
+  rgb^.G := ClampWord(Round(65535 * vg));
+  rgb^.B := ClampWord(Round(65535 * vb));
+
+  { Original GraphicEx conversion
+  // red
+  Target16^ := MulDiv16(ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z))), 65535, 255);
+  // green
+  Target16^ := MulDiv16(ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z))), 65535, 255);
+  Inc(Target16);
+  // blue
+  Target16^ := MulDiv16(ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z))), 65535, 255);
+  Inc(Target16);
+  }
+end;
+
 procedure TColorManager.RowConvertCIELAB2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
-// Conversion of the CIE L*a*b color space to BGR using a two way approach assuming a D65 white point,
+// Conversion of the CIE L*a*b* color space to BGR using a two way approach
 // first a conversion to CIE XYZ is performed and then from there to RGB
 
 var
@@ -2319,9 +2512,7 @@ var
   aRun16,
   bRun16: PWord;
   L, a, b,
-  X, Y, Z, // Color values in float format
-  T,
-  YYn3: Extended;  // Intermediate results
+  X, Y, Z: Extended; // Color values in float format
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -2379,32 +2570,12 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // this corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
-                  // blue
-                  Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target8);
-                  // green
-                  Target8^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target8);
-                  // red
-                  Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target8, 1 + AlphaSkip);
+                  XYZToBGR(X, Y, Z, PBGR(Target8));
+                  Inc(Target8, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target8, 3 + AlphaSkip);
@@ -2439,31 +2610,12 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // blue
-                  Target16^ := MulDiv16(ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z))), 65535, 255);
-                  Inc(Target16);
-                  // green
-                  Target16^ := MulDiv16(ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z))), 65535, 255);
-                  Inc(Target16);
-                  // red
-                  Target16^ := MulDiv16(ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z))), 65535, 255);
-                  Inc(Target16, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToBGR16(X, Y, Z, PBGR16(Target16));
+                  Inc(Target16, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target16, 3 + AlphaSkip);
@@ -2473,7 +2625,7 @@ begin
             end;
         end;
       end;
-    16: 
+    16:
       begin
         if Length(Source) = 1 then
         begin
@@ -2499,51 +2651,33 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 2.55
+                    L := LRun16^ / 655.35
                   else
                     L := LRun16^;
                   Inc(LRun16, Increment);
-                  
+
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ - 128;
+                    a := aRun16^ shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ - 128;
+                    b := bRun16^ shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
-                    a := ShortInt(aRun16^);
+                    // Need to convert to ShortInt since it should be in range -128 to 128
+                    a := ShortInt(aRun16^ shr 8); // MulDiv(aRun16^, 256, 65536);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^);
+                    b := ShortInt(bRun16^ shr 8); // MulDiv(bRun16^, 256, 65536);
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // blue
-                  Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target8);
-                  // green
-                  Target8^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target8);
-                  // red
-                  Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target8, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToBGR(X, Y, Z, PBGR(Target8));
+                  Inc(Target8, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target8, 3 + AlphaSkip);
@@ -2559,50 +2693,32 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 2.55
+                    L := LRun16^ / 655.35
                   else
                     L := LRun16^;
                   Inc(LRun16, Increment);
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ - 128;
+                    a := aRun16^ shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ - 128;
+                    b := bRun16^ shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
-                    a := ShortInt(aRun16^);
+                    // Need to convert to ShortInt since it should be in range -128 to 128
+                    a := ShortInt(aRun16^ shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^);
+                    b := ShortInt(bRun16^ shr 8);
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // blue
-                  Target16^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target16);
-                  // green
-                  Target16^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target16);
-                  // red
-                  Target16^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target16, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToBGR16(X, Y, Z, PBGR16(Target16));
+                  Inc(Target16, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target16, 3 + AlphaSkip);
@@ -2629,9 +2745,7 @@ var
   aRun16,
   bRun16: PWord;
   L, a, b,
-  X, Y, Z, // Color values in float format
-  T,
-  YYn3: Extended;  // Intermediate results
+  X, Y, Z: Extended; // Color values in float format
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -2688,32 +2802,12 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
-                  // red
-                  Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target8);
-                  // green
-                  Target8^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target8);
-                  // blue
-                  Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target8, 1 + AlphaSkip);
+                  XYZToRGB(X, Y, Z, PRGB(Target8));
+                  Inc(Target8, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target8, 3 + AlphaSkip);
@@ -2748,31 +2842,12 @@ begin
                     Inc(bRun8, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // red
-                  Target16^ := MulDiv16(ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z))), 65535, 255);
-                  Inc(Target16);
-                  // green
-                  Target16^ := MulDiv16(ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z))), 65535, 255);
-                  Inc(Target16);
-                  // blue
-                  Target16^ := MulDiv16(ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z))), 65535, 255);
-                  Inc(Target16, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToRGB16(X, Y, Z, PRGB16(Target16));
+                  Inc(Target16, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target16, 3 + AlphaSkip);
@@ -2808,50 +2883,33 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 2.55
+                    L := LRun16^ / 655.35
                   else
                     L := LRun16^;
                   Inc(LRun16, Increment);
+
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ - 128;
+                    a := aRun16^ shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ - 128;
+                    b := bRun16^ shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
-                    a := ShortInt(aRun16^);
+                    // Need to convert to ShortInt since it should be in range -128 to 128
+                    a := ShortInt(aRun16^ shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^);
+                    b := ShortInt(bRun16^ shr 8);
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // red
-                  Target8^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target8);
-                  // green
-                  Target8^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target8);
-                  // blue
-                  Target8^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target8, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToRGB(X, Y, Z, PRGB(Target8));
+                  Inc(Target8, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target8, 3 + AlphaSkip);
@@ -2867,50 +2925,32 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 2.55
+                    L := LRun16^ / 655.35
                   else
                     L := LRun16^;
                   Inc(LRun16, Increment);
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ - 128;
+                    a := aRun16^ shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ - 128;
+                    b := bRun16^ shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
-                    a := ShortInt(aRun16^);
+                    // Need to convert to ShortInt since it should be in range -128 to 128
+                    a := ShortInt(aRun16^ shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^);
+                    b := ShortInt(bRun16^ shr 8);
                     Inc(bRun16, Increment);
                   end;
 
-                  YYn3 := (L + 16) / 116; // This corresponds to (Y/Yn)^1/3
-                  if L < 7.9996 then
-                  begin
-                    Y := L / 903.3;
-                    X := a / 3893.5 + Y;
-                    Z := Y - b / 1557.4;
-                  end
-                  else
-                  begin
-                    T := YYn3 + a / 500;
-                    X := T * T * T;
-                    Y := YYn3 * YYn3 * YYn3;
-                    T := YYn3 - b / 200;
-                    Z := T * T * T;
-                  end;
+                  // Convert from CIE L*a*b* to CIE XYZ
+                  CIELabToXYZ(L, a, b, X, Y, Z);
 
-                  // red
-                  Target16^ := ClampByte(Round(255 * ( 2.998 * X - 1.458 * Y - 0.541 * Z)));
-                  Inc(Target16);
-                  // green
-                  Target16^ := ClampByte(Round(255 * (-0.952 * X + 1.893 * Y + 0.059 * Z)));
-                  Inc(Target16);
-                  // blue
-                  Target16^ := ClampByte(Round(255 * ( 0.099 * X - 0.198 * Y + 1.099 * Z)));
-                  Inc(Target16, 1 + AlphaSkip);
+                  // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
+                  XYZToRGB16(X, Y, Z, PRGB16(Target16));
+                  Inc(Target16, 3 + AlphaSkip);
                 end
                 else
                   Inc(Target16, 3 + AlphaSkip);
