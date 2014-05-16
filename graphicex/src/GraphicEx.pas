@@ -3143,7 +3143,8 @@ begin
       Self.Width := FTargaHeader.Width;
       Self.Height := FTargaHeader.Height;
 
-      LineSize := Width * (FTargaHeader.PixelSize div 8);
+      // Compute size in bytes of one line of the image.
+      LineSize := Width * ((FTargaHeader.PixelSize+7) div 8);
       Progress(Self, psEnding, 0, False, FProgressRect, '');
 
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
