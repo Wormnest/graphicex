@@ -2983,10 +2983,20 @@ begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
 
+  if coSeparatePlanes in FSourceOptions then begin
+    // Separate planes
+    Increment := 1;
+  end
+  else begin
+    // Increment also needs to take into account that we might have unknown
+    // extrasamples
+    Increment := SourceSamplesPerPixel;
+  end;
+
   case FSourceBPS of
     8:
       begin
-        if Length(Source) in [4, 5] then
+        if coSeparatePlanes in FSourceOptions then
         begin
           // Plane mode
           C8 := Source[0];
@@ -2997,7 +3007,6 @@ begin
             A8 := Source[4]
           else
             A8 := nil;
-          Increment := 1;
         end
         else
         begin
@@ -3008,11 +3017,9 @@ begin
           K8 := Y8; Inc(K8);
           if coAlpha in FSourceOptions then begin
             A8 := K8; Inc(A8);
-            Increment := 5;
           end
           else begin
             A8 := nil;
-            Increment := 4;
           end;
         end;
 
@@ -3101,7 +3108,7 @@ begin
       end;
     16:
       begin
-        if Length(Source) in [4, 5] then
+        if coSeparatePlanes in FSourceOptions then
         begin
           // Plane mode
           C16 := Source[0];
@@ -3112,7 +3119,6 @@ begin
             A16 := Source[4]
           else
             A16 := nil;
-          Increment := 1;
         end
         else
         begin
@@ -3123,11 +3129,9 @@ begin
           K16 := Y16; Inc(K16);
           if coAlpha in FSourceOptions then begin
             A16 := K16; Inc(A16);
-            Increment := 5;
           end
           else begin
             A16 := nil;
-            Increment := 4;
           end;
         end;
 
@@ -3236,10 +3240,20 @@ begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
 
+  if coSeparatePlanes in FSourceOptions then begin
+    // Separate planes
+    Increment := 1;
+  end
+  else begin
+    // Increment also needs to take into account that we might have unknown
+    // extrasamples
+    Increment := SourceSamplesPerPixel;
+  end;
+
   case FSourceBPS of
     8:
       begin
-        if Length(Source) in [4, 5] then
+        if coSeparatePlanes in FSourceOptions then
         begin
           // Plane mode
           C8 := Source[0];
@@ -3250,7 +3264,6 @@ begin
             A8 := Source[4]
           else
             A8 := nil;
-          Increment := 1;
         end
         else
         begin
@@ -3261,11 +3274,9 @@ begin
           K8 := Y8; Inc(K8);
           if coAlpha in FSourceOptions then begin
             A8 := K8; Inc(A8);
-            Increment := 5;
           end
           else begin
             A8 := nil;
-            Increment := 4;
           end;
         end;
 
@@ -3354,7 +3365,7 @@ begin
       end;
     16:
       begin
-        if Length(Source) in [4, 5] then
+        if coSeparatePlanes in FSourceOptions then
         begin
           // Plane mode
           C16 := Source[0];
@@ -3365,7 +3376,6 @@ begin
             A16 := Source[4]
           else
             A16 := nil;
-          Increment := 1;
         end
         else
         begin
@@ -3376,11 +3386,9 @@ begin
           K16 := Y16; Inc(K16);
           if coAlpha in FSourceOptions then begin
             A16 := K16; Inc(A16);
-            Increment := 5;
           end
           else begin
             A16 := nil;
-            Increment := 4;
           end;
         end;
 
