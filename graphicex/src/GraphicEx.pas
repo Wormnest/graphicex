@@ -3491,7 +3491,7 @@ type
     Version: Byte;                     // 0: version 2.5; 2: 2.8 with palette; 3: 2.8 w/o palette; 5: version 3;
                                        // 4: PC Paintbrush for Windows; 5: PC Paintbrush +, Publisher's Paintbrush
     Encoding: Byte;                    // 0: uncompressed; 1: RLE encoded
-    BitsPerPixel: Byte;
+    BitsPerPixel: Byte;                // Number of bits to represent a pixel (per Plane) - 1, 2, 4, or 8
     XMin,
     YMin,
     XMax,
@@ -3500,10 +3500,12 @@ type
     VRes: Word;                        // vertical resolution in dpi
     ColorMap: array[0..15] of TRGB;    // color table
     Reserved,
-    ColorPlanes: Byte;                 // color planes (at most 4)
-    BytesPerLine,                      // number of bytes of one line of one plane
-    PaletteType: Word;                 // 1: color or b&w; 2: gray scale
-    Fill: array[0..57] of Byte;
+    ColorPlanes: Byte;                 // color planes (1, 3 or 4)
+    BytesPerLine,                      // number of bytes of one line of one plane (must be an even number)
+    PaletteType: Word;                 // 1: color or b&w; 2: gray scale (ignored in PB IV/ IV +)
+    HscreenSize: Word;                 // Horizontal screen size in pixels. New field found only in PB IV/IV Plus
+    VscreenSize: Word;                 // Vertical screen size in pixels. New field found only in PB IV/IV Plus
+    Fill: array[0..53] of Byte;
   end;
 
 //----------------------------------------------------------------------------------------------------------------------
