@@ -2428,6 +2428,10 @@ begin
 
           ColorManager.SourceColorScheme := ColorScheme;
           ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
+          // If Tiff uses separate planes we need to add that to our source options
+          if ioSeparatePlanes in Options then
+            ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+
           // Split loading image data depending on pixel depth.
           // ReadRGBA only handles 1, 2, 4, 8 and 16 bits per sample, however
           // 1, 2 and 4 bits apparently only for Indexed/Grayscale
@@ -2512,10 +2516,12 @@ begin
               ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
               if ioSeparatePlanes in Options then begin
                 // Only possible for Grayscale or Indexed with alpha.
-                // Since we're currently not handling the alpha in these cases
-                // we're going to remove planar and reduce SamplesPerPixel.
-                ColorManager.TargetSamplesPerPixel := SamplesPerPixel - 1;
                 ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+              end;
+              if (SamplesPerPixel > 1) and not HasAlpha then begin
+                // There are extra samples but apparently not a normal alpha channel.
+                // We need to make sure these extra samples get skipped.
+                ColorManager.TargetSamplesPerPixel := 1;
               end;
 
               if (ColorScheme = csGA) and (BitsPerSample = 8) then begin
@@ -2563,7 +2569,13 @@ begin
                     end;
                   end;
               else
-                ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
+                // Tiff can have extra samples that are not normal alpha channels.
+                // Catch those so we can interpret it at least partially.
+                // That is the reason that we use explicit numbers here and not SamplesPerPixel.
+                if HasAlpha then
+                  ColorManager.TargetSamplesPerPixel := 4
+                else
+                  ColorManager.TargetSamplesPerPixel := 3;
               end;
             end;
 
@@ -2722,7 +2734,7 @@ begin
         {$endif DELPHI_7_UP}
 
         // Determine whether extra samples must be considered.
-        HasAlpha := (ExtraSamples = 1) and
+        HasAlpha := (ExtraSamples >= 1) and
           (SampleInfo^ in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
 
         // SampleFormat determines DataType of samples (default = unsigned int)
