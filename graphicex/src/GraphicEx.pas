@@ -3488,7 +3488,8 @@ type
   PPCXHeader = ^TPCXHeader;
   TPCXHeader = record
     FileID: Byte;                      // $0A for PCX files, $CD for SCR files
-    Version: Byte;                     // 0: version 2.5; 2: 2.8 with palette; 3: 2.8 w/o palette; 5: version 3
+    Version: Byte;                     // 0: version 2.5; 2: 2.8 with palette; 3: 2.8 w/o palette; 5: version 3;
+                                       // 4: PC Paintbrush for Windows; 5: PC Paintbrush +, Publisher's Paintbrush
     Encoding: Byte;                    // 0: uncompressed; 1: RLE encoded
     BitsPerPixel: Byte;
     XMin,
@@ -3514,7 +3515,7 @@ begin
   if Result then
     with PPCXHeader(Memory)^ do
     begin
-      Result := (FileID in [$0A, $0C]) and (Version in [0, 2, 3, 5]) and (Encoding in [0, 1]);
+      Result := (FileID in [$0A, $0C]) and (Version in [0, 2..5]) and (Encoding in [0, 1]);
     end;
 end;
 
