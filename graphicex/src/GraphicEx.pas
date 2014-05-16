@@ -3517,7 +3517,8 @@ begin
   if Result then
     with PPCXHeader(Memory)^ do
     begin
-      Result := (FileID in [$0A, $0C]) and (Version in [0, 2..5]) and (Encoding in [0, 1]);
+      Result := (FileID in [$0A, $CD]) and (Version in [0, 2..5]) and
+        (Encoding in [0, 1]) and (BitsPerPixel in [1, 2, 4, 8]);
     end;
 end;
 
