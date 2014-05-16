@@ -3091,7 +3091,7 @@ begin
           // by 15/16 bits color map entries. However since it is planned to move
           // that code to the ColorManager to we will leave this as is since it
           // will be needed there too after the move.
-          ColorMapBufSize := (FTargaHeader.ColorMapEntrySize div 8) * FTargaHeader.ColorMapSize;
+          ColorMapBufSize := ((FTargaHeader.ColorMapEntrySize + 7) div 8) * FTargaHeader.ColorMapSize;
           GetMem(ColorMapBuffer, ColorMapBufSize);
           try
             Move(Source^, ColorMapBuffer^, ColorMapBufSize);
