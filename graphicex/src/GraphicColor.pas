@@ -1273,7 +1273,7 @@ begin
   Inc(Source, Skip-1);
   // Loop over all pixels
   for i := 0 to Count-1 do begin
-    Source^ := Source^ * AlphaSource^ div 255;
+    Source^ := MulDiv16(Source^, AlphaSource^, 255);
     Inc(Source, Skip);
     Inc(AlphaSource);
   end;
