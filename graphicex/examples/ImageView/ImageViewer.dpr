@@ -24,9 +24,11 @@ begin
   RegisterExpectedMemoryLeak(20, 3); // Unknown x 3
   RegisterExpectedMemoryLeak(52, 1); // THelpManager x 1
 
+{$IFNDEF FIXED_SHELLCTRLS}
   // ShellCtrls specific apparently: (The fixed version doesn't need these.)
   RegisterExpectedMemoryLeak(36, 1); // String x 1
   RegisterExpectedMemoryLeak(84, 1); // TShellChangeThread x 1
+{$ENDIF}
   // Newer ShellCtrls doesn't need the next 2
   // RegisterExpectedMemoryLeak(52, 1); // TStringList x 1
   // RegisterExpectedMemoryLeak(52, 1); // TShellFolder x 1

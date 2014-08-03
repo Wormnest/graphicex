@@ -13,8 +13,6 @@ interface
 
 {$DEFINE USE_XCF} // Detect Gimp XCF files
 
-{.$DEFINE FIXED_SHELLCTRLS} // NB: Should always be undefined before updating repository!
-
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, IniFiles,
