@@ -224,6 +224,13 @@ type
     procedure FinishProgressSection(DoRedraw: Boolean);
     procedure InitProgress(Width, Height: Integer);
     procedure StartProgressSection(Size: Single; const S: string);
+
+    // We need access to the original Bitmap file/stream loading routines for our
+    // bmp wrapper class.
+    // Since I don't know a better way to access them I add loading routines here
+    // that access the inherited LoadFromFile/LoadFromStream.
+    procedure LoadBitmapFromFile(const FileName: string);
+    procedure LoadBitmapFromStream(Stream: TStream);
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -239,6 +246,7 @@ type
     procedure LoadFromResourceName(Instance: THandle; const ResName: string; ImageIndex: Cardinal = 0); virtual;
     procedure LoadFromStream(Stream: TStream); override;
     procedure LoadFromStreamByIndex(Stream: TStream; ImageIndex: Cardinal = 0); virtual;
+
     function ReadImageProperties(const Name: string; ImageIndex: Cardinal): Boolean; overload; virtual;
     function ReadImageProperties(Stream: TStream; ImageIndex: Cardinal): Boolean; overload; virtual;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; overload; virtual;
@@ -1434,6 +1442,23 @@ begin
         Free;
       end;
     end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// We need access to the original Bitmap file/stream loading routines for our
+// bmp wrapper class.
+// Since I don't know a better way to access them I add loading routines here
+// that access the inherited LoadFromFile/LoadFromStream.
+
+procedure TGraphicExGraphic.LoadBitmapFromFile(const FileName: string);
+begin
+  inherited LoadFromFile(FileName);
+end;
+
+procedure TGraphicExGraphic.LoadBitmapFromStream(Stream: TStream);
+begin
+  inherited LoadFromStream(Stream);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
