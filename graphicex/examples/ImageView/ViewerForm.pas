@@ -39,6 +39,7 @@ uses
   {$IFDEF USE_XCF}
   gexXCF, // Support for Gimp XCF files
   {$ENDIF}
+  gexBmpWrapper,
   gexJpegWrapper,
   GraphicEx, rkView, gexThread, Buttons, Grids;
 
@@ -1196,7 +1197,7 @@ begin
       begin
         // To be able to load Bitmap files without extension or with another extension
         // than .bmp we will explicitly load a bitmap and then assign it to FPicture.
-        bmpImg := TBitmap.Create;
+        {bmpImg := TBitmap.Create;
         try
           bmpImg.LoadFromFile(ImgFile);
           CopyBasicImageInfo(bmpImg);
@@ -1208,7 +1209,28 @@ begin
             BitmapSetAlpha255(FPicture.Bitmap);
         finally
           bmpImg.Free;
+        end;}
+
+        // Now using our GraphicEx Bmp wrapper.
+        AGraphic := TgexBmpGraphic.Create;
+        try
+          // Now load the first page of our image
+          TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
+          // Get some basic image info
+          // TODO: Enhance our bmp wrapper to get all bmp image properties from
+          // ReadImageProperties, but for now:
+          CopyBasicImageInfo(TBitmap(AGraphic));
+          ImgGraphicClass := TgexBmpGraphic;
+          FPicture.Assign(AGraphic);
+          if (FPicture.Bitmap.PixelFormat = pf32Bit) then
+            // TODO: We should also test if there are any (partially) transparent
+            // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
+            // The alpha component can be set to 0 making the image invisible, change this to all opaque
+            BitmapSetAlpha255(FPicture.Bitmap);
+        finally
+          AGraphic.Free;
         end;
+
       end;
     CgexJpeg:
       begin
