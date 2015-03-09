@@ -61,6 +61,7 @@ unit GraphicEx;
 interface
 
 {$I GraphicConfiguration.inc}
+{$IFNDEF FPC}
 {$I Compilers.inc}
 
 {$ifdef COMPILER_7_UP}
@@ -70,6 +71,10 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+  // fpc
+  {$mode delphi}
+{$ENDIF}
 
 uses
   Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs,
@@ -77,8 +82,14 @@ uses
   LibTiffDelphi,
   {$endif}
   {$ifdef JpegGraphic}
+  {$IFNDEF FPC}
   jpeg,
+  {$ENDIF}
   {$endif ~JpegGraphic}
+  {$IFDEF FPC}
+  FPImage, // Progress stage defines
+  d2fGraphics, // CopyPalette
+  {$ENDIF}
   GraphicCompression, GraphicStrings, GraphicColor;
 
 type
@@ -222,7 +233,7 @@ type
     procedure AdvanceProgress(Amount: Single; OffsetX, OffsetY: Integer; DoRedraw: Boolean);
     procedure ClearProgressStack;
     procedure FinishProgressSection(DoRedraw: Boolean);
-    procedure InitProgress(Width, Height: Integer);
+    procedure InitProgress(AWidth, AHeight: Integer);
     procedure StartProgressSection(Size: Single; const S: string);
 
     // We need access to the original Bitmap file/stream loading routines for our
@@ -699,7 +710,7 @@ type
     function ConvertCompression(Value: Word): TCompressionType;
     function DetermineColorScheme(ChannelCount: Integer): TColorScheme;
     procedure LoadAdjustmentLayer(var Run: PByte; Layer: TPhotoshopLayer);
-    procedure ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
+    procedure ReadChannelData(var Run: PByte; var Channel: TPSDChannel; AWidth, AHeight: Integer; IsIrrelevant: Boolean);
     procedure ReadDescriptor(var Run: PByte; var Descriptor: TPSDDescriptor);
     procedure ReadMergedImage(var Source: PByte; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
     procedure ReadLayers(Run: PByte);
@@ -854,7 +865,7 @@ var
 implementation
 
 uses
-  gexVersion, gexUtils, Consts, Math, ZLibDelphi; //GXZLib
+  gexVersion, gexUtils, {$IFNDEF FPC}Consts,{$ENDIF} Math, ZLibDelphi; //GXZLib
 
 type
   {$ifndef COMPILER_6_UP}
@@ -1202,7 +1213,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TGraphicExGraphic.InitProgress(Width, Height: Integer);
+procedure TGraphicExGraphic.InitProgress(AWidth, AHeight: Integer);
 
 // Initializes all progress related variables.
 
@@ -1210,7 +1221,7 @@ begin
   ClearProgressStack;
   FProgressStack := TStack.Create;
 
-  FProgressRect := Rect(0, 0, Width, Height);
+  FProgressRect := Rect(0, 0, AWidth, AHeight);
   FPercentDone := 0;
 end;
 
@@ -2069,7 +2080,11 @@ begin
     Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Off);
   end;
   // Make sure we have a valid location (can happen with invalid or hacked tiff files)
+  {$IFNDEF FPC}
   if (Graphic.FCurrentPointer >= PAnsiChar(Graphic.FMemory)+Graphic.FSize) or
+  {$ELSE}
+  if (Graphic.FCurrentPointer >= Graphic.FMemory+Graphic.FSize) or
+  {$ENDIF}
      (Cardinal(Graphic.FCurrentPointer) < Cardinal(Graphic.FMemory)) then
     Result := 0
   else
@@ -6333,7 +6348,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer;
+procedure TPSDGraphic.ReadChannelData(var Run: PByte; var Channel: TPSDChannel; AWidth, AHeight: Integer;
   IsIrrelevant: Boolean);
 
 // Reads and optionally decompresses image data for one channel.
@@ -6961,7 +6976,11 @@ begin
         Layer.Clipping := lcNonBase;
       Inc(Run);
       Dummy := Byte(Run^);
+      {$IFNDEF FPC}
       Layer.Options := TPSDLayerOptions(Dummy and 3);
+      {$ELSE}
+      Layer.Options := TPSDLayerOptions(Dummy and Byte(3));
+      {$ENDIF}
       if Dummy and $18 = $18 then
         Layer.Options := Layer.Options + [loIrrelevantData];
       // There is a filler byte after the flags/options.
@@ -9960,12 +9979,16 @@ initialization
     // them first in order to avoid double entries.
     TPicture.UnregisterGraphicClass(TBitmap);
     TPicture.UnregisterGraphicClass(TIcon);
+    {$IFNDEF FPC}
     TPicture.UnregisterGraphicClass(TMetafile);
+    {$ENDIF}
 
     RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TBitmap);
     RegisterFileFormat('ico', gesIcons, '', [ftRaster], False, TIcon);
+    {$IFNDEF FPC}
     RegisterFileFormat('wmf', gesMetaFiles, '', [ftVector], False, TMetafile);
     RegisterFileFormat('emf', gesMetaFiles, gesEnhancedMetaFiles, [ftVector], False, TMetafile);
+    {$ENDIF}
 
     // 2013-06-22 in preparation for better jpeg handling use a define
     // around jpeg specific stuff

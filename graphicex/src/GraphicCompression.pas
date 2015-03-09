@@ -51,9 +51,10 @@ unit GraphicCompression;
 
 interface
 
-{$I Compilers.inc}
 {$I GraphicConfiguration.inc}
 
+{$IFNDEF FPC}
+{$I Compilers.inc}
 {$ifdef COMPILER_7_UP}
   // For some things to work we need code, which is classified as being unsafe for .NET.
   // We switch off warnings about that fact. We know it and we accept it.
@@ -61,9 +62,12 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+  {$mode delphi}
+{$ENDIF}
 
 uses                                                
-  Windows, Classes, SysUtils, Graphics,  
+  Windows, Classes, SysUtils, Graphics,
   LibJpegDelphi, //JPG,   // JPEG compression support
   ZLibDelphi; //GXzLib;  // general inflate/deflate and LZ77 compression support
      
@@ -467,9 +471,9 @@ begin
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
-          SourceCardinal := PCardinalArray(SourcePtr)[0];
+          SourceCardinal := PCardinalArray(SourcePtr)^[0];
           for I := 0 to RunLength - 1 do
-            PCardinalArray(TargetPtr)[I] := SourceCardinal;
+            PCardinalArray(TargetPtr)^[I] := SourceCardinal;
 
           Inc(TargetPtr, 4 * RunLength);
           Inc(SourcePtr, 4);

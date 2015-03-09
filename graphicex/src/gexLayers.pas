@@ -12,6 +12,10 @@ unit gexLayers;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses Classes, GraphicEx;
 
 type

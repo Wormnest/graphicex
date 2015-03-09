@@ -9,6 +9,10 @@ unit gexGR32Replacement;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 type
   PColor32 = ^TColor32;
   TColor32 = type Cardinal;

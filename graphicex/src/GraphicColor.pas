@@ -62,6 +62,8 @@ unit GraphicColor;
 interface
 
 {$Include GraphicConfiguration.inc}
+
+{$IFNDEF FPC}
 {$Include Compilers.inc}
 
 {$ifdef COMPILER_7_UP}
@@ -71,6 +73,10 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+   // fpc
+  {$mode Delphi}
+{$ENDIF}
 
 uses
   Windows, Graphics, GraphicStrings, SysUtils;
@@ -83,6 +89,8 @@ type
   // Define UInt64 as Int64 for Delphi versions not having UInt64
   {$IF NOT Declared(UInt64)}
   UInt64 = Int64;
+  {$IFEND}
+  {$IF NOT Declared(PUInt64)}
   PUint64 = ^UInt64;
   {$IFEND}
 
@@ -453,6 +461,11 @@ function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal
 type
   EColorConversionError = class(Exception);
 
+{$IFDEF FPC}
+  // Missing in fpc/lazarus
+var
+  SystemPalette16: HPalette;
+{$ENDIF}
 
 implementation
 
@@ -7583,4 +7596,9 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPC}
+initialization
+  // Since it's a stock object, it doesn't have to be deleted on finalization
+  SystemPalette16 := GetStockObject(DEFAULT_PALETTE);
+{$ENDIF}
 end.

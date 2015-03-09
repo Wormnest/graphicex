@@ -9,7 +9,11 @@ unit gexJpegWrapper;
 
 interface
 
-uses Classes, GraphicEx, jpeg;
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
+uses Classes, {$IFNDEF FPC}jpeg{$ELSE}Graphics{$ENDIF}, GraphicEx;
 
 type
   // A GraphicEx Wrapper class for jpeg
@@ -30,7 +34,7 @@ type
 
 implementation
 
-uses Graphics, GraphicStrings, GraphicColor;
+uses {$IFNDEF FPC}Graphics,{$ENDIF} GraphicStrings, GraphicColor;
 
 const cJpegSOIMarker = $d8ff;
 

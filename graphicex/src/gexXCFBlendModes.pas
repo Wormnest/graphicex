@@ -9,6 +9,10 @@ unit gexXCFBlendModes;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
 {$IFDEF USE_GR32}
   GR32,  Warning: not yet fully implemented!

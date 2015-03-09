@@ -25,6 +25,10 @@ interface
 
 {$I GraphicConfiguration.inc}
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 resourcestring
   // image file descriptions
   gesAllImages = 'All images';

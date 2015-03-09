@@ -18,6 +18,10 @@ unit gexTypes;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses SysUtils;
 
 type
