@@ -18,6 +18,7 @@ unit JPG;
 //
 // This file is part of the image library GraphicEx.
 
+{$IFNDEF FPC}
 {$Include Compilers.inc}
 
 {$TYPEDADDRESS OFF}
@@ -37,6 +38,11 @@ unit JPG;
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+// FPC
+{$Z4}      // enum size = dword
+{$Align 8} // Align record structures to 8 byte boundaries.
+{$ENDIF}
 
 interface
 
@@ -735,19 +741,19 @@ type
   end;
 
 // Forward declarations of default error routines.
-procedure JpegError(cinfo: j_common_ptr); forward;
-procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); forward;
-procedure OutputMessage(cinfo: j_common_ptr); forward;
-procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar); forward;
-procedure ResetErrorMgr(cinfo: j_common_ptr); forward;
+procedure JpegError(cinfo: j_common_ptr);
+procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer);
+procedure OutputMessage(cinfo: j_common_ptr);
+procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar);
+procedure ResetErrorMgr(cinfo: j_common_ptr);
 
 const
   DefaultErrorManager: jpeg_error_mgr = (
-    error_exit: JpegError;
-    emit_message: EmitMessage;
-    output_message: OutputMessage;
-    format_message: FormatMessage;
-    reset_error_mgr: ResetErrorMgr;
+    error_exit: {$IFDEF FPC}@{$ENDIF}JpegError;
+    emit_message: {$IFDEF FPC}@{$ENDIF}EmitMessage;
+    output_message: {$IFDEF FPC}@{$ENDIF}OutputMessage;
+    format_message: {$IFDEF FPC}@{$ENDIF}FormatMessage;
+    reset_error_mgr: {$IFDEF FPC}@{$ENDIF}ResetErrorMgr;
   );
 
 procedure GetJPEGInfo(FileName: string; var Width, Height: Cardinal); overload;
@@ -800,6 +806,7 @@ function jpeg_alloc_huff_table(cinfo: j_common_ptr): JHUFF_TBL_ptr;
 
 implementation
 
+{$IFNDEF FPC}
 {$L jcapimin.obj}
 {$L jcapistd.obj}
 {$L jctrans.obj}
@@ -846,6 +853,10 @@ implementation
 {$L jerror.obj}
 {$L jmemmgr.obj}
 {$L jmemnobs.obj}
+{$ELSE}
+  // fpc
+  {$LINKLIB libjpeg.a}
+{$ENDIF}
 
 resourcestring
   JMSG_NOMESSAGE = 'Bogus message code %d';
@@ -1160,13 +1171,13 @@ var
   Template: string;
 
 begin                                                  
-  Template := JPGMessages[cinfo.err.msg_code];
+  Template := JPGMessages[cinfo^.err^.msg_code];
   // The error can either be a string or up to 8 integers.
   // Search the message template for %s (the string formatter) to decide, which one we have to use.
   if Pos('%s', Template) > 0 then
-    raise EJPGError.CreateFmt(Template, [cinfo.err.msg_parm.s])
+    raise EJPGError.CreateFmt(Template, [cinfo^.err^.msg_parm.s])
   else
-    with cinfo.err.msg_parm do
+    with cinfo^.err^.msg_parm do
       raise EJPGError.CreateFmt(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
 end;
                                                          
@@ -1184,13 +1195,13 @@ procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer);
 
 
   begin
-    Template := JPGMessages[cinfo.err.msg_code];
+    Template := JPGMessages[cinfo^.err^.msg_code];
     // The message can either be a string or up to 8 integers.
     // Search the message template for %s (the string formatter) to decide, which one we have to use.
     if Pos('%s', Template) > 0 then
-      Message := Format(Template, [cinfo.err.msg_parm.s])
+      Message := Format(Template, [cinfo^.err^.msg_parm.s])
     else
-      with cinfo.err.msg_parm do
+      with cinfo^.err^.msg_parm do
         Message := Format(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
     OutputDebugString(PChar(Message));
   end;
@@ -1218,8 +1229,8 @@ end;
 procedure ResetErrorMgr(cinfo: j_common_ptr);
 
 begin
-  cinfo.err.num_warnings := 0;
-  cinfo.err.msg_code := 0;
+  cinfo^.err^.num_warnings := 0;
+  cinfo^.err^.msg_code := 0;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------

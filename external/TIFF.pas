@@ -18,11 +18,12 @@ unit TIFF;
 //
 // This file is part of the image library GraphicEx.
 
+{$IFNDEF FPC}
 {$Include Compilers.inc}
 
 {$TYPEDADDRESS OFF}
-{$Z4}      // enum size = dword                                
-// Align record structures to 4 byte boundaries.                   
+{$Z4}      // enum size = dword
+// Align record structures to 4 byte boundaries.
 {$ifdef COMPILER_7_UP}
   {$Align 4}
 {$else}
@@ -36,6 +37,13 @@ unit TIFF;
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+  // fpc
+  {$TYPEDADDRESS OFF}
+  {$Z4}      // enum size = dword
+  {$Align 4} // Align record structures to 4 byte boundaries.
+
+{$ENDIF}
 
 interface
 
