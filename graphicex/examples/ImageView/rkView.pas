@@ -13,11 +13,18 @@ unit rkView;
 
 interface
 
+{$IFNDEF FPC}
 {$I Compilers.inc}
+{$ELSE}
+  {$mode delphi}
+{$ENDIF}
 
 uses
-  Windows, Messages, WinTypes, SysUtils, Classes, Graphics, Controls, Forms,
+  Windows, Messages, {$IFNDEF FPC} WinTypes, {$ENDIF} SysUtils, Classes, Graphics, Controls, Forms,
   Dialogs, Menus, ComCtrls, StrUtils, ExtCtrls, Math, Stdctrls, Buttons,
+  {$IFDEF FPC}
+  LclType, LMessages,
+  {$ENDIF}
   rkIntegerList;
 
 const
@@ -142,7 +149,11 @@ type
     procedure CMHintShow(var Message: TCMHintShow); message CM_HINTSHOW;
     procedure SetBorderStyle(Value: TBorderStyle);
     procedure WMGetDlgCode(var message: TWMGetDlgCode); message WM_GETDLGCODE;
+    {$IFNDEF FPC}
     procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
+    {$ELSE}
+    procedure WMPaint(var Message: TLMPaint); message LM_PAINT;
+    {$ENDIF}
     procedure CMCtl3DChanged(var Message: TMessage); message CM_CTL3DCHANGED;
     procedure CMIsToolControl(var Message: TMessage); message CM_ISTOOLCONTROL;
     procedure WMWindowPosChanged(var Message: TWMWindowPosChanged); message WM_WINDOWPOSCHANGED;
@@ -280,8 +291,10 @@ type
     property Hint;
     property Visible;
     property TabOrder;
+    {$IFNDEF FPC}
     property Ctl3D;
     property ParentCtl3D;
+    {$ENDIF}
     property DragCursor;
     property DragMode;
     property MultipleSelection: Boolean read FMulti write FMulti default False;
@@ -498,7 +511,11 @@ begin
   inherited;
 end;
 
+{$IFNDEF FPC}
 procedure TrkCustomView.WMPaint(var Message: TWMPaint);
+{$ELSE}
+procedure TrkCustomView.WMPaint(var Message: TLMPaint);
+{$ENDIF}
 begin
   PaintHandler(Message);
 end;
@@ -598,7 +615,11 @@ begin
   if Value <> FBorderStyle then
   begin
     FBorderStyle := Value;
+    {$IFNDEF FPC}
     RecreateWnd;
+    {$ELSE}
+    RecreateWnd(Self);
+    {$ENDIF}
   end;
 end;
 
@@ -612,7 +633,11 @@ end;
 procedure TrkCustomView.CMCtl3DChanged(var Message: TMessage);
 begin
   if NewStyleControls and (FBorderStyle = bsSingle) then
-    RecreateWnd;
+  {$IFNDEF FPC}
+  RecreateWnd;
+  {$ELSE}
+  RecreateWnd(Self);
+  {$ENDIF}
   inherited;
 end;
 
@@ -1831,7 +1856,7 @@ begin
   with Params do
   begin
     Style := Style or BorderStyles[FBorderStyle];
-    if NewStyleControls and Ctl3D and (FBorderStyle = bsSingle) then
+    if NewStyleControls {$IFNDEF FPC} and Ctl3D {$ENDIF} and (FBorderStyle = bsSingle) then
     begin
       Style := Style and not WS_BORDER;
       ExStyle := ExStyle or WS_EX_CLIENTEDGE;

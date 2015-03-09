@@ -6,6 +6,10 @@ unit gexBlend;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses Windows;
 
 type
@@ -697,7 +701,7 @@ end;
 // The following code sample divides a window into three horizontal areas. Then it draws
 // an alpha-blended bitmap in each of the window areas.
 
-
+{ Not used currently. For fpc we would have to use Win32extra.pas or jwawingdi.pas for AlphaBlend
 const
  AC_SRC_ALPHA = $1;
 
@@ -783,7 +787,7 @@ begin
     DeleteDC(Ahdc);
 
 end;
-
+}
 
 // See also JVCL JvCaptionButton:
 // uses AlphaBlend and TransparentBlt functions

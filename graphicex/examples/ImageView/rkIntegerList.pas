@@ -2,6 +2,10 @@ unit rkIntegerList;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Classes, SysUtils;
 

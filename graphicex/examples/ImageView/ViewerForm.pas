@@ -13,8 +13,15 @@ interface
 
 {$DEFINE USE_XCF} // Detect Gimp XCF files
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  {$IFDEF FPC}
+  FpImage,
+  {$ENDIF}
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, IniFiles,
 
   // ShellCtrls can be found in the Demos/Samples folder of your Delphi installation
@@ -223,8 +230,13 @@ type
     procedure FillBackground(R: TRect; Target: TCanvas);
     procedure WMEraseBkgnd(var Msg: TWMEraseBkgnd); message WM_ERASEBKGND;
 
+    {$IFNDEF FPC}
     procedure ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
       const R: TRect; const Msg: string);
+    {$ELSE}
+    procedure ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
+      const R: TRect; const Msg: string; var Continue : Boolean);
+    {$ENDIF}
   end;
 
 var
@@ -234,7 +246,7 @@ implementation
 
 {$R *.dfm}
 
-uses Math, GraphicColor, jpeg, LibTiffDelphi,
+uses Math, GraphicColor, {$IFNDEF FPC} jpeg, {$ENDIF} LibTiffDelphi,
   gexBlend, gexStretch;
 
 
@@ -351,7 +363,7 @@ begin
   // Since we are an image viewer we don't want GraphicEx to throw an exception
   // on every image with problems.
   // For now we can only set TIFF reading to not show exceptions, for other formats this is TODO!
-  LibTiffDelphiSetErrorHandler(gexIgnoreTIFFError);
+  LibTiffDelphiSetErrorHandler({$IFDEF FPC}@{$ENDIF}gexIgnoreTIFFError);
   TiffError := '';
 
   // Add disabled state bitmaps to our page SpeedButtons
@@ -1646,8 +1658,13 @@ begin
   Msg.Result := 1;
 end;
 
+{$IFNDEF FPC}
 procedure TfrmViewer.ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
   const R: TRect; const Msg: string);
+{$ELSE}
+procedure TfrmViewer.ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
+  const R: TRect; const Msg: string; var Continue : Boolean);
+{$ENDIF}
 begin
   case Stage of
     psStarting:

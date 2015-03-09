@@ -8,8 +8,10 @@
 program ImageViewer;
 
 uses
+  {$IFNDEF FPC}
   FastMM4,
-  Forms,
+  {$ENDIF}
+  Forms, Interfaces,
   ViewerForm in 'ViewerForm.pas' {frmViewer},
   gexThread in 'gexThread.pas',
   gexBlend in 'gexBlend.pas';
