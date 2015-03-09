@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="graphicexlib"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\graphicex\src"/>
+        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files Count="17">
+      <Item1>
+        <Filename Value="..\graphicex\src\GraphicStrings.pas"/>
+        <UnitName Value="GraphicStrings"/>
+      </Item1>
+      <Item2>
+        <Filename Value="..\graphicex\src\GraphicCompression.pas"/>
+        <UnitName Value="GraphicCompression"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\graphicex\src\GraphicColor.pas"/>
+        <UnitName Value="GraphicColor"/>
+      </Item3>
+      <Item4>
+        <Filename Value="..\graphicex\src\GraphicEx.pas"/>
+        <UnitName Value="GraphicEx"/>
+      </Item4>
+      <Item5>
+        <Filename Value="..\graphicex\src\gexTypes.pas"/>
+        <UnitName Value="gexTypes"/>
+      </Item5>
+      <Item6>
+        <Filename Value="..\graphicex\src\gexUtils.pas"/>
+        <UnitName Value="gexUtils"/>
+      </Item6>
+      <Item7>
+        <Filename Value="..\graphicex\src\gexVersion.pas"/>
+        <UnitName Value="gexVersion"/>
+      </Item7>
+      <Item8>
+        <Filename Value="..\graphicex\src\gexLayers.pas"/>
+        <UnitName Value="gexLayers"/>
+      </Item8>
+      <Item9>
+        <Filename Value="..\graphicex\src\gexStretch.pas"/>
+        <UnitName Value="gexStretch"/>
+      </Item9>
+      <Item10>
+        <Filename Value="..\graphicex\src\gexJpegWrapper.pas"/>
+        <UnitName Value="gexJpegWrapper"/>
+      </Item10>
+      <Item11>
+        <Filename Value="..\graphicex\src\gexBmpWrapper.pas"/>
+        <UnitName Value="gexBmpWrapper"/>
+      </Item11>
+      <Item12>
+        <Filename Value="..\graphicex\src\gexGR32Replacement.pas"/>
+        <UnitName Value="gexGR32Replacement"/>
+      </Item12>
+      <Item13>
+        <Filename Value="..\graphicex\src\gexBasicBlendModes.pas"/>
+        <UnitName Value="gexBasicBlendModes"/>
+      </Item13>
+      <Item14>
+        <Filename Value="..\graphicex\src\gexXCFTypes.pas"/>
+        <UnitName Value="gexXCFTypes"/>
+      </Item14>
+      <Item15>
+        <Filename Value="..\graphicex\src\gexXCFBlendModes.pas"/>
+        <UnitName Value="gexXCFBlendModes"/>
+      </Item15>
+      <Item16>
+        <Filename Value="..\graphicex\src\gexXCF.pas"/>
+        <UnitName Value="gexXCF"/>
+      </Item16>
+      <Item17>
+        <Filename Value="..\graphicex\src\gexBlendModes.pas"/>
+        <UnitName Value="gexBlendModes"/>
+      </Item17>
+    </Files>
+    <RequiredPkgs Count="4">
+      <Item1>
+        <PackageName Value="Delphi2Fpc"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="ExternalLibs"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="LCL"/>
+      </Item3>
+      <Item4>
+        <PackageName Value="FCL"/>
+      </Item4>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
