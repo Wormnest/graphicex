@@ -2,6 +2,10 @@ unit ZLibDelphi;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, SysUtils;
 
@@ -61,8 +65,10 @@ function  deflateParams(var strm: RZStream; level: Integer; strategy: Integer): 
 
 implementation
 
+{$IFNDEF FPC} // Let's try fpc without libstub
 uses
   LibStub;
+{$ENDIF}
 
 
 // Initializes the internal stream state for decompression.
@@ -81,6 +87,7 @@ begin
 end;
 
 
+{$IFNDEF FPC}
 {$L deflate.obj}
 {$L inflate.obj}
 {$L inftrees.obj}
@@ -93,6 +100,11 @@ end;
 // The next 2 are not used in DelphiZLib
 {$L zutil.obj}
 {.$L uncompr.obj} // Seems not to be needed by, uncompress also isn't declared here.
+{$ELSE}
+  // fpc
+  {$LINKLIB libcrtdll} // _malloc and _free
+  {$LINKLIB libz.a}
+{$ENDIF}
 
 end.
 

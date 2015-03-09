@@ -8,46 +8,34 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <OtherUnitFiles Value="..\external"/>
-        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Files Count="9">
+    <Files Count="6">
       <Item1>
-        <Filename Value="..\external\GXzLib.pas"/>
-        <UnitName Value="GXzLib"/>
+        <Filename Value="..\external\LibStub.pas"/>
+        <UnitName Value="LibStub"/>
       </Item1>
       <Item2>
-        <Filename Value="..\external\JPG.pas"/>
-        <UnitName Value="JPG"/>
-      </Item2>
-      <Item3>
         <Filename Value="..\external\LibDelphi.pas"/>
         <UnitName Value="LibDelphi"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\external\ZLibDelphi.pas"/>
+        <UnitName Value="ZLibDelphi"/>
       </Item3>
       <Item4>
         <Filename Value="..\external\LibJpegDelphi.pas"/>
         <UnitName Value="LibJpegDelphi"/>
       </Item4>
       <Item5>
-        <Filename Value="..\external\LibStub.pas"/>
-        <UnitName Value="LibStub"/>
-      </Item5>
-      <Item6>
         <Filename Value="..\external\LibTiffDelphi.pas"/>
         <UnitName Value="LibTiffDelphi"/>
-      </Item6>
-      <Item7>
+      </Item5>
+      <Item6>
         <Filename Value="..\external\LibTiffDelphiHelper.pas"/>
         <UnitName Value="LibTiffDelphiHelper"/>
-      </Item7>
-      <Item8>
-        <Filename Value="..\external\TIFF.pas"/>
-        <UnitName Value="TIFF"/>
-      </Item8>
-      <Item9>
-        <Filename Value="..\external\ZLibDelphi.pas"/>
-        <UnitName Value="ZLibDelphi"/>
-      </Item9>
+      </Item6>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>

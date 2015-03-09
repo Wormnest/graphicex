@@ -2,6 +2,10 @@ unit LibDelphi;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, SysUtils;
 

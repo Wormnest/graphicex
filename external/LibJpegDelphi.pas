@@ -2,6 +2,10 @@ unit LibJpegDelphi;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, SysUtils;
 
@@ -437,8 +441,10 @@ function  jpeg_resync_to_restart(cinfo: PRJpegDecompressStruct; desired: Integer
 
 implementation
 
+{$IFNDEF FPC}
 uses
   LibStub;
+{$ENDIF}
 
 { jb I prefer the method used by both Mike Lischke's JPG.pas and Delphi's own jpeg unit
   for handling jpeg's error exit over LibJpegDelphi's because the latter needs
@@ -547,6 +553,7 @@ procedure jcopy_sample_rows(input_array: Pointer; source_row: Integer; output_ar
 function  jround_up(a: Integer; b: Integer): Integer; cdecl; external;
 procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: Cardinal); cdecl; external;
 
+{$IFNDEF FPC}
 {$L jmemnobs.obj}
 {$L jmemmgr.obj}
 {$L jcomapi.obj}
@@ -589,6 +596,11 @@ procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: C
 {$L jidctint.obj}
 {$L jidctfst.obj}
 {$L jidctflt.obj}
+{$ELSE}
+  // fpc
+  {$LINKLIB libcrtdll} // _malloc and _free
+  {$LINKLIB libjpeg.a}
+{$ENDIF}
 
 end.
 

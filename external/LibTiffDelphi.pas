@@ -5,6 +5,10 @@
 
 unit LibTiffDelphi;
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 {$ALIGN 8}
 {$MINENUMSIZE 1}
 
@@ -14,7 +18,11 @@ uses
   Windows, SysUtils, Classes;
 
 const
+  {$IFNDEF FPC}
   LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Delphi'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  {$ELSE}
+  LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Fpc/Lazarus'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  {$ENDIF}
 
   // Defines taken from tiff.h
   TIFF_VERSION          = 42;
@@ -860,7 +868,7 @@ function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 implementation
 
 uses
-  LibDelphi, LibStub, LibJpegDelphi, ZLibDelphi;
+  LibDelphi, {$IFNDEF FPC}LibStub,{$ENDIF} LibJpegDelphi, ZLibDelphi;
 
 var
   _TIFFwarningHandler: TIFFErrorHandler;
@@ -1007,6 +1015,10 @@ end;
 //       To make it easier to find back where they are defined in the source
 //       we also mention them in the implemention with the linked obj file.
 
+{$IFDEF FPC}
+  // fpc: link libtiff
+  {$LINKLIB libtiff.a}
+{$ENDIF}
 
 // -----  tif_read -------------------------------------------------------------
 // Scanline-oriented Read Support
@@ -1029,7 +1041,9 @@ procedure _TIFFSwab24BitData(Handle: PTIFF; Buf: pointer; cc: integer); cdecl; e
 procedure _TIFFSwab32BitData(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFSwab64BitData(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_read.obj}
+{$ENDIF}
 
 
 // -----  tiff_dir.h -----------------------------------------------------------
@@ -1059,7 +1073,9 @@ function  _TIFFSampleToTagType(Handle: PTIFF): Integer; cdecl; external;
 function  _TIFFFindOrRegisterFieldInfo( Handle: PTIFF; Tag: Cardinal; Dt: Integer ): PTIFFFieldInfo; cdecl; external;
 function  _TIFFCreateAnonFieldInfo(Handle: PTIFF; Tag: Cardinal; field_type: Integer): PTIFFFieldInfo; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_dirinfo.obj}
+{$ENDIF}
 
 
 // ----- tif_dirwrite ----------------------------------------------------------
@@ -1069,7 +1085,9 @@ function  _TIFFCreateAnonFieldInfo(Handle: PTIFF; Tag: Cardinal; field_type: Int
 function  TIFFWriteCustomDirectory(Handle: PTIFF; pdiroff: PCardinal): Integer; cdecl; external;
 // (I) function  TIFFRewriteDirectory(Handle: PTIFF): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_dirwrite.obj}
+{$ENDIF}
 
 
 // -----  tif_flush ------------------------------------------------------------
@@ -1077,7 +1095,9 @@ function  TIFFWriteCustomDirectory(Handle: PTIFF; pdiroff: PCardinal): Integer; 
 // (I) function  TIFFFlush(Handle: PTIFF): Integer; cdecl; external;
 // (I) function  TIFFFlushData(Handle: PTIFF): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_flush.obj}
+{$ENDIF}
 
 
 // -----  tif_write ------------------------------------------------------------
@@ -1095,7 +1115,9 @@ function  TIFFWriteCustomDirectory(Handle: PTIFF; pdiroff: PCardinal): Integer; 
 function  TIFFFlushData1(Handle: PTIFF): Integer; cdecl; external;
 // (I) procedure TIFFSetWriteOffset(Handle: PTIFF; Off: Cardinal); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_write.obj}
+{$ENDIF}
 
 
 // -----  tif_dumpmode ---------------------------------------------------------
@@ -1103,7 +1125,9 @@ function  TIFFFlushData1(Handle: PTIFF): Integer; cdecl; external;
 
 function  TIFFInitDumpMode(Handle: PTIFF; Scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_dumpmode.obj}
+{$ENDIF}
 
 
 // -----  tif_compress ---------------------------------------------------------
@@ -1116,7 +1140,9 @@ function  TIFFSetCompressionScheme(Handle: PTIFF; Scheme: Integer): Integer; cde
 // (I) procedure TIFFUnRegisterCODEC(c: PTIFFCodec); cdecl; external;
 // (I) function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_compress.obj}
+{$ENDIF}
 
 
 // -----  tif_dirread ----------------------------------------------------------
@@ -1126,7 +1152,9 @@ function  TIFFSetCompressionScheme(Handle: PTIFF; Scheme: Integer): Integer; cde
 // (I) function  TIFFReadCustomDirectory(Handle: PTIFF; DirOff: Cardinal; Info: PTIFFFieldInfo; N: Integer): Integer; cdecl; external;
 // (I) function  TIFFReadEXIFDirectory(Handle: PTIFF; DirOff: Cardinal): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_dirread.obj}
+{$ENDIF}
 
 
 // -----  tif_dir --------------------------------------------------------------
@@ -1152,7 +1180,9 @@ procedure _TIFFsetString(cpp: Pointer; cp: Pointer); cdecl; external;
 // TIFFReassignTagToIgnore FIXME: this is never used properly. Should be removed in the future.
 function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_dir.obj}
+{$ENDIF}
 
 
 // -----  tif_aux --------------------------------------------------------------
@@ -1161,7 +1191,9 @@ function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; c
 // (I) function  TIFFVGetFieldDefaulted(tif: Pointer; tag: Cardinal; ap: Pointer): Integer; cdecl; external;
 // (I) function  TIFFGetFieldDefaulted(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; external; varargs;
 
+{$IFNDEF FPC}
 {$LINK tif_aux.obj}
+{$ENDIF}
 
 
 // -----  tif_color ------------------------------------------------------------
@@ -1173,14 +1205,18 @@ function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; c
 // (I) procedure TIFFYCbCrtoRGB(ycbcr: PTIFFYCbCrToRGB; Y: Cardinal; Cb: Integer; Cr: Integer; r: PCardinal; g: PCardinal; b: PCardinal); cdecl; external;
 // (I) function  TIFFYCbCrToRGBInit(ycbcr: PTIFFYCbCrToRGB; luma: PSingle; refBlackWhite: PSingle): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_color.obj}
+{$ENDIF}
 
 
 // -----  tif_close ------------------------------------------------------------
 // (I) procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
 // (I) procedure TIFFClose(Handle: PTIFF); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_close.obj}
+{$ENDIF}
 
 
 // -----  tif_extension --------------------------------------------------------
@@ -1193,7 +1229,9 @@ function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; c
 // (I) function  TIFFGetClientInfo( Handle: PTIFF; const Name : PAnsiChar): Pointer; cdecl; external;
 // (I) procedure TIFFSetClientInfo( Handle: PTIFF; Data: Pointer; const Name : PAnsiChar); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_extension.obj}
+{$ENDIF}
 
 
 // -----  tif_open -------------------------------------------------------------
@@ -1232,7 +1270,9 @@ function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; exte
 // (I) function  TIFFGetMapFileProc(Handle: PTIFF): TIFFMapFileProc; cdecl; external;
 // (I) function  TIFFGetUnmapFileProc(Handle: PTIFF): TIFFUnmapFileProc; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_open.obj}
+{$ENDIF}
 
 
 // -----  tif_getimage ---------------------------------------------------------
@@ -1247,7 +1287,9 @@ function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; exte
 // (I) function  TIFFReadRGBAStrip(Handle: PTIFF; Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
 // (I) function  TIFFReadRGBATile(Handle: PTIFF; Col, Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_getimage.obj}
+{$ENDIF}
 
 
 // -----  tif_predict ----------------------------------------------------------
@@ -1255,7 +1297,9 @@ function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; exte
 function  TIFFPredictorInit(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFPredictorCleanup(Handle: PTIFF):integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_predict.obj}
+{$ENDIF}
 
 
 // -----  tif_print ------------------------------------------------------------
@@ -1263,7 +1307,9 @@ function  TIFFPredictorCleanup(Handle: PTIFF):integer; cdecl; external;
 
 // (I) procedure TIFFPrintDirectory(Handle: PTIFF; Fd: Pointer; Flags: Integer); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_print.obj}
+{$ENDIF}
 
 
 // -----  tif_error ------------------------------------------------------------
@@ -1273,7 +1319,9 @@ function  TIFFPredictorCleanup(Handle: PTIFF):integer; cdecl; external;
 // (I) procedure TIFFError(Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
 // (I) procedure TIFFErrorExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
 
+{$IFNDEF FPC}
 {$LINK tif_error.obj}
+{$ENDIF}
 
 
 // -----  tif_strip ------------------------------------------------------------
@@ -1291,7 +1339,9 @@ function  TIFFOldScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) function  TIFFRasterScanlineSize(Handle: PTIFF): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_strip.obj}
+{$ENDIF}
 
 
 // -----  tif_swab -------------------------------------------------------------
@@ -1308,7 +1358,9 @@ function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external;
 // (I) procedure TIFFReverseBits(Cp: Pointer; N: Cardinal); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_swab.obj}
+{$ENDIF}
 
 
 // -----  tif_tile -------------------------------------------------------------
@@ -1323,7 +1375,9 @@ function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) procedure TIFFDefaultTileSize(Handle: PTIFF; Tw: PCardinal; Th: PCardinal); cdecl; external;
 procedure _TIFFDefaultTileSize(Handle: PTIFF; tw: Pointer; th: Pointer); cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_tile.obj}
+{$ENDIF}
 
 
 // -----  tif_warning ----------------------------------------------------------
@@ -1333,21 +1387,27 @@ procedure _TIFFDefaultTileSize(Handle: PTIFF; tw: Pointer; th: Pointer); cdecl; 
 // (I) procedure TIFFWarning(Module: Pointer; Fmt: Pointer); cdecl; external; varargs;
 // (I) procedure TIFFWarningExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
 
+{$IFNDEF FPC}
 {$LINK tif_warning.obj}
+{$ENDIF}
 
 
 // -----  tif_version ----------------------------------------------------------
 
 // (I) function  TIFFGetVersion: PAnsiChar; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_version.obj}
+{$ENDIF}
 
 
 // -----  tif_codec ------------------------------------------------------------
 
 // (I) function  TIFFIsCODECConfigured(Scheme: Word): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_codec.obj}
+{$ENDIF}
 
 
 // -----  TIFF Codecs used -----------------------------------------------------
@@ -1359,12 +1419,16 @@ function  TIFFInitCCITTRLE(tif: PTIFF; scheme: Integer): Integer; cdecl; externa
 function  TIFFInitCCITTRLEW(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 function  TIFFInitCCITTFax3(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_fax3.obj}
+{$ENDIF}
 
 
 // -----  tif_fax3sm -----------------------------------------------------------
 
+{$IFNDEF FPC}
 {$LINK tif_fax3sm.obj}
+{$ENDIF}
 
 
 // -----  tif_jpeg -------------------------------------------------------------
@@ -1563,56 +1627,72 @@ end;
 
 function  TIFFInitJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_jpeg.obj}
+{$ENDIF}
 
 
 // -----  tif_luv --------------------------------------------------------------
 
 function  TIFFInitSGILog(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_luv.obj}
+{$ENDIF}
 
 
 // -----  tif_lzw --------------------------------------------------------------
 
 function  TIFFInitLZW(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_lzw.obj}
+{$ENDIF}
 
 
 // -----  tif_next -------------------------------------------------------------
 
 function  TIFFInitNeXT(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_next.obj}
+{$ENDIF}
 
 
 // -----  tif_packbits ---------------------------------------------------------
 
 function  TIFFInitPackBits(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_packbits.obj}
+{$ENDIF}
 
 
 // -----  tif_pixarlog ---------------------------------------------------------
 
 function  TIFFInitPixarLog(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_pixarlog.obj}
+{$ENDIF}
 
 
 // -----  tif_thunder ----------------------------------------------------------
 
 function  TIFFInitThunderScan(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_thunder.obj}
+{$ENDIF}
 
 
 // -----  tif_zip --------------------------------------------------------------
 
 function  TIFFInitZIP(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_zip.obj}
+{$ENDIF}
 
 
 // ----- tif_ojpeg -------------------------------------------------------------
@@ -1673,7 +1753,9 @@ end;
 
 function  TIFFInitOJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
+{$IFNDEF FPC}
 {$LINK tif_ojpeg.obj}
+{$ENDIF}
 
 // TODO: Add JBIG codec (needs downloading and compiling separate library).
 
@@ -1883,7 +1965,7 @@ end;
 
 
 initialization
-  _TIFFwarningHandler := LibTiffDelphiWarningThrp;
-  _TIFFerrorHandler := LibTiffDelphiErrorThrp;
+  _TIFFwarningHandler := {$IFDEF FPC}@{$ENDIF}LibTiffDelphiWarningThrp;
+  _TIFFerrorHandler := {$IFDEF FPC}@{$ENDIF}LibTiffDelphiErrorThrp;
 end.
 
