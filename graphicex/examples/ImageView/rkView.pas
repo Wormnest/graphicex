@@ -143,6 +143,9 @@ type
     FOnChange: TNotifyEvent;
     FOnMouseWheel: TMouseWheelEvent;
     FAlignment: TAlignment;
+    {$IFDEF FPC}
+    FCreatingFinished: Boolean;
+    {$ENDIF}
     procedure CMEnter(var Message: TCMEnter); message CM_ENTER;
     procedure CMExit(var Message: TCMExit); message CM_EXIT;
     procedure CMRefresh(var Message: TMessage); message CM_REFRESH;
@@ -388,6 +391,9 @@ var
   w, h: integer;
 begin
   inherited;
+  {$IFDEF FPC}
+  FCreatingFinished := False;
+  {$ENDIF}
   bugStr := '';
   bugCount := 0;
   w := GetSystemMetrics(SM_CXVSCROLL); // Width of a vertical scrollbar...
@@ -501,6 +507,9 @@ begin
   ShowHint := True;
   ParentFont := False;
   FTransparent:= False;
+  {$IFDEF FPC}
+  FCreatingFinished := True;
+  {$ENDIF}
 end;
 
 destructor TrkCustomView.Destroy;
@@ -538,6 +547,11 @@ end;
 
 procedure TrkCustomView.ReSize;
 begin
+  {$IFDEF FPC}
+  // Gets already called in fpc before the panels are created.
+  if not FCreatingFinished then
+    Exit;
+  {$ENDIF}
   pnlDummy.Visible := pnlVert.Visible;
   CalcView(False);
   if Assigned(FOnReSize) then

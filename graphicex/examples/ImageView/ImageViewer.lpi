@@ -4,9 +4,6 @@
     <Version Value="9"/>
     <PathDelim Value="\"/>
     <General>
-      <Flags>
-        <UseDefaultCompilerOptions Value="True"/>
-      </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
       <Title Value="ImageViewer"/>
@@ -50,13 +47,18 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="ImageViewer"/>
+      <Filename Value="..\bin\ImageViewer"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <Libraries Value="E:\MinGW\lib\"/>
+      <Libraries Value="..\..\..\external\source\libjpeg;..\..\..\external\source\libtiff;E:\MinGW\lib\"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <SyntaxMode Value="Delphi"/>
+      </SyntaxOptions>
+    </Parsing>
     <Linking>
       <Options>
         <Win32>

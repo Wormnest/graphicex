@@ -19,6 +19,7 @@ uses SysUtils, Forms, Classes, Windows, Messages, Graphics, ComCtrls,
      jpeg,
      {$ELSE}
      LclType, FPReadJPEG,
+     gexJpegWrapper, // Extended TJpegImage with support for scale (add after Graphics!)
      {$ENDIF}
      rkView;
 
@@ -424,7 +425,12 @@ begin
           iBlu := iBlu + pt.B;
           inc(pt);
         end;
+        {$IFNDEF FPC}
         RowSource := RowSource - iSrc;
+        {$ELSE}
+        // fpc TBitmap rawdata always top to bottom?
+        RowSource := RowSource + iSrc;
+        {$ENDIF}
       end;
       iRatio := $00FFFFFF div (dx * dy);
       pt := PRGB24(RowDest + x3);
@@ -434,7 +440,12 @@ begin
       x1 := x1 + 3 * dx;
       inc(x3, 3);
     end;
+    {$IFNDEF FPC}
     RowDest := RowDest - iDst;
+    {$ELSE}
+    // fpc TBitmap rawdata always top to bottom?
+    RowDest := RowDest + iDst;
+    {$ENDIF}
     RowSourceStart := RowSource;
   end;
 end;
@@ -609,7 +620,6 @@ var
 begin
   if FThumbView = nil then
     InitView;
-  {$IFNDEF FPC}
   case Value of
     32..63: CellJpeg.Scale := jsQuarter;
     64..127: CellJpeg.Scale := jsHalf;
@@ -617,7 +627,6 @@ begin
   else
     CellJpeg.Scale := jsEighth;
   end;
-  {$ENDIF}
   w := Value;
   h := Value;
   w := w + 20;
@@ -778,7 +787,6 @@ begin
     begin
       // This part determines the dimensions of a jpeg, the optimal jpeg scale
       // and then loads the jpeg image
-      {$IFNDEF FPC}
       FThumbJpeg.Scale := jsFullSize;
       GetJPGSize(FName, WI, HI);
       sf := Trunc(Min(HI / 255 {TH}, WI / 255 {TW}));
@@ -791,7 +799,6 @@ begin
       else
         FThumbJpeg.Scale := jsEighth;
       end;
-      {$ENDIF}
       try
         FThumbJpeg.LoadFromFile(FName);
       except
@@ -1147,7 +1154,6 @@ begin
     begin
       TMemoryStream(T.Image).Position := 0;
 
-      {$IFNDEF FPC}
       sf := Trunc(Min(T.ThumbWidth / CellScale, T.ThumbHeight / CellScale));
       if sf < 0 then
         sf := 0;
@@ -1158,7 +1164,6 @@ begin
       else
         CellJPEG.Scale := jsEighth;
       end;
-      {$ENDIF}
       CellJPEG.LoadFromStream(TMemoryStream(T.Image));
 
       Bmp := TBitmap.Create;
@@ -1313,7 +1318,7 @@ begin
     DrawText(ACanvas.Handle, PChar(txt), Length(txt), R, DT_END_ELLIPSIS or
       DT_SINGLELINE or DT_NOPREFIX or DT_CENTER or DT_VCENTER);
   finally
-    Canvas.Unlock;
+    ACanvas.Unlock;
   end;
 end;
 

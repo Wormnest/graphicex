@@ -244,7 +244,11 @@ var
 
 implementation
 
+{$IFNDEF FPC}
 {$R *.dfm}
+{$ELSE}
+{$R *.lfm}
+{$ENDIF}
 
 uses Math, GraphicColor, {$IFNDEF FPC} jpeg, {$ENDIF} LibTiffDelphi,
   gexBlend, gexStretch;
