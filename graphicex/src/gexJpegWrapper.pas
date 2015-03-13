@@ -13,9 +13,37 @@ interface
   {$mode delphi}
 {$ENDIF}
 
-uses Classes, {$IFNDEF FPC}jpeg{$ELSE}Graphics{$ENDIF}, GraphicEx;
+uses Classes,
+     {$IFNDEF FPC}
+     jpeg,
+     {$ELSE}
+     Graphics, FPReadJPEG, FPImage, IntfGraphics,
+     {$ENDIF}
+     GraphicEx;
 
 type
+  {$IFDEF FPC}
+  // This overrides the fpc default TJpegImage with some enhancements we need.
+  TJpegImage = class(Graphics.TJpegImage)
+  private
+    FScale: TJPEGScale;
+    {FIsCMYK: Boolean;
+    FAdobeMarkerSeen: Boolean;
+    FJpegColorSpace: Integer;}
+    // todo: fpc TJpegImage does not take into account the adobe flag (app 14 marker)
+    //       If this is on cmyk, cyyk values should be inverted!
+  protected
+    procedure InitializeReader(AImage: TLazIntfImage; AReader: TFPCustomImageReader); override;
+    procedure FinalizeReader(AReader: TFPCustomImageReader); override;
+  public
+    constructor Create; override;
+    property Scale: TJPEGScale read FScale write FScale;
+    {property AdobeMarkerSeen: Boolean read FAdobeMarkerSeen;
+    property IsCMYK: Boolean read FIsCMYK;
+    property JpegColorSpace: Integer read FJpegColorSpace;}
+  end;
+  {$ENDIF}
+
   // A GraphicEx Wrapper class for jpeg
   // We should also override the other Load ByIndex procedures! However we can't
   // directly use the others. We  probably need to make a temporary intermediate stream.
@@ -34,7 +62,11 @@ type
 
 implementation
 
-uses {$IFNDEF FPC}Graphics,{$ENDIF} GraphicStrings, GraphicColor;
+uses {$IFNDEF FPC}Graphics,{$ENDIF}
+     {$IFDEF FPC}
+     JPEGLib,
+     {$ENDIF}
+     GraphicStrings, GraphicColor;
 
 const cJpegSOIMarker = $d8ff;
 
@@ -46,6 +78,52 @@ type
          2: (string5: array [0..4] of char);
      end;
      PShortFileHeader = ^TShortFileHeader;
+
+{$IFDEF FPC}
+//type
+  // We need access to private field of TFPReaderJPEG.
+  // ugh fpc also doesn't allow acces to private fields using a Hack!
+  {TJpegReaderHack = class(TFPReaderJPEG)
+  end;}
+
+  // Seems fpc doesn't allow access to private although Delphi does.
+  // Thus we have to keep on using the hack method.
+  {TJpegReaderHelper = class helper for TFPReaderJPEG
+  private
+    function GetInfo: jpeg_decompress_struct;
+  protected
+    property JpegInfo: jpeg_decompress_struct read GetInfo;
+  end;
+
+function TJpegReaderHelper.GetInfo: jpeg_decompress_struct;
+begin
+  Result := TFPReaderJPEG(Self).FInfo;
+end;}
+
+constructor TJpegImage.Create;
+begin
+  inherited Create;
+  FScale := jsFullSize;
+  {FIsCMYK := False;
+  FAdobeMarkerSeen := False;
+  FJpegColorSpace := 0;}
+end;
+
+procedure TJpegImage.InitializeReader(AImage: TLazIntfImage; AReader: TFPCustomImageReader);
+begin
+  inherited InitializeReader(AImage, AReader);
+  TFPReaderJPEG(AReader).Scale := FScale;
+end;
+
+procedure TJpegImage.FinalizeReader(AReader: TFPCustomImageReader);
+begin
+  //FAdobeMarkerSeen := TJpegReaderHack(AReader).FInfo.saw_Adobe_marker;
+  //FIsCMYK := TJpegReaderHack(AReader).FInfo.jpeg_color_space in [JCS_CMYK, JCS_YCCK];
+  //FJpegColorSpace := Byte(TJpegReaderHack(AReader).FInfo.jpeg_color_space);
+  inherited FinalizeReader(AReader);
+end;
+
+{$ENDIF}
 
 class function TgexJpegGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 begin
@@ -60,7 +138,11 @@ procedure TgexJpegGraphic.CopyJpegProperties(JpegImage: TJpegImage);
 begin
   // Add some basic info to FImageProperties
   case PixelFormat of
+    {$IFNDEF FPC}
     pf24Bit:
+    {$ELSE} // fpc uses 32bits for jpegs
+    pf32Bit:
+    {$ENDIF}
       begin
         FImageProperties.BitsPerPixel := 32;
         FImageProperties.SamplesPerPixel := 4;
@@ -86,8 +168,13 @@ begin
   // we apparently need to explicitly set PixelFormat to pf24Bit since assigning
   // as is results in Pf32Bit PixelFormat.
   // Since we can't be sure that this jpeg version is used we can't use IsCMYK.
+  {$IFNDEF FPC}
   if PixelFormat = pf32Bit then
     PixelFormat := pf24Bit;
+  {$ELSE}
+  // Fpc apparently sets jpegs (except grayscales?, not tested) to 32 bits
+  // Setting it to 24bits renders an all black output
+  {$ENDIF}
 end;
 
 procedure TgexJpegGraphic.LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0);
@@ -129,7 +216,7 @@ end;
 initialization
   // Unregister TJpegImage first (both will just ignore it if TJpegImage isn't registered)
   TPicture.UnregisterGraphicClass(TJpegImage);
-  FileFormatList.UnregisterFileFormat('', TJpegImage);
+  FileFormatList.UnregisterFileFormat('', {$IFDEF FPC}Graphics.{$ENDIF}TJpegImage);
   // Register Jpeg with our class
   FileFormatList.RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TgexJpegGraphic);
   FileFormatList.RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TgexJpegGraphic);
