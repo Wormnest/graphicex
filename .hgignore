@@ -6,3 +6,5 @@ lib
 *.a
 *.res
 *.ico
+*.exe
+graphicex/examples/bin
