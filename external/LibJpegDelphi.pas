@@ -459,6 +459,7 @@ uses
 }
 
 procedure jpeg_error_exit_raise; cdecl;
+{$IFDEF FPC} public name '_jpeg_error_exit_raise'; {$ENDIF}
 begin
   raise Exception.Create('LibJpeg error_exit');
 end;

@@ -7,6 +7,10 @@ unit LibTiffDelphi;
 
 {$IFDEF FPC}
   {$mode delphi}
+  // We need cvar enabled here which is on in objfpc but off by default in delphi mode.
+  // In the cvar enabled mode we can use named public variables which is not
+  // possible by default in delphi mode.
+  {$modeswitch cvar}
 {$ENDIF}
 
 {$ALIGN 8}
@@ -870,16 +874,29 @@ implementation
 uses
   LibDelphi, {$IFNDEF FPC}LibStub,{$ENDIF} LibJpegDelphi, ZLibDelphi;
 
+{$IFDEF FPC}
+  // fpc: link libtiff
+  {$LINKLIB libtiff.a}
+{$ENDIF}
+
 var
+  {$IFNDEF FPC}
   _TIFFwarningHandler: TIFFErrorHandler;
   _TIFFerrorHandler: TIFFErrorHandler;
+  {$ELSE}
+  __TIFFwarningHandler: TIFFErrorHandler; public name '__TIFFwarningHandler';
+  __TIFFerrorHandler: TIFFErrorHandler; public name  '__TIFFerrorHandler';
+  {$ENDIF}
   FLibTiffDelphiWarningHandler: LibTiffDelphiErrorHandler;
   FLibTiffDelphiErrorHandler: LibTiffDelphiErrorHandler;
 
-
 // -----  Required TIFF memory handling functions. -----------------------------
 
+{$IFNDEF FPC}
 function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl;
+{$ELSE}
+function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl; public name '__TIFFmemcmp';
+{$ENDIF}
 var
   ma, mb: PByte;
   n: Integer;
@@ -904,12 +921,21 @@ begin
   Result := 0;
 end;
 
+{$IFNDEF FPC}
 procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl;
+{$ELSE}
+procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl; public name '__TIFFmemset';
+{$ENDIF}
 begin
   FillMemory(p, c, v);
 end;
 
+{$IFNDEF FPC}
 function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl;
+{$ELSE}
+function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl; public name '__TIFFrealloc';
+//[public,alias:'__TIFFrealloc'];
+{$ENDIF}
 begin
   if p = nil then
     Result := AllocMem(s)
@@ -917,20 +943,33 @@ begin
     Result := ReallocMemory(p,s);
 end;
 
+{$IFNDEF FPC}
 procedure _TIFFfree(p: Pointer); cdecl;
+{$ELSE}
+procedure _TIFFfree(p: Pointer); cdecl; public name '__TIFFfree';
+{$ENDIF}
 begin
   FreeMem(p);
 end;
 
+{$IFNDEF FPC}
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl;
+{$ELSE}
+procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl; public name '__TIFFmemcpy';
+{$ENDIF}
 begin
   CopyMemory(d, s, c);
 end;
 
+{$IFNDEF FPC}
 function _TIFFmalloc(s: Longint): Pointer; cdecl;
+{$ELSE}
+function _TIFFmalloc(s: Longint): Pointer; cdecl; public name '__TIFFmalloc';
+{$ENDIF}
 begin
   Result := AllocMem(s);
 end;
+
 
 // -----  LibTiffDelphi Version and Error handlers. ----------------------------
 
@@ -1015,10 +1054,6 @@ end;
 //       To make it easier to find back where they are defined in the source
 //       we also mention them in the implemention with the linked obj file.
 
-{$IFDEF FPC}
-  // fpc: link libtiff
-  {$LINKLIB libtiff.a}
-{$ENDIF}
 
 // -----  tif_read -------------------------------------------------------------
 // Scanline-oriented Read Support
@@ -1433,12 +1468,13 @@ function  TIFFInitCCITTFax3(tif: PTIFF; scheme: Integer): Integer; cdecl; extern
 
 // -----  tif_jpeg -------------------------------------------------------------
 
-procedure TIFFjpeg_error_exit_raise; cdecl;
+procedure TIFFjpeg_error_exit_raise; cdecl; {$IFDEF FPC} public name '_TIFFjpeg_error_exit_raise'; {$ENDIF}
 begin
   raise ELibJpegError.Create('LibTiff: Error in jpeg!');
 end;
 
 function TIFFcallvjpeg_jpeg_CreateCompress(cinfo: Pointer; version: Integer; structsize: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_CreateCompress'; {$ENDIF}
 begin
   try
     jpeg_CreateCompress(cinfo, version, structsize);
@@ -1449,6 +1485,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_CreateDecompress(cinfo: Pointer; version: Integer; structsize: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_CreateDecompress'; {$ENDIF}
 begin
   try
     jpeg_CreateDecompress(cinfo, version, structsize);
@@ -1459,6 +1496,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_set_defaults(cinfo: Pointer): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_set_defaults'; {$ENDIF}
 begin
   try
     jpeg_set_defaults(cinfo);
@@ -1469,6 +1507,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_set_colorspace(cinfo: Pointer; colorspace: Integer): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_set_colorspace'; {$ENDIF}
 begin
   try
     jpeg_set_colorspace(cinfo, colorspace);
@@ -1479,6 +1518,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_set_quality(cinfo: Pointer; quality: Integer; force_baseline: Byte): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_set_quality'; {$ENDIF}
 begin
   try
     jpeg_set_quality(cinfo, quality, force_baseline);
@@ -1489,6 +1529,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_suppress_tables(cinfo: PRJpegCompressStruct; suppress: Byte): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_suppress_tables'; {$ENDIF}
 begin
   try
     jpeg_suppress_tables(cinfo, suppress);
@@ -1499,6 +1540,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_start_compress(cinfo: PRJpegCompressStruct; write_all_tables: Byte): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_start_compress'; {$ENDIF}
 begin
   try
     jpeg_start_compress(cinfo, write_all_tables);
@@ -1509,6 +1551,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_write_scanlines(errreturn: Integer; cinfo: PRJpegCompressStruct; scanlines: Pointer; num_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_write_scanlines'; {$ENDIF}
 begin
   try
     Result := jpeg_write_scanlines(cinfo, scanlines, num_lines);
@@ -1518,6 +1561,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_write_raw_data(errreturn: Integer; cinfo: PRJpegCompressStruct; data: Pointer; num_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_write_raw_data'; {$ENDIF}
 begin
   try
     Result := jpeg_write_raw_data(cinfo, data, num_lines);
@@ -1527,6 +1571,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_finish_compress(cinfo: PRJpegCompressStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_finish_compress'; {$ENDIF}
 begin
   try
     jpeg_finish_compress(cinfo);
@@ -1537,6 +1582,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_write_tables(cinfo: PRJpegCompressStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_write_tables'; {$ENDIF}
 begin
   try
     jpeg_write_tables(cinfo);
@@ -1547,6 +1593,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_read_header(errreturn: Integer; cinfo: PRJpegDecompressStruct; require_image: Byte): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_read_header'; {$ENDIF}
 begin
   try
     Result := jpeg_read_header(cinfo, Boolean(require_image));
@@ -1556,6 +1603,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_start_decompress(cinfo: PRJpegDecompressStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_start_decompress'; {$ENDIF}
 begin
   try
     jpeg_start_decompress(cinfo);
@@ -1566,6 +1614,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_read_scanlines(errreturn: Integer; cinfo: PRJpegDecompressStruct; scanlines: Pointer; max_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_read_scanlines'; {$ENDIF}
 begin
   try
     Result := jpeg_read_scanlines(cinfo, scanlines, max_lines);
@@ -1575,6 +1624,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_read_raw_data(errreturn: Integer; cinfo: PRJpegDecompressStruct; data: Pointer; max_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_read_raw_data'; {$ENDIF}
 begin
   try
     Result := jpeg_read_raw_data(cinfo, data, max_lines);
@@ -1584,6 +1634,7 @@ begin
 end;
 
 function TIFFcalljpeg_jpeg_finish_decompress(errreturn: Integer; cinfo: PRJpegDecompressStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_jpeg_finish_decompress'; {$ENDIF}
 begin
   try
     Result := jpeg_finish_decompress(cinfo);
@@ -1593,6 +1644,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_abort(cinfo: PRJpegCommonStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_abort'; {$ENDIF}
 begin
   try
     jpeg_abort(cinfo);
@@ -1603,6 +1655,7 @@ begin
 end;
 
 function TIFFcallvjpeg_jpeg_destroy(cinfo: PRJpegCommonStruct): Integer; cdecl;
+{$IFDEF FPC} public name '_TIFFcallvjpeg_jpeg_destroy'; {$ENDIF}
 begin
   try
     jpeg_destroy(cinfo);
@@ -1617,6 +1670,7 @@ type
 
 function TIFFcalljpeg_alloc_sarray(alloc_sarray: jpeg_alloc_sarray; cinfo: PRJpegCommonStruct; pool_id: Integer; samplesperrow: Cardinal;
                     numrows: Cardinal): Pointer; cdecl;
+{$IFDEF FPC} public name '_TIFFcalljpeg_alloc_sarray'; {$ENDIF}
 begin
   try
     Result := alloc_sarray(cinfo, pool_id, samplesperrow, numrows);
@@ -1698,6 +1752,7 @@ function  TIFFInitZIP(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 // ----- tif_ojpeg -------------------------------------------------------------
 
 function jpeg_create_decompress_encap(sp: Pointer; cinfo: Pointer): Integer; cdecl;
+{$IFDEF FPC} public name '_jpeg_create_decompress_encap'; {$ENDIF}
 begin
   try
     jpeg_create_decompress(cinfo);
@@ -1708,6 +1763,7 @@ begin
 end;
 
 function jpeg_read_header_encap(sp: Pointer; cinfo: Pointer; require_image: Byte): Integer; cdecl;
+{$IFDEF FPC} public name '_jpeg_read_header_encap'; {$ENDIF}
 begin
   try
     Result := jpeg_read_header(cinfo, Boolean(require_image));
@@ -1717,6 +1773,7 @@ begin
 end;
 
 function jpeg_start_decompress_encap(sp: Pointer; cinfo: Pointer): Integer; cdecl;
+{$IFDEF FPC} public name '_jpeg_start_decompress_encap'; {$ENDIF}
 begin
   try
     jpeg_start_decompress(cinfo);
@@ -1728,6 +1785,7 @@ end;
 
 function jpeg_read_scanlines_encap(sp: Pointer; cinfo: Pointer; scanlines: Pointer;
   max_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_jpeg_read_scanlines_encap'; {$ENDIF}
 begin
   try
     Result := jpeg_read_scanlines(cinfo, scanlines, max_lines);
@@ -1738,6 +1796,7 @@ end;
 
 function jpeg_read_raw_data_encap(sp: Pointer; cinfo: Pointer; data: Pointer;
   max_lines: Cardinal): Integer; cdecl;
+{$IFDEF FPC} public name '_jpeg_read_raw_data_encap'; {$ENDIF}
 begin
   try
     Result := jpeg_read_raw_data(cinfo, data, max_lines);
@@ -1747,6 +1806,7 @@ begin
 end;
 
 procedure jpeg_encap_unwind(Handle: PTIFF); cdecl;
+{$IFDEF FPC} public name '_jpeg_encap_unwind'; {$ENDIF}
 begin
   // TODO! Not sure what we need to do here.
 end;
@@ -1965,7 +2025,12 @@ end;
 
 
 initialization
-  _TIFFwarningHandler := {$IFDEF FPC}@{$ENDIF}LibTiffDelphiWarningThrp;
-  _TIFFerrorHandler := {$IFDEF FPC}@{$ENDIF}LibTiffDelphiErrorThrp;
+  {$IFNDEF FPC}
+  _TIFFwarningHandler := LibTiffDelphiWarningThrp;
+  _TIFFerrorHandler := LibTiffDelphiErrorThrp;
+  {$ELSE}
+  __TIFFwarningHandler := @LibTiffDelphiWarningThrp;
+  __TIFFerrorHandler := @LibTiffDelphiErrorThrp;
+  {$ENDIF}
 end.
 
