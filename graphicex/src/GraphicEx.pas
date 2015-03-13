@@ -5861,6 +5861,9 @@ end;
 constructor TPhotoshopLayers.Create(Graphic: TPSDGraphic);
 
 begin
+  {$IFDEF FPC}
+  inherited Create;
+  {$ENDIF}
   FGraphic := Graphic;
 end;
 
