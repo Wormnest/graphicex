@@ -301,7 +301,7 @@ type
       jpeg_read_header() initializes them to default values. }
     OutColorSpace: Integer;        { colorspace for output }
     ScaleNum,ScaleDenom: Cardinal; { fraction by which to scale image }
-    OutputGamme: Double;           { image gamma wanted in output }
+    OutputGamma: Double;           { image gamma wanted in output }
     BufferedImage: Boolean;        { TRUE=multiple output passes }
     RawDataOut: Boolean;           { TRUE=downsampled data wanted }
     DctMethod: Integer;            { IDCT algorithm selector }
