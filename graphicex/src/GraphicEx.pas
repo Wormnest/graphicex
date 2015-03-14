@@ -1840,7 +1840,13 @@ begin
           csRGB:
             TargetColorScheme := csBGR;
         else
+          {$IFNDEF FPC}
           TargetColorScheme := csIndexed;
+          {$ELSE}
+          SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
+          TargetColorScheme := csBGR;
+          TargetSamplesPerPixel := 3
+          {$ENDIF}
         end;
         PixelFormat := TargetPixelFormat;
         // Uses separate channels thus we need to set that in source options.
@@ -1932,19 +1938,38 @@ begin
             for  Y := 0 to Height - 1 do
             begin
               GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
+              {$IFNDEF FPC}
               Move(RedBuffer^, ScanLine[Height - Y - 1]^, Width);
+              {$ELSE}
+              ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+              {$ENDIF}
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
           end
           else
           begin
+            {$IFNDEF FPC}
             for  Y := 0 to Height - 1 do
             begin
               ReadAndDecode(Memory, ScanLine[Height - Y - 1], nil, nil, nil, Y, Header.BPC);
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
+            {$ELSE}
+            GetMem(RedBuffer, Count);
+            try
+              for  Y := 0 to Height - 1 do
+              begin
+                ReadAndDecode(Memory, RedBuffer, nil, nil, nil, Y, Header.BPC);
+                ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            finally
+              FreeMem(RedBuffer);
+            end;
+            {$ENDIF}
           end;
         end;
       finally
