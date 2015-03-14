@@ -5062,6 +5062,19 @@ begin
       Inc(FSource, SizeOf(Header));
 
       PixelFormat := pf8Bit;
+      {$IFDEF FPC}
+      ColorManager.SourceColorScheme := ColorScheme;
+      // Source bits per sampel should always be 8 since apparently always a
+      // whole byte is used even if bps is less than 8 (and 8 is the maximum).
+      ColorManager.SourceBitsPerSample := 8;
+      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      // fpc doesn't support indexed pf8Bit so we will have to convert
+      // it to 24bits BGR
+      ColorManager.TargetColorScheme := csBGR;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
+      PixelFormat := ColorManager.TargetPixelFormat;
+      {$ENDIF}
 
       // Read general information.
       Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
@@ -5073,6 +5086,9 @@ begin
       if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
       begin
         // The global color table immediately follows the screen descriptor.
+        {$IFDEF FPC}
+        ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
+        {$ENDIF}
         LogPalette.palNumEntries := 2 shl (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE);
         for I := 0 to LogPalette.palNumEntries - 1 do
         begin
@@ -5108,6 +5124,9 @@ begin
         if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
         begin
           // the global color table immediately follows the image descriptor
+          {$IFDEF FPC}
+          ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
+          {$ENDIF}
           LogPalette.palNumEntries := 2 shl (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE);
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
@@ -5165,7 +5184,11 @@ begin
             for I := 0 to Height - 1 do
             begin
               Line := Scanline[I];
+              {$IFNDEF FPC}
               Move(TargetRun^, Line^, Width);
+              {$ELSE}
+              ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+              {$ENDIF}
               Inc(PByte(TargetRun), Width);
 
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
@@ -5203,7 +5226,11 @@ begin
               while I < Height do
               begin
                 Line := Scanline[I];
+                {$IFNDEF FPC}
                 Move(TargetRun^, Line^, Width);
+                {$ELSE}
+                ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+                {$ENDIF}
                 Inc(PByte(TargetRun), Width);
                 Inc(I, Increment);
 
