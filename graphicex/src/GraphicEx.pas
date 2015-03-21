@@ -3169,12 +3169,24 @@ begin
       with ColorManager do
       begin
         SourceSamplesPerPixel := SamplesPerPixel;
-        TargetSamplesPerPixel := SamplesPerPixel;
         SourceColorScheme := ColorScheme;
-        SourceOptions := [];
-        TargetColorScheme := csBGR;
         SourceBitsPerSample := BitsPerSample;
+        {$IFNDEF FPC}
         TargetBitsPerSample := BitsPerSample;
+        TargetSamplesPerPixel := SamplesPerPixel;
+        {$ELSE}
+        TargetBitsPerSample := 8;
+        if BitsPerSample = 5 then
+          SourceExtraBPP := 1; // 1 extra bit per pixel
+        if HasAlpha then begin
+          TargetSamplesPerPixel := 4;
+          TargetColorScheme := csBGRA;
+        end
+        else begin
+          TargetSamplesPerPixel := 3;
+          TargetColorScheme := csBGR;
+        end;
+        {$ENDIF}
         PixelFormat := TargetPixelFormat;
       end;
 
@@ -3196,12 +3208,18 @@ begin
             case FTargaHeader.ColorMapEntrySize of
               32:
                 begin
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
+                  {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
                     pfInterlaced8Quad, FTargaHeader.ColorMapSize, True);
                   Inc(Source, ColorMapBufSize);
                 end;
               24:
                 begin
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
+                  {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
                     pfInterlaced8Triple, FTargaHeader.ColorMapSize, True);
                   Inc(Source, ColorMapBufSize);
@@ -3226,6 +3244,9 @@ begin
                     Inc(PWord(Source));
                   end;
                   Palette := CreatePalette(PLogPalette(@LogPalette)^);
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+                  {$ENDIF}
                 end;
             else
               // Other color map entry sizes are not supported
@@ -3259,7 +3280,11 @@ begin
                 LineBuffer := ScanLine[I]
               else
                 LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
+              {$IFNDEF FPC}
               Move(Source^, LineBuffer^, LineSize);
+              {$ELSE}
+              ColorManager.ConvertRow([Source], LineBuffer, Width, $FF);
+              {$ENDIF}
               Inc(Source, LineSize);
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
@@ -3284,7 +3309,11 @@ begin
                   LineBuffer := ScanLine[I]
                 else
                   LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
+                {$IFNDEF FPC}
                 Move(Run^, LineBuffer^, LineSize);
+                {$ELSE}
+                  ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
+                {$ENDIF}
                 Inc(Run, LineSize);
                 Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
                 OffsetRect(FProgressRect, 0, 1);
