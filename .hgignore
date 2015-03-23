@@ -8,3 +8,11 @@ lib
 *.ico
 *.exe
 graphicex/examples/bin
+external/obj
+*.dcu
+tests/bin
+*.~*
+*.cfg
+*.dof
+*.drc
+*.dsk
