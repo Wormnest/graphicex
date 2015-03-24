@@ -6204,7 +6204,11 @@ begin
           RunR := GetChannel(0);
           for Y := 0 to Height - 1 do
           begin
+            {$IFNDEF FPC}
             Move(RunR^, ScanLine[Y]^, Width);
+            {$ELSE}
+            ColorManager.ConvertRow([RunR], ScanLine[Y], Width, $FF);
+            {$ENDIF}
             Inc(RunR, Width);
           end;
         end;
@@ -6547,7 +6551,7 @@ begin
     begin
       // Allocate temporary storage for the channel data. This memory is freed in CombineChannels.
       // A channel is always 8 bit per pixel.
-      GetMem(Channel.Data, Width * Height);
+      GetMem(Channel.Data, AWidth * AHeight);
 
       case Compression of
         ctNone: // Simple case, just move the data to our storage.
@@ -6556,20 +6560,20 @@ begin
           begin
             Decoder := TPackbitsRLEDecoder.Create;
             try
-              SetLength(RLELength, Height);
-              Count := 2 * Height;
+              SetLength(RLELength, AHeight);
+              Count := 2 * AHeight;
               Move(Run^, Pointer(RLELength)^, Count); // RLE lengths are word values.
-              SwapShort(Pointer(RLELength), Height);
+              SwapShort(Pointer(RLELength), AHeight);
               Dec(RemainingSize, Count);
               // Advance the running pointer to after the RLE lenghts.
               Inc(Run, Count);
 
               Target := Channel.Data;
-              for Y := 0 to Height - 1 do
+              for Y := 0 to AHeight - 1 do
               begin
-                Decoder.Decode(Pointer(Run), Pointer(Target), RLELength[Y], Width);
+                Decoder.Decode(Pointer(Run), Pointer(Target), RLELength[Y], AWidth);
                 Inc(Run, RLELength[Y]);
-                Inc(Target, Width);
+                Inc(Target, AWidth);
                 Dec(RemainingSize, RLELength[Y]);
                 if RemainingSize <= 0 then
                   Break;
@@ -6874,20 +6878,40 @@ begin
           // Very simple format here, we don't need the color conversion manager.
           if Assigned(Decoder) then
           begin
-            for Y := 0 to H - 1 do
-            begin
-              Count := RLELength[Y];
-              Line := ScanLine[Y];
-              Decoder.Decode(Pointer(Source), Line, Count, W);
-              Inc(Source, Count);
+            {$IFDEF FPC}
+            GetMem(Buffer, W);
+            try
+            {$ENDIF}
+              for Y := 0 to H - 1 do
+              begin
+                Count := RLELength[Y];
+                {$IFNDEF FPC}
+                Line := ScanLine[Y];
+                {$ELSE}
+                Line := Buffer;
+                {$ENDIF}
+                Decoder.Decode(Pointer(Source), Line, Count, W);
+                Inc(Source, Count);
 
-              AdvanceProgress(100 / H, 0, 1, True);
+                {$IFDEF FPC}
+                ColorManager.ConvertRow([Buffer], ScanLine[Y], W, $FF);
+                {$ENDIF}
+                AdvanceProgress(100 / H, 0, 1, True);
+              end;
+            {$IFDEF FPC}
+            finally
+              FreeMem(Buffer);
             end;
+            {$ENDIF}
           end
           else // uncompressed data
             for Y := 0 to H - 1 do
             begin
+              {$IFNDEF FPC}
               Move(Source^, ScanLine[Y]^, W);
+              {$ELSE}
+              ColorManager.ConvertRow([Source], ScanLine[Y], W, $FF);
+              {$ENDIF}
               Inc(Source, W);
 
               AdvanceProgress(100 / H, 0, 1, True);
@@ -7382,8 +7406,13 @@ begin
       csG,
       csIndexed:
         begin
+          {$IFNDEF FPC}
           TargetColorScheme := CurrentColorScheme;
           TargetSamplesPerPixel := 1;
+          {$ELSE}
+          TargetColorScheme := csBGR;
+          TargetSamplesPerPixel := 3;
+          {$ENDIF}
         end;
       csGA,
       csIndexedA:
@@ -7488,8 +7517,12 @@ begin
         csG: // For csGA we don't need to create a palette since we're converting it to BGRA
           Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
         csIndexed:
-          Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
-            PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count, False);
+          begin
+            Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
+              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count, False);
+            ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
+              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
+          end;
         csIndexedA:
           ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
             PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
