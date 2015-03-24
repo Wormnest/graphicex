@@ -456,7 +456,7 @@ type
   private
     FPaletteFile: string;
   protected
-    procedure LoadPalette;
+    function LoadPalette: TMaxLogPalette;
     procedure SetDefaultPaletteFile(const FileName: string);
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
@@ -4848,6 +4848,10 @@ var
   Line: Pointer;
   Decoder: TCUTRLEDecoder;
   Y: Integer;
+  {$IFDEF FPC}
+  LineBuf: PByte;
+  {$ENDIF}
+  LogPalette: TMaxLogPalette;
 
 begin
   inherited;
@@ -4861,23 +4865,47 @@ begin
       FProgressRect := Rect(0, 0, Width, 0);
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
+      {$IFNDEF FPC}
       PixelFormat := pf8Bit;
+      {$ELSE}
+      PixelFormat := pf24Bit;
+      ColorManager.SourceBitsPerSample := BitsPerSample;
+      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      ColorManager.SourceColorScheme := csIndexed;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
+      ColorManager.TargetColorScheme := csBGR;
+      {$ENDIF}
       Self.Width := Width;
       Self.Height := Height;
-      LoadPalette;
+      LogPalette := LoadPalette;
 
+      {$IFDEF FPC}
+      ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+      GetMem(LineBuf, Width);
+      {$ENDIF}
       Decoder := TCUTRLEDecoder.Create;
       try
         for Y := 0 to Height - 1 do
         begin
+          {$IFNDEF FPC}
           Line := ScanLine[Y];
+          {$ELSE}
+          Line := LineBuf;
+          {$ENDIF}
           Decoder.Decode(Pointer(Source), Line, 0, Width);
 
+          {$IFDEF FPC}
+          ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+          {$ENDIF}
           Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
           OffsetRect(FProgressRect, 0, 1);
         end;
       finally
         FreeAndNil(Decoder);
+        {$IFDEF FPC}
+        FreeMem(LineBuf);
+        {$ENDIF}
       end;
 
       Progress(Self, psEnding, 0, False, FProgressRect, '');
@@ -4937,7 +4965,7 @@ type
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TCUTGraphic.LoadPalette;
+function TCUTGraphic.LoadPalette: TMaxLogPalette;
 
 var
   Header: PHaloPaletteHeader;
@@ -4990,6 +5018,7 @@ begin
     end;
   end;
 
+  Result := LogPalette;
   // finally create palette
   Palette := CreatePalette(PLogPalette(@LogPalette)^);
 end;
