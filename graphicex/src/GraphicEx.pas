@@ -7406,12 +7406,16 @@ begin
       csG,
       csIndexed:
         begin
+          if ioMinIsWhite in Options then
+            SourceOptions := SourceOptions + [coMinIsWhite];
           {$IFNDEF FPC}
           TargetColorScheme := CurrentColorScheme;
           TargetSamplesPerPixel := 1;
           {$ELSE}
           TargetColorScheme := csBGR;
           TargetSamplesPerPixel := 3;
+          TargetBitsPerSample := 8; // Necessary since it might be different
+          PixelFormat := pf24Bit;
           {$ENDIF}
         end;
       csGA,
