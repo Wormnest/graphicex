@@ -8276,6 +8276,7 @@ begin
               // effectively an Alpha layer, we just ignore it for now
               if ChannelCount{-BitmapCount+1} > 3 then
               begin
+                ColorScheme := csRGBA;
                 ColorManager.SourceColorScheme := csRGBA;
                 ColorManager.TargetColorScheme := csBGRA;
                 PixelFormat := pf32Bit;
@@ -8337,6 +8338,12 @@ begin
                   if BitsPerSample <> 8 then
                     LayerRowSize := (LayerRowSize + 3) div 4 * 4;
 
+                  {$IFDEF FPC}
+                  TargetColorScheme := csBGR;
+                  TargetBitsPerSample := 8;
+                  TargetSamplesPerPixel := 3;
+                  PixelFormat := pf24Bit;
+                  {$ENDIF}
                   for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
                   begin
                     // Note: I don't have any samples for BPS = 1 or 4 and am not
@@ -8408,6 +8415,9 @@ begin
               Move(Run^, RawPalette, Index * SizeOf(TRGBQuad));
               Inc(Run, Index * SizeOf(TRGBQuad));
               Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, True);
+              {$IFDEF FPC}
+              ColorManager.SetSourcePalette([@RawPalette], pfInterlaced8Quad, False {BGR order});
+              {$ENDIF}
             end;
         end;
 
