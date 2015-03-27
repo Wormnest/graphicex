@@ -8790,6 +8790,9 @@ procedure TPNGGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIn
 var
   Description: TIHDRChunk;
   Run: PByte;
+  {$IFDEF FPC}
+  PaletteBuf: Pointer;
+  {$ENDIF}
 
 begin
   inherited;
@@ -8803,6 +8806,9 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
+      {$IFDEF FPC}
+      PaletteBuf := nil;
+      {$ENDIF}
       FPalette := 0;
       FTransparency := nil;
       FBackgroundColor := clWhite;
@@ -8851,6 +8857,13 @@ begin
                 // first setup pixel format before actually creating a palette
                 FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
                 FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3, False);
+                {$IFDEF FPC}
+                // We need to copy palette from FRawBuffer because FRawBuffer
+                // will be reused...
+                GetMem(PaletteBuf, FHeader.Length);
+                Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
+                ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
+                {$ENDIF}
               end;
               Continue;
             end
@@ -8899,6 +8912,8 @@ begin
           Decoder.DecodeEnd;
         if Assigned(FRawBuffer) then
           FreeMem(FRawBuffer);
+        if Assigned(PaletteBuf) then
+          FreeMem(PaletteBuf);
         Progress(Self, psEnding, 0, False, FProgressRect, '');
       end;
     end;
@@ -9132,6 +9147,9 @@ begin
     // follow each other (handled in ReadRow)
     EvenRow := True;
 
+    {$IFDEF FPC}
+    BeginUpdate;
+    {$ENDIF}
     // prepare interlaced images
     if TIHDRChunk(Description).Interlaced = 1 then
     begin
@@ -9187,6 +9205,9 @@ begin
         OffsetRect(FProgressRect, 0, 1);
       end;
     end;
+    {$IFDEF FPC}
+    EndUpdate;
+    {$ENDIF}
 
     // in order to improve safe failness we read all remaining but not read IDAT chunks here
     while IsChunk(IDAT) do
@@ -9380,11 +9401,11 @@ begin
       with ColorManager do
       begin
         SourceColorScheme := csG;
-        TargetColorScheme := csG;
-
         SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
         SourceBitsPerSample := BitDepth;
+        {$IFNDEF FPC}
+        TargetColorScheme := csG;
+        TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         case BitDepth of
           2:
@@ -9394,6 +9415,11 @@ begin
         else
           TargetBitsPerSample := BitDepth;
         end;
+        {$ELSE}
+        TargetColorScheme := csBGR;
+        TargetSamplesPerPixel := 3;
+        TargetBitsPerSample := 8;
+        {$ENDIF}
 
         PixelFormat := TargetPixelFormat;
         FPalette := CreateGrayscalePalette(False);
@@ -9421,15 +9447,24 @@ begin
       with ColorManager do
       begin
         SourceColorScheme := csIndexed;
-        TargetColorScheme := csIndexed;
         SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
         SourceBitsPerSample := BitDepth;
+        {$IFNDEF FPC}
+        TargetColorScheme := csIndexed;
+        TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         if BitDepth = 2 then
           TargetBitsPerSample := 4
         else
           TargetBitsPerSample := BitDepth;
+        {$ELSE}
+        // Convert to BGR since fpc has trouble handling the other bitdepths
+        // and indexed mode png might specify a transparency channel in which
+        // case we will later change it to BGRA with 4 spp
+        TargetColorScheme := csBGR;
+        TargetSamplesPerPixel := 3;
+        TargetBitsPerSample := 8;
+        {$ENDIF}
 
         PixelFormat := TargetPixelFormat;
         Result := 1;
