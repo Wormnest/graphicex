@@ -2550,6 +2550,8 @@ begin
                     for I := Height - 1 downto 0 do
                     begin
                       Line := Scanline[I];
+                      // Change RGBA to BGRA, 1 line at a time
+                      RGBAToBGRA(Run, Width, 1);
                       Move(Run^, Line^, Width * 4);
                       Inc(Run, Width * 4);
                       AdvanceProgress(100 / Height, 0, 1, True);
@@ -2577,6 +2579,7 @@ begin
 
               // TargetBitsPerSample needs to correspond to the TargetPixelFormat
               // or else the image will not be painted correctly.
+              {$IFNDEF FPC}
               if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
                 ColorManager.TargetBitsPerSample := 8
               else if BitsPerSample in [2, 3, 4] then
@@ -2585,10 +2588,6 @@ begin
                 ColorManager.TargetBitsPerSample := BitsPerSample;
 
               ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
-              if ioSeparatePlanes in Options then begin
-                // Only possible for Grayscale or Indexed with alpha.
-                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-              end;
               if (SamplesPerPixel > 1) and not HasAlpha then begin
                 // There are extra samples but apparently not a normal alpha channel.
                 // We need to make sure these extra samples get skipped.
@@ -2602,6 +2601,23 @@ begin
               end
               else
                 ColorManager.TargetColorScheme := csIndexed;
+              {$ELSE}
+              ColorManager.TargetBitsPerSample := 8;
+              if HasAlpha then begin
+                ColorManager.TargetSamplesPerPixel := 4;
+                ColorManager.TargetColorScheme := csBGRA;
+              end
+              else begin
+                ColorManager.TargetSamplesPerPixel := 3;
+                ColorManager.TargetColorScheme := csBGR;
+              end;
+              {$ENDIF}
+              if ioSeparatePlanes in Options then begin
+                // Only possible for Grayscale or Indexed with alpha.
+                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+              end;
+              if ioMinIsWhite in Options then
+                ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
             end
             else begin
               // Assume we want BGR(A) for everything else
@@ -2629,11 +2645,18 @@ begin
                         [coLabByteRange];
                     end
                     else begin
+                      {$IFNDEF FPC}
                       ColorManager.TargetSamplesPerPixel := 1;
                       ColorManager.TargetColorScheme := csG;
+                      {$ELSE}
+                      // Fpc: convert CIELAB gray to BGR and pretend that source is grayscale
+                      ColorManager.SourceColorScheme := csG;
+                      ColorManager.TargetSamplesPerPixel := 3;
+                      {$ENDIF}
                       // The one example I have has a range from light=1 to dark= 254
                       // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
                       Include(Options, ioMinIsWhite);
+                      ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
                     end;
                   end;
                 csUnknown: // Do a simple guess what color scheme it could be.
@@ -2694,19 +2717,38 @@ begin
 
               if GotPalette > 0 then
               begin
+                {$IFNDEF FPC}
                 if BitsPerSample in [9..16] then begin
+                {$ENDIF}
                   // Palette images with more than 8 bits per sample are converted
                   // to RGB since Windows palette can have a maximum of 8 bits (256) entries
-                  // ans downscaling a palette is very complicated.
+                  // and downscaling a palette is very complicated.
                   ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
-                  ColorManager.TargetColorScheme := csBGR; // TODO: Also support alpha if HasAlpha!
-                  ColorManager.TargetBitsPerSample := 8;
-                  ColorManager.TargetSamplesPerPixel := 3;
-                  PixelFormat := ColorManager.TargetPixelFormat;
+                  if not HasAlpha then begin
+                    if ColorManager.TargetColorScheme <> csBGR then begin
+                      // Only change if needed since changing PixelFormat might be slow
+                      ColorManager.TargetColorScheme := csBGR;
+                      ColorManager.TargetBitsPerSample := 8;
+                      ColorManager.TargetSamplesPerPixel := 3;
+                      PixelFormat := ColorManager.TargetPixelFormat;
+                    end
+                  end
+                  else begin
+                    // Extra alpha channel present
+                    if ColorManager.TargetColorScheme <> csBGRA then begin
+                      // Only change if needed since changing PixelFormat might be slow
+                      ColorManager.TargetColorScheme := csBGRA;
+                      ColorManager.TargetBitsPerSample := 8;
+                      ColorManager.TargetSamplesPerPixel := 4;
+                      PixelFormat := ColorManager.TargetPixelFormat;
+                    end
+                  end
+                {$IFNDEF FPC}
                 end
                 else
                   // Create the palette from the three maps.
                   Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
+                {$ENDIF}
               end
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);
