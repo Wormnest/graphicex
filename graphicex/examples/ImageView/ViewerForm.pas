@@ -281,11 +281,17 @@ end;
 // Add a disabled state bitmap to SpeedButtons (and BitBtns)
 // Source: http://www.swissdelphicenter.ch/en/showcode.php?id=1865
 procedure AddDisabledBmp(Buttons : array of TObject);
+{$IFNDEF FPC}
 var
   BM, SBM : TBitmap;
   w, x, y, NewColor, i : integer;
   PixelColor : TColor;
+{$ENDIF}
 begin
+  // Disabled for fpc since it's not getting painted correctly.
+  // Figure this out some other time since it looks fine on fpc
+  // without doing this (at least when using Windows themes).
+  {$IFNDEF FPC}
   for i := 0 to High(Buttons) do
   begin
     // jb For some reason assigning the glyps doesn't seem to work if we
@@ -342,6 +348,7 @@ begin
       SBM.Free;
     end;
   end;
+  {$ENDIF}
 end;
 
 procedure TfrmViewer.FormCreate(Sender: TObject);
@@ -1020,9 +1027,11 @@ begin
         // We currently have no way to identify this compression in GraphicEx
         ImgProperties.Compression := ctNone;
       gex_BI_JPEG: ImgProperties.Compression := ctJPEG;
+      gex_BI_PNG: ImgProperties.Compression := ctLZ77;
     else
       //gex_BI_PNG: ImgProperties.Compression := ...;
       ImgProperties.Compression := ctUnknown;
+      BmpCompression := 0; // Change illegal/unknown value or we will get a crash
     end;
     ImgProperties.BitsPerPixel := DIB.dsBm.bmBitsPixel;
     if DIB.dsBm.bmBitsPixel > 8 then begin
