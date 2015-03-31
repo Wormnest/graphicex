@@ -569,7 +569,7 @@ begin
     'Result is %d but we expected %d.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   // Extra test to make sure values in the middle of the range are also converted correctly
-  AValue := $8000000000000000;
+  AValue := UInt64($8000000000000000);
   ExpectedResult := 128;
   CvtResult := FCM.ComponentScaleConvert64To8(AValue);
   Inc(DoTestCounter);
