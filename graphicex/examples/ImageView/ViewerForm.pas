@@ -577,7 +577,14 @@ begin
     else
       Y := 0;
 
+    {$IFNDEF FPC}
     if FPicture.Bitmap.PixelFormat = pf32Bit then
+    {$ELSE}
+    // In Fpc we need an extra check because 32 bit bitmaps get loaded as pf32Bit
+    // but internally in the DC they are 24 bit!
+    if (FPicture.Bitmap.PixelFormat = pf32Bit) and
+       (ImgRealPixelFormat in [pf32Bit, pfCustom]) then
+    {$ENDIF}
     begin
       Buffer := TBitmap.Create;
       try
@@ -587,9 +594,15 @@ begin
         Buffer.Height := Max(ClientHeight, FPicture.Height);
 
         R := Rect(0, 0, FPicture.Width, FPicture.Height);
-        FillBackground(ClientRect, Buffer.Canvas);
-        gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+        Buffer.Canvas.Lock;
+        try
+          FillBackground(ClientRect, Buffer.Canvas);
+          gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+        finally
+          Buffer.Canvas.Unlock;
+        end;
         FBlendTick := GetAccurateTick - FBlendTick;
+        Fillbackground(ClientRect, Canvas); // Needed for fpc
         Canvas.Draw(0, 0, Buffer);
         UpdateLoadingStatus;
       finally
@@ -1174,8 +1187,13 @@ end;
 procedure TfrmViewer.UpdatePaintBoxSize;
 begin
   if cbStretch.Checked then begin
+    {$IFNDEF FPC}
     pnlScroll.Width   := pnlImageContainer.ClientWidth;
     pnlScroll.Height  := pnlImageContainer.ClientHeight;
+    {$ELSE}
+    pnlScroll.Width   := sbx1.ClientWidth;
+    pnlScroll.Height  := sbx1.ClientHeight;
+    {$ENDIF}
   end
   else begin
     if FPicture.Width <= sbx1.ClientWidth then begin
@@ -1206,6 +1224,9 @@ begin
   ImgPage := 0; ImgPageCount := 1;
   ImgComment := '';
   ImgThumbData := Thumb;
+  {$IFDEF FPC}
+  ImgRealPixelFormat := pfCustom;
+  {$ENDIF}
 
   FLoadTick := GetAccurateTick; // Starting time for loading
   FBlendTick := 0;
@@ -1344,6 +1365,9 @@ procedure TfrmViewer.HandleStretch;
 var
   StretchW, StretchH: Integer;
   MulW, MulH: Single;
+  {$IFDEF FPC}
+  TempBmp: TBitmap;
+  {$ENDIF}
 begin
   UpdatePaintBoxSize;
   // OPTIONAL Stretch picture to fit in window (and beware of invalid image dimensions)
@@ -1353,7 +1377,22 @@ begin
     // Therefore we need to convert other formats, we choose to convert to 24 bits
     if not (FPicture.Bitmap.PixelFormat in [pf24Bit, pf32Bit]) then begin
       // Unless we know its a format with alpha channel its best to convert to 24 bits
+      {$IFNDEF FPC}
       FPicture.Bitmap.PixelFormat := pf24Bit;
+      {$ELSE}
+      // Just changing PixelFormat in fpc doesn't work since it currently
+      // doesn't do any automatic conversion. Since most formats are already
+      // converted  by us to 24/32 bit we only need to handle 15/16 bit bitmaps here.
+      TempBmp := TBitmap.Create;
+      try
+        TempBmp.SetSize(FPicture.Bitmap.Width, FPicture.Bitmap.Height);
+        TempBmp.PixelFormat := pf24Bit;
+        TempBmp.Canvas.Draw(0,0, FPicture.Bitmap);
+        FPicture.Assign(TempBmp);
+      finally
+        TempBmp.Free;
+      end;
+      {$ENDIF}
 {     // In case we want PixelFormat pf32Bit:
       FPicture.Bitmap.PixelFormat := pf32Bit;
       // Changing to 32 bits usually sets the alpha channel to 0 (invisible).
