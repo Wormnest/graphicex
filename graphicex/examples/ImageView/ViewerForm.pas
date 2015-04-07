@@ -1148,7 +1148,6 @@ begin
   ImgProperties.XResolution := 0;
   ImgProperties.YResolution := 0;
 
-  ShowImageInfo;
 end;
 
 procedure TfrmViewer.CopyBasicImageInfo(APicture: TPicture);
@@ -1296,6 +1295,8 @@ begin
           CopyBasicImageInfo(TBitmap(AGraphic));
           ImgGraphicClass := TgexBmpGraphic;
           FPicture.Assign(AGraphic);
+          // ShowImageInfo needs to be called AFTER assigning bitmap to FPicture.
+          ShowImageInfo;
           if (FPicture.Bitmap.PixelFormat = pf32Bit) then
             // TODO: We should also test if there are any (partially) transparent
             // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
