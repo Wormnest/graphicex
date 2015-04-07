@@ -849,6 +849,18 @@ const
     'Complex IEEE floating point'
   );
 
+  CPixelFormat: array [TPixelFormat] of string = (
+    'pfDevice',
+    'pf1Bit',
+    'pf4Bit',
+    'pf8Bit',
+    'pf15Bit',
+    'pf16Bit',
+    'pf24Bit',
+    'pf32Bit',
+    'pfCustom'
+  );
+
 procedure TfrmViewer.ClearGrid;
 var i: Integer;
 begin
@@ -979,6 +991,11 @@ begin
       sgImgProperties.Cells[1,InfoRow] := CSampleFormat[ImgProperties.SampleFormat];
       IncInfoRow;
     end;
+
+    // Show the actual PixelFormat
+    sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
+    sgImgProperties.Cells[1,InfoRow] := CPixelFormat[FPicture.Bitmap.PixelFormat];
+    IncInfoRow;
   end;
 end;
 
