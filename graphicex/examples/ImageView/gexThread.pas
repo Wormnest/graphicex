@@ -1177,9 +1177,9 @@ begin
           tmp := TBitmap.Create;
           try
             tmp.Canvas.Lock;
-            tmp.PixelFormat := pf24bit;
             tmp.Width := CellJPEG.Width;
             tmp.Height := CellJPEG.Height;
+            tmp.PixelFormat := pf24bit;
             tmp.Canvas.Draw(0, 0, CellJPEG);
             Bmp.Width := pt.x;
             Bmp.Height := pt.y;
