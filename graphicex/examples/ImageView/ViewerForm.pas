@@ -1836,6 +1836,9 @@ end;
 
 procedure TfrmViewer.pb2MouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
+var
+  HintPoint: TPoint;
+  C: TRGBA;
 begin
   if FCapturing then begin
     if (FLastX <> X) and (FLastY <> Y) then begin
@@ -1845,6 +1848,14 @@ begin
       FLastX := X;
       FLastY := Y;
     end;
+  end
+  else begin
+    // Show pixel info hint
+    C := TRGBA(pb2.Canvas.Pixels[X,Y]);
+    // Since we are using the pixels from the canvas the alpha will always be 0
+    pb2.Hint := Format('RGB: %d, %d, %d (hex: %x, %x, %x)', [C.R, C.G, C.B, C.R, C.G, C.B]);
+    HintPoint := pb2.ClientToScreen(Point(X,Y));
+    Application.ActivateHint(HintPoint);
   end;
 end;
 
