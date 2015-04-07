@@ -430,10 +430,12 @@ begin
   if IniFile.ReadInteger(C_IniSectionMain, C_Maximized, 0) = 1 then
     WindowState := wsMaximized
   else begin
-    Top := IniFile.ReadInteger(C_IniSectionMain, C_WinTop, Top);
-    Left := IniFile.ReadInteger(C_IniSectionMain, C_WinLeft, Left);
-    Width := IniFile.ReadInteger(C_IniSectionMain, C_WinWidth, Width);
-    Height := IniFile.ReadInteger(C_IniSectionMain, C_WinHeight, Height);
+    SetBounds(
+      IniFile.ReadInteger(C_IniSectionMain, C_WinLeft, Left),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinTop, Top),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinWidth, Width),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinHeight, Height)
+    );
   end;
   FThumbNailPos := IniFile.ReadInteger(C_IniSectionMain, C_ThumbNailPos, 128);
   pnlFolderView.Width := IniFile.ReadInteger(C_IniSectionMain, C_FolderViewWidth, 185);
@@ -589,9 +591,9 @@ begin
       Buffer := TBitmap.Create;
       try
         FBlendTick := GetAccurateTick;
-        Buffer.PixelFormat := pf32Bit;
         Buffer.Width := Max(ClientWidth, FPicture.Width);
         Buffer.Height := Max(ClientHeight, FPicture.Height);
+        Buffer.PixelFormat := pf32Bit;
 
         R := Rect(0, 0, FPicture.Width, FPicture.Height);
         Buffer.Canvas.Lock;
@@ -1245,7 +1247,7 @@ var
   AGraphic: TGraphic;
   GraphicClass: TGraphicExGraphicClass;
 //  jpgImg: TJpegImage;
-  bmpimg: TBitmap;
+//  bmpimg: TBitmap;
 begin
   ImgFile := ImageFolder + Thumb.Name;
   // Reset image characteristics
