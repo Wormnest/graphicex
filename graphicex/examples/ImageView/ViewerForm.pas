@@ -1065,9 +1065,13 @@ begin
     end;
     ImgProperties.BitsPerPixel := DIB.dsBm.bmBitsPixel;
     if DIB.dsBm.bmBitsPixel > 8 then begin
-      if DIB.dsBm.bmBitsPixel <> 16 then begin
-        ImgProperties.BitsPerSample := DIB.dsBm.bmBitsPixel div 8;
-        ImgProperties.SamplesPerPixel := ImgProperties.BitsPerPixel div ImgProperties.BitsPerSample;
+      if DIB.dsBm.bmBitsPixel > 16 then begin
+        ImgProperties.SamplesPerPixel := DIB.dsBm.bmBitsPixel div 8;
+        ImgProperties.BitsPerSample := 8;
+        if ImgProperties.SamplesPerPixel = 3 then
+          ImgRealPixelFormat := pf24Bit
+        else // 4
+          ImgRealPixelFormat := pf32Bit
       end
       else begin
         ImgProperties.SamplesPerPixel := 3;
@@ -1091,6 +1095,13 @@ begin
       ImgProperties.BitsPerSample := DIB.dsBm.bmBitsPixel;
       ImgProperties.SamplesPerPixel := 1;
       ImgProperties.ColorScheme := csIndexed;
+      case ImgProperties.BitsPerSample of
+        1: ImgRealPixelFormat := pf1Bit;
+        4: ImgRealPixelFormat := pf4Bit;
+        5: ImgRealPixelFormat := pf8Bit;
+      else
+        ImgRealPixelFormat := pfCustom;
+      end;
     end;
     ImgProperties.XResolution := PixelsPerMeterToDpi(DIB.dsBmih.biXPelsPerMeter);
     ImgProperties.YResolution := PixelsPerMeterToDpi(DIB.dsBmih.biYPelsPerMeter);
