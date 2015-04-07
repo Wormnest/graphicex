@@ -41,6 +41,11 @@ procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: T
 
 implementation
 
+uses gexTypes;
+
+type
+  // Exception when trying to perform a blend operation.
+  EGexBlendException = class(EBaseGraphicExException);
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -356,13 +361,15 @@ begin
   begin
     if GetObject(Bitmap, SizeOf(DIB), @DIB) = SizeOf(DIB) then
     begin
-      Assert(DIB.dsBm.bmPlanes * DIB.dsBm.bmBitsPixel = 32, 'Alpha blending error: bitmap must use 32 bpp.');
+      if DIB.dsBm.bmPlanes * DIB.dsBm.bmBitsPixel <> 32 then
+        raise EGexBlendException.Create('Alpha blending error: source is not a 32 bpp bitmap!');
       Result := DIB.dsBm.bmBits;
       Width := DIB.dsBmih.biWidth;
       Height := DIB.dsBmih.biHeight;
     end;
   end;
-  Assert(Result <> nil, 'Alpha blending DC error: no bitmap available.');
+  if Result = nil then
+    raise EGexBlendException.Create('Alpha blending error: no bitmap available in DC.');
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
