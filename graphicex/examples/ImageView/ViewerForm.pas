@@ -923,7 +923,7 @@ begin
       sgImgProperties.Cells[0,InfoRow] := 'Y Resolution:';
       sgImgProperties.Cells[1,InfoRow] := FloatToStr(ImgProperties.YResolution) + ' dpi'; IncInfoRow;
     end;
-    if Round(ImgProperties.FileGamma) <> 1.0 then begin
+    if (Round(ImgProperties.FileGamma) <> 0.0) or (ioUseGamma in ImgProperties.Options) then begin
       sgImgProperties.Cells[0,InfoRow] := 'Gamma:';
       sgImgProperties.Cells[1,InfoRow] := FloatToStr(ImgProperties.FileGamma); IncInfoRow;
     end;
