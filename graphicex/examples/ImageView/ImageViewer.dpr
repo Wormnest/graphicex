@@ -11,12 +11,21 @@ uses
   {$IFNDEF FPC}
   FastMM4,
   {$ENDIF}
-  Forms, Interfaces,
+  Forms,
+  {$IFDEF FPC}
+  Interfaces,
+  {$ENDIF}
   ViewerForm in 'ViewerForm.pas' {frmViewer},
   gexThread in 'gexThread.pas',
   gexBlend in 'gexBlend.pas';
 
-{$R *.res}
+{$IFNDEF FPC}
+  // Delphi seems to have problems reading the Lazarus created resource file
+  // so we will use a separate version for each.
+  {$R ImageViewer_Delphi.res}
+{$ELSE}
+  {$R ImageViewer_Lazarus.res}
+{$ENDIF}
 
 begin
 {$IFDEF VER140}
