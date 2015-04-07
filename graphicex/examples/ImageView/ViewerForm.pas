@@ -1223,6 +1223,8 @@ begin
     {$ENDIF}
   end
   else begin
+    if FPicture = nil then
+      Exit; // Can happen if we arrive here very early at startup
     if FPicture.Width <= sbx1.ClientWidth then begin
       pnlScroll.Width := sbx1.ClientWidth;
     end
