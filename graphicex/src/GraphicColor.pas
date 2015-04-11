@@ -4052,7 +4052,7 @@ begin
         Dec(TargetShift, TargetBPS);
       Inc(Done);
       // Advance target pointer every (8 div target bit count)
-      if (Done mod (8 div TargetBPS)) = 0 then
+      if (Done mod (8 div Cardinal(TargetBPS))) = 0 then
         Inc(TargetRun);
     end;
   end;
@@ -4157,7 +4157,7 @@ begin
       Dec(TargetShift, TargetBPS);
     Dec(Count);
     // Advance target pointer every (8 div target bit count)
-    if (Count mod (8 div TargetBPS)) = 0 then
+    if (Count mod (8 div Cardinal(TargetBPS))) = 0 then
       Inc(TargetRun8);
   end;
 end;
