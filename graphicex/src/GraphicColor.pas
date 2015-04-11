@@ -228,7 +228,8 @@ type
     coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
     coSeparatePlanes, // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
     coUnequalSamples, // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
-    coPaletteBGR      // Interlaced palette data is in BGR order instead of RGB
+    coPaletteBGR,     // Interlaced palette data is in BGR order instead of RGB
+    coMinIsWhite      // Grayscale: Minimum value means white instead of black
   );
 
   // Format of the raw data to create a palette from
