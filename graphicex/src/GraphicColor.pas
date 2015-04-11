@@ -1430,14 +1430,28 @@ function TColorManager.ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSamp
 begin
   // Convert/scale up or down from uncommmon n bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, CBitsDivisor[BitsPerSample]);
+  // Todo: split into 2 functions: 1 one for scaling down and one for scaling up
+  if Value = 0 then
+    Result := 0
+  else if BitsPerSample <= 8 then
+    // Scale up to 8 bits
+    Result := (Value+1) shl (8-BitsPerSample) - 1
+  else // Scale down to 8 bits
+    Result := Value shr (BitsPerSample-8);
 end;
 
 function TColorManager.ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
 begin
   // Convert/scale up or down from uncommmon n bits to 4 bits
   // n bits 2^n = ... ==> 4 bits = 16
-  Result := MulDiv16(Value, 16, CBitsDivisor[BitsPerSample]);
+  // Todo: split into 2 functions: 1 one for scaling down and one for scaling up
+  if Value = 0 then
+    Result := 0
+  else if BitsPerSample <= 4 then
+    // Scale up to 4
+    Result := (Value+1) shl (4-BitsPerSample) - 1
+  else // Scale down to 4
+    Result := Value shr (BitsPerSample-4);
 end;
 
 function TColorManager.ComponentScaleConvert17_24To8(Value: LongWord; BitsPerSample: Byte): Byte;
