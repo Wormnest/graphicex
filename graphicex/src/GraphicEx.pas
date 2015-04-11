@@ -2278,18 +2278,19 @@ procedure TTIFFGraphic.ReadTiled(tif: PTIFF);
 
 var
   Column, Row, Y,
-  RowsToRead: Integer;
-  Pos, Counter: Integer;
-  TileWidth, TileHeight: Integer;
+  RowsToRead: Cardinal;
+  Pos: Cardinal;
+  Counter: Integer;
+  TileWidth, TileHeight: Cardinal;
   Buffer: Pointer;
   FromSkew: Integer;
   RowCount: Integer;
   PixelCount: Integer;
   Line: PAnsiChar;
   RowInc: Integer;
-  ColumnOffset: Integer;
+  ColumnOffset: Cardinal;
   TileSize: Integer;
-  TileRowSize: Integer;
+  TileRowSize: Cardinal;
   iPlane,
   nPlanes: Integer;
   PtrArray: array of pointer;
@@ -2319,16 +2320,16 @@ begin
 
     TileRowSize := TIFFTileRowSize(tif);
     Row := 0;
-    while Row < Height do
+    while Row < Cardinal(Height) do
     begin
       RowsToRead := TileHeight - (Row mod TileHeight);
-      if Row + RowsToRead > Height then
+      if Row + RowsToRead > Cardinal(Height) then
         RowCount := Height - Row
       else
         RowCount := RowsToRead;
 
       Column := 0;
-      while Column < Width do
+      while Column < Cardinal(Width) do
       begin
         Pos := (Row mod TileHeight) * TileRowSize;
         if ioSeparatePlanes in Options then begin
@@ -2350,7 +2351,7 @@ begin
         Y := Row;
         Counter := RowCount;
         ColumnOffset := ColorManager.TargetBitsPerSample * ColorManager.TargetSamplesPerPixel * Column div 8;
-        if Column + TileWidth > Width then
+        if Column + TileWidth > Cardinal(Width) then
         begin
           // Tile is clipped horizontally.  Calculate visible portion and skewing factors.
           PixelCount := Width - Column;
