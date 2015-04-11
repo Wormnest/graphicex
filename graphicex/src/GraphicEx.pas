@@ -874,7 +874,9 @@ uses
 
 type
   {$ifndef COMPILER_6_UP}
-    PCardinal = ^Cardinal;
+  {$IFNDEF FPC}
+  PCardinal = ^Cardinal;
+  {$ENDIF}
   {$endif COMPILER_6_UP}
 
   // An entry of the progress stack for nested progress sections.
@@ -889,13 +891,12 @@ type
 //----------------------------------------------------------------------------------------------------------------------
 
 {$ifndef COMPILER_6_UP}
-
-  procedure RaiseLastOSError;
-
-  begin
-    RaiseLastWin32Error;
-  end;
-
+{$IFNDEF FPC}
+procedure RaiseLastOSError;
+begin
+  RaiseLastWin32Error;
+end;
+{$ENDIF}
 {$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
