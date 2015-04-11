@@ -436,10 +436,15 @@ type
 
   {$ifdef PortableMapGraphic}
   // *.ppm, *.pgm, *.pbm images
+
+  TGetByteMethod = function(): Byte of object;
   TPPMGraphic = class(TGraphicExGraphic)
   private
     FSource: PAnsiChar;
     FRemainingSize: Int64;
+    FGetByte: TGetByteMethod;
+    function GetByteFromChar: Byte;
+    function GetByteFromNumber: Byte;
     function GetChar: AnsiChar;
     function GetNumber: Cardinal;
     function ReadLine: AnsiString;
@@ -4514,7 +4519,21 @@ begin
   until not (Ch in ['0'..'9']);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+function TPPMGraphic.GetByteFromChar: Byte;
+begin
+  Result := Byte(GetChar());
+end;
+
+//------------------------------------------------------------------------------
+
+function TPPMGraphic.GetByteFromNumber: Byte;
+begin
+  Result := Byte(GetNumber());
+end;
+
+//------------------------------------------------------------------------------
 
 function TPPMGraphic.ReadLine: AnsiString;
 
@@ -4553,6 +4572,7 @@ var
   X, Y: Integer;
   Pixel: Byte;
   MaxVal: Word;
+  PpmType: Integer;
 
 begin
   inherited;
@@ -4568,7 +4588,15 @@ begin
 
       if GetChar <> 'P' then
         GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
-      case StrToInt(String(GetChar)) of
+
+      PpmType := StrToInt(String(GetChar));
+      if PpmType in [1..3] then
+        // ASCII format
+        FGetByte := GetByteFromNumber
+      else
+        // Binary format
+        FGetByte := GetByteFromChar;
+      case PpmType of
         1: // PBM ASCII format (black & white)
           begin
             PixelFormat := pf1Bit;
@@ -4600,54 +4628,6 @@ begin
               OffsetRect(FProgressRect, 0, 1);
             end;
           end;
-        2: // PGM ASCII form (gray scale)
-          begin
-            PixelFormat := pf8Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
-            ColorManager.TargetSamplesPerPixel := 1;
-            ColorManager.TargetBitsPerSample := 8;
-            Palette := ColorManager.CreateGrayScalePalette(False);
-
-            // read image data
-            for Y := 0 to Height - 1 do
-            begin
-              Line8 := ScanLine[Y];
-              for X := 0 to Width - 1 do
-              begin
-                Line8^ := GetNumber;
-                Inc(Line8);
-              end;
-
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-          end;
-        3: // PPM ASCII form (true color)
-          begin
-            PixelFormat := pf24Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
-
-            for Y := 0 to Height - 1 do
-            begin
-              Line24 := ScanLine[Y];
-              for X := 0 to Width - 1 do
-              begin
-                Line24.R := GetNumber;
-                Line24.G := GetNumber;
-                Line24.B := GetNumber;
-                Inc(Line24);
-              end;
-
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-          end;
         4: // PBM binary format (black & white)
           begin
             PixelFormat := pf1Bit;
@@ -4673,6 +4653,7 @@ begin
               OffsetRect(FProgressRect, 0, 1);
             end;
           end;
+        2, // PGM ASCII form (gray scale)
         5: // PGM binary form (gray scale)
           begin
             PixelFormat := pf8Bit;
@@ -4690,7 +4671,7 @@ begin
               Line8 := ScanLine[Y];
               for X := 0 to Width - 1 do
               begin
-                Line8^ := Byte(GetChar);
+                Line8^ := FGetByte();
                 Inc(Line8);
               end;
 
@@ -4698,6 +4679,7 @@ begin
               OffsetRect(FProgressRect, 0, 1);
             end;
           end;
+        3, // PPM ASCII form (true color)
         6: // PPM binary form (true color)
           begin
             PixelFormat := pf24Bit;
@@ -4715,9 +4697,9 @@ begin
               if MaxVal = 255 then
                 for X := 0 to Width - 1 do
                 begin
-                  Line24.R := Byte(GetChar);
-                  Line24.G := Byte(GetChar);
-                  Line24.B := Byte(GetChar);
+                  Line24.R := FGetByte();
+                  Line24.G := FGetByte();
+                  Line24.B := FGetByte();
                   Inc(Line24);
                 end
               else if MaxVal < 255 then
@@ -4728,14 +4710,15 @@ begin
                   // due to precision differences.
                   // Paint Shop Pro's calculations for MaxVal < 255 are screwed up, and I couldn't
                   // figure out the exact algorithm they're using.
-                  Line24.R := Trunc(Byte(GetChar) * 255 / MaxVal);
-                  Line24.G := Trunc(Byte(GetChar) * 255 / MaxVal);
-                  Line24.B := Trunc(Byte(GetChar) * 255 / MaxVal);
+                  Line24.R := Trunc(FGetByte() * 255 / MaxVal);
+                  Line24.G := Trunc(FGetByte() * 255 / MaxVal);
+                  Line24.B := Trunc(FGetByte() * 255 / MaxVal);
                   Inc(Line24);
                 end
               else
                 GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
                 // TODO: PPM does support a MaxVal up to 65535, but I don't have any sample files to test
+                // JB: If we want to implement this we will have to add a FGetWord function variable
 //                for X := 0 to Width - 1 do
 //                begin
 //                  Line24.R := Trunc(Byte(GetChar) shl 8 + Byte(GetChar), 255, MaxVal);
