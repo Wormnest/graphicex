@@ -231,6 +231,7 @@ type
 
   // Format of the raw data to create a color palette from
   TRawPaletteFormat = (
+    pfUnknown,           // Palette format not set
     pfInterlaced8Triple, // RGB triple with 8 bits per component
     pfInterlaced8Quad,   // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
     pfPlane8Triple,      // 3 separate planes of data with 8 bits per component
@@ -1306,6 +1307,7 @@ begin
   SetGamma(1, DefaultDisplayGamma);
   FSourceScheme := csRGB;
   FTargetScheme := csBGR;
+  FSourcePaletteFormat := pfUnknown;
 
   // defaults are from CCIR Recommendation 601-1
   FYCbCrCoefficients[0] := 0.299;
