@@ -8116,9 +8116,7 @@ function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TR
 // - 8 bits or 16 bits per component
 // - in RGB or BGR order
 // - with 3 or 4 components per entry (fourth is ignored)
-// ColorCount determines the number of color entries to create. If this number does not equal the
-// number of palette entries which would result from the given target bits per sample resolution
-// then the palette is adjusted accordingly to allow conversion between resolutions.
+// ColorCount determines the number of color entries to create.
 //
 // Notes: For interlaced formats only one pointer needs to be passed in Data (only the first one is used)
 //        while for plane data 3 pointers are necessary (for each plane one pointer).
@@ -8132,8 +8130,7 @@ function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TR
 // - Source and target bits per sample resolution
 
 var
-  I,
-  MaxIn, MaxOut: Integer;
+  I: Integer;
   LogPalette: TMaxLogPalette;
   RunR8,
   RunG8,
@@ -8151,6 +8148,12 @@ begin
     LogPalette.palNumEntries := 256
   else
     LogPalette.palNumEntries := ColorCount;
+
+  if (coApplyGamma in FTargetOptions) then
+    // Since we currently don't support gamma conversion higher than 8 bits
+    // we don't need to see if the source or target palette is 16 bits.
+    // Because palette color entries are all 8 bits we just initialize to 8, 8.
+    InitGammaTable(8, 8);
 
   case DataFormat of
     pfInterlaced8Triple,
@@ -8273,54 +8276,12 @@ begin
         end;
       end;
   end;
-
-  MaxIn := (1 shl FSourceBPS);
-  MaxOut := (1 shl FTargetBPS);
-  if (FTargetBPS <= 8) and (MaxIn <> MaxOut) then
-  begin
-    if FSourceBPS < 16 then begin
-      // If target resolution and given color depth differ then the palette needs to be adjusted.
-      // Consider the case for 2 bit to 4 bit conversion. Only 4 colors will be given to create
-      // the palette but after scaling all values will be up to 15 for which no color is in the palette.
-      // This and the reverse case need to be accounted for.
-      if MaxIn < MaxOut then
-      begin
-        // Palette is too small, enhance it
-        for I := MaxOut-1 downto 0 do
-        begin
-          // Todo: Better upscaling algorithm than MulDiv16!
-          LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
-          LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
-          LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
-        end;
-      end
-      else
-      begin
-        // Palette contains too many entries, shorten it
-        if FTargetBPS < 8 then begin
-          for I := 0 to MaxOut-1 do
-          begin
-            // Todo: Better downscaling algorithm than MulDiv16!
-            LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peRed;
-            LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peGreen;
-            LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peBlue;
-          end;
-        end
-        else if FTargetBPS > 8 then begin
-          // jb This is far more complicated than implemented above because a palette index
-          // is not the same as color where you can just downscale from 16 bit to 8 bit
-          // and only loose a little detail since subsequent palette indexes don't need
-          // to have subsequent color values.
-          // Therefore it's best not to use this function for 16 bit color palettes
-          // Instead it should probably be converted to a 24 bit rgb image.
-          // For now: just leave the palette as it is (already truncated to 256 indexes above)
-        end;
-      end;
-    end
-    else begin
-    end;
-    LogPalette.palNumEntries := MaxOut;
-  end;
+  if (FSourceBPS <> FTargetBPS) and (FTargetBPS <= 8) then
+    // We assume that cases where FTargetBPS < FSourceBPS will be handled differently.
+    // Set the palette size to the size of the target palette. Palette entries
+    // that were not initialized yet above will be left uninitialized since
+    // those entries will be unused.
+    LogPalette.palNumEntries := 1 shl FTargetBPS;
 
   // Finally create palette
   Result := CreatePalette(PLogPalette(@LogPalette)^);
@@ -8372,11 +8333,15 @@ begin
     end
     else
     begin
+      // Since target palette entries are 8 bits per sample we initialize
+      // gamma table target to 8 bps. The gamma table source is set to
+      // our target bps since that is the gamma range we want to convert to.
+      InitGammaTable(FTargetBPS, 8);
       for I := 0 to Upper do
       begin
-        LogPalette.palPalEntry[Upper - I].peBlue := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[Upper - I].peGreen := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[Upper - I].peRed := FGammaTable[I * Factor];
+        LogPalette.palPalEntry[Upper - I].peBlue := FGammaTable[I];
+        LogPalette.palPalEntry[Upper - I].peGreen := FGammaTable[I];
+        LogPalette.palPalEntry[Upper - I].peRed := FGammaTable[I];
       end;
     end;
   end
@@ -8393,11 +8358,15 @@ begin
     end
     else
     begin
+      // Since target palette entries are 8 bits per sample we initialize
+      // gamma table target to 8 bps. The gamma table source is set to
+      // our target bps since that is the gamma range we want to convert to.
+      InitGammaTable(FTargetBPS, 8);
       for I := 0 to Upper do
       begin
-        LogPalette.palPalEntry[I].peBlue := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[I].peGreen := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[I].peRed := FGammaTable[I * Factor];
+        LogPalette.palPalEntry[I].peBlue := FGammaTable[I];
+        LogPalette.palPalEntry[I].peGreen := FGammaTable[I];
+        LogPalette.palPalEntry[I].peRed := FGammaTable[I];
       end;
     end;
   end;
