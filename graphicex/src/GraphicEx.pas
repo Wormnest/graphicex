@@ -5732,10 +5732,10 @@ begin
 
         PixelFormat := TargetPixelFormat;
 
-        if FileGamma <> 1 then
+        if Abs(FileGamma) >= 0.01 then
         begin
-          SetGamma(FileGamma);
-          TargetOptions := TargetOptions + [coApplyGamma];
+          // Gamma is apparently already applied to the image in rla, meaning
+          // we don't need to set it in TargetOptions.
           Include(Options, ioUseGamma);
         end;
         // Uses separate channels thus we need to set that in source options.
@@ -5892,9 +5892,18 @@ begin
         // if LowerCase(Header.Chan) = 'xyz' then
         ColorScheme := csUnknown;
 
-      // The onely RLA sample image I have seems to use the screen default gamma
+      // The only RLA sample image I have seems to use the screen default gamma
       // of 2.2. We need to convert that value to an expected default value of 1.
+      // A value of 0.0 means no gamma set according to fileformat.info
+      // The description of fileformat.info about gamma says:
+      // Gamma contains an ASCII floating-point number representing the gamma
+      // correction factor applied to the image before it was stored. A value of
+      // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
+      // This seems to imply that we do not have to apply the gamma since it
+      // was already applied. This looks to be correct based on the 1 example I have.
       FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
+      if Abs(FileGamma) >= 0.01 then
+        Include(Options, ioUseGamma);
 
       Compression := ctRLE;
 
