@@ -229,7 +229,8 @@ type
     coSeparatePlanes, // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
     coUnequalSamples, // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
     coPaletteBGR,     // Interlaced palette data is in BGR order instead of RGB
-    coMinIsWhite      // Grayscale: Minimum value means white instead of black
+    coMinIsWhite,     // Grayscale: Minimum value means white instead of black
+    coAlphaPalette    // Png: A separate alpha palette is specified for indexed images
   );
 
   // Format of the raw data to create a palette from
@@ -286,6 +287,7 @@ type
 
     FSourcePaletteFormat: TRawPaletteFormat; // Format of palette data
     FSourcePaletteData: array of Pointer;    // Pointer(s) to palette data
+    FSourceAlphaPalette: PByteArray;         // Pointer to alpha only palette (256 bytes)
 
     FSourceDataFormat,
     FTargetDataFormat: TSampleDataFormat;
@@ -368,6 +370,7 @@ type
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
     procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
+    procedure SetSourceAlphaPalette(AAlphaPalette: PByteArray);
     procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
     procedure SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
 
@@ -7817,6 +7820,20 @@ begin
     Include(FSourceOptions, coPaletteBGR);
   SetLength(FSourcePaletteData, Length(Data));
   Move(Data[Low(Data)], FSourcePaletteData[Low(FSourcePaletteData)], Length(Data)*SizeOf(Pointer));
+end;
+
+// Set Source Alpha palette from indexe png needed to be able to convert
+// IndexedA to BGRA/RGBA
+procedure TColorManager.SetSourceAlphaPalette(AAlphaPalette: PByteArray);
+begin
+  if (AAlphaPalette = nil) or (FSourceScheme <> csIndexedA) then begin
+    Exclude(FSourceOptions, coAlphaPalette);
+    FSourceAlphaPalette := nil;
+  end
+  else begin
+    Include(FSourceOptions, coAlphaPalette);
+    FSourceAlphaPalette := AAlphaPalette;
+  end;
 end;
 
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
