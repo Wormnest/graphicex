@@ -229,17 +229,18 @@ type
     coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
   );
 
-  // Format of the raw data to create a color palette from
+  // Format of the raw data to create a palette from
   TRawPaletteFormat = (
-    pfUnknown,           // Palette format not set
-    pfInterlaced8Triple, // RGB triple with 8 bits per component
-    pfInterlaced8Quad,   // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
-    pfPlane8Triple,      // 3 separate planes of data with 8 bits per component
-    pfPlane8Quad,
-    pfInterlaced16Triple,// RGB triple with 16 bits per component
-    pfInterlaced16Quad,
-    pfPlane16Triple,     // 3 separate planes of data with 16 bits per component
-    pfPlane16Quad
+    pfUnknown,            // Palette format not set
+    pfGrayscale,          // Grayscale palette
+    pfInterlaced8Triple,  // RGB triple with 8 bits per component
+    pfInterlaced8Quad,    // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
+    pfPlane8Triple,       // 3 separate planes of data with 8 bits per component (expected order RGB)
+    pfPlane8Quad,         // 4 separate planes of data with 8 bits per component (expecter order RGBreserved)
+    pfInterlaced16Triple, // RGB triple with 16 bits per component
+    pfInterlaced16Quad,   // RGB quad with 16 bits per component (fourth entry reserved)
+    pfPlane16Triple,      // 3 separate planes of data with 16 bits per component
+    pfPlane16Quad         // 4 separate planes of data with 16 bits per component
   );
 
   // Data format of samples based on the TIFF definitions
