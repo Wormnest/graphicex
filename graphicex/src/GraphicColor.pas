@@ -7382,7 +7382,11 @@ begin
         csRGB,
         csRGBA: FRowConversion := RowConvertBGR2RGB;
         csBGR,
-        csBGRA: FRowConversion := RowConvertBGR2BGR;
+        csBGRA:
+          // Since the order of the colors doesn't change BGR -> BGR should be the same
+          // as RGB -> RGB and RowConvertBGR2BGR is less complete than RGB2RGB
+          FRowConversion := RowConvertRGB2RGB;
+          //FRowConversion := RowConvertBGR2BGR;
         csCMY: ;
         csCMYK: ;
         csCMYKA: ;
