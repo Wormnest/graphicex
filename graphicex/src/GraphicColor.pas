@@ -275,8 +275,7 @@ type
     FTargetMultiBPS: array of Byte;    // Target bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
     FDisplayGamma: Single;             // (Constant) gamma value of the current monitor (default is 2.2)
-    FGammaTable: array[Byte] of Byte;  // Contains precalculated gamma values for each possible component value
-                                       // (range is 0..255)
+    FGammaTable: array of Byte;        // Contains precalculated gamma values for each possible component value (range is usually 0..255)
     FYCbCrCoefficients: array[0..2] of Single;
     FHSubsampling,
     FVSubSampling: Byte;               // Additional parameters used for YCbCr conversion
@@ -352,6 +351,8 @@ type
     procedure CreateYCbCrLookup;
     function GetPixelFormat(Index: Integer): TPixelFormat;
     procedure PrepareConversion;
+    procedure InitGammaTable(ASourceBPS, ATargetBPS: Byte);
+    // Property setters
     procedure SetSourceBitsPerSample(const Value: Byte);
     procedure SetSourceColorScheme(const Value: TColorScheme);
     procedure SetSourceSamplesPerPixel(const Value: Byte);
@@ -8404,47 +8405,58 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
+{ InitGammaTable - Creates the gamma lookup table
 
-// Sets the current gamma values and creates the gamma lookup table
-//
-// Needed settings:
-// - Source bits per samples must be set
-// - Target bits per samples must be set
-
+ Needed settings:
+ - FMainGamma en FDisplayGamma must be set
+ - Parameters ASourceBPS and ATargetBPS:
+   For non indexed this should be the same as FSourceBPS and FTargetBPS
+   For grayscale source is the target bps and target 8bps (size of a palette color)
+   For indexed images they should be both 8 (size of a palette color)
+}
 // Todo: Check if we need additional handling for 16 bits source gamma handling
 // See also: http://www.w3.org/TR/PNG/#13Decoder-gamma-handling
-
+procedure TColorManager.InitGammaTable(ASourceBPS, ATargetBPS: Byte);
 var
   I,
   SourceHighBound,
   TargetHighBound: Integer;
   Gamma: Single;
+begin
+  Gamma := 1 / (FMainGamma * FDisplayGamma);
 
+  // Source high bound is the maximum possible source value which can appear (0..255)
+  if ASourceBPS >= 8 then
+    SourceHighBound := 255
+  else
+    SourceHighBound := (1 shl ASourceBPS) - 1;
+  // Target high bound is the target value which corresponds to a target sample value of 1 (0..255)
+  if ATargetBPS >= 8 then
+    TargetHighBound := 255
+  else
+    TargetHighBound := (1 shl ATargetBPS) - 1;
+  SetLength(FGammaTable, SourceHighBound+1);
+  for I := 0 to SourceHighBound  do
+    FGammaTable[I] := Round(Power((I / SourceHighBound), Gamma) * TargetHighBound);
+end;
+
+//------------------------------------------------------------------------------
+
+// Sets the current gamma values and sets FChanged to True
+// Since we can't be certain at this time that source and target bits per sample
+// have been set we will create the gamma table at a later stage.
+procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
 begin
   if MainGamma <= 0 then
     FMainGamma := 1
   else
     FMainGamma := MainGamma;
   if DisplayGamma <= 0 then
-    FDisplayGamma := 2.2 // Default value for a usual CRT
+    FDisplayGamma := DefaultDisplayGamma // Default value for a usual CRT
   else
     FDisplayGamma := DisplayGamma;
-
-  Gamma := 1 / (FMainGamma * FDisplayGamma);
-
-  // Source high bound is the maximum possible source value which can appear (0..255)
-  if FSourceBPS >= 8 then
-    SourceHighBound := 255
-  else
-    SourceHighBound := (1 shl FTargetBPS) - 1;
-  // Target high bound is the target value which corresponds to a target sample value of 1 (0..255)
-  if FTargetBPS >= 8 then
-    TargetHighBound := 255
-  else
-    TargetHighBound := (1 shl FTargetBPS) - 1;
-  for I := 0 to SourceHighBound  do
-    FGammaTable[I] := Round(Power((I / SourceHighBound), Gamma) * TargetHighBound);
+  SetLength(FGammaTable, 0);
+  FChanged := True;
 end;
 
 //------------------------------------------------------------------------------
