@@ -3373,11 +3373,8 @@ begin
 
       // 32 bit TGA images may not be using the alpha channel, in that case we
       // replace it by Alpha is 255 or else the image will be invisible
-      if (FTargaHeader.PixelSize = 32) then begin
-        if (FTargaHeader.ImageDescriptor and $F = 0) or
-           ((FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) and
-           (FExtensionArea.Attributes in
-           [NoAlphaData, UndefinedAlphaCanBeIgnored, UndefinedAlphaButKeep])) then
+      if (FTargaHeader.PixelSize = 32) and (ColorManager.TargetColorScheme = csBGRA) then begin
+        if not HasAlpha then
           for i := 0 to Height-1 do
             BGRASetAlpha255(ScanLine[i], Width);
       end;
@@ -3487,6 +3484,19 @@ begin
         end;
       end;
 
+      HasAlpha := (FTargaHeader.ImageDescriptor and $F > 0);
+      if (FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) then
+        HasAlpha := FExtensionArea.Attributes in [AlphaDataPresent, PreMultipliedAlpha];
+      // Although 16 bits per pixel targa has in theory an alpha channel,
+      // the examples I have seen have all alpha values set to 0 (invisible).
+      // As such it doesn't seem useful to set this until we encounter
+      // a 16 bit tga image that does set non zero values.
+      {if (FTargaHeader.PixelSize = 16) and HasAlpha then begin
+        ColorScheme := csBGRA;
+        // Not sure if we should set SamplesPerPixel to 4 or just use
+        // ColorScheme is csBGRA in combination with ExtrBits = 1 to define this.
+        SamplesPerPixel := 4;
+      end;}
       Result := True;
     end;
 end;
