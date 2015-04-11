@@ -9152,6 +9152,7 @@ begin
               ReadDataAndCheckCRC(Run);
               // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
               FileGamma := SwapLong(PCardinal(FRawBuffer)^) / 100000;
+              Include(Options, ioUseGamma);
               Continue;
             end
             else
