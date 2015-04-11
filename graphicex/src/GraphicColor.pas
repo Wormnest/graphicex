@@ -7780,6 +7780,15 @@ begin
   else
     Exclude(FTargetOptions, coAlpha);
 
+  if (coApplyGamma in FTargetOptions) then
+    if not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
+      InitGammaTable(FSourceBPS, FTargetBPS)
+    else if (FSourceScheme in [csG, csGA]) then
+      if not (FTargetScheme in [csG, csGA]) then
+        // Conversion of grayscale to csBGRA etc expects gamma table to be in range 0..255
+        // for easier conversion.
+        InitGammaTable(8, 8);
+
   case FSourceScheme of
     csG:
       case FTargetScheme of
@@ -7791,9 +7800,11 @@ begin
             FRowConversion := RowConvertGray2BGR;
       else
         if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
-           ((FSourceBPS = 3) and (FTargetBPS = 4)) then
+           ((FSourceBPS in [2..4]) and (FTargetBPS = 4)) then
           FRowConversion := RowConvertGray
-        else
+        else if (FTargetBPS >= FSourceBPS) and (FTargetBPS <= 8) then
+          // Source 1bps CSG --> Target 1bps CSG
+          // Todo: move this to RowConvertGray too
           FRowConversion := RowConvertIndexed8;
       end;
     csGA:
@@ -7830,8 +7841,11 @@ begin
                 else
                   if FTargetBPS = 16 then
                     FRowConversion := RowConvertIndexedTarget16
-                  else if FSourceSPP = FTargetSPP then
-                    FRowConversion := RowConvertIndexed8
+                  else if FSourceSPP = FTargetSPP then begin
+                    if FSourceBPS <= FTargetBPS then
+                      // Using less bits per sample for target than source doesn't make sense for indexed
+                      FRowConversion := RowConvertIndexed8
+                  end
                   else
                     // Tiff extrasamples > 0 but apparently not a normal alpha channel
                     FRowConversion := RowConvertGray;
