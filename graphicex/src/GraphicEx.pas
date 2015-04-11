@@ -9405,12 +9405,16 @@ begin
   with FImageProperties do
   begin
     Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
-    if Keyword = 'Comment' then   // Only text chunks with the 'Comment' keyword are loaded
+    if (Keyword = 'Comment') or (Keyword = 'Description') or (Keyword = 'Title') then
     begin
+      // Only text chunks with the 'Comment', 'Description' and 'Title' keywords are loaded
       Offset := Length(Keyword) + 1;
       SetLength(Contents, FHeader.Length - Offset + 1);
       StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
-      Comment := Comment + PAnsiChar(Contents);
+      if Comment = '' then
+        Comment := PAnsiChar(Contents)
+      else // Add NewLine character between multiple comments
+        Comment := Comment + #10 + PAnsiChar(Contents);
     end;
   end;
 end;
