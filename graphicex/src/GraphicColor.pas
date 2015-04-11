@@ -1322,9 +1322,11 @@ begin
   FTargetSPP := 3; // 24 bit format
   FSourceExtraBPP := 0;
   FTargetExtraBPP := 0;
-  SetGamma(1, DefaultDisplayGamma);
   FSourceScheme := csRGB;
   FTargetScheme := csBGR;
+  FMainGamma := 1;
+  FDisplayGamma := DefaultDisplayGamma;
+  SetLength(FGammaTable, 0);
   FSourcePaletteFormat := pfUnknown;
 
   // defaults are from CCIR Recommendation 601-1
