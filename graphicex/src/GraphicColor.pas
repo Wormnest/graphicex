@@ -3702,6 +3702,7 @@ var
   BitOffset: Cardinal; // Offset in Source byte where first bit starts
   BitIncrement: Cardinal; // Value to increment bits with, depends on FSourceBPS and AlphaSkip
   Bits, Bits2: Cardinal;
+  StartCount: Cardinal;
   Bits64: UInt64;
   FirstNibble: Boolean;
   GetBits32: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
@@ -3940,18 +3941,18 @@ begin
       else
         // Other targets unsupported for now
       end;
-    3: // Conversion of uncommon 3 bits to 4 bits only for now
+    2..4: // Conversion of 2..4 bits to 4 bits
       case FTargetBPS of
         4: // Convert to 4 bits
           begin
             Source8 := Source[0];
             Target8 := Target;
             BitOffset := 0;
-            Bits2 := 0; // Stop Delphi from complaining about Bits2 not being initialized
-            FirstNibble := True;
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
+            if Mask = $ff then begin
+              // No masking needed
+              Bits2 := 0; // Stop Delphi from complaining about Bits2 not being initialized
+              FirstNibble := True;
+              while Count > 0 do
               begin
                 // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                 // Since we are converting to 4 bits we need 2 values to fill a byte!
@@ -3971,14 +3972,52 @@ begin
                   Inc(Source8);
                   BitOffset := BitOffset mod 8;
                 end;
+                Dec(Count);
               end;
-              asm ROR BYTE PTR [BitRun], 1 end;
-              Dec(Count);
-            end;
-            // We need to check if the last nibble got written
-            if not FirstNibble then begin
-              // No second nibble at end of line: write only first nibble
-              Target8^ := Bits2;
+              // We need to check if the last nibble got written
+              if not FirstNibble then begin
+                // No second nibble at end of line: write only first nibble
+                Target8^ := Bits2;
+              end;
+            end
+            else begin
+              // Mask set (png)
+              StartCount := Count;
+              while Count > 0 do
+              begin
+                if Boolean(Mask and BitRun) then
+                begin
+                  // Since not all loops will go into the if when a mask is used
+                  // we have to compute the Target every time we do get here.
+                  //Bits2 := (StartCount - Count) div 2;
+                  Target8 := Target;
+                  Inc(Target8, (StartCount - Count) div 2);
+                  FirstNibble := (StartCount - Count) mod 2 = 0;
+                  //Bits2 := 0;
+                  // Since we are converting to 4 bits we need 2 values to fill a byte!
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  if FirstNibble then begin // First 4 bits
+                    Bits2 := ComponentScaleConvertTo4(Bits, FSourceBPS) shl 4;
+                    // Use and $ff00 to make sure the initial value of the part
+                    // we are replacing is 0
+                    Target8^ := (Target8^ and $ff00) or Bits2;
+                  end
+                  else begin
+                    // Second 4 bits
+                    // Use and $00ff to make sure the initial value of the part
+                    // we are replacing is 0
+                    Target8^ := (Target8^ and $00ff) or ComponentScaleConvertTo4(Bits, FSourceBPS);
+                  end;
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  if BitOffset >= 8 then begin
+                    Inc(Source8);
+                    BitOffset := BitOffset mod 8;
+                  end;
+                end;
+                asm ROR BYTE PTR [BitRun], 1 end;
+                Dec(Count);
+              end;
             end;
           end;
       else
