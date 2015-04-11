@@ -226,7 +226,8 @@ type
     coNeedByteSwap,   // Endian switch needed
     coLabByteRange,   // CIE L*a*b* only, luminance range is from 0..255 instead 0..100
     coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
-    coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
+    coSeparatePlanes, // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
+    coUnequalSamples  // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
   );
 
   // Format of the raw data to create a palette from
@@ -265,6 +266,8 @@ type
     FTargetBPS,                        // Bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
     FSourceSPP,                        // Samples per source pixel (allowed values are 1, 3, 4)
     FTargetSPP: Byte;                  // Samples per target pixel (allowed values are 1, 3, 4)
+    FSourceMultiBPS: array of Byte;    // Source bits per sample for each channel when not all values are the same (e.g. bmp 565)
+    FTargetMultiBPS: array of Byte;    // Target bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
     FDisplayGamma: Single;             // (Constant) gamma value of the current monitor (default is 2.2)
     FGammaTable: array[Byte] of Byte;  // Contains precalculated gamma values for each possible component value
@@ -361,6 +364,8 @@ type
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
     procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+    procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+    procedure SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
 
     property SourceBitsPerSample: Byte read FSourceBPS write SetSourceBitsPerSample;
     property SourceColorScheme: TColorScheme read FSourceScheme write SetSourceColorScheme;
@@ -7223,6 +7228,36 @@ begin
 end;
 
 //------------------------------------------------------------------------------
+
+// Sets flag that the bits per sample values for each channel differ and
+// initializes the bits per sample for each channel.
+// If ASampleCount is 1 or less then it removes the flag for multiple bps values.
+procedure TColorManager.SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+begin
+  if ASampleCount > 1 then begin
+    FSourceOptions := FSourceOptions + [coUnequalSamples];
+    SetLength(FSourceMultiBPS, Length(ASamples));
+    Move(ASamples[Low(ASamples)], FSourceMultiBPS[Low(FSourceMultiBPS)],
+      Length(ASamples)*SizeOf(Byte));
+  end
+  else
+    FSourceOptions := FSourceOptions - [coUnequalSamples];
+end;
+
+// Sets flag that the bits per sample values for each channel differ and
+// initializes the bits per sample for each channel.
+// If ASampleCount is 1 or less then it removes the flag for multiple bps values.
+procedure TColorManager.SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+begin
+  if ASampleCount > 1 then begin
+    FTargetOptions := FTargetOptions + [coUnequalSamples];
+    SetLength(FTargetMultiBPS, Length(ASamples));
+    Move(ASamples[Low(ASamples)], FTargetMultiBPS[Low(FTargetMultiBPS)],
+      Length(ASamples)*SizeOf(Byte));
+  end
+  else
+    FTargetOptions := FTargetOptions - [coUnequalSamples];
+end;
 
 // Set Source Palette needed if we want to convert from indexed to non indexed format.
 procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
