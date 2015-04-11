@@ -164,6 +164,7 @@ type
     BitsPerSample,                     // all Images
     SamplesPerPixel,                   // all images
     BitsPerPixel: Byte;                // all images
+    ExtraBits: Byte;                   // TGA, BMP extra bits in a pixel (e.g. bmp 555 uses 16 bits total)
     Compression: TCompressionType;     // all images
     FileGamma: Single;                 // RLA, PNG
     XResolution,
@@ -3418,6 +3419,7 @@ begin
             ColorScheme := csRGB;
             BitsPerSample := 5;
             SamplesPerPixel := 3;
+            ExtraBits := 1;
           end;
         24:
           begin
