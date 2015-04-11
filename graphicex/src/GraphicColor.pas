@@ -4213,7 +4213,7 @@ end;
 // Index 0 in palette data should contain the red channel, 1 = green, 2 = blue.
 // Palette channel data as expected from TIF is always 16 bits.
 // pfPlane8Triple: PSD indexed
-// Mask is currently ignored here.
+// Mask is currently only used when converting png images.
 procedure TColorManager.RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   PalIndex8: Byte;
@@ -4230,7 +4230,10 @@ var
   SourceIncrement,
   TargetIncrement: Integer;
   Multi: Cardinal;
+  BitRun: Byte;
+  ConvertGammaProc8: function(Value: Byte): Byte of object;
 begin
+  BitRun := $80;
   if Length(Source) = 0 then begin
     ShowError(gesSourcePaletteUndefined);
     Exit;
@@ -4243,7 +4246,14 @@ begin
   // Check how we need to handle alpha
   if coAlpha in FSourceOptions then
   begin
-    SourceIncrement := 2; // 1 indexed + 1 alpha
+    if not (coAlphaPalette in FSourceOptions) then
+      // SourceIncrement: Normally 2: 1 indexed + 1 alpha, but can be more e.g. tiff ExtraSamples
+      SourceIncrement := FSourceSPP
+    else begin
+      SourceIncrement := 1; // Separate alpha palette
+      if FSourceAlphaPalette = nil then
+        ShowError('No alpha palette defined!'); // Todo: move message to msg definitions unit
+    end;
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       CopyAlpha := True;
@@ -4255,7 +4265,8 @@ begin
   end
   else
   begin
-    SourceIncrement := 1; // 1 byte grayscale
+    // SourceIncrement: Normally 1 indexed byte, but can be more e.g. tiff ExtraSamples that are not alpha
+    SourceIncrement := FSourceSPP;
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       AddAlpha := True;
@@ -4467,38 +4478,52 @@ begin
                   Multi := 3
                 else
                   Multi := 4;
+
+                if coApplyGamma in FTargetOptions then
+                  ConvertGammaProc8 := ComponentGammaConvert
+                else
+                  ConvertGammaProc8 := ComponentNoConvert8;
+
                 while Count > 0 do
                 begin
-                  // Get palette index
-                  PalIndex8 := SourceRun8^;
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    // Get palette index
+                    PalIndex8 := SourceRun8^;
 
-                  // Store color info from palette index in Target
-                  // Todo: Check if it would be faster if we pre computed the
-                  // base offset of the prgb once or if the optimizer can
-                  // figure that out on its own
-                  // Todo: Setting color rgb/bgr should be an inline function type assigned before the loop
-                  if not (coPaletteBGR in FSourceOptions) then begin
-                    // RGB palette
-                    TargetRun8^.B := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B;
-                    TargetRun8^.G := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G;
-                    TargetRun8^.R := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R;
-                  end
-                  else begin
-                    // BGR palette
-                    TargetRun8^.B := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B;
-                    TargetRun8^.G := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G;
-                    TargetRun8^.R := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R;
-                  end;
-                  // Todo: Setting Alpha should be an inline function type assigned before the loop
-                  // Handle alpha
-                  if CopyAlpha then
-                    TargetRun8^.A := SourceRun8A^
-                  else if AddAlpha then
-                    // Source has no alpha but target needs alpha, set it to $ff
-                    TargetRun8^.A := $ff;
+                    // Store color info from palette index in Target
+                    // Todo: Check if it would be faster if we pre computed the
+                    // base offset of the prgb once or if the optimizer can
+                    // figure that out on its own
+                    // Todo: Setting color rgb/bgr should be an inline function type assigned before the loop
+                    if not (coPaletteBGR in FSourceOptions) then begin
+                      // RGB palette
+                      TargetRun8^.B := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R);
+                    end
+                    else begin
+                      // BGR palette
+                      TargetRun8^.B := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R);
+                    end;
+                    // Todo: Setting Alpha should be an inline function type assigned before the loop
+                    // Handle alpha
+                    if CopyAlpha then
+                      if not (coAlphaPalette in FSourceOptions) then
+                        TargetRun8^.A := SourceRun8A^
+                      else // png with separate transparency palette
+                        TargetRun8^.A := FSourceAlphaPalette^[PalIndex8]
+                    else if AddAlpha then
+                      // Source has no alpha but target needs alpha, set it to $ff
+                      TargetRun8^.A := $ff;
 
-                  Inc(SourceRun8, SourceIncrement);
-                  Inc(SourceRun8A, SourceIncrement);
+                    Inc(SourceRun8, SourceIncrement);
+                    Inc(SourceRun8A, SourceIncrement);
+                  end; // if mask
+                  // Update BitRun mask
+                  asm ROR BYTE PTR [BitRun], 1 end;
                   Inc(PByte(TargetRun8), TargetIncrement);
 
                   Dec(Count);
@@ -4521,47 +4546,60 @@ begin
                 else
                   Multi := 4;
 
+                if coApplyGamma in FTargetOptions then
+                  ConvertGammaProc8 := ComponentGammaConvert
+                else
+                  ConvertGammaProc8 := ComponentNoConvert8;
+
                 BitOffset := 0;
 
                 while Count > 0 do
                 begin
-                  // Get palette index
-                  PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun8));
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    // Get palette index
+                    PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun8));
 
-                  // Update the bit and byte pointers
-                  Inc(BitOffset, FSourceBPS);
-                  Inc( PByte(SourceRun8), BitOffset div 8 );
-                  BitOffset := BitOffset mod 8;
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, FSourceBPS);
+                    Inc( PByte(SourceRun8), BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
 
-                  // Store color info from palette index in Target
-                  // Todo: Check if it would be faster if we pre computed the
-                  // base offset of the prgb once or if the optimizer can
-                  // figure that out on its own
-                  if not (coPaletteBGR in FSourceOptions) then begin
-                    // RGB palette
-                    TargetRun8^.B := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B;
-                    TargetRun8^.G := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G;
-                    TargetRun8^.R := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R;
-                  end
-                  else begin
-                    // BGR palette
-                    TargetRun8^.B := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B;
-                    TargetRun8^.G := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G;
-                    TargetRun8^.R := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R;
-                  end;
+                    // Store color info from palette index in Target
+                    // Todo: Check if it would be faster if we pre computed the
+                    // base offset of the prgb once or if the optimizer can
+                    // figure that out on its own
+                    if not (coPaletteBGR in FSourceOptions) then begin
+                      // RGB palette
+                      TargetRun8^.B := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R);
+                    end
+                    else begin
+                      // BGR palette
+                      TargetRun8^.B := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R);
+                    end;
 
-                  // Todo: Setting Alpha should be an inline function type assigned before the loop
-                  // Handle alpha
-                  if CopyAlpha then
-                    TargetRun8^.A := SourceRun8A^
-                  else if AddAlpha then
-                    // Source has no alpha but target needs alpha, set it to $ff
-                    TargetRun8^.A := $ff;
+                    // Todo: Setting Alpha should be an inline function type assigned before the loop
+                    // Handle alpha
+                    if CopyAlpha then
+                      if not (coAlphaPalette in FSourceOptions) then
+                        TargetRun8^.A := SourceRun8A^
+                      else // png with separate transparency palette
+                        TargetRun8^.A := FSourceAlphaPalette^[PalIndex]
+                    else if AddAlpha then
+                      // Source has no alpha but target needs alpha, set it to $ff
+                      TargetRun8^.A := $ff;
 
-                  Inc(SourceRun8A, SourceIncrement);
+                    Inc(SourceRun8A, SourceIncrement);
+
+                  end; // if mask
+                  // Update BitRun mask
+                  asm ROR BYTE PTR [BitRun], 1 end;
 
                   Inc(PByte(TargetRun8), TargetIncrement);
-
                   Dec(Count);
                 end;
               end;
@@ -4590,11 +4628,14 @@ var
   TargetIncrement: Integer;
   // Convert up to 16 bits to 8 bits
   ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
+  SwapProc16: function(Value: Word): Word of object;
   Bits,
   BitOffset,
   BitIncrement: Cardinal;
+  BitRun: Byte;
 
 begin
+  BitRun := $80;
   if Length(Source) = 0 then begin
     ShowError(gesSourcePaletteUndefined);
     Exit;
@@ -4651,21 +4692,35 @@ begin
 
         while Count > 0 do
         begin
-          // Get grayscale index
-          GrayValue8 := SourceRun8^;
+          if Boolean(Mask and BitRun) then
+          begin
+            // Get grayscale index
+            GrayValue8 := SourceRun8^;
 
-          // Store grayscale info from palette index in Target
-          TargetRun8^.B := GrayValue8;
-          TargetRun8^.G := GrayValue8;
-          TargetRun8^.R := GrayValue8;
-          if CopyAlpha then
-            TargetRun8^.A := SourceAlphaRun8^
-          else if AddAlpha then
-            // Source has no alpha but target needs alpha, set it to $ff
-            TargetRun8^.A := $ff;
+            // If black/white is inverted then we need to invert the value
+            if coMinIsWhite in FSourceOptions then
+              GrayValue8 := not GrayValue8;
 
-          Inc(SourceRun8, SourceIncrement);
-          Inc(SourceAlphaRun8, SourceIncrement);
+            // Apply gamma correction if necessary
+            if (coApplyGamma in FTargetOptions) then
+              GrayValue8 := FGammaTable[GrayValue8];
+
+            // Store grayscale info from palette index in Target
+            TargetRun8^.B := GrayValue8;
+            TargetRun8^.G := GrayValue8;
+            TargetRun8^.R := GrayValue8;
+            if CopyAlpha then
+              TargetRun8^.A := SourceAlphaRun8^
+            else if AddAlpha then
+              // Source has no alpha but target needs alpha, set it to $ff
+              TargetRun8^.A := $ff;
+
+            Inc(SourceRun8, SourceIncrement);
+            Inc(SourceAlphaRun8, SourceIncrement);
+          end; // if mask
+          // Update BitRun mask
+          asm ROR BYTE PTR [BitRun], 1 end;
+
           Inc(PByte(TargetRun8), TargetIncrement);
 
           Dec(Count);
@@ -4682,6 +4737,13 @@ begin
 
         // Set up source and target pointers
         SourceRun8 := Source[0]; // Grayscale source
+        SourceAlphaRun8 := SourceRun8; Inc(SourceAlphaRun8, 2); // Only used for 16 bits per sample
+        if (FSourceBPS <> 16) and CopyAlpha then begin
+          // Copying alpha currently only supported for 16 bps
+          AddAlpha := True;
+          CopyAlpha := False;
+        end;
+
         TargetRun8 := Target;    // BGR target
 
         // Assign scale converter
@@ -4693,6 +4755,10 @@ begin
         else
           ConvertAny16To8 := ComponentScaleConvertUncommonTo8;
         end;
+        if (coNeedByteSwap in FSourceOptions) and (FSourceBPS = 16) then
+          SwapProc16 := ComponentSwapConvert
+        else
+          SWapProc16 := ComponentNoConvert16;
 
         // Number of bits to handle for 1 grayscale pixel
         BitIncrement := FSourceBPS;
@@ -4702,26 +4768,43 @@ begin
         // Loop over all pixels in the current row
         while Count > 0 do
         begin
-          // Get grayscale index
-          Bits := GetBitsMSB(BitOffset, FSourceBPS, SourceRun8);
-          GrayValue8 := ConvertAny16To8(Bits, FSourceBPS);
+          if Boolean(Mask and BitRun) then
+          begin
+            // Get grayscale index
+            Bits := SwapProc16(GetBitsMSB(BitOffset, FSourceBPS, SourceRun8));
 
-          // If black/white is inverted then we need to invert the value
-          // Todo: also take gamma correction into account if set in options
-          if coMinIsWhite in FSourceOptions then
-            GrayValue8 := not GrayValue8;
-          // Update the bit and byte pointers
-          Inc(BitOffset, BitIncrement);
-          Inc(SourceRun8, BitOffset div 8);
-          BitOffset := BitOffset mod 8;
+            GrayValue8 := ConvertAny16To8(Bits, FSourceBPS);
 
-          // Store grayscale value in Target
-          TargetRun8^.B := GrayValue8;
-          TargetRun8^.G := GrayValue8;
-          TargetRun8^.R := GrayValue8;
-          if AddAlpha then
-            // Source has no alpha but target needs alpha, set it to $ff
-            TargetRun8^.A := $ff;
+            // If black/white is inverted then we need to invert the value
+            if coMinIsWhite in FSourceOptions then
+              GrayValue8 := not GrayValue8;
+
+            // Apply gamma correction if necessary
+            if (coApplyGamma in FTargetOptions) then
+              GrayValue8 := FGammaTable[GrayValue8];
+
+            // Update the bit and byte pointers
+            Inc(BitOffset, BitIncrement);
+            Inc(SourceRun8, BitOffset div 8);
+            BitOffset := BitOffset mod 8;
+
+            // Store grayscale value in Target
+            TargetRun8^.B := GrayValue8;
+            TargetRun8^.G := GrayValue8;
+            TargetRun8^.R := GrayValue8;
+
+            if CopyAlpha then begin
+              // Currently assuming this will only happen for 16 bits per sample!
+              TargetRun8^.A := ConvertAny16To8(SwapProc16(PWord(SourceAlphaRun8)^), FSourceBPS);
+              Inc(SourceRun8, 2); // Move beyond the alpha bits
+              Inc(SourceAlphaRun8, 4); // 2 alpha and 2 grayscale bytes
+            end
+            else if AddAlpha then
+              // Source has no alpha but target needs alpha, set it to $ff
+              TargetRun8^.A := $ff;
+          end; // if mask
+          // Update BitRun mask
+          asm ROR BYTE PTR [BitRun], 1 end;
 
           Inc(PByte(TargetRun8), TargetIncrement);
           Dec(Count);
@@ -7504,7 +7587,7 @@ begin
         csBGRA,
         csRGB,
         csRGBA:
-          if (FTargetBPS = 8) and (FSourceBPS = 8) then
+          if (FTargetBPS = 8) and (FSourceBPS <= 16) then
             FRowConversion := RowConvertGray2BGR;
       else
         if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
@@ -7547,7 +7630,7 @@ begin
           csBGRA,
           csRGB,
           csRGBA:
-            if (FTargetBPS = 8) and (FSourceBPS = 8) then
+            if (FTargetBPS = 8) and (FSourceBPS <= 16) then
               FRowConversion := RowConvertIndexed2BGR;
         else
           if (FSourceBPS = 8) and (FTargetBPS = 8) then
