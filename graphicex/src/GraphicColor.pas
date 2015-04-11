@@ -8217,9 +8217,9 @@ begin
         begin
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
-            LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
-            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
             LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
             if DataFormat = pfInterlaced8Quad then
               Inc(RunR8);
           end;
@@ -8228,9 +8228,9 @@ begin
         begin
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
-            LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
-            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
             LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
             if DataFormat = pfInterlaced8Quad then
               Inc(RunR8);
           end;

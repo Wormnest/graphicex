@@ -3264,7 +3264,7 @@ begin
                   ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
                   {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, True);
+                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, False {BGR order});
                   Inc(Source, ColorMapBufSize);
                 end;
               24:
@@ -3273,7 +3273,7 @@ begin
                   ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
                   {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, True);
+                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, False {BGR order});
                   Inc(Source, ColorMapBufSize);
                 end;
               15, 16:
@@ -3738,7 +3738,7 @@ var
             if paletteType = 2 then
               Palette := ColorManager.CreateGrayScalePalette(False)
             else begin
-              Palette := ColorManager.CreateColorPalette([@ColorMap], pfInterlaced8Triple, 16, False);
+              Palette := ColorManager.CreateColorPalette([@ColorMap], pfInterlaced8Triple, 16);
               {$IFDEF FPC}
               ColorManager.SetSourcePalette([@ColorMap], pfInterlaced8Triple);
               {$ENDIF}
@@ -3758,7 +3758,7 @@ var
             else
             begin
               Inc(PaletteData);
-              Palette := ColorManager.CreateColorPalette([PaletteData], pfInterlaced8Triple, 256, False);
+              Palette := ColorManager.CreateColorPalette([PaletteData], pfInterlaced8Triple, 256);
               {$IFDEF FPC}
               ColorManager.SetSourcePalette([PaletteData], pfInterlaced8Triple);
               {$ENDIF}
@@ -7675,7 +7675,7 @@ begin
         csIndexed:
           begin
             Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
-              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count, False);
+              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count);
             ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
               PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
           end;
@@ -8566,7 +8566,7 @@ begin
 
               Move(Run^, RawPalette, Index * SizeOf(TRGBQuad));
               Inc(Run, Index * SizeOf(TRGBQuad));
-              Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, True);
+              Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, False {BGR order});
               {$IFDEF FPC}
               ColorManager.SetSourcePalette([@RawPalette], pfInterlaced8Quad, False {BGR order});
               {$ENDIF}
@@ -9004,7 +9004,7 @@ begin
               begin
                 // first setup pixel format before actually creating a palette
                 FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
-                FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3, False);
+                FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
                 // We need to copy palette from FRawBuffer because FRawBuffer
                 // will be reused...
                 // Always needed for fpc but also in Delphi for Indexed with Alpha.
