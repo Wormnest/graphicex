@@ -4225,6 +4225,7 @@ var
   CopyAlpha: Boolean;
   SourceIncrement,
   TargetIncrement: Integer;
+  Multi: Cardinal;
 begin
   if Length(Source) = 0 then begin
     ShowError(gesSourcePaletteUndefined);
@@ -4438,6 +4439,130 @@ begin
             end;
         end;
       end;
+      pfInterlaced8Triple,
+      pfInterlaced8Quad:
+        begin
+          if Length(FSourcePaletteData) <> 1 then begin
+            ShowError(gesIncorrectPaletteDataCount);
+            Exit;
+          end;
+          case FSourceBPS of
+            8:
+              begin
+                SourceRun8 := Source[0]; // Palette index
+                if Length(Source) = 1 then begin
+                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
+                end
+                else begin
+                  SourceRun8A := Source[1];
+                end;
+                TargetRun8 := Target;
+
+                // If we have a triple then there are 3 components otherwise 4
+                if FSourcePaletteFormat = pfInterlaced8Triple then
+                  Multi := 3
+                else
+                  Multi := 4;
+                while Count > 0 do
+                begin
+                  // Get palette index
+                  PalIndex8 := SourceRun8^;
+
+                  // Store color info from palette index in Target
+                  // Todo: Check if it would be faster if we pre computed the
+                  // base offset of the prgb once or if the optimizer can
+                  // figure that out on its own
+                  // Todo: Setting color rgb/bgr should be an inline function type assigned before the loop
+                  if not (coPaletteBGR in FSourceOptions) then begin
+                    // RGB palette
+                    TargetRun8^.B := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B;
+                    TargetRun8^.G := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G;
+                    TargetRun8^.R := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R;
+                  end
+                  else begin
+                    // BGR palette
+                    TargetRun8^.B := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B;
+                    TargetRun8^.G := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G;
+                    TargetRun8^.R := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R;
+                  end;
+                  // Todo: Setting Alpha should be an inline function type assigned before the loop
+                  // Handle alpha
+                  if CopyAlpha then
+                    TargetRun8^.A := SourceRun8A^
+                  else if AddAlpha then
+                    // Source has no alpha but target needs alpha, set it to $ff
+                    TargetRun8^.A := $ff;
+
+                  Inc(SourceRun8, SourceIncrement);
+                  Inc(SourceRun8A, SourceIncrement);
+                  Inc(PByte(TargetRun8), TargetIncrement);
+
+                  Dec(Count);
+                end;
+              end;
+            1..7, 9..16:
+              begin
+                SourceRun8 := Source[0]; // Palette index
+                if Length(Source) = 1 then begin
+                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
+                end
+                else begin
+                  SourceRun8A := Source[1];
+                end;
+                TargetRun8 := Target;
+
+                // If we have a triple then there are 3 components otherwise 4
+                if FSourcePaletteFormat = pfInterlaced8Triple then
+                  Multi := 3
+                else
+                  Multi := 4;
+
+                BitOffset := 0;
+
+                while Count > 0 do
+                begin
+                  // Get palette index
+                  PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun8));
+
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, FSourceBPS);
+                  Inc( PByte(SourceRun8), BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Store color info from palette index in Target
+                  // Todo: Check if it would be faster if we pre computed the
+                  // base offset of the prgb once or if the optimizer can
+                  // figure that out on its own
+                  if not (coPaletteBGR in FSourceOptions) then begin
+                    // RGB palette
+                    TargetRun8^.B := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B;
+                    TargetRun8^.G := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G;
+                    TargetRun8^.R := PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R;
+                  end
+                  else begin
+                    // BGR palette
+                    TargetRun8^.B := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B;
+                    TargetRun8^.G := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G;
+                    TargetRun8^.R := PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R;
+                  end;
+
+                  // Todo: Setting Alpha should be an inline function type assigned before the loop
+                  // Handle alpha
+                  if CopyAlpha then
+                    TargetRun8^.A := SourceRun8A^
+                  else if AddAlpha then
+                    // Source has no alpha but target needs alpha, set it to $ff
+                    TargetRun8^.A := $ff;
+
+                  Inc(SourceRun8A, SourceIncrement);
+
+                  Inc(PByte(TargetRun8), TargetIncrement);
+
+                  Dec(Count);
+                end;
+              end;
+          end;
+        end;
   else
     ShowError(gesPaletteFormatConversionUnsupported);
   end;
