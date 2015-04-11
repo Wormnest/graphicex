@@ -1582,7 +1582,9 @@ end;
 // WARNING: Currently assuming values between 0.0 and 1.0!
 function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
 var d: Double absolute Value;
-  TempVal: UInt64;
+  // Use integer since float can be negative and if it's too large to fit
+  // in Int64 then it is out of the expected range anyway
+  TempVal: Int64;
 begin
     TempVal := Trunc(d * 255);
     if TempVal < 0 then
@@ -1595,7 +1597,9 @@ end;
 // WARNING: Currently assuming values between 0.0 and 1.0!
 function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64): Byte;
 var d: Double absolute Value;
-  TempVal: UInt64;
+  // Use integer since float can be negative and if it's too large to fit
+  // in Int64 then it is out of the expected range anyway
+  TempVal: Int64;
 begin
     TempVal := Trunc(d * 255);
     if TempVal < 0 then
