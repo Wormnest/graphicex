@@ -3633,16 +3633,11 @@ begin
 end;
 
 function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
-var Sum: Cardinal;
 begin
-  Sum := BitIndex + NumberOfBits;
   // TODO Copy available bytes first so we dont get AV at end of buffer!
-  // Currently we expect either 10, 12, or 14 bits as NumberOfBits
-  // Since that can be spread over 3 bytes we use a 4 byte Cardinal
-  // First remove the high end bytes we don't need (shl)
-  // Then remove the unneeded low end bytes (BitIndex) (shr)
+  // Since 10 or more bits can be spread over 3 bytes we use a 4 byte Cardinal
   // NOT USED CURRENTLY since we found out we need to do it with MSB first (big endian)
-  Result := (BitData^ shl (32 - Sum)) shr (32 - NumberOfBits);
+  Result := (BitData^ shr BitIndex) and CBitMask[NumberOfBits];
 end;
 
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
