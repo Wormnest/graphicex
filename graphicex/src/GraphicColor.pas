@@ -267,6 +267,8 @@ type
     FTargetBPS,                        // Bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
     FSourceSPP,                        // Samples per source pixel (allowed values are 1, 3, 4)
     FTargetSPP: Byte;                  // Samples per target pixel (allowed values are 1, 3, 4)
+    FSourceExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a source pixel
+    FTargetExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a target pixel
     FSourceMultiBPS: array of Byte;    // Source bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FTargetMultiBPS: array of Byte;    // Target bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
@@ -374,12 +376,14 @@ type
     property SourcePixelFormat: TPixelFormat index 0 read GetPixelFormat;
     property SourceSamplesPerPixel: Byte read FSourceSPP write SetSourceSamplesPerPixel;
     property SourceDataFormat: TSampleDataFormat read FSourceDataFormat write SetSourceDataFormat;
+    property SourceExtraBPP: Byte read FSourceExtraBPP write FSourceExtraBPP;
     property TargetBitsPerSample: Byte read FTargetBPS write SetTargetBitsPerSample;
     property TargetColorScheme: TColorScheme read FTargetScheme write SetTargetColorScheme;
     property TargetOptions: TConvertOptions read FTargetOptions write FTargetOptions;
     property TargetPixelFormat: TPixelFormat index 1 read GetPixelFormat;
     property TargetSamplesPerPixel: Byte read FTargetSPP write SetTargetSamplesPerPixel;
     property TargetDataFormat: TSampleDataFormat read FTargetDataFormat write SetTargetDataFormat;
+    property TargetExtraBPP: Byte read FTargetExtraBPP write FTargetExtraBPP;
   end;
 
 // Common color conversion functions
@@ -1311,6 +1315,8 @@ begin
   FTargetBPS := 8;
   FSourceSPP := 3; // 24 bit format
   FTargetSPP := 3; // 24 bit format
+  FSourceExtraBPP := 0;
+  FTargetExtraBPP := 0;
   SetGamma(1, DefaultDisplayGamma);
   FSourceScheme := csRGB;
   FTargetScheme := csBGR;
