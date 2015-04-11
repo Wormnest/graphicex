@@ -1406,28 +1406,38 @@ function TColorManager.ComponentScaleConvert14To8(Value: Word; BitsPerSample: By
 begin
   // Convert/scale down from 14 bits to 8 bits
   // 14 bits 2^14 = 16384 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 16384);
+  //Result := MulDiv16(Value, 256, 16384);
+  // This is faster:
+  Result := Value shr 6;
 end;
 
 function TColorManager.ComponentScaleConvert12To8(Value: Word; BitsPerSample: Byte = 12): Byte;
 begin
   // Convert/scale down from 12 bits to 8 bits
   // 12 bits 2^12 = 4096 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 4096);
+  //Result := MulDiv16(Value, 256, 4096);
+  // This is faster:
+  Result := Value shr 4;
 end;
 
 function TColorManager.ComponentScaleConvert10To8(Value: Word; BitsPerSample: Byte = 10): Byte;
 begin
   // Convert/scale down from 10 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 1024);
+  //Result := MulDiv16(Value, 256, 1024);
+  // This is faster:
+  Result := Value shr 2;
 end;
 
 function TColorManager.ComponentScaleConvert6To8(Value: Word; BitsPerSample: Byte = 6): Byte;
 begin
   // Convert/scale up from 6 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 64);
+  if Value = 0 then
+    Result := 0
+  else
+    // Scale up to 8 bits
+    Result := (Value+1) shl (8-6) - 1;
 end;
 
 function TColorManager.ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSample: Byte): Byte;
@@ -1600,7 +1610,8 @@ end;
 function TColorManager.ComponentScaleGammaConvert(Value: Word): Byte;
 
 begin
-  Result := FGammaTable[MulDiv16(Value, 255, 65535)];
+  //Result := FGammaTable[MulDiv16(Value, 255, 65535)];
+  Result := FGammaTable[Value shr 8];
 end;
 
 //------------------------------------------------------------------------------
@@ -1608,7 +1619,8 @@ end;
 function TColorManager.ComponentSwapScaleGammaConvert(Value: Word): Byte;
 
 begin
-  Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
+  //Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
+  Result := FGammaTable[Swap(Value) shr 8];
 end;
 
 //------------------------------------------------------------------------------
@@ -1616,7 +1628,8 @@ end;
 function TColorManager.ComponentSwapScaleConvert(Value: Word): Byte;
 
 begin
-  Result := MulDiv16(Swap(Value), 255, 65535);
+  //Result := MulDiv16(Swap(Value), 255, 65535);
+  Result := Swap(Value) shr 8;
 end;
 
 //------------------------------------------------------------------------------
