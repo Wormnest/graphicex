@@ -2282,9 +2282,9 @@ var
   Counter: Integer;
   TileWidth, TileHeight: Cardinal;
   Buffer: Pointer;
-  FromSkew: Integer;
-  RowCount: Integer;
-  PixelCount: Integer;
+  FromSkew: Cardinal;
+  RowCount: Cardinal;
+  PixelCount: Cardinal;
   Line: PAnsiChar;
   RowInc: Integer;
   ColumnOffset: Cardinal;
@@ -2294,7 +2294,7 @@ var
   nPlanes: Integer;
   PtrArray: array of pointer;
   BufPtr: Pointer;
-  TileOffset: Integer;
+  TileOffset: Cardinal;
 
 begin
   TileSize := TIFFTileSize(tif);
@@ -2323,7 +2323,7 @@ begin
     begin
       RowsToRead := TileHeight - (Row mod TileHeight);
       if Row + RowsToRead > Cardinal(Height) then
-        RowCount := Height - Row
+        RowCount := Cardinal(Height) - Row
       else
         RowCount := RowsToRead;
 
@@ -2353,7 +2353,7 @@ begin
         if Column + TileWidth > Cardinal(Width) then
         begin
           // Tile is clipped horizontally.  Calculate visible portion and skewing factors.
-          PixelCount := Width - Column;
+          PixelCount := Cardinal(Width) - Column;
           FromSkew := TileWidth - PixelCount;
           if ioSeparatePlanes in Options then
             TileOffset := Ceil(BitsPerSample * (PixelCount + FromSkew) / 8)
