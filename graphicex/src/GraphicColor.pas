@@ -4234,13 +4234,6 @@ var
   ConvertGammaProc8: function(Value: Byte): Byte of object;
 begin
   BitRun := $80;
-  if Length(Source) = 0 then begin
-    ShowError(gesSourcePaletteUndefined);
-    Exit;
-  end;
-  // Mainly support for 8 and 16 bits per sample
-  if not (FSourceBPS in [1..16]) then
-    Exit;
 
   AddAlpha := False;
   // Check how we need to handle alpha
@@ -4645,10 +4638,6 @@ var
 
 begin
   BitRun := $80;
-  if Length(Source) = 0 then begin
-    ShowError(gesSourcePaletteUndefined);
-    Exit;
-  end;
   // When this is an image with alpha and not planar we need to skip the alpha bits
   // Tiff can have extrasamples that is not an alpha channel. That's why testing
   // whether coAlpha is in FSourceOptions may fail in some rare cases.
@@ -8024,6 +8013,14 @@ procedure TColorManager.ConvertRow(Source: array of Pointer; Target: Pointer; Co
 // - YCbCr parameters if any of the color schemes is csYCbCr
 
 begin
+  if Length(Source) = 0 then begin
+    ShowError(gesSourceUndefined);
+    Exit;
+  end;
+  if not Assigned(Target) then begin
+    ShowError(gesTargetUndefined);
+    Exit;
+  end;
   // If there are pending changes then apply them
   if FChanged then
     PrepareConversion;
