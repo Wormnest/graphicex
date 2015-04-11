@@ -1546,7 +1546,6 @@ function TGraphicExGraphic.ReadImageProperties(const Memory: Pointer; Size: Int6
 
 begin
   ZeroMemory(@FImageProperties, SizeOf(FImageProperties));
-  FImageProperties.FileGamma := 1;
   Result := True;
 end;
 
