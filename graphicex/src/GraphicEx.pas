@@ -9602,19 +9602,17 @@ begin
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
-    4: // gray scale with alpha,
-       // For the moment this format is handled without alpha, but might later be converted
-       // to RGBA with gray pixels or use a totally different approach.
+    4: // gray scale with alpha, handled by converting to RGBA
       if BitDepth in [8, 16] then
       with ColorManager do
       begin
-        SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
+        SourceSamplesPerPixel := 2;
         SourceBitsPerSample := BitDepth;
-        TargetBitsPerSample := 8;
         SourceColorScheme := csGA;
-        TargetColorScheme := csIndexed;
-        PixelFormat := pf8Bit;
+        TargetSamplesPerPixel := 4;
+        TargetBitsPerSample := 8;
+        TargetColorScheme := csBGRA;
+        PixelFormat := TargetPixelFormat;
         FPalette := CreateGrayScalePalette(False);
         Result := 2 * BitDepth div 8;
       end
