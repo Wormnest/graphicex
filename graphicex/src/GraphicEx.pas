@@ -9268,12 +9268,26 @@ begin
     else
       TargetBPP := FSourceBPP;
 
-    if FPalette <> 0 then
-      Palette := FPalette;
     // after setting the pixel format we can set the dimensions too without
     // initiating color conversions
     Width := TIHDRChunk(Description).Width;
     Height := TIHDRChunk(Description).Height;
+
+    {$IFNDEF FPC}
+    // For pf1Bit Indexed images with a color palette it is necessary to set
+    // PixelFormat AFTER setting Width and Height or else we will get a
+    // black/white color palette, see also
+    // - http://www.efg2.com/Lab/ImageProcessing/pf1bit.htm
+    // - http://www.efg2.com/Lab/ImageProcessing/Scanline.htm#pf1bit
+    // Even though the showing black part was fixed in Delphi 6, it still appears
+    // to be necessary here to set PixelFormat after w/h to use a color palette.
+    if (FImageProperties.ColorScheme = csIndexed) and (FImageProperties.BitsPerPixel = 1) then
+      PixelFormat := pf1Bit;
+    {$ENDIF}
+
+    // Needs to be after setting PixelFormat or we will get a b/w palette in the above case
+    if FPalette <> 0 then
+      Palette := FPalette;
 
     // set background and transparency color, these values must be set after the
     // bitmap is actually valid (although, not filled)
@@ -9630,7 +9644,11 @@ begin
         TargetBitsPerSample := 8;
         {$ENDIF}
 
-        PixelFormat := TargetPixelFormat;
+        {$IFNDEF FPC}
+        // See comment in LoadIDAT for the reason why this is necessary in Delphi
+        if BitDepth <> 1 then
+        {$ENDIF}
+          PixelFormat := TargetPixelFormat;
         Result := 1;
       end
       else
