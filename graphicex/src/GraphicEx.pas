@@ -8943,9 +8943,7 @@ procedure TPNGGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIn
 var
   Description: TIHDRChunk;
   Run: PByte;
-  {$IFDEF FPC}
   PaletteBuf: Pointer;
-  {$ENDIF}
 
 begin
   inherited;
@@ -8959,9 +8957,7 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
-      {$IFDEF FPC}
       PaletteBuf := nil;
-      {$ENDIF}
       FPalette := 0;
       FTransparency := nil;
       FBackgroundColor := clWhite;
@@ -9010,17 +9006,16 @@ begin
                 // first setup pixel format before actually creating a palette
                 FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
                 FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3, False);
-                {$IFDEF FPC}
                 // We need to copy palette from FRawBuffer because FRawBuffer
                 // will be reused...
+                // Always needed for fpc but also in Delphi for Indexed with Alpha.
                 GetMem(PaletteBuf, FHeader.Length);
                 Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
                 ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
-                {$ENDIF}
               end;
               Continue;
             end
-            else                             
+            else
               if IsChunk(gAMA) then
               begin
                 ReadDataAndCheckCRC(Run);
@@ -9467,6 +9462,7 @@ begin
       ColorManager.SourceColorScheme := csIndexedA;
       ColorManager.TargetColorScheme := csBGRA;
       ColorManager.TargetSamplesPerPixel := 4;
+      ColorManager.TargetBitsPerSample := 8; // Needed for Delphi, in Fpc we already have it set to 8 here.
       PixelFormat := pf32Bit;
       // Set Alpha Palette in ColorManager
       ColorManager.SetSourceAlphaPalette(FTransparency);
