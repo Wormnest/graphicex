@@ -4041,10 +4041,8 @@ var
   BitRun,
   TargetMask,
   TargetShift,
-  MaxOutSample,
   TargetBPS: Byte;  // Local copy to ease assembler access
   Done: Cardinal;
-  MaxInSample,      // Supporting up to and including 15 bits per sample for source input
   BitOffset: Word;  // Current start bit in source
 
 begin
@@ -4059,9 +4057,7 @@ begin
     // Make a copy of FTargetBPS from private variable to local variable
     // to ease access during assembler parts in the code
     TargetBPS := FTargetBPS;
-    MaxInSample := (1 shl FSourceBPS) - 1;
     TargetMask := (1 shl (8 - TargetBPS)) - 1;
-    MaxOutSample := (1 shl TargetBPS) - 1;
     TargetShift := 8 - TargetBPS;
     Done := 0;
     BitOffset := 0;
@@ -4083,7 +4079,6 @@ begin
           BitOffset := BitOffset mod 8;
           Inc(SourceRun);
         end;
-        Value := MulDiv16(Value, MaxOutSample, MaxInSample);
         TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
       end;
 
