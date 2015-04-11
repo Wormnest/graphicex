@@ -4768,6 +4768,7 @@ begin
               BitsPerSample := 1;
               ColorScheme := csIndexed;
               BitsPerPixel := SamplesPerPixel * BitsPerSample;
+              Include(Options, ioMinIsWhite);
             end;
           2: // PGM ASCII form (gray scale)
             begin
@@ -4802,6 +4803,7 @@ begin
               BitsPerSample := 1;
               ColorScheme := csIndexed;
               BitsPerPixel := SamplesPerPixel * BitsPerSample;
+              Include(Options, ioMinIsWhite);
             end;
           5: // PGM binary form (gray scale)
             begin
