@@ -5374,6 +5374,14 @@ begin
                     PBGRA(Target8)^.A := $FF; // opaque
                   end;
 
+                  // When there are extra (unused) bits in every pixel we need
+                  // to moved the offset again to skip those bits.
+                  if FSourceExtraBPP > 0 then begin
+                    Inc(BitOffset, FSourceExtraBPP);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+                  end;
+
                   Dec(Count);
                   Inc(Target8, 3 + AlphaSkip );
                 end;
