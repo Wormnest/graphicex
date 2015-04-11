@@ -769,7 +769,7 @@ type
     FSourceBPP: Integer;       // bits per pixel used in the file
     FPalette: HPALETTE;        // used to hold the palette handle until we can set it finally after the pixel format
                                // has been set too (as this destroys the current palette)
-    FTransparency: TByteArray; // If the image is indexed then this array might contain alpha values (depends on file)
+    FTransparency: PByteArray; // If the image is indexed then this array might contain alpha values (depends on file)
                                // each entry corresponding to the same palette index as the index in this array.
                                // For grayscale and RGB images FTransparentColor contains the (only) transparent
                                // color.
@@ -791,7 +791,6 @@ type
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
 
     property BackgroundColor: TColor read FBackgroundColor;
-    property Transparency: TByteArray read FTransparency;
   end;
   {$endif PortableNetworkGraphic}
 
@@ -9045,6 +9044,10 @@ begin
           FreeMem(FRawBuffer);
         if Assigned(PaletteBuf) then
           FreeMem(PaletteBuf);
+        if Assigned(FTransparency) then begin
+          FreeMem(FTransparency);
+          FTransparency := nil;
+        end;
         Progress(Self, psEnding, 0, False, FProgressRect, '');
       end;
     end;
@@ -9428,12 +9431,22 @@ begin
         ;
     else
       // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
-      SetLength(FTransparency, 256);
+      GetMem(FTransparency, 256);
       // read the values (at most 256)...
-      Move(FRawBuffer^,  FTransparency[0], Min(FHeader.Length, 256));
+      Move(FRawBuffer^,  FTransparency^, Min(FHeader.Length, 256));
       // ...and set default values (255, fully opaque) for non-supplied values
       if FHeader.Length < 256 then
-        FillChar(FTransparency[FHeader.Length], 256 - FHeader.Length, $FF);
+        FillChar(FTransparency^[FHeader.Length], 256 - FHeader.Length, $FF);
+      // Since we now know that we have an Indexed Scheme with alpha we will
+      // have to change some settings
+      // For both Delphi and Fpc we will have to use BGRA as target
+      FImageProperties.ColorScheme := csIndexedA;
+      ColorManager.SourceColorScheme := csIndexedA;
+      ColorManager.TargetColorScheme := csBGRA;
+      ColorManager.TargetSamplesPerPixel := 4;
+      PixelFormat := pf32Bit;
+      // Set Alpha Palette in ColorManager
+      ColorManager.SetSourceAlphaPalette(FTransparency);
     end;
   end;
 end;
