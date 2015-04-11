@@ -4572,7 +4572,7 @@ end;
 //------------------------------------------------------------------------------
 
 // Convert Grayscale(A) to BGR(A).
-// Source: Currently only 8 bits grayscale with optional 8 bits alpha
+// Source: grayscale with optional alpha
 // Mask is currently ignored.
 // Target BGR(A) = 24/32 bits only at the moment.
 procedure TColorManager.RowConvertGray2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -4585,6 +4585,12 @@ var
   AddAlpha: Boolean;
   SourceIncrement,
   TargetIncrement: Integer;
+  // Convert up to 16 bits to 8 bits
+  ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
+  Bits,
+  BitOffset,
+  BitIncrement: Cardinal;
+
 begin
   if Length(Source) = 0 then begin
     ShowError(gesSourcePaletteUndefined);
@@ -4659,6 +4665,62 @@ begin
           Inc(SourceAlphaRun8, SourceIncrement);
           Inc(PByte(TargetRun8), TargetIncrement);
 
+          Dec(Count);
+        end;
+      end;
+    1..7,
+    9..16:
+      begin
+        // Currently only 8BPS target supported.
+        if FTargetBPS <> 8 then
+          Exit;
+        if Length(Source) > 1 then
+          Exit; // No alpha support here for now
+
+        // Set up source and target pointers
+        SourceRun8 := Source[0]; // Grayscale source
+        TargetRun8 := Target;    // BGR target
+
+        // Assign scale converter
+        case FSourceBPS of
+           6: ConvertAny16To8 := ComponentScaleConvert6To8;
+          10: ConvertAny16To8 := ComponentScaleConvert10To8;
+          12: ConvertAny16To8 := ComponentScaleConvert12To8;
+          14: ConvertAny16To8 := ComponentScaleConvert14To8;
+        else
+          ConvertAny16To8 := ComponentScaleConvertUncommonTo8;
+        end;
+
+        // Number of bits to handle for 1 grayscale pixel
+        BitIncrement := FSourceBPS;
+        // Start at bit offset 0
+        BitOffset := 0;
+
+        // Loop over all pixels in the current row
+        while Count > 0 do
+        begin
+          // Get grayscale index
+          Bits := GetBitsMSB(BitOffset, FSourceBPS, SourceRun8);
+          GrayValue8 := ConvertAny16To8(Bits, FSourceBPS);
+
+          // If black/white is inverted then we need to invert the value
+          // Todo: also take gamma correction into account if set in options
+          if coMinIsWhite in FSourceOptions then
+            GrayValue8 := not GrayValue8;
+          // Update the bit and byte pointers
+          Inc(BitOffset, BitIncrement);
+          Inc(SourceRun8, BitOffset div 8);
+          BitOffset := BitOffset mod 8;
+
+          // Store grayscale value in Target
+          TargetRun8^.B := GrayValue8;
+          TargetRun8^.G := GrayValue8;
+          TargetRun8^.R := GrayValue8;
+          if AddAlpha then
+            // Source has no alpha but target needs alpha, set it to $ff
+            TargetRun8^.A := $ff;
+
+          Inc(PByte(TargetRun8), TargetIncrement);
           Dec(Count);
         end;
       end;
@@ -7424,7 +7486,7 @@ begin
         csBGRA,
         csRGB,
         csRGBA:
-          if (FTargetBPS = 8) and (FSourceBPS = 8) then
+          if (FTargetBPS = 8) and (FSourceBPS <= 16) then
             FRowConversion := RowConvertGray2BGR;
       else
         if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
