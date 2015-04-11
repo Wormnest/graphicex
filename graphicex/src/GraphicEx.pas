@@ -3413,19 +3413,19 @@ begin
         15,
         16: // actually, 16 bit are meant being 15 bit
           begin
-            ColorScheme := csRGB;
+            ColorScheme := csBGR;
             BitsPerSample := 5;
             SamplesPerPixel := 3;
             ExtraBits := 1;
           end;
         24:
           begin
-            ColorScheme := csRGB;
+            ColorScheme := csBGR;
             SamplesPerPixel := 3;
           end;
         32:
           begin
-            ColorScheme := csRGBA;
+            ColorScheme := csBGRA;
             SamplesPerPixel := 4;
           end;
       end;
