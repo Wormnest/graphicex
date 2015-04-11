@@ -366,7 +366,7 @@ type
 
     procedure ConvertRow(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     function CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat; ColorCount: Cardinal;
-      RGB: Boolean): HPALETTE;
+      RGB: Boolean = True): HPALETTE;
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
@@ -8157,7 +8157,7 @@ begin
 end;
 
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
-  ColorCount: Cardinal; RGB: Boolean): HPALETTE;
+  ColorCount: Cardinal; RGB: Boolean = True): HPALETTE;
 
 // Creates a color palette from the provided data which can be in various raw formats:
 // - either interlaced or plane
