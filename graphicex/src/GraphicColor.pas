@@ -227,7 +227,8 @@ type
     coLabByteRange,   // CIE L*a*b* only, luminance range is from 0..255 instead 0..100
     coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
     coSeparatePlanes, // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
-    coUnequalSamples  // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
+    coUnequalSamples, // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
+    coPaletteBGR      // Interlaced palette data is in BGR order instead of RGB
   );
 
   // Format of the raw data to create a palette from
@@ -363,7 +364,7 @@ type
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
-    procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+    procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
     procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
     procedure SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
 
@@ -7260,10 +7261,12 @@ begin
 end;
 
 // Set Source Palette needed if we want to convert from indexed to non indexed format.
-procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
 begin
   // No error checking for now.
   FSourcePaletteFormat := PaletteFormat;
+  if not RGB then
+    Include(FSourceOptions, coPaletteBGR);
   SetLength(FSourcePaletteData, Length(Data));
   Move(Data[Low(Data)], FSourcePaletteData[Low(FSourcePaletteData)], Length(Data)*SizeOf(Pointer));
 end;
