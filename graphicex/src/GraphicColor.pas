@@ -8281,6 +8281,7 @@ begin
         // Palette is too small, enhance it
         for I := MaxOut-1 downto 0 do
         begin
+          // Todo: Better upscaling algorithm than MulDiv16!
           LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
           LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
           LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
@@ -8292,6 +8293,7 @@ begin
         if FTargetBPS < 8 then begin
           for I := 0 to MaxOut-1 do
           begin
+            // Todo: Better downscaling algorithm than MulDiv16!
             LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peRed;
             LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peGreen;
             LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peBlue;
@@ -8405,6 +8407,9 @@ procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
 // Needed settings:
 // - Source bits per samples must be set
 // - Target bits per samples must be set
+
+// Todo: Check if we need additional handling for 16 bits source gamma handling
+// See also: http://www.w3.org/TR/PNG/#13Decoder-gamma-handling
 
 var
   I,
