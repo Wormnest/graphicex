@@ -3236,6 +3236,10 @@ begin
           TargetColorScheme := csBGR;
         end;
         {$ENDIF}
+        if ioUseGamma in Options then begin
+          SetGamma(FileGamma);
+          ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+        end;
         PixelFormat := TargetPixelFormat;
       end;
 
@@ -3482,6 +3486,14 @@ begin
               if FExtensionArea.Comments[0][0] <> '' then begin
                 // Comment present, for now we only copy the first line.
                 FImageProperties.Comment := FExtensionArea.Comments[0];
+              end;
+              if (FExtensionArea.GammaRatioDenominator > 0) and
+                (FExtensionArea.GammaRatioNumerator > 0) then begin
+                // Todo: TGA gamma is in range 0.0 - 10.0, do we need to convert this range?
+                // I don't have any examples where gamma is defined
+                FileGamma := FExtensionArea.GammaRatioDenominator +
+                  FExtensionArea.GammaRatioNumerator / 100;
+                Include(Options, ioUseGamma);
               end;
             end
             else // Unexpected size don't know how to handle.
