@@ -6952,11 +6952,20 @@ begin
 
   case FSourceScheme of
     csG:
-      if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
-         ((FSourceBPS = 3) and (FTargetBPS = 4)) then
-        FRowConversion := RowConvertGray
+      case FTargetScheme of
+        csBGR,
+        csBGRA,
+        csRGB,
+        csRGBA:
+          if (FTargetBPS = 8) and (FSourceBPS = 8) then
+            FRowConversion := RowConvertGray2BGR;
       else
-        FRowConversion := RowConvertIndexed8;
+        if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
+           ((FSourceBPS = 3) and (FTargetBPS = 4)) then
+          FRowConversion := RowConvertGray
+        else
+          FRowConversion := RowConvertIndexed8;
+      end;
     csGA:
       case FTargetScheme of
         csBGR,
