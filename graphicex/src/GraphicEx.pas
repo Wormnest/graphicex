@@ -10393,28 +10393,25 @@ initialization
 
     // 2013-06-22 in preparation for better jpeg handling use a define
     // around jpeg specific stuff
-  {$ifdef JpegGraphic}
-    TPicture.UnregisterGraphicClass(TJPEGImage);
-    RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
-  {$endif ~JpegGraphic}
-
-    // Paintshop pro *.msk files are just grayscale bitmaps.
-    RegisterFileFormat('msk', '', '', [ftRaster], False, TBitmap);
+    {$ifdef JpegGraphic}
+      TPicture.UnregisterGraphicClass(TJPEGImage);
+      RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
+    {$endif ~JpegGraphic}
 
     // register our own formats
     RegisterFileFormat('rle', gesBitmaps, gesRLEBitmaps, [ftRaster], False, TBitmap);
     RegisterFileFormat('dib', '', gesDIBs, [ftRaster], False, TBitmap);
 
-    {$ifdef TargaGraphic}
-      RegisterFileFormat('tga', gesTruevision, '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('vst', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('vda', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('win', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('icb', '', '', [ftRaster], False, TTargaGraphic);
-    {$endif TargaGraphic}
+    {$ifdef PortableNetworkGraphic}
+      RegisterFileFormat('png', gesPortableNetworkGraphic, '', [ftRaster], False, TPNGGraphic);
+    {$endif PortableNetworkGraphic}
+
+    {$ifdef GIFGraphic}
+      RegisterFileFormat('gif', gesCompuserve, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
+    {$endif GIFGraphic}
 
     {$ifdef TIFFGraphic}
       // Set the TIFF error handler
@@ -10426,6 +10423,39 @@ initialization
         RegisterFileFormat('eps', gesEPS, '', [ftRaster], False, TEPSGraphic);
       {$endif EPSGraphic}
     {$endif TIFFGraphic}
+
+    {$ifdef PortableMapGraphic}
+      RegisterFileFormat('ppm', gesPortable, gesPortablePixel, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pnm', '', gesPortableAny, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pgm', '', gesPortableGray, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pbm', '', gesPortableMono, [ftRaster], False, TPPMGraphic);
+    {$endif PortableMapGraphic}
+
+    {$ifdef PhotoshopGraphic}
+      RegisterFileFormat('psd', gesPhotoshop, '', [ftRaster, ftLayered], False, TPSDGraphic);
+      RegisterFileFormat('pdd', '', '', [ftRaster, ftLayered], False, TPSDGraphic);
+    {$endif PhotoshopGraphic}
+
+    {$ifdef PaintshopProGraphic}
+      RegisterFileFormat('psp', gesPaintshopPro, '', [ftRaster, ftVector], False, TPSPGraphic);
+      RegisterFileFormat('pfr', '', gesPaintshopProFrames, [ftRaster, ftVector], False, TPSPGraphic);
+      RegisterFileFormat('tub', '', gesPaintshopProTubes, [ftRaster, ftVector], False, TPSPGraphic);
+
+      // Paintshop pro *.msk files are just grayscale bitmaps.
+      RegisterFileFormat('msk', '', '', [ftRaster], False, TBitmap);
+    {$endif PaintshopProGraphic}
+
+    {$ifdef TargaGraphic}
+      RegisterFileFormat('tga', gesTruevision, '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('vst', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('vda', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('win', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('icb', '', '', [ftRaster], False, TTargaGraphic);
+    {$endif TargaGraphic}
+
+    {$ifdef PCDGraphic}
+      RegisterFileFormat('pcd', gesKodakPhotoCD, '', [ftRaster], False, TPCDGraphic);
+    {$endif PCDGraphic}
 
     {$ifdef PCXGraphic}
       RegisterFileFormat('pcx', gesZSoft, '', [ftRaster], False, TPCXGraphic);
@@ -10445,44 +10475,14 @@ initialization
       RegisterFileFormat('bw', '', gesSGIMono, [ftRaster], False, TSGIGraphic);
     {$endif SGIGraphic}
 
-    {$ifdef PhotoshopGraphic}
-      RegisterFileFormat('psd', gesPhotoshop, '', [ftRaster, ftLayered], False, TPSDGraphic);
-      RegisterFileFormat('pdd', '', '', [ftRaster, ftLayered], False, TPSDGraphic);
-    {$endif PhotoshopGraphic}
-
-    {$ifdef PortableMapGraphic}
-      RegisterFileFormat('ppm', gesPortable, gesPortablePixel, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pnm', '', gesPortableAny, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pgm', '', gesPortableGray, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pbm', '', gesPortableMono, [ftRaster], False, TPPMGraphic);
-    {$endif PortableMapGraphic}
+    {$ifdef CUTGraphic}
+      RegisterFileFormat('cut', gesHalo, '', [ftRaster], False, TCUTGraphic);
+    {$endif CUTGraphic}
 
     {$ifdef AutodeskGraphic}
       RegisterFileFormat('cel', gesAutodesk, '', [ftRaster], False, TAutodeskGraphic);
       RegisterFileFormat('pic', gesAutodesk, '', [ftRaster], False, TAutodeskGraphic);
     {$endif AutodeskGraphic}
-
-    {$ifdef PCDGraphic}
-      RegisterFileFormat('pcd', gesKodakPhotoCD, '', [ftRaster], False, TPCDGraphic);
-    {$endif PCDGraphic}
-
-    {$ifdef GIFGraphic}
-      RegisterFileFormat('gif', gesCompuserve, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
-    {$endif GIFGraphic}
-
-    {$ifdef CUTGraphic}
-      RegisterFileFormat('cut', gesHalo, '', [ftRaster], False, TCUTGraphic);
-    {$endif CUTGraphic}
-
-    {$ifdef PaintshopProGraphic}
-      RegisterFileFormat('psp', gesPaintshopPro, '', [ftRaster, ftVector], False, TPSPGraphic);
-      RegisterFileFormat('pfr', '', gesPaintshopProFrames, [ftRaster, ftVector], False, TPSPGraphic);
-      RegisterFileFormat('tub', '', gesPaintshopProTubes, [ftRaster, ftVector], False, TPSPGraphic);
-    {$endif PaintshopProGraphic}
-
-    {$ifdef PortableNetworkGraphic}
-      RegisterFileFormat('png', gesPortableNetworkGraphic, '', [ftRaster], False, TPNGGraphic);
-    {$endif PortableNetworkGraphic}
 
     {$ifdef ArtsAndLettersGraphic}
       RegisterFileFormat('ged', gesArtsAndLettersGraphic, '', [ftRaster], False, TGEDGraphic);
