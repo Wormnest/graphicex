@@ -62,6 +62,11 @@ begin
   {$ENDIF}
 
   // TODO: Maybe it would be better to create our own FileFormat object here.
+
+  // Make sure that bmp extension and TBitmap class is always present since
+  // it may get removed by some tests.
+  if FileFormatList.GraphicFromExtension('bmp') = nil then
+    FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TBitmap);
 end;
 
 procedure TTestFileFormatList.TearDown;
@@ -88,22 +93,37 @@ begin
   Check(FileFormatList.GraphicFromExtension('bmp') <> nil, 'Graphic Extension bmp should exist!');
 end;
 
+type
+  TFileFormatListAccess = class(TFileFormatList)
+  end;
+
 procedure TTestFileFormatList.TestUnregisterFileFormat;
 begin
-  {$IFDEF IGNORE_EMPTY_TEST}
-  Self.Ignore('Test not Implemented!');
-  {$ELSE}
-  Check(False, 'Test not implemented!');
-  {$ENDIF}
+  // 1. Test unregistering known to exist extension
+  FileFormatList.UnregisterFileFormat('bmp', TBitmap);
+  Check(FileFormatList.GraphicFromExtension('bmp') = nil, 'Graphic Extension bmp shouldn''t be registered!');
+  // 2. Test unregistering extension that we know doesn't exist
+  FileFormatList.UnregisterFileFormat('qwerty', TBitmap);
+  Check(FileFormatList.GraphicFromExtension('qwerty') = nil, 'Graphic Extension qwerty shouldn''t be registered!');
+  // 3. Unregistering whole class should work
+  FileFormatList.UnregisterFileFormat('', TBitmap);
+  Check(TFileFormatListAccess(FileFormatList).FindGraphicClass(TBitmap) = -1, 'GraphicClass TBitmap shouldn''t be registered!');
+  // 4. Unregistering whole class should work even if it doesn't exist
+  FileFormatList.UnregisterFileFormat('', TBitmap);
+  Check(TFileFormatListAccess(FileFormatList).FindGraphicClass(TBitmap) = -1, 'GraphicClass TBitmap shouldn''t be registered!');
+  // 5. Check we don't crash on nil class
+  FileFormatList.UnregisterFileFormat('', nil);
+  Check(TFileFormatListAccess(FileFormatList).FindGraphicClass(nil) = -1, 'GraphicClass nil shouldn''t be registered!');
 end;
 
 procedure TTestFileFormatList.TestFindExtension;
 begin
-  {$IFDEF IGNORE_EMPTY_TEST}
-  Self.Ignore('Test not Implemented!');
-  {$ELSE}
-  Check(False, 'Test not implemented!');
-  {$ENDIF}
+  // Check for being able to find an existing extension
+  Check(TFileFormatListAccess(FileFormatList).FindExtension('bmp') <> -1, 'Graphic Extension bmp should exist!');
+  // Check for not being able to find a non existing extension
+  Check(TFileFormatListAccess(FileFormatList).FindExtension('qwerty') = -1, 'Graphic Extension qwerty should not exist!');
+  // Check for not being able to find an empty '' extension
+  Check(TFileFormatListAccess(FileFormatList).FindExtension('') = -1, 'Graphic Extension '''' should not exist!');
 end;
 
 //////////////// RegisterFileFormat - Basic Tests //////////////////////////
