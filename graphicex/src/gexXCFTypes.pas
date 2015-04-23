@@ -9,6 +9,10 @@ unit gexXCFTypes;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 type
 ////////////////////////////////////////////////////////////////////////////////
 // From: libgimpbase/gimpbaseenums.h
@@ -19,10 +23,10 @@ type
     GIMP_GRAY,            // Grayscale
     GIMP_INDEXED);        // Indexed color
 
-  // GimpImageType Enum: (defined for all layers)
-  TGimpImageType = (
-    GIMP_RGB_IMAGE,         // RGB
-    GIMP_RGBA_IMAGE,        // RGB-alpha
+  // GimpImageType Enum: (defined for all layers)
+  TGimpImageType = (
+    GIMP_RGB_IMAGE,         // RGB
+    GIMP_RGBA_IMAGE,        // RGB-alpha
     GIMP_GRAY_IMAGE,        // Grayscale
     GIMP_GRAYA_IMAGE,       // Grayscale-alpha
     GIMP_INDEXED_IMAGE,     // Indexed
@@ -30,11 +34,11 @@ type
   );
 
 
-////////////////////////////////////////////////////////////////////////////////
-// From: app/xcf/xcf-private.h
+////////////////////////////////////////////////////////////////////////////////
+// From: app/xcf/xcf-private.h
 ////////////////////////////////////////////////////////////////////////////////
 const
-  // PropType Enum:
+  // PropType Enum:
   PROP_END                =  0;
   PROP_COLORMAP           =  1;
   PROP_ACTIVE_LAYER       =  2;
@@ -68,9 +72,9 @@ const
   PROP_ITEM_PATH          = 30;
   PROP_GROUP_ITEM_FLAGS   = 31;
 
-  // XcfCompressionType Enum:
-  COMPRESS_NONE              =  0;
-  COMPRESS_RLE               =  1;
+  // XcfCompressionType Enum:
+  COMPRESS_NONE              =  0;
+  COMPRESS_RLE               =  1;
   COMPRESS_ZLIB              =  2;  // unused
   COMPRESS_FRACTAL           =  3;  // unused
 

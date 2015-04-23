@@ -37,6 +37,7 @@ unit LibStub;
 
 interface
 
+{$IFNDEF FPC}
 {$include Compilers.inc}
 
 {$ifdef COMPILER_7_UP}
@@ -46,6 +47,9 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+  {$mode delphi}
+{$ENDIF}
 
 {$define Underlined}
 
@@ -134,8 +138,10 @@ function isxdigit(c: Integer): Integer; cdecl;
 function ldexp(x: Double; exp: Integer): Double; cdecl;
 function _lfind(const key, base: Pointer; num: Psize_t; width: size_t; Compare: cmp_callback): Pointer; cdecl;
 
+{$IFNDEF FPC}
 {$IFNDEF WIN64}
 procedure _llmod;
+{$ENDIF}
 {$ENDIF}
 
 function localtime(clock: PInteger): ptm; cdecl;
@@ -739,14 +745,20 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function gmtime(clock: PInteger): ptm;
 
+{$IFNDEF FPC}
+function gmtime(clock: PInteger): ptm;
+{$ELSE}
+// fpc has also a definition of PInteger in Math unit
+function gmtime(clock: Windows.PInteger): ptm;
+{$ENDIF}
 // Converts date and time to Greenwich Mean Time.
 // gmtime returns a pointer to a structure containing the broken-down time.
 
 begin
   Result := comtime(clock^, False);
 end;
+
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -827,16 +839,23 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 // Needed in zlib 1.2.8
+{$IFNDEF FPC}
 {$IFNDEF WIN64}
 procedure _llmod;
 asm
   jmp System.@_llmod;
 end;
 {$ENDIF}
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$IFNDEF FPC}
 function localtime(clock: PInteger): ptm;
+{$ELSE}
+// fpc has also a definition of PInteger in Math unit
+function localtime(clock: Windows.PInteger): ptm;
+{$ENDIF}
 
 begin
   if (clock^ < timezone) then
@@ -988,15 +1007,24 @@ begin
   begin
     if nElem = 2 then
     begin
+      {$IFNDEF FPC}
       rightP := qWidth + pivotP;
+      {$ELSE}
+      rightP := pivotP + qWidth;
+      {$ENDIF}
       if Compare(pivotP, rightP) > 0 then
         Exchange(pivotP, rightP);
     end;
     System.Exit;
   end;
 
+  {$IFNDEF FPC}
   rightP := (nElem - 1) * qWidth + pivotP;
   leftP  := (nElem shr 1) * qWidth + pivotP;
+  {$ELSE}
+  rightP := pivotP + (nElem - 1) * qWidth;
+  leftP  := pivotP + (nElem shr 1) * qWidth;
+  {$ENDIF}
 
   // Sort the pivot, left, and right elements for "median of 3".
   if Compare(leftP, rightP) > 0 then
@@ -1069,7 +1097,11 @@ begin
   end;
         
   lNum := Cardinal(leftP - pivotEnd) div qWidth;
+  {$IFNDEF FPC}
   nElem := Cardinal((nElem * qWidth + pivotP) - leftP) div qWidth;
+  {$ELSE}
+  nElem := Cardinal((pivotP + nElem * qWidth) - leftP) div qWidth;
+  {$ENDIF}
 
   // Sort smaller partition first to reduce stack usage.
   if nElem < lNum then

@@ -26,6 +26,10 @@ unit gexXCF;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 {$MINENUMSIZE 4}  // C compatible enums
 
 uses SysUtils, Classes, GraphicEx, GraphicColor,
@@ -634,9 +638,9 @@ begin
 
         // Get the layer blending function
         LayerBlendProc := SelectBlendFunction( TGimpImageType(Layer.LayerType),
-          TGimpLayerModeEffects(Layer.LayerMode));
-        if @LayerBlendProc = nil then
-          FatalMessage('Fatal: No layer blending function assigned!');
+          TGimpLayerModeEffects(Layer.LayerMode));
+        if @LayerBlendProc = nil then
+          FatalMessage('Fatal: No layer blending function assigned!');
 
         // Load starting offset of this level
         Memory := TXcfGraphic(Layer.Graphic).FMemory;
@@ -769,7 +773,7 @@ begin
           // Since decoding the mask can change it, we have to set it inside the loop.
           TXcfDecoder(Decoder).BytesPerPixel := Layer.BPP;
 
-          // Decode the pixel data (since Decode Source is a var it can change, thus we use a copy)
+          // Decode the pixel data (since Decode Source is a var it can change, thus we use a copy)
           PixelMemCopy := PixelMem;
           Decoder.Decode(Pointer(TileMem), Pointer(PixelMemCopy),
             TileOffset2-TileOffset, TileSize);

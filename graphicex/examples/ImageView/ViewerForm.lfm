@@ -1,0 +1,571 @@
+object frmViewer: TfrmViewer
+  Left = 263
+  Height = 694
+  Top = 124
+  Width = 1616
+  Caption = 'frmViewer'
+  ClientHeight = 694
+  ClientWidth = 1616
+  Color = clBtnFace
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  KeyPreview = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnMouseWheelDown = FormMouseWheelDown
+  OnMouseWheelUp = FormMouseWheelUp
+  OnResize = FormResize
+  OnShow = FormShow
+  ShowHint = True
+  LCLVersion = '1.4.0.1'
+  object Splitter1: TSplitter
+    Left = 185
+    Height = 694
+    Top = 0
+    Width = 4
+  end
+  object pnl4: TPanel
+    Left = 189
+    Height = 694
+    Top = 0
+    Width = 1427
+    Align = alClient
+    Caption = 'pnl4'
+    ClientHeight = 694
+    ClientWidth = 1427
+    TabOrder = 0
+    object Splitter2: TSplitter
+      Left = 633
+      Height = 692
+      Top = 1
+      Width = 4
+      AutoSnap = False
+      Color = clBtnFace
+      OnMoved = Splitter2Moved
+      ParentColor = False
+    end
+    object pnlRight: TPanel
+      Left = 637
+      Height = 692
+      Top = 1
+      Width = 789
+      Align = alClient
+      ClientHeight = 692
+      ClientWidth = 789
+      TabOrder = 0
+      object pnlTop: TPanel
+        Left = 1
+        Height = 65
+        Top = 1
+        Width = 787
+        Align = alTop
+        ClientHeight = 65
+        ClientWidth = 787
+        TabOrder = 0
+        object lblThumb: TLabel
+          Left = 4
+          Height = 1
+          Top = 1
+          Width = 1
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = 9461808
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblComment: TLabel
+          Left = 4
+          Height = 1
+          Top = 21
+          Width = 1
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = 9461808
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentColor = False
+          ParentFont = False
+        end
+        object lblPages: TLabel
+          Left = 4
+          Height = 1
+          Top = 41
+          Width = 1
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = 9461808
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentColor = False
+          ParentFont = False
+        end
+        object spbtnFirst: TSpeedButton
+          Left = 120
+          Height = 22
+          Top = 40
+          Width = 23
+          AllowAllUp = True
+          Glyph.Data = {
+            36040000424D3604000000000000360000002800000010000000100000000100
+            20000000000000040000130B0000130B00000000000000000000FFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFECEC
+            ECFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD7D7D7FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD4D4D4FF050505FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD2D2D2FF000000FF050505FF5252
+            52FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFD4D4D4FF000000FF000000FF020202FF1C1C
+            1CFFABABABFFABABABFFABABABFFBABABAFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFD6D6D6FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFD4D4D4FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFF000000FF0000
+            00FFFFFFFFFF2F2F2FFF010101FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFEFEFEFF323232FF010101FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFEFEFEFF323232FF010101FF000000FF010101FF0A0A
+            0AFF323232FF323232FF323232FF5B5B5BFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF303030FF010101FF050505FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF313131FF060606FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF373737FF5959
+            59FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF0000
+            00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF8080
+            80FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+          }
+          OnClick = spbtnClick
+        end
+        object spbtnPrev: TSpeedButton
+          Left = 144
+          Height = 22
+          Top = 40
+          Width = 23
+          AllowAllUp = True
+          Glyph.Data = {
+            36040000424D3604000000000000360000002800000010000000100000000100
+            20000000000000040000130B0000130B00000000000000000000FFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFECEC
+            ECFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD7D7D7FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD4D4D4FF050505FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD2D2D2FF000000FF050505FF5252
+            52FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFD4D4D4FF000000FF000000FF020202FF1C1C
+            1CFFABABABFFABABABFFABABABFFBABABAFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFD6D6D6FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFD4D4D4FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFF2F2F2FFF010101FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFEFEFEFF323232FF010101FF000000FF000000FF000000FF0000
+            00FF000000FF000000FF000000FF2F2F2FFFFEFEFEFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFEFEFEFF323232FF010101FF000000FF010101FF0A0A
+            0AFF323232FF323232FF323232FF5B5B5BFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF303030FF010101FF050505FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF313131FF060606FF5858
+            58FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF373737FF5959
+            59FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFEFEFF8080
+            80FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+          }
+          OnClick = spbtnClick
+        end
+        object spbtnNext: TSpeedButton
+          Left = 168
+          Height = 22
+          Top = 40
+          Width = 23
+          AllowAllUp = True
+          Glyph.Data = {
+            36040000424D3604000000000000360000002800000010000000100000000100
+            20000000000000040000130B0000130B00000000000000000000FFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFECECECFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FFD7D7D7FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF050505FFD4D4D4FFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF525252FF050505FF000000FFD2D2
+            D2FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFBABABAFFABABABFFABABABFFABABABFF1C1C1CFF020202FF000000FF0000
+            00FFD4D4D4FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FFD6D6D6FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FFD4D4D4FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF010101FF2F2F2FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF010101FF323232FFFEFEFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFF5B5B5BFF323232FF323232FF323232FF0A0A0AFF010101FF000000FF0101
+            01FF323232FFFEFEFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF050505FF010101FF3030
+            30FFFEFEFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF060606FF313131FFFEFE
+            FEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF595959FF373737FFFEFEFEFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF808080FFFEFEFEFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+          }
+          OnClick = spbtnClick
+        end
+        object spbtnLast: TSpeedButton
+          Left = 192
+          Height = 22
+          Top = 40
+          Width = 23
+          AllowAllUp = True
+          Glyph.Data = {
+            36040000424D3604000000000000360000002800000010000000100000000100
+            20000000000000040000130B0000130B00000000000000000000FFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFECECECFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FFD7D7D7FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF050505FFD4D4D4FFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF525252FF050505FF000000FFD2D2
+            D2FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFBABABAFFABABABFFABABABFFABABABFF1C1C1CFF020202FF000000FF0000
+            00FFD4D4D4FFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FFD6D6D6FFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF000000FFD4D4D4FFFFFFFFFF000000FF000000FFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF000000FF010101FF2F2F2FFFFFFFFFFF000000FF000000FFFFFFFFFFFEFE
+            FEFF2F2F2FFF000000FF000000FF000000FF000000FF000000FF000000FF0000
+            00FF010101FF323232FFFEFEFEFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFF5B5B5BFF323232FF323232FF323232FF0A0A0AFF010101FF000000FF0101
+            01FF323232FFFEFEFEFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF050505FF010101FF3030
+            30FFFEFEFEFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF585858FF060606FF313131FFFEFE
+            FEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF595959FF373737FFFEFEFEFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF808080FFFEFEFEFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF000000FF000000FFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+          }
+          OnClick = spbtnClick
+        end
+        object lblLoadTime: TLabel
+          Left = 396
+          Height = 20
+          Top = 40
+          Width = 91
+          Caption = 'Loading time:'
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = 9461808
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentColor = False
+          ParentFont = False
+        end
+        object cbStretch: TCheckBox
+          Left = 224
+          Height = 24
+          Top = 42
+          Width = 66
+          Caption = 'Stretch'
+          Font.Color = 9461808
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentFont = False
+          TabOrder = 0
+        end
+        object pbProgress: TProgressBar
+          Left = 8
+          Height = 17
+          Top = 21
+          Width = 773
+          Anchors = [akTop, akLeft, akRight]
+          TabOrder = 1
+        end
+        object cbStretchFilter: TComboBox
+          Left = 296
+          Height = 23
+          Hint = 'Stretch filters'
+          Top = 40
+          Width = 97
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          ItemHeight = 15
+          ItemIndex = 0
+          Items.Strings = (
+            'Box'
+            'Triangle'
+            'Hermite'
+            'Bell'
+            'Spline'
+            'Lanczos3'
+            'Mitchell'
+          )
+          ParentFont = False
+          Style = csDropDownList
+          TabOrder = 2
+          Text = 'Box'
+        end
+      end
+      object pnlImageContainer: TPanel
+        Left = 1
+        Height = 625
+        Top = 66
+        Width = 787
+        Align = alClient
+        ClientHeight = 625
+        ClientWidth = 787
+        TabOrder = 1
+        object sbx1: TScrollBox
+          Left = 1
+          Height = 623
+          Top = 1
+          Width = 785
+          HorzScrollBar.Increment = 77
+          HorzScrollBar.Page = 775
+          HorzScrollBar.Smooth = True
+          HorzScrollBar.Tracking = True
+          VertScrollBar.Increment = 59
+          VertScrollBar.Page = 591
+          VertScrollBar.Smooth = True
+          VertScrollBar.Tracking = True
+          Align = alClient
+          BorderStyle = bsNone
+          ClientHeight = 623
+          ClientWidth = 785
+          TabOrder = 0
+          object pnlScroll: TPanel
+            Left = 0
+            Height = 591
+            Top = 0
+            Width = 775
+            ClientHeight = 591
+            ClientWidth = 775
+            TabOrder = 0
+            object pb2: TPaintBox
+              Left = 1
+              Height = 589
+              Top = 1
+              Width = 773
+              Align = alClient
+              Color = clAppWorkspace
+              ParentColor = False
+              OnMouseDown = pb2MouseDown
+              OnMouseMove = pb2MouseMove
+              OnMouseUp = pb2MouseUp
+              OnPaint = pbPaint
+            end
+          end
+        end
+      end
+    end
+    object pnlMiddle: TPanel
+      Left = 1
+      Height = 692
+      Top = 1
+      Width = 632
+      Align = alLeft
+      ClientHeight = 692
+      ClientWidth = 632
+      TabOrder = 1
+      object Splitter3: TSplitter
+        Cursor = crVSplit
+        Left = 1
+        Height = 4
+        Top = 404
+        Width = 630
+        Align = alTop
+        MinSize = 60
+        ResizeAnchor = akTop
+      end
+      object pnlImageFolder: TPanel
+        Left = 1
+        Height = 403
+        Top = 1
+        Width = 630
+        Align = alTop
+        Caption = 'pnlImageFolder'
+        ClientHeight = 403
+        ClientWidth = 630
+        TabOrder = 0
+        object lblStatus: TLabel
+          Left = 8
+          Height = 20
+          Top = 379
+          Width = 40
+          Anchors = [akLeft, akBottom]
+          Caption = 'Status'
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -15
+          Font.Name = 'Segoe UI'
+          ParentColor = False
+          ParentFont = False
+        end
+        object rkView1: TrkView
+          Left = 1
+          Height = 343
+          Top = 34
+          Width = 628
+          Align = alTop
+          Anchors = [akTop, akLeft, akRight, akBottom]
+          ShowHint = True
+          TabOrder = 0
+          HotTracking = True
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          OnMouseDown = rkView1MouseDown
+          OnMouseMove = rkView1MouseMove
+          OnClick = ThumbViewClick
+          OnSelecting = rkView1Selecting
+          CellWidth = 140
+          CellHeight = 140
+          CellOffset = 5
+          CellSpace = 5
+          CellSelect = True
+          ColorSel = 16750899
+        end
+        object pnlHeader: TPanel
+          Left = 1
+          Height = 33
+          Top = 1
+          Width = 628
+          Align = alTop
+          ClientHeight = 33
+          ClientWidth = 628
+          TabOrder = 1
+          object lblInfo: TLabel
+            Left = 140
+            Height = 1
+            Top = 10
+            Width = 1
+            Font.CharSet = ANSI_CHARSET
+            Font.Color = 9461808
+            Font.Height = -15
+            Font.Name = 'Segoe UI'
+            ParentColor = False
+            ParentFont = False
+          end
+          object tbSize: TTrackBar
+            Left = 4
+            Height = 28
+            Top = 2
+            Width = 129
+            Frequency = 16
+            Max = 255
+            Min = 31
+            OnChange = tbSizeChange
+            Position = 127
+            TickMarks = tmTopLeft
+            TabOrder = 0
+          end
+        end
+      end
+      object pnlImageProperties: TPanel
+        Left = 1
+        Height = 283
+        Top = 408
+        Width = 630
+        Align = alClient
+        Caption = 'pnlImageProperties'
+        ClientHeight = 283
+        ClientWidth = 630
+        TabOrder = 1
+        object sgImgProperties: TStringGrid
+          Left = 1
+          Height = 281
+          Top = 1
+          Width = 628
+          Align = alClient
+          ColCount = 2
+          DefaultColWidth = 170
+          DefaultRowHeight = 20
+          FixedCols = 0
+          FixedRows = 0
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Segoe UI'
+          Options = [goHorzLine, goRowSelect, goThumbTracking]
+          ParentFont = False
+          RowCount = 1
+          TabOrder = 0
+          TitleFont.CharSet = ANSI_CHARSET
+          TitleFont.Color = clWindowText
+          TitleFont.Height = -13
+          TitleFont.Name = 'Segoe UI'
+          OnClick = sgImgPropertiesClick
+          OnMouseDown = sgImgPropertiesMouseUpDown
+          OnMouseMove = sgImgPropertiesMouseMove
+          OnMouseUp = sgImgPropertiesMouseUpDown
+          OnMouseWheelDown = sgImgPropertiesMouseWheelDown
+          OnMouseWheelUp = sgImgPropertiesMouseWheelUp
+          OnSelectCell = sgImgPropertiesSelectCell
+        end
+      end
+    end
+  end
+  object pnlFolderView: TPanel
+    Left = 0
+    Height = 694
+    Top = 0
+    Width = 185
+    Align = alLeft
+    Caption = 'pnlFolderView'
+    ClientHeight = 694
+    ClientWidth = 185
+    TabOrder = 1
+    object ShellTV1: TShellTreeView
+      Left = 1
+      Height = 692
+      Top = 1
+      Width = 183
+      Align = alClient
+      Font.CharSet = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      FileSortType = fstNone
+      HideSelection = False
+      Indent = 19
+      ParentFont = False
+      RightClickSelect = True
+      Root = 'e:\Delphi\Projects\Transcript\test-images\'
+      ShowRoot = False
+      TabOrder = 0
+      OnChange = ShellTV1Change
+      Options = [tvoAutoItemHeight, tvoKeepCollapsedNodes, tvoRightClickSelect, tvoShowButtons, tvoShowLines, tvoToolTips, tvoThemedDraw]
+      ObjectTypes = [otFolders]
+    end
+  end
+end

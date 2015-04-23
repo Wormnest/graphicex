@@ -24,6 +24,10 @@ unit gexUtils;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 // Reads the next four bytes from the memory pointed to by Run, converts this into a
 // cardinal number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianCardinal(var Run: PByte): Cardinal;

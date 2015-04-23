@@ -13,8 +13,15 @@ interface
 
 {$DEFINE USE_XCF} // Detect Gimp XCF files
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  {$IFDEF FPC}
+  FpImage,
+  {$ENDIF}
   Dialogs, ComCtrls, ExtCtrls, StdCtrls, IniFiles,
 
   // ShellCtrls can be found in the Demos/Samples folder of your Delphi installation
@@ -223,8 +230,13 @@ type
     procedure FillBackground(R: TRect; Target: TCanvas);
     procedure WMEraseBkgnd(var Msg: TWMEraseBkgnd); message WM_ERASEBKGND;
 
+    {$IFNDEF FPC}
     procedure ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
       const R: TRect; const Msg: string);
+    {$ELSE}
+    procedure ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
+      const R: TRect; const Msg: string; var Continue : Boolean);
+    {$ENDIF}
   end;
 
 var
@@ -232,9 +244,13 @@ var
 
 implementation
 
+{$IFNDEF FPC}
 {$R *.dfm}
+{$ELSE}
+{$R *.lfm}
+{$ENDIF}
 
-uses Math, GraphicColor, jpeg, LibTiffDelphi,
+uses Math, GraphicColor, {$IFNDEF FPC} jpeg, {$ENDIF} LibTiffDelphi,
   gexBlend, gexStretch;
 
 
@@ -265,11 +281,17 @@ end;
 // Add a disabled state bitmap to SpeedButtons (and BitBtns)
 // Source: http://www.swissdelphicenter.ch/en/showcode.php?id=1865
 procedure AddDisabledBmp(Buttons : array of TObject);
+{$IFNDEF FPC}
 var
   BM, SBM : TBitmap;
   w, x, y, NewColor, i : integer;
   PixelColor : TColor;
+{$ENDIF}
 begin
+  // Disabled for fpc since it's not getting painted correctly.
+  // Figure this out some other time since it looks fine on fpc
+  // without doing this (at least when using Windows themes).
+  {$IFNDEF FPC}
   for i := 0 to High(Buttons) do
   begin
     // jb For some reason assigning the glyps doesn't seem to work if we
@@ -326,6 +348,7 @@ begin
       SBM.Free;
     end;
   end;
+  {$ENDIF}
 end;
 
 procedure TfrmViewer.FormCreate(Sender: TObject);
@@ -351,7 +374,7 @@ begin
   // Since we are an image viewer we don't want GraphicEx to throw an exception
   // on every image with problems.
   // For now we can only set TIFF reading to not show exceptions, for other formats this is TODO!
-  LibTiffDelphiSetErrorHandler(gexIgnoreTIFFError);
+  LibTiffDelphiSetErrorHandler({$IFDEF FPC}@{$ENDIF}gexIgnoreTIFFError);
   TiffError := '';
 
   // Add disabled state bitmaps to our page SpeedButtons
@@ -407,10 +430,12 @@ begin
   if IniFile.ReadInteger(C_IniSectionMain, C_Maximized, 0) = 1 then
     WindowState := wsMaximized
   else begin
-    Top := IniFile.ReadInteger(C_IniSectionMain, C_WinTop, Top);
-    Left := IniFile.ReadInteger(C_IniSectionMain, C_WinLeft, Left);
-    Width := IniFile.ReadInteger(C_IniSectionMain, C_WinWidth, Width);
-    Height := IniFile.ReadInteger(C_IniSectionMain, C_WinHeight, Height);
+    SetBounds(
+      IniFile.ReadInteger(C_IniSectionMain, C_WinLeft, Left),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinTop, Top),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinWidth, Width),
+      IniFile.ReadInteger(C_IniSectionMain, C_WinHeight, Height)
+    );
   end;
   FThumbNailPos := IniFile.ReadInteger(C_IniSectionMain, C_ThumbNailPos, 128);
   pnlFolderView.Width := IniFile.ReadInteger(C_IniSectionMain, C_FolderViewWidth, 185);
@@ -554,19 +579,32 @@ begin
     else
       Y := 0;
 
+    {$IFNDEF FPC}
     if FPicture.Bitmap.PixelFormat = pf32Bit then
+    {$ELSE}
+    // In Fpc we need an extra check because 32 bit bitmaps get loaded as pf32Bit
+    // but internally in the DC they are 24 bit!
+    if (FPicture.Bitmap.PixelFormat = pf32Bit) and
+       (ImgRealPixelFormat in [pf32Bit, pfCustom]) then
+    {$ENDIF}
     begin
       Buffer := TBitmap.Create;
       try
         FBlendTick := GetAccurateTick;
-        Buffer.PixelFormat := pf32Bit;
         Buffer.Width := Max(ClientWidth, FPicture.Width);
         Buffer.Height := Max(ClientHeight, FPicture.Height);
+        Buffer.PixelFormat := pf32Bit;
 
         R := Rect(0, 0, FPicture.Width, FPicture.Height);
-        FillBackground(ClientRect, Buffer.Canvas);
-        gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+        Buffer.Canvas.Lock;
+        try
+          FillBackground(ClientRect, Buffer.Canvas);
+          gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+        finally
+          Buffer.Canvas.Unlock;
+        end;
         FBlendTick := GetAccurateTick - FBlendTick;
+        Fillbackground(ClientRect, Canvas); // Needed for fpc
         Canvas.Draw(0, 0, Buffer);
         UpdateLoadingStatus;
       finally
@@ -813,6 +851,18 @@ const
     'Complex IEEE floating point'
   );
 
+  CPixelFormat: array [TPixelFormat] of string = (
+    'pfDevice',
+    'pf1Bit',
+    'pf4Bit',
+    'pf8Bit',
+    'pf15Bit',
+    'pf16Bit',
+    'pf24Bit',
+    'pf32Bit',
+    'pfCustom'
+  );
+
 procedure TfrmViewer.ClearGrid;
 var i: Integer;
 begin
@@ -875,7 +925,7 @@ begin
       sgImgProperties.Cells[0,InfoRow] := 'Y Resolution:';
       sgImgProperties.Cells[1,InfoRow] := FloatToStr(ImgProperties.YResolution) + ' dpi'; IncInfoRow;
     end;
-    if Round(ImgProperties.FileGamma) <> 1.0 then begin
+    if (Round(ImgProperties.FileGamma) <> 0.0) or (ioUseGamma in ImgProperties.Options) then begin
       sgImgProperties.Cells[0,InfoRow] := 'Gamma:';
       sgImgProperties.Cells[1,InfoRow] := FloatToStr(ImgProperties.FileGamma); IncInfoRow;
     end;
@@ -943,6 +993,11 @@ begin
       sgImgProperties.Cells[1,InfoRow] := CSampleFormat[ImgProperties.SampleFormat];
       IncInfoRow;
     end;
+
+    // Show the actual PixelFormat
+    sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
+    sgImgProperties.Cells[1,InfoRow] := CPixelFormat[FPicture.Bitmap.PixelFormat];
+    IncInfoRow;
   end;
 end;
 
@@ -1004,15 +1059,21 @@ begin
         // We currently have no way to identify this compression in GraphicEx
         ImgProperties.Compression := ctNone;
       gex_BI_JPEG: ImgProperties.Compression := ctJPEG;
+      gex_BI_PNG: ImgProperties.Compression := ctLZ77;
     else
       //gex_BI_PNG: ImgProperties.Compression := ...;
       ImgProperties.Compression := ctUnknown;
+      BmpCompression := 0; // Change illegal/unknown value or we will get a crash
     end;
     ImgProperties.BitsPerPixel := DIB.dsBm.bmBitsPixel;
     if DIB.dsBm.bmBitsPixel > 8 then begin
-      if DIB.dsBm.bmBitsPixel <> 16 then begin
-        ImgProperties.BitsPerSample := DIB.dsBm.bmBitsPixel div 8;
-        ImgProperties.SamplesPerPixel := ImgProperties.BitsPerPixel div ImgProperties.BitsPerSample;
+      if DIB.dsBm.bmBitsPixel > 16 then begin
+        ImgProperties.SamplesPerPixel := DIB.dsBm.bmBitsPixel div 8;
+        ImgProperties.BitsPerSample := 8;
+        if ImgProperties.SamplesPerPixel = 3 then
+          ImgRealPixelFormat := pf24Bit
+        else // 4
+          ImgRealPixelFormat := pf32Bit
       end
       else begin
         ImgProperties.SamplesPerPixel := 3;
@@ -1036,6 +1097,13 @@ begin
       ImgProperties.BitsPerSample := DIB.dsBm.bmBitsPixel;
       ImgProperties.SamplesPerPixel := 1;
       ImgProperties.ColorScheme := csIndexed;
+      case ImgProperties.BitsPerSample of
+        1: ImgRealPixelFormat := pf1Bit;
+        4: ImgRealPixelFormat := pf4Bit;
+        5: ImgRealPixelFormat := pf8Bit;
+      else
+        ImgRealPixelFormat := pfCustom;
+      end;
     end;
     ImgProperties.XResolution := PixelsPerMeterToDpi(DIB.dsBmih.biXPelsPerMeter);
     ImgProperties.YResolution := PixelsPerMeterToDpi(DIB.dsBmih.biYPelsPerMeter);
@@ -1082,7 +1150,6 @@ begin
   ImgProperties.XResolution := 0;
   ImgProperties.YResolution := 0;
 
-  ShowImageInfo;
 end;
 
 procedure TfrmViewer.CopyBasicImageInfo(APicture: TPicture);
@@ -1149,10 +1216,17 @@ end;
 procedure TfrmViewer.UpdatePaintBoxSize;
 begin
   if cbStretch.Checked then begin
+    {$IFNDEF FPC}
     pnlScroll.Width   := pnlImageContainer.ClientWidth;
     pnlScroll.Height  := pnlImageContainer.ClientHeight;
+    {$ELSE}
+    pnlScroll.Width   := sbx1.ClientWidth;
+    pnlScroll.Height  := sbx1.ClientHeight;
+    {$ENDIF}
   end
   else begin
+    if FPicture = nil then
+      Exit; // Can happen if we arrive here very early at startup
     if FPicture.Width <= sbx1.ClientWidth then begin
       pnlScroll.Width := sbx1.ClientWidth;
     end
@@ -1173,7 +1247,7 @@ var
   AGraphic: TGraphic;
   GraphicClass: TGraphicExGraphicClass;
 //  jpgImg: TJpegImage;
-  bmpimg: TBitmap;
+//  bmpimg: TBitmap;
 begin
   ImgFile := ImageFolder + Thumb.Name;
   // Reset image characteristics
@@ -1181,6 +1255,9 @@ begin
   ImgPage := 0; ImgPageCount := 1;
   ImgComment := '';
   ImgThumbData := Thumb;
+  {$IFDEF FPC}
+  ImgRealPixelFormat := pfCustom;
+  {$ENDIF}
 
   FLoadTick := GetAccurateTick; // Starting time for loading
   FBlendTick := 0;
@@ -1222,6 +1299,8 @@ begin
           CopyBasicImageInfo(TBitmap(AGraphic));
           ImgGraphicClass := TgexBmpGraphic;
           FPicture.Assign(AGraphic);
+          // ShowImageInfo needs to be called AFTER assigning bitmap to FPicture.
+          ShowImageInfo;
           if (FPicture.Bitmap.PixelFormat = pf32Bit) then
             // TODO: We should also test if there are any (partially) transparent
             // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
@@ -1319,6 +1398,9 @@ procedure TfrmViewer.HandleStretch;
 var
   StretchW, StretchH: Integer;
   MulW, MulH: Single;
+  {$IFDEF FPC}
+  TempBmp: TBitmap;
+  {$ENDIF}
 begin
   UpdatePaintBoxSize;
   // OPTIONAL Stretch picture to fit in window (and beware of invalid image dimensions)
@@ -1328,7 +1410,22 @@ begin
     // Therefore we need to convert other formats, we choose to convert to 24 bits
     if not (FPicture.Bitmap.PixelFormat in [pf24Bit, pf32Bit]) then begin
       // Unless we know its a format with alpha channel its best to convert to 24 bits
+      {$IFNDEF FPC}
       FPicture.Bitmap.PixelFormat := pf24Bit;
+      {$ELSE}
+      // Just changing PixelFormat in fpc doesn't work since it currently
+      // doesn't do any automatic conversion. Since most formats are already
+      // converted  by us to 24/32 bit we only need to handle 15/16 bit bitmaps here.
+      TempBmp := TBitmap.Create;
+      try
+        TempBmp.SetSize(FPicture.Bitmap.Width, FPicture.Bitmap.Height);
+        TempBmp.PixelFormat := pf24Bit;
+        TempBmp.Canvas.Draw(0,0, FPicture.Bitmap);
+        FPicture.Assign(TempBmp);
+      finally
+        TempBmp.Free;
+      end;
+      {$ENDIF}
 {     // In case we want PixelFormat pf32Bit:
       FPicture.Bitmap.PixelFormat := pf32Bit;
       // Changing to 32 bits usually sets the alpha channel to 0 (invisible).
@@ -1646,8 +1743,13 @@ begin
   Msg.Result := 1;
 end;
 
+{$IFNDEF FPC}
 procedure TfrmViewer.ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
   const R: TRect; const Msg: string);
+{$ELSE}
+procedure TfrmViewer.ImageLoadProgress(Sender: TObject; Stage: TProgressStage; PercentDone: Byte; RedrawNow: Boolean;
+  const R: TRect; const Msg: string; var Continue : Boolean);
+{$ENDIF}
 begin
   case Stage of
     psStarting:
@@ -1767,6 +1869,9 @@ end;
 
 procedure TfrmViewer.pb2MouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
+var
+  HintPoint: TPoint;
+  C: TRGBA;
 begin
   if FCapturing then begin
     if (FLastX <> X) and (FLastY <> Y) then begin
@@ -1776,6 +1881,14 @@ begin
       FLastX := X;
       FLastY := Y;
     end;
+  end
+  else begin
+    // Show pixel info hint
+    C := TRGBA(pb2.Canvas.Pixels[X,Y]);
+    // Since we are using the pixels from the canvas the alpha will always be 0
+    pb2.Hint := Format('RGB: %d, %d, %d (hex: %x, %x, %x)', [C.R, C.G, C.B, C.R, C.G, C.B]);
+    HintPoint := pb2.ClientToScreen(Point(X,Y));
+    Application.ActivateHint(HintPoint);
   end;
 end;
 

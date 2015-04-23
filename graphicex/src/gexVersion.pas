@@ -19,6 +19,10 @@ interface
 {.$DEFINE GEX_RELEASE}
 {$DEFINE GEX_BETA}
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 const
   GraphicExBase   = 'GraphicEx';  // GraphicEx identifier
   GraphicExFork   = 'Fork: jb';   // Identifier of this fork

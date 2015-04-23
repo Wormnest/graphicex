@@ -61,6 +61,7 @@ unit GraphicEx;
 interface
 
 {$I GraphicConfiguration.inc}
+{$IFNDEF FPC}
 {$I Compilers.inc}
 
 {$ifdef COMPILER_7_UP}
@@ -70,6 +71,10 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+  // fpc
+  {$mode delphi}
+{$ENDIF}
 
 uses
   Windows, Classes, ExtCtrls, Graphics, SysUtils, Contnrs,
@@ -77,8 +82,14 @@ uses
   LibTiffDelphi,
   {$endif}
   {$ifdef JpegGraphic}
+  {$IFNDEF FPC}
   jpeg,
+  {$ENDIF}
   {$endif ~JpegGraphic}
+  {$IFDEF FPC}
+  FPImage, // Progress stage defines
+  d2fGraphics, // CopyPalette
+  {$ENDIF}
   GraphicCompression, GraphicStrings, GraphicColor;
 
 type
@@ -153,6 +164,7 @@ type
     BitsPerSample,                     // all Images
     SamplesPerPixel,                   // all images
     BitsPerPixel: Byte;                // all images
+    ExtraBits: Byte;                   // TGA, BMP extra bits in a pixel (e.g. bmp 555 uses 16 bits total)
     Compression: TCompressionType;     // all images
     FileGamma: Single;                 // RLA, PNG
     XResolution,
@@ -222,7 +234,7 @@ type
     procedure AdvanceProgress(Amount: Single; OffsetX, OffsetY: Integer; DoRedraw: Boolean);
     procedure ClearProgressStack;
     procedure FinishProgressSection(DoRedraw: Boolean);
-    procedure InitProgress(Width, Height: Integer);
+    procedure InitProgress(AWidth, AHeight: Integer);
     procedure StartProgressSection(Size: Single; const S: string);
 
     // We need access to the original Bitmap file/stream loading routines for our
@@ -424,10 +436,15 @@ type
 
   {$ifdef PortableMapGraphic}
   // *.ppm, *.pgm, *.pbm images
+
+  TGetByteMethod = function(): Byte of object;
   TPPMGraphic = class(TGraphicExGraphic)
   private
     FSource: PAnsiChar;
     FRemainingSize: Int64;
+    FGetByte: TGetByteMethod;
+    function GetByteFromChar: Byte;
+    function GetByteFromNumber: Byte;
     function GetChar: AnsiChar;
     function GetNumber: Cardinal;
     function ReadLine: AnsiString;
@@ -445,7 +462,7 @@ type
   private
     FPaletteFile: string;
   protected
-    procedure LoadPalette;
+    function LoadPalette: TMaxLogPalette;
     procedure SetDefaultPaletteFile(const FileName: string);
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
@@ -699,7 +716,7 @@ type
     function ConvertCompression(Value: Word): TCompressionType;
     function DetermineColorScheme(ChannelCount: Integer): TColorScheme;
     procedure LoadAdjustmentLayer(var Run: PByte; Layer: TPhotoshopLayer);
-    procedure ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer; IsIrrelevant: Boolean);
+    procedure ReadChannelData(var Run: PByte; var Channel: TPSDChannel; AWidth, AHeight: Integer; IsIrrelevant: Boolean);
     procedure ReadDescriptor(var Run: PByte; var Descriptor: TPSDDescriptor);
     procedure ReadMergedImage(var Source: PByte; Layer: TPhotoshopLayer; Compression: TCompressionType; Channels: Byte);
     procedure ReadLayers(Run: PByte);
@@ -752,7 +769,7 @@ type
     FSourceBPP: Integer;       // bits per pixel used in the file
     FPalette: HPALETTE;        // used to hold the palette handle until we can set it finally after the pixel format
                                // has been set too (as this destroys the current palette)
-    FTransparency: TByteArray; // If the image is indexed then this array might contain alpha values (depends on file)
+    FTransparency: PByteArray; // If the image is indexed then this array might contain alpha values (depends on file)
                                // each entry corresponding to the same palette index as the index in this array.
                                // For grayscale and RGB images FTransparentColor contains the (only) transparent
                                // color.
@@ -774,7 +791,6 @@ type
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
 
     property BackgroundColor: TColor read FBackgroundColor;
-    property Transparency: TByteArray read FTransparency;
   end;
   {$endif PortableNetworkGraphic}
 
@@ -854,11 +870,13 @@ var
 implementation
 
 uses
-  gexVersion, gexUtils, Consts, Math, ZLibDelphi; //GXZLib
+  gexVersion, gexUtils, {$IFNDEF FPC}Consts,{$ENDIF} Math, ZLibDelphi; //GXZLib
 
 type
   {$ifndef COMPILER_6_UP}
-    PCardinal = ^Cardinal;
+  {$IFNDEF FPC}
+  PCardinal = ^Cardinal;
+  {$ENDIF}
   {$endif COMPILER_6_UP}
 
   // An entry of the progress stack for nested progress sections.
@@ -873,13 +891,12 @@ type
 //----------------------------------------------------------------------------------------------------------------------
 
 {$ifndef COMPILER_6_UP}
-
-  procedure RaiseLastOSError;
-
-  begin
-    RaiseLastWin32Error;
-  end;
-
+{$IFNDEF FPC}
+procedure RaiseLastOSError;
+begin
+  RaiseLastWin32Error;
+end;
+{$ENDIF}
 {$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1202,7 +1219,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TGraphicExGraphic.InitProgress(Width, Height: Integer);
+procedure TGraphicExGraphic.InitProgress(AWidth, AHeight: Integer);
 
 // Initializes all progress related variables.
 
@@ -1210,7 +1227,7 @@ begin
   ClearProgressStack;
   FProgressStack := TStack.Create;
 
-  FProgressRect := Rect(0, 0, Width, Height);
+  FProgressRect := Rect(0, 0, AWidth, AHeight);
   FPercentDone := 0;
 end;
 
@@ -1529,7 +1546,6 @@ function TGraphicExGraphic.ReadImageProperties(const Memory: Pointer; Size: Int6
 
 begin
   ZeroMemory(@FImageProperties, SizeOf(FImageProperties));
-  FImageProperties.FileGamma := 1;
   Result := True;
 end;
 
@@ -1829,7 +1845,13 @@ begin
           csRGB:
             TargetColorScheme := csBGR;
         else
+          {$IFNDEF FPC}
           TargetColorScheme := csIndexed;
+          {$ELSE}
+          SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
+          TargetColorScheme := csBGR;
+          TargetSamplesPerPixel := 3
+          {$ENDIF}
         end;
         PixelFormat := TargetPixelFormat;
         // Uses separate channels thus we need to set that in source options.
@@ -1921,19 +1943,38 @@ begin
             for  Y := 0 to Height - 1 do
             begin
               GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
+              {$IFNDEF FPC}
               Move(RedBuffer^, ScanLine[Height - Y - 1]^, Width);
+              {$ELSE}
+              ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+              {$ENDIF}
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
           end
           else
           begin
+            {$IFNDEF FPC}
             for  Y := 0 to Height - 1 do
             begin
               ReadAndDecode(Memory, ScanLine[Height - Y - 1], nil, nil, nil, Y, Header.BPC);
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
+            {$ELSE}
+            GetMem(RedBuffer, Count);
+            try
+              for  Y := 0 to Height - 1 do
+              begin
+                ReadAndDecode(Memory, RedBuffer, nil, nil, nil, Y, Header.BPC);
+                ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            finally
+              FreeMem(RedBuffer);
+            end;
+            {$ENDIF}
           end;
         end;
       finally
@@ -2069,7 +2110,11 @@ begin
     Graphic.FCurrentPointer := Pointer(PAnsiChar(Graphic.FMemory) + Off);
   end;
   // Make sure we have a valid location (can happen with invalid or hacked tiff files)
+  {$IFNDEF FPC}
   if (Graphic.FCurrentPointer >= PAnsiChar(Graphic.FMemory)+Graphic.FSize) or
+  {$ELSE}
+  if (Graphic.FCurrentPointer >= Graphic.FMemory+Graphic.FSize) or
+  {$ENDIF}
      (Cardinal(Graphic.FCurrentPointer) < Cardinal(Graphic.FMemory)) then
     Result := 0
   else
@@ -2232,23 +2277,24 @@ procedure TTIFFGraphic.ReadTiled(tif: PTIFF);
 
 var
   Column, Row, Y,
-  RowsToRead: Integer;
-  Pos, Counter: Integer;
-  TileWidth, TileHeight: Integer;
+  RowsToRead: Cardinal;
+  Pos: Cardinal;
+  Counter: Integer;
+  TileWidth, TileHeight: Cardinal;
   Buffer: Pointer;
-  FromSkew: Integer;
-  RowCount: Integer;
-  PixelCount: Integer;
+  FromSkew: Cardinal;
+  RowCount: Cardinal;
+  PixelCount: Cardinal;
   Line: PAnsiChar;
   RowInc: Integer;
-  ColumnOffset: Integer;
+  ColumnOffset: Cardinal;
   TileSize: Integer;
-  TileRowSize: Integer;
+  TileRowSize: Cardinal;
   iPlane,
   nPlanes: Integer;
   PtrArray: array of pointer;
   BufPtr: Pointer;
-  TileOffset: Integer;
+  TileOffset: Cardinal;
 
 begin
   TileSize := TIFFTileSize(tif);
@@ -2273,16 +2319,16 @@ begin
 
     TileRowSize := TIFFTileRowSize(tif);
     Row := 0;
-    while Row < Height do
+    while Row < Cardinal(Height) do
     begin
       RowsToRead := TileHeight - (Row mod TileHeight);
-      if Row + RowsToRead > Height then
-        RowCount := Height - Row
+      if Row + RowsToRead > Cardinal(Height) then
+        RowCount := Cardinal(Height) - Row
       else
         RowCount := RowsToRead;
 
       Column := 0;
-      while Column < Width do
+      while Column < Cardinal(Width) do
       begin
         Pos := (Row mod TileHeight) * TileRowSize;
         if ioSeparatePlanes in Options then begin
@@ -2304,10 +2350,10 @@ begin
         Y := Row;
         Counter := RowCount;
         ColumnOffset := ColorManager.TargetBitsPerSample * ColorManager.TargetSamplesPerPixel * Column div 8;
-        if Column + TileWidth > Width then
+        if Column + TileWidth > Cardinal(Width) then
         begin
           // Tile is clipped horizontally.  Calculate visible portion and skewing factors.
-          PixelCount := Width - Column;
+          PixelCount := Cardinal(Width) - Column;
           FromSkew := TileWidth - PixelCount;
           if ioSeparatePlanes in Options then
             TileOffset := Ceil(BitsPerSample * (PixelCount + FromSkew) / 8)
@@ -2510,6 +2556,8 @@ begin
                     for I := Height - 1 downto 0 do
                     begin
                       Line := Scanline[I];
+                      // Change RGBA to BGRA, 1 line at a time
+                      RGBAToBGRA(Run, Width, 1);
                       Move(Run^, Line^, Width * 4);
                       Inc(Run, Width * 4);
                       AdvanceProgress(100 / Height, 0, 1, True);
@@ -2537,6 +2585,7 @@ begin
 
               // TargetBitsPerSample needs to correspond to the TargetPixelFormat
               // or else the image will not be painted correctly.
+              {$IFNDEF FPC}
               if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
                 ColorManager.TargetBitsPerSample := 8
               else if BitsPerSample in [2, 3, 4] then
@@ -2545,10 +2594,6 @@ begin
                 ColorManager.TargetBitsPerSample := BitsPerSample;
 
               ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
-              if ioSeparatePlanes in Options then begin
-                // Only possible for Grayscale or Indexed with alpha.
-                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-              end;
               if (SamplesPerPixel > 1) and not HasAlpha then begin
                 // There are extra samples but apparently not a normal alpha channel.
                 // We need to make sure these extra samples get skipped.
@@ -2562,6 +2607,23 @@ begin
               end
               else
                 ColorManager.TargetColorScheme := csIndexed;
+              {$ELSE}
+              ColorManager.TargetBitsPerSample := 8;
+              if HasAlpha then begin
+                ColorManager.TargetSamplesPerPixel := 4;
+                ColorManager.TargetColorScheme := csBGRA;
+              end
+              else begin
+                ColorManager.TargetSamplesPerPixel := 3;
+                ColorManager.TargetColorScheme := csBGR;
+              end;
+              {$ENDIF}
+              if ioSeparatePlanes in Options then begin
+                // Only possible for Grayscale or Indexed with alpha.
+                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+              end;
+              if ioMinIsWhite in Options then
+                ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
             end
             else begin
               // Assume we want BGR(A) for everything else
@@ -2589,11 +2651,18 @@ begin
                         [coLabByteRange];
                     end
                     else begin
+                      {$IFNDEF FPC}
                       ColorManager.TargetSamplesPerPixel := 1;
                       ColorManager.TargetColorScheme := csG;
+                      {$ELSE}
+                      // Fpc: convert CIELAB gray to BGR and pretend that source is grayscale
+                      ColorManager.SourceColorScheme := csG;
+                      ColorManager.TargetSamplesPerPixel := 3;
+                      {$ENDIF}
                       // The one example I have has a range from light=1 to dark= 254
                       // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
                       Include(Options, ioMinIsWhite);
+                      ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
                     end;
                   end;
                 csUnknown: // Do a simple guess what color scheme it could be.
@@ -2654,19 +2723,38 @@ begin
 
               if GotPalette > 0 then
               begin
+                {$IFNDEF FPC}
                 if BitsPerSample in [9..16] then begin
+                {$ENDIF}
                   // Palette images with more than 8 bits per sample are converted
                   // to RGB since Windows palette can have a maximum of 8 bits (256) entries
-                  // ans downscaling a palette is very complicated.
+                  // and downscaling a palette is very complicated.
                   ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
-                  ColorManager.TargetColorScheme := csBGR; // TODO: Also support alpha if HasAlpha!
-                  ColorManager.TargetBitsPerSample := 8;
-                  ColorManager.TargetSamplesPerPixel := 3;
-                  PixelFormat := ColorManager.TargetPixelFormat;
+                  if not HasAlpha then begin
+                    if ColorManager.TargetColorScheme <> csBGR then begin
+                      // Only change if needed since changing PixelFormat might be slow
+                      ColorManager.TargetColorScheme := csBGR;
+                      ColorManager.TargetBitsPerSample := 8;
+                      ColorManager.TargetSamplesPerPixel := 3;
+                      PixelFormat := ColorManager.TargetPixelFormat;
+                    end
+                  end
+                  else begin
+                    // Extra alpha channel present
+                    if ColorManager.TargetColorScheme <> csBGRA then begin
+                      // Only change if needed since changing PixelFormat might be slow
+                      ColorManager.TargetColorScheme := csBGRA;
+                      ColorManager.TargetBitsPerSample := 8;
+                      ColorManager.TargetSamplesPerPixel := 4;
+                      PixelFormat := ColorManager.TargetPixelFormat;
+                    end
+                  end
+                {$IFNDEF FPC}
                 end
                 else
                   // Create the palette from the three maps.
                   Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
+                {$ENDIF}
               end
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);
@@ -3129,12 +3217,28 @@ begin
       with ColorManager do
       begin
         SourceSamplesPerPixel := SamplesPerPixel;
-        TargetSamplesPerPixel := SamplesPerPixel;
         SourceColorScheme := ColorScheme;
-        SourceOptions := [];
-        TargetColorScheme := csBGR;
         SourceBitsPerSample := BitsPerSample;
+        {$IFNDEF FPC}
         TargetBitsPerSample := BitsPerSample;
+        TargetSamplesPerPixel := SamplesPerPixel;
+        {$ELSE}
+        TargetBitsPerSample := 8;
+        if BitsPerSample = 5 then
+          SourceExtraBPP := 1; // 1 extra bit per pixel
+        if HasAlpha then begin
+          TargetSamplesPerPixel := 4;
+          TargetColorScheme := csBGRA;
+        end
+        else begin
+          TargetSamplesPerPixel := 3;
+          TargetColorScheme := csBGR;
+        end;
+        {$ENDIF}
+        if ioUseGamma in Options then begin
+          SetGamma(FileGamma);
+          ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+        end;
         PixelFormat := TargetPixelFormat;
       end;
 
@@ -3156,14 +3260,20 @@ begin
             case FTargaHeader.ColorMapEntrySize of
               32:
                 begin
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
+                  {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, True);
+                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, False {BGR order});
                   Inc(Source, ColorMapBufSize);
                 end;
               24:
                 begin
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
+                  {$ENDIF}
                   Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, True);
+                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, False {BGR order});
                   Inc(Source, ColorMapBufSize);
                 end;
               15, 16:
@@ -3186,6 +3296,9 @@ begin
                     Inc(PWord(Source));
                   end;
                   Palette := CreatePalette(PLogPalette(@LogPalette)^);
+                  {$IFDEF FPC}
+                  ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+                  {$ENDIF}
                 end;
             else
               // Other color map entry sizes are not supported
@@ -3219,7 +3332,11 @@ begin
                 LineBuffer := ScanLine[I]
               else
                 LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
+              {$IFNDEF FPC}
               Move(Source^, LineBuffer^, LineSize);
+              {$ELSE}
+              ColorManager.ConvertRow([Source], LineBuffer, Width, $FF);
+              {$ENDIF}
               Inc(Source, LineSize);
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
@@ -3244,7 +3361,11 @@ begin
                   LineBuffer := ScanLine[I]
                 else
                   LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
+                {$IFNDEF FPC}
                 Move(Run^, LineBuffer^, LineSize);
+                {$ELSE}
+                  ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
+                {$ENDIF}
                 Inc(Run, LineSize);
                 Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
                 OffsetRect(FProgressRect, 0, 1);
@@ -3261,11 +3382,8 @@ begin
 
       // 32 bit TGA images may not be using the alpha channel, in that case we
       // replace it by Alpha is 255 or else the image will be invisible
-      if (FTargaHeader.PixelSize = 32) then begin
-        if (FTargaHeader.ImageDescriptor and $F = 0) or
-           ((FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) and
-           (FExtensionArea.Attributes in
-           [NoAlphaData, UndefinedAlphaCanBeIgnored, UndefinedAlphaButKeep])) then
+      if (FTargaHeader.PixelSize = 32) and (ColorManager.TargetColorScheme = csBGRA) then begin
+        if not HasAlpha then
           for i := 0 to Height-1 do
             BGRASetAlpha255(ScanLine[i], Width);
       end;
@@ -3304,18 +3422,19 @@ begin
         15,
         16: // actually, 16 bit are meant being 15 bit
           begin
-            ColorScheme := csRGB;
+            ColorScheme := csBGR;
             BitsPerSample := 5;
             SamplesPerPixel := 3;
+            ExtraBits := 1;
           end;
         24:
           begin
-            ColorScheme := csRGB;
+            ColorScheme := csBGR;
             SamplesPerPixel := 3;
           end;
         32:
           begin
-            ColorScheme := csRGBA;
+            ColorScheme := csBGRA;
             SamplesPerPixel := 4;
           end;
       end;
@@ -3367,6 +3486,14 @@ begin
                 // Comment present, for now we only copy the first line.
                 FImageProperties.Comment := FExtensionArea.Comments[0];
               end;
+              if (FExtensionArea.GammaRatioDenominator > 0) and
+                (FExtensionArea.GammaRatioNumerator > 0) then begin
+                // Todo: TGA gamma is in range 0.0 - 10.0, do we need to convert this range?
+                // I don't have any examples where gamma is defined
+                FileGamma := FExtensionArea.GammaRatioDenominator +
+                  FExtensionArea.GammaRatioNumerator / 100;
+                Include(Options, ioUseGamma);
+              end;
             end
             else // Unexpected size don't know how to handle.
               FTargaFooter.ExtAreaOffset := 0;
@@ -3374,6 +3501,19 @@ begin
         end;
       end;
 
+      HasAlpha := (FTargaHeader.ImageDescriptor and $F > 0);
+      if (FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) then
+        HasAlpha := FExtensionArea.Attributes in [AlphaDataPresent, PreMultipliedAlpha];
+      // Although 16 bits per pixel targa has in theory an alpha channel,
+      // the examples I have seen have all alpha values set to 0 (invisible).
+      // As such it doesn't seem useful to set this until we encounter
+      // a 16 bit tga image that does set non zero values.
+      {if (FTargaHeader.PixelSize = 16) and HasAlpha then begin
+        ColorScheme := csBGRA;
+        // Not sure if we should set SamplesPerPixel to 4 or just use
+        // ColorScheme is csBGRA in combination with ExtrBits = 1 to define this.
+        SamplesPerPixel := 4;
+      end;}
       Result := True;
     end;
 end;
@@ -3581,15 +3721,15 @@ var
 
   //--------------- local functions -------------------------------------------
 
-  procedure MakePalette;
+  procedure MakePalette(APixelFormat: TPixelFormat);
 
   var
     PaletteData: PByte;
 
   begin
-    if (Header.Version <> 3) or (PixelFormat = pf1Bit) then
+    if (Header.Version <> 3) or (APixelFormat = pf1Bit) then
     begin
-      case PixelFormat of
+      case APixelFormat of
         pf1Bit:
           Palette := ColorManager.CreateGrayScalePalette(False);
         pf4Bit:
@@ -3597,8 +3737,12 @@ var
           begin
             if paletteType = 2 then
               Palette := ColorManager.CreateGrayScalePalette(False)
-            else
-              Palette := ColorManager.CreateColorPalette([@ColorMap], pfInterlaced8Triple, 16, False);
+            else begin
+              Palette := ColorManager.CreateColorPalette([@ColorMap], pfInterlaced8Triple, 16);
+              {$IFDEF FPC}
+              ColorManager.SetSourcePalette([@ColorMap], pfInterlaced8Triple);
+              {$ENDIF}
+            end;
           end;
         pf8Bit:
           begin
@@ -3614,7 +3758,10 @@ var
             else
             begin
               Inc(PaletteData);
-              Palette := ColorManager.CreateColorPalette([PaletteData], pfInterlaced8Triple, 256, False);
+              Palette := ColorManager.CreateColorPalette([PaletteData], pfInterlaced8Triple, 256);
+              {$IFDEF FPC}
+              ColorManager.SetSourcePalette([PaletteData], pfInterlaced8Triple);
+              {$ENDIF}
             end;
           end;
       end;
@@ -3633,6 +3780,9 @@ var
   PCXSize,
   DataSize: Integer;
   DecodeBuffer: Pointer;
+  {$IFDEF FPC}
+  LineBuf: PByte;
+  {$ENDIF}
   Plane1,
   Plane2,
   Plane3,
@@ -3642,6 +3792,7 @@ var
   I, J: Integer;
   Line: PByte;
   Increment: Integer;
+  TempPixelFormat: TPixelFormat;
 
 begin
   inherited;
@@ -3662,8 +3813,20 @@ begin
       ColorManager.SourceColorScheme := ColorScheme;
       ColorManager.SourceBitsPerSample := BitsPerSample;
       ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
       if ColorScheme = csIndexed then
+        {$IFNDEF FPC}
         ColorManager.TargetColorScheme := csIndexed
+        {$ELSE}
+        if BitsPerSample > 1 then begin
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.TargetSamplesPerPixel := 3;
+        end
+        else begin
+          ColorManager.TargetColorScheme := csIndexed;
+          ColorManager.TargetSamplesPerPixel := 1;
+        end
+        {$ENDIF}
       else begin
         if ColorManager.SourceSamplesPerPixel = 3 then
           ColorManager.TargetColorScheme := csBGR
@@ -3671,12 +3834,17 @@ begin
           ColorManager.TargetColorScheme := csBGRA;
         ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
       end;
-      ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
       if (ColorManager.SourceSamplesPerPixel in [3, 4]) then
         if ColorScheme = csIndexed then begin
           // Should be 1 bits per pixel x 4 planes special PCX case
+          {$IFNDEF FPC}
           ColorManager.TargetBitsPerSample := 4;
           ColorManager.TargetSamplesPerPixel := 1;
+          {$ELSE}
+          ColorManager.TargetBitsPerSample := 8;
+          ColorManager.TargetSamplesPerPixel := 3;
+          ColorManager.TargetColorScheme := csBGR;
+          {$ENDIF}
           // To be able to get a correct palette source bits per sample also needs to be 4.
           ColorManager.SourceBitsPerSample := 4;
         end
@@ -3686,8 +3854,15 @@ begin
           // Separate channels thus we need to set that in source options.
           ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
         end
-      else if BitsPerPixel = 2 then
-        ColorManager.TargetBitsPerSample := 4
+      else if BitsPerPixel = 2 then begin
+        {$IFNDEF FPC}
+        ColorManager.TargetBitsPerSample := 4;
+        {$ELSE}
+        ColorManager.TargetBitsPerSample := 8;
+        ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.TargetColorScheme := csBGR;
+        {$ENDIF}
+      end
       else
         ColorManager.TargetBitsPerSample := BitsPerSample;
 
@@ -3696,10 +3871,19 @@ begin
 
       // 256 colors palette is appended to the actual PCX data.
       PCXSize := Size;
-      if PixelFormat = pf8Bit then
+      // Since TBitmap can change PixelFormat internally to what it accepts,
+      // we cannot use it since we need source format to determine if we need
+      // to add palette data.
+      TempPixelFormat := ColorManager.SourcePixelFormat;
+      // Since pcx special case 4 samples 1 bit returns pfCustom, we need to fix that
+      if (TempPixelFormat = pfCustom) and (BitsPerSample = 1) and
+         (SamplesPerPixel = 4) then
+        TempPixelFormat := pf4Bit;
+
+      if TempPixelFormat = pf8Bit then
         Dec(PCXSize, 769);
-      if PixelFormat in [pf1Bit, pf4Bit, pf8Bit] then
-        MakePalette;
+      if TempPixelFormat in [pf1Bit, pf4Bit, pf8Bit] then
+        MakePalette(TempPixelFormat);
 
       Self.Width := Width;
       Self.Height := Height;
@@ -3735,62 +3919,81 @@ begin
         begin
           // 4 planes with one bit
 
-          for I := 0 to Height - 1 do
-          begin
-            Plane1 := Run;
-            Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
-            Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
-            Plane4 := PByte(PAnsiChar(Run) + 3 * Header.BytesPerLine);
-
-            Line := ScanLine[I];
-            // number of bytes to write
-            DataSize := (Width * BitsPerPixel + 7) div 8;
-            Mask := 0;
-            while DataSize > 0 do
+          {$IFDEF FPC}
+          DataSize := (Width * BitsPerPixel + 7) div 8;
+          GetMem(LineBuf, DataSize);
+          try
+          {$ENDIF}
+            for I := 0 to Height - 1 do
             begin
-              Value := 0;
-              for J := 0 to 1 do
-              asm
-                MOV AL, [Value]
+              Plane1 := Run;
+              Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
+              Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
+              Plane4 := PByte(PAnsiChar(Run) + 3 * Header.BytesPerLine);
 
-                MOV EDX, [Plane4]             // take the 4 MSBs from the 4 runs and build a nibble
-                SHL BYTE PTR [EDX], 1         // read MSB and prepare next run at the same time
-                RCL AL, 1                     // MSB from previous shift is in CF -> move it to AL
-
-                MOV EDX, [Plane3]             // now do the same with the other three runs
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV EDX, [Plane2]
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV EDX, [Plane1]
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV [Value], AL
-              end;
-              Line^ := Value;
-              Inc(Line);
-              Dec(DataSize);
-
-              // two runs above (to construct two nibbles -> one byte), now update marker
-              // to know when to switch to next byte in the planes
-              Mask := (Mask + 2) mod 8;
-              if Mask = 0 then
+              {$IFNDEF FPC}
+              Line := ScanLine[I];
+              {$ELSE}
+              Line := LineBuf;
+              {$ENDIF}
+              // number of bytes to write
+              DataSize := (Width * BitsPerPixel + 7) div 8;
+              Mask := 0;
+              while DataSize > 0 do
               begin
-                Inc(Plane1);
-                Inc(Plane2);
-                Inc(Plane3);
-                Inc(Plane4);
-              end;
-            end;
-            Inc(Run, Increment);
+                Value := 0;
+                for J := 0 to 1 do
+                asm
+                  MOV AL, [Value]
 
-            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-            OffsetRect(FProgressRect, 0, 1);
+                  MOV EDX, [Plane4]             // take the 4 MSBs from the 4 runs and build a nibble
+                  SHL BYTE PTR [EDX], 1         // read MSB and prepare next run at the same time
+                  RCL AL, 1                     // MSB from previous shift is in CF -> move it to AL
+
+                  MOV EDX, [Plane3]             // now do the same with the other three runs
+                  SHL BYTE PTR [EDX], 1
+                  RCL AL, 1
+
+                  MOV EDX, [Plane2]
+                  SHL BYTE PTR [EDX], 1
+                  RCL AL, 1
+
+                  MOV EDX, [Plane1]
+                  SHL BYTE PTR [EDX], 1
+                  RCL AL, 1
+
+                  MOV [Value], AL
+                end;
+                Line^ := Value;
+                Inc(Line);
+                Dec(DataSize);
+
+                // two runs above (to construct two nibbles -> one byte), now update marker
+                // to know when to switch to next byte in the planes
+                Mask := (Mask + 2) mod 8;
+                if Mask = 0 then
+                begin
+                  Inc(Plane1);
+                  Inc(Plane2);
+                  Inc(Plane3);
+                  Inc(Plane4);
+                end;
+              end;
+              {$IFDEF FPC}
+              ColorManager.SourceBitsPerSample := 4;
+              ColorManager.SourceSamplesPerPixel := 1;
+              ColorManager.ConvertRow([LineBuf], ScanLine[I], Width, $FF);
+              {$ENDIF}
+              Inc(Run, Increment);
+
+              Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          {$IFDEF FPC}
+          finally
+            FreeMem(LineBuf);
           end;
+          {$ENDIF}
         end
         else
           case SamplesPerPixel of
@@ -4328,7 +4531,21 @@ begin
   until not (Ch in ['0'..'9']);
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+function TPPMGraphic.GetByteFromChar: Byte;
+begin
+  Result := Byte(GetChar());
+end;
+
+//------------------------------------------------------------------------------
+
+function TPPMGraphic.GetByteFromNumber: Byte;
+begin
+  Result := Byte(GetNumber());
+end;
+
+//------------------------------------------------------------------------------
 
 function TPPMGraphic.ReadLine: AnsiString;
 
@@ -4364,9 +4581,13 @@ procedure TPPMGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIn
 var
   Line24: PBGR;
   Line8: PByte;
+  {$IFDEF FPC}
+  LineBuf: PByte;
+  {$ENDIF}
   X, Y: Integer;
   Pixel: Byte;
   MaxVal: Word;
+  PpmType: Integer;
 
 begin
   inherited;
@@ -4382,7 +4603,15 @@ begin
 
       if GetChar <> 'P' then
         GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
-      case StrToInt(String(GetChar)) of
+
+      PpmType := StrToInt(String(GetChar));
+      if PpmType in [1..3] then
+        // ASCII format
+        FGetByte := GetByteFromNumber
+      else
+        // Binary format
+        FGetByte := GetByteFromChar;
+      case PpmType of
         1: // PBM ASCII format (black & white)
           begin
             PixelFormat := pf1Bit;
@@ -4391,76 +4620,59 @@ begin
             ColorManager.TargetSamplesPerPixel := 1;
             ColorManager.TargetBitsPerSample := 1;
             Palette := ColorManager.CreateGrayScalePalette(True);
+            {$IFDEF FPC}
+            // Fpc seems to not use the palette for deciding which value is black or white.
+            // This means we will have to convert the color scheme.
+            // We could just swap all 0's and 1's but instead we go for BGR.
 
-            // read image data
-            for Y := 0 to Height - 1 do
-            begin
-              Line8 := ScanLine[Y];
-              Pixel := 0;
-              for X := 1 to Width do
-              begin
-                Pixel := (Pixel shl 1) or (GetNumber and 1);
-                if (X mod 8) = 0 then
-                begin
-                  Line8^ := Pixel;
-                  Inc(Line8);
-                  Pixel := 0;
-                end;
-              end;
-              if (Width mod 8) <> 0 then
-                Line8^ := Pixel shl (8 - (Width mod 8));
-
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-          end;
-        2: // PGM ASCII form (gray scale)
-          begin
-            PixelFormat := pf8Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
-            ColorManager.TargetSamplesPerPixel := 1;
+            // Needs to be done after creating palette since it uses the values
+            // of TargetBitsPerSample and TargetSamplesPerPixel
+            ColorManager.TargetSamplesPerPixel := 3;
             ColorManager.TargetBitsPerSample := 8;
-            Palette := ColorManager.CreateGrayScalePalette(False);
-
-            // read image data
-            for Y := 0 to Height - 1 do
-            begin
-              Line8 := ScanLine[Y];
-              for X := 0 to Width - 1 do
-              begin
-                Line8^ := GetNumber;
-                Inc(Line8);
-              end;
-
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-          end;
-        3: // PPM ASCII form (true color)
-          begin
+            ColorManager.TargetColorScheme := csBGR;
+            ColorManager.SourceBitsPerSample := 1;
+            ColorManager.SourceSamplesPerPixel := 1;
+            ColorManager.SourceColorScheme := csG;
+            ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
             PixelFormat := pf24Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
 
-            for Y := 0 to Height - 1 do
-            begin
-              Line24 := ScanLine[Y];
-              for X := 0 to Width - 1 do
+            GetMem(LineBuf, Width div 8 + 1);
+            try
+            {$ENDIF}
+
+              // read image data
+              for Y := 0 to Height - 1 do
               begin
-                Line24.R := GetNumber;
-                Line24.G := GetNumber;
-                Line24.B := GetNumber;
-                Inc(Line24);
-              end;
+                {$IFNDEF FPC}
+                Line8 := ScanLine[Y];
+                {$ELSE}
+                Line8 := LineBuf;
+                {$ENDIF}
+                Pixel := 0;
+                for X := 1 to Width do
+                begin
+                  Pixel := (Pixel shl 1) or (GetNumber and 1);
+                  if (X mod 8) = 0 then
+                  begin
+                    Line8^ := Pixel;
+                    Inc(Line8);
+                    Pixel := 0;
+                  end;
+                  if (Width mod 8) <> 0 then
+                    Line8^ := Pixel shl (8 - (Width mod 8));
+                end;
 
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
+                {$IFDEF FPC}
+                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+                {$ENDIF}
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            {$IFDEF FPC}
+            finally
+              FreeMem(LineBuf);
             end;
+            {$ENDIF}
           end;
         4: // PBM binary format (black & white)
           begin
@@ -4470,26 +4682,60 @@ begin
             ColorManager.TargetSamplesPerPixel := 1;
             ColorManager.TargetBitsPerSample := 1;
             Palette := ColorManager.CreateGrayScalePalette(True);
+            {$IFDEF FPC}
+            // Fpc seems to not use the palette for deciding which value is black or white.
+            // This means we will have to convert the color scheme.
+            // We could just swap all 0's and 1's but instead we go for BGR.
 
-            // read image data
-            for Y := 0 to Height - 1 do
-            begin
-              Line8 := ScanLine[Y];
-              for X := 0 to (Width div 8) - 1 do
+            // Needs to be done after creating palette since it uses the values
+            // of TargetBitsPerSample and TargetSamplesPerPixel
+            ColorManager.TargetSamplesPerPixel := 3;
+            ColorManager.TargetBitsPerSample := 8;
+            ColorManager.TargetColorScheme := csBGR;
+            ColorManager.SourceBitsPerSample := 1;
+            ColorManager.SourceSamplesPerPixel := 1;
+            ColorManager.SourceColorScheme := csG;
+            ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
+            PixelFormat := pf24Bit;
+
+            GetMem(LineBuf, Width div 8 + 1);
+            try
+            {$ENDIF}
+
+              // read image data
+              for Y := 0 to Height - 1 do
               begin
-                Line8^ := Byte(GetChar);
-                Inc(Line8);
-              end;
-              if (Width mod 8) <> 0 then
-                Line8^ := Byte(GetChar);
+                {$IFNDEF FPC}
+                Line8 := ScanLine[Y];
+                {$ELSE}
+                Line8 := LineBuf;
+                {$ENDIF}
+                for X := 0 to (Width div 8) - 1 do
+                begin
+                  Line8^ := Byte(GetChar);
+                  Inc(Line8);
+                end;
+                if (Width mod 8) <> 0 then
+                  Line8^ := Byte(GetChar);
 
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
+                {$IFDEF FPC}
+                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+                {$ENDIF}
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            {$IFDEF FPC}
+            finally
+              FreeMem(LineBuf);
             end;
+            {$ENDIF}
           end;
+        2, // PGM ASCII form (gray scale)
         5: // PGM binary form (gray scale)
           begin
+            {$IFNDEF FPC}
             PixelFormat := pf8Bit;
+            {$ENDIF}
             Self.Width := GetNumber;
             Self.Height := GetNumber;
             // skip maximum color value
@@ -4497,21 +4743,47 @@ begin
             ColorManager.TargetSamplesPerPixel := 1;
             ColorManager.TargetBitsPerSample := 8;
             Palette := ColorManager.CreateGrayScalePalette(False);
+            {$IFDEF FPC}
+            // Needs to be done after creating palette since it uses the values
+            // of TargetBitsPerSample and TargetSamplesPerPixel
+            ColorManager.TargetSamplesPerPixel := 3;
+            ColorManager.TargetColorScheme := csBGR;
+            ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+            ColorManager.SourceBitsPerSample := BitsPerSample;
+            ColorManager.SourceColorScheme := csG;
+            PixelFormat := pf24Bit;
 
-            // read image data
-            for Y := 0 to Height - 1 do
-            begin
-              Line8 := ScanLine[Y];
-              for X := 0 to Width - 1 do
+            GetMem(LineBuf, Width);
+            try
+            {$ENDIF}
+
+              // read image data
+              for Y := 0 to Height - 1 do
               begin
-                Line8^ := Byte(GetChar);
-                Inc(Line8);
-              end;
+                {$IFNDEF FPC}
+                Line8 := ScanLine[Y];
+                {$ELSE}
+                Line8 := LineBuf;
+                {$ENDIF}
+                for X := 0 to Width - 1 do
+                begin
+                  Line8^ := FGetByte();
+                  Inc(Line8);
+                end;
 
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
+                {$IFDEF FPC}
+                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+                {$ENDIF}
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            {$IFDEF FPC}
+            finally
+              FreeMem(LineBuf);
             end;
+            {$ENDIF}
           end;
+        3, // PPM ASCII form (true color)
         6: // PPM binary form (true color)
           begin
             PixelFormat := pf24Bit;
@@ -4529,9 +4801,9 @@ begin
               if MaxVal = 255 then
                 for X := 0 to Width - 1 do
                 begin
-                  Line24.R := Byte(GetChar);
-                  Line24.G := Byte(GetChar);
-                  Line24.B := Byte(GetChar);
+                  Line24.R := FGetByte();
+                  Line24.G := FGetByte();
+                  Line24.B := FGetByte();
                   Inc(Line24);
                 end
               else if MaxVal < 255 then
@@ -4542,14 +4814,15 @@ begin
                   // due to precision differences.
                   // Paint Shop Pro's calculations for MaxVal < 255 are screwed up, and I couldn't
                   // figure out the exact algorithm they're using.
-                  Line24.R := Trunc(Byte(GetChar) * 255 / MaxVal);
-                  Line24.G := Trunc(Byte(GetChar) * 255 / MaxVal);
-                  Line24.B := Trunc(Byte(GetChar) * 255 / MaxVal);
+                  Line24.R := Trunc(FGetByte() * 255 / MaxVal);
+                  Line24.G := Trunc(FGetByte() * 255 / MaxVal);
+                  Line24.B := Trunc(FGetByte() * 255 / MaxVal);
                   Inc(Line24);
                 end
               else
                 GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
                 // TODO: PPM does support a MaxVal up to 65535, but I don't have any sample files to test
+                // JB: If we want to implement this we will have to add a FGetWord function variable
 //                for X := 0 to Width - 1 do
 //                begin
 //                  Line24.R := Trunc(Byte(GetChar) shl 8 + Byte(GetChar), 255, MaxVal);
@@ -4599,6 +4872,7 @@ begin
               BitsPerSample := 1;
               ColorScheme := csIndexed;
               BitsPerPixel := SamplesPerPixel * BitsPerSample;
+              Include(Options, ioMinIsWhite);
             end;
           2: // PGM ASCII form (gray scale)
             begin
@@ -4633,6 +4907,7 @@ begin
               BitsPerSample := 1;
               ColorScheme := csIndexed;
               BitsPerPixel := SamplesPerPixel * BitsPerSample;
+              Include(Options, ioMinIsWhite);
             end;
           5: // PGM binary form (gray scale)
             begin
@@ -4716,6 +4991,10 @@ var
   Line: Pointer;
   Decoder: TCUTRLEDecoder;
   Y: Integer;
+  {$IFDEF FPC}
+  LineBuf: PByte;
+  {$ENDIF}
+  LogPalette: TMaxLogPalette;
 
 begin
   inherited;
@@ -4729,23 +5008,47 @@ begin
       FProgressRect := Rect(0, 0, Width, 0);
       Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
+      {$IFNDEF FPC}
       PixelFormat := pf8Bit;
+      {$ELSE}
+      PixelFormat := pf24Bit;
+      ColorManager.SourceBitsPerSample := BitsPerSample;
+      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      ColorManager.SourceColorScheme := csIndexed;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
+      ColorManager.TargetColorScheme := csBGR;
+      {$ENDIF}
       Self.Width := Width;
       Self.Height := Height;
-      LoadPalette;
+      LogPalette := LoadPalette;
 
+      {$IFDEF FPC}
+      ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+      GetMem(LineBuf, Width);
+      {$ENDIF}
       Decoder := TCUTRLEDecoder.Create;
       try
         for Y := 0 to Height - 1 do
         begin
+          {$IFNDEF FPC}
           Line := ScanLine[Y];
+          {$ELSE}
+          Line := LineBuf;
+          {$ENDIF}
           Decoder.Decode(Pointer(Source), Line, 0, Width);
 
+          {$IFDEF FPC}
+          ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+          {$ENDIF}
           Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
           OffsetRect(FProgressRect, 0, 1);
         end;
       finally
         FreeAndNil(Decoder);
+        {$IFDEF FPC}
+        FreeMem(LineBuf);
+        {$ENDIF}
       end;
 
       Progress(Self, psEnding, 0, False, FProgressRect, '');
@@ -4805,7 +5108,7 @@ type
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TCUTGraphic.LoadPalette;
+function TCUTGraphic.LoadPalette: TMaxLogPalette;
 
 var
   Header: PHaloPaletteHeader;
@@ -4858,6 +5161,7 @@ begin
     end;
   end;
 
+  Result := LogPalette;
   // finally create palette
   Palette := CreatePalette(PLogPalette(@LogPalette)^);
 end;
@@ -5047,6 +5351,19 @@ begin
       Inc(FSource, SizeOf(Header));
 
       PixelFormat := pf8Bit;
+      {$IFDEF FPC}
+      ColorManager.SourceColorScheme := ColorScheme;
+      // Source bits per sampel should always be 8 since apparently always a
+      // whole byte is used even if bps is less than 8 (and 8 is the maximum).
+      ColorManager.SourceBitsPerSample := 8;
+      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+      // fpc doesn't support indexed pf8Bit so we will have to convert
+      // it to 24bits BGR
+      ColorManager.TargetColorScheme := csBGR;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
+      PixelFormat := ColorManager.TargetPixelFormat;
+      {$ENDIF}
 
       // Read general information.
       Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
@@ -5058,6 +5375,9 @@ begin
       if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
       begin
         // The global color table immediately follows the screen descriptor.
+        {$IFDEF FPC}
+        ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
+        {$ENDIF}
         LogPalette.palNumEntries := 2 shl (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE);
         for I := 0 to LogPalette.palNumEntries - 1 do
         begin
@@ -5093,6 +5413,9 @@ begin
         if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
         begin
           // the global color table immediately follows the image descriptor
+          {$IFDEF FPC}
+          ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
+          {$ENDIF}
           LogPalette.palNumEntries := 2 shl (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE);
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
@@ -5150,7 +5473,11 @@ begin
             for I := 0 to Height - 1 do
             begin
               Line := Scanline[I];
+              {$IFNDEF FPC}
               Move(TargetRun^, Line^, Width);
+              {$ELSE}
+              ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+              {$ENDIF}
               Inc(PByte(TargetRun), Width);
 
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
@@ -5188,7 +5515,11 @@ begin
               while I < Height do
               begin
                 Line := Scanline[I];
+                {$IFNDEF FPC}
                 Move(TargetRun^, Line^, Width);
+                {$ELSE}
+                ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+                {$ENDIF}
                 Inc(PByte(TargetRun), Width);
                 Inc(I, Increment);
 
@@ -5400,10 +5731,10 @@ begin
 
         PixelFormat := TargetPixelFormat;
 
-        if FileGamma <> 1 then
+        if Abs(FileGamma) >= 0.01 then
         begin
-          SetGamma(FileGamma);
-          TargetOptions := TargetOptions + [coApplyGamma];
+          // Gamma is apparently already applied to the image in rla, meaning
+          // we don't need to set it in TargetOptions.
           Include(Options, ioUseGamma);
         end;
         // Uses separate channels thus we need to set that in source options.
@@ -5560,9 +5891,18 @@ begin
         // if LowerCase(Header.Chan) = 'xyz' then
         ColorScheme := csUnknown;
 
-      // The onely RLA sample image I have seems to use the screen default gamma
+      // The only RLA sample image I have seems to use the screen default gamma
       // of 2.2. We need to convert that value to an expected default value of 1.
+      // A value of 0.0 means no gamma set according to fileformat.info
+      // The description of fileformat.info about gamma says:
+      // Gamma contains an ASCII floating-point number representing the gamma
+      // correction factor applied to the image before it was stored. A value of
+      // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
+      // This seems to imply that we do not have to apply the gamma since it
+      // was already applied. This looks to be correct based on the 1 example I have.
       FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
+      if Abs(FileGamma) >= 0.01 then
+        Include(Options, ioUseGamma);
 
       Compression := ctRLE;
 
@@ -5846,6 +6186,9 @@ end;
 constructor TPhotoshopLayers.Create(Graphic: TPSDGraphic);
 
 begin
+  {$IFDEF FPC}
+  inherited Create;
+  {$ENDIF}
   FGraphic := Graphic;
 end;
 
@@ -6013,7 +6356,11 @@ begin
           RunR := GetChannel(0);
           for Y := 0 to Height - 1 do
           begin
+            {$IFNDEF FPC}
             Move(RunR^, ScanLine[Y]^, Width);
+            {$ELSE}
+            ColorManager.ConvertRow([RunR], ScanLine[Y], Width, $FF);
+            {$ENDIF}
             Inc(RunR, Width);
           end;
         end;
@@ -6333,7 +6680,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPSDGraphic.ReadChannelData(var Run: PByte; var Channel: TPSDChannel; Width, Height: Integer;
+procedure TPSDGraphic.ReadChannelData(var Run: PByte; var Channel: TPSDChannel; AWidth, AHeight: Integer;
   IsIrrelevant: Boolean);
 
 // Reads and optionally decompresses image data for one channel.
@@ -6356,7 +6703,7 @@ begin
     begin
       // Allocate temporary storage for the channel data. This memory is freed in CombineChannels.
       // A channel is always 8 bit per pixel.
-      GetMem(Channel.Data, Width * Height);
+      GetMem(Channel.Data, AWidth * AHeight);
 
       case Compression of
         ctNone: // Simple case, just move the data to our storage.
@@ -6365,20 +6712,20 @@ begin
           begin
             Decoder := TPackbitsRLEDecoder.Create;
             try
-              SetLength(RLELength, Height);
-              Count := 2 * Height;
+              SetLength(RLELength, AHeight);
+              Count := 2 * AHeight;
               Move(Run^, Pointer(RLELength)^, Count); // RLE lengths are word values.
-              SwapShort(Pointer(RLELength), Height);
+              SwapShort(Pointer(RLELength), AHeight);
               Dec(RemainingSize, Count);
               // Advance the running pointer to after the RLE lenghts.
               Inc(Run, Count);
 
               Target := Channel.Data;
-              for Y := 0 to Height - 1 do
+              for Y := 0 to AHeight - 1 do
               begin
-                Decoder.Decode(Pointer(Run), Pointer(Target), RLELength[Y], Width);
+                Decoder.Decode(Pointer(Run), Pointer(Target), RLELength[Y], AWidth);
                 Inc(Run, RLELength[Y]);
-                Inc(Target, Width);
+                Inc(Target, AWidth);
                 Dec(RemainingSize, RLELength[Y]);
                 if RemainingSize <= 0 then
                   Break;
@@ -6683,20 +7030,40 @@ begin
           // Very simple format here, we don't need the color conversion manager.
           if Assigned(Decoder) then
           begin
-            for Y := 0 to H - 1 do
-            begin
-              Count := RLELength[Y];
-              Line := ScanLine[Y];
-              Decoder.Decode(Pointer(Source), Line, Count, W);
-              Inc(Source, Count);
+            {$IFDEF FPC}
+            GetMem(Buffer, W);
+            try
+            {$ENDIF}
+              for Y := 0 to H - 1 do
+              begin
+                Count := RLELength[Y];
+                {$IFNDEF FPC}
+                Line := ScanLine[Y];
+                {$ELSE}
+                Line := Buffer;
+                {$ENDIF}
+                Decoder.Decode(Pointer(Source), Line, Count, W);
+                Inc(Source, Count);
 
-              AdvanceProgress(100 / H, 0, 1, True);
+                {$IFDEF FPC}
+                ColorManager.ConvertRow([Buffer], ScanLine[Y], W, $FF);
+                {$ENDIF}
+                AdvanceProgress(100 / H, 0, 1, True);
+              end;
+            {$IFDEF FPC}
+            finally
+              FreeMem(Buffer);
             end;
+            {$ENDIF}
           end
           else // uncompressed data
             for Y := 0 to H - 1 do
             begin
+              {$IFNDEF FPC}
               Move(Source^, ScanLine[Y]^, W);
+              {$ELSE}
+              ColorManager.ConvertRow([Source], ScanLine[Y], W, $FF);
+              {$ENDIF}
               Inc(Source, W);
 
               AdvanceProgress(100 / H, 0, 1, True);
@@ -6961,7 +7328,11 @@ begin
         Layer.Clipping := lcNonBase;
       Inc(Run);
       Dummy := Byte(Run^);
+      {$IFNDEF FPC}
       Layer.Options := TPSDLayerOptions(Dummy and 3);
+      {$ELSE}
+      Layer.Options := TPSDLayerOptions(Dummy and Byte(3));
+      {$ENDIF}
       if Dummy and $18 = $18 then
         Layer.Options := Layer.Options + [loIrrelevantData];
       // There is a filler byte after the flags/options.
@@ -7187,8 +7558,17 @@ begin
       csG,
       csIndexed:
         begin
+          if ioMinIsWhite in Options then
+            SourceOptions := SourceOptions + [coMinIsWhite];
+          {$IFNDEF FPC}
           TargetColorScheme := CurrentColorScheme;
           TargetSamplesPerPixel := 1;
+          {$ELSE}
+          TargetColorScheme := csBGR;
+          TargetSamplesPerPixel := 3;
+          TargetBitsPerSample := 8; // Necessary since it might be different
+          PixelFormat := pf24Bit;
+          {$ENDIF}
         end;
       csGA,
       csIndexedA:
@@ -7293,8 +7673,12 @@ begin
         csG: // For csGA we don't need to create a palette since we're converting it to BGRA
           Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
         csIndexed:
-          Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
-            PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count, False);
+          begin
+            Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
+              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count);
+            ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
+              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
+          end;
         csIndexedA:
           ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
             PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
@@ -8044,6 +8428,7 @@ begin
               // effectively an Alpha layer, we just ignore it for now
               if ChannelCount{-BitmapCount+1} > 3 then
               begin
+                ColorScheme := csRGBA;
                 ColorManager.SourceColorScheme := csRGBA;
                 ColorManager.TargetColorScheme := csBGRA;
                 PixelFormat := pf32Bit;
@@ -8105,6 +8490,12 @@ begin
                   if BitsPerSample <> 8 then
                     LayerRowSize := (LayerRowSize + 3) div 4 * 4;
 
+                  {$IFDEF FPC}
+                  TargetColorScheme := csBGR;
+                  TargetBitsPerSample := 8;
+                  TargetSamplesPerPixel := 3;
+                  PixelFormat := pf24Bit;
+                  {$ENDIF}
                   for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
                   begin
                     // Note: I don't have any samples for BPS = 1 or 4 and am not
@@ -8175,7 +8566,10 @@ begin
 
               Move(Run^, RawPalette, Index * SizeOf(TRGBQuad));
               Inc(Run, Index * SizeOf(TRGBQuad));
-              Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, True);
+              Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, False {BGR order});
+              {$IFDEF FPC}
+              ColorManager.SetSourcePalette([@RawPalette], pfInterlaced8Quad, False {BGR order});
+              {$ENDIF}
             end;
         end;
 
@@ -8548,6 +8942,7 @@ procedure TPNGGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIn
 var
   Description: TIHDRChunk;
   Run: PByte;
+  PaletteBuf: Pointer;
 
 begin
   inherited;
@@ -8561,6 +8956,7 @@ begin
       FProgressRect := Rect(0, 0, Width, 1);
       Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
+      PaletteBuf := nil;
       FPalette := 0;
       FTransparency := nil;
       FBackgroundColor := clWhite;
@@ -8608,11 +9004,17 @@ begin
               begin
                 // first setup pixel format before actually creating a palette
                 FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
-                FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3, False);
+                FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
+                // We need to copy palette from FRawBuffer because FRawBuffer
+                // will be reused...
+                // Always needed for fpc but also in Delphi for Indexed with Alpha.
+                GetMem(PaletteBuf, FHeader.Length);
+                Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
+                ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
               end;
               Continue;
             end
-            else                             
+            else
               if IsChunk(gAMA) then
               begin
                 ReadDataAndCheckCRC(Run);
@@ -8657,6 +9059,12 @@ begin
           Decoder.DecodeEnd;
         if Assigned(FRawBuffer) then
           FreeMem(FRawBuffer);
+        if Assigned(PaletteBuf) then
+          FreeMem(PaletteBuf);
+        if Assigned(FTransparency) then begin
+          FreeMem(FTransparency);
+          FTransparency := nil;
+        end;
         Progress(Self, psEnding, 0, False, FProgressRect, '');
       end;
     end;
@@ -8743,6 +9151,7 @@ begin
               ReadDataAndCheckCRC(Run);
               // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
               FileGamma := SwapLong(PCardinal(FRawBuffer)^) / 100000;
+              Include(Options, ioUseGamma);
               Continue;
             end
             else
@@ -8858,12 +9267,26 @@ begin
     else
       TargetBPP := FSourceBPP;
 
-    if FPalette <> 0 then
-      Palette := FPalette;
     // after setting the pixel format we can set the dimensions too without
     // initiating color conversions
     Width := TIHDRChunk(Description).Width;
     Height := TIHDRChunk(Description).Height;
+
+    {$IFNDEF FPC}
+    // For pf1Bit Indexed images with a color palette it is necessary to set
+    // PixelFormat AFTER setting Width and Height or else we will get a
+    // black/white color palette, see also
+    // - http://www.efg2.com/Lab/ImageProcessing/pf1bit.htm
+    // - http://www.efg2.com/Lab/ImageProcessing/Scanline.htm#pf1bit
+    // Even though the showing black part was fixed in Delphi 6, it still appears
+    // to be necessary here to set PixelFormat after w/h to use a color palette.
+    if (FImageProperties.ColorScheme = csIndexed) and (FImageProperties.BitsPerPixel = 1) then
+      PixelFormat := pf1Bit;
+    {$ENDIF}
+
+    // Needs to be after setting PixelFormat or we will get a b/w palette in the above case
+    if FPalette <> 0 then
+      Palette := FPalette;
 
     // set background and transparency color, these values must be set after the
     // bitmap is actually valid (although, not filled)
@@ -8890,6 +9313,9 @@ begin
     // follow each other (handled in ReadRow)
     EvenRow := True;
 
+    {$IFDEF FPC}
+    BeginUpdate;
+    {$ENDIF}
     // prepare interlaced images
     if TIHDRChunk(Description).Interlaced = 1 then
     begin
@@ -8945,6 +9371,9 @@ begin
         OffsetRect(FProgressRect, 0, 1);
       end;
     end;
+    {$IFDEF FPC}
+    EndUpdate;
+    {$ENDIF}
 
     // in order to improve safe failness we read all remaining but not read IDAT chunks here
     while IsChunk(IDAT) do
@@ -8975,12 +9404,16 @@ begin
   with FImageProperties do
   begin
     Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
-    if Keyword = 'Comment' then   // Only text chunks with the 'Comment' keyword are loaded
+    if (Keyword = 'Comment') or (Keyword = 'Description') or (Keyword = 'Title') then
     begin
+      // Only text chunks with the 'Comment', 'Description' and 'Title' keywords are loaded
       Offset := Length(Keyword) + 1;
       SetLength(Contents, FHeader.Length - Offset + 1);
       StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
-      Comment := Comment + PAnsiChar(Contents);
+      if Comment = '' then
+        Comment := PAnsiChar(Contents)
+      else // Add NewLine character between multiple comments
+        Comment := Comment + #10 + PAnsiChar(Contents);
     end;
   end;
 end;
@@ -9034,12 +9467,23 @@ begin
         ;
     else
       // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
-      SetLength(FTransparency, 256);
+      GetMem(FTransparency, 256);
       // read the values (at most 256)...
-      Move(FRawBuffer^,  FTransparency[0], Min(FHeader.Length, 256));
+      Move(FRawBuffer^,  FTransparency^, Min(FHeader.Length, 256));
       // ...and set default values (255, fully opaque) for non-supplied values
       if FHeader.Length < 256 then
-        FillChar(FTransparency[FHeader.Length], 256 - FHeader.Length, $FF);
+        FillChar(FTransparency^[FHeader.Length], 256 - FHeader.Length, $FF);
+      // Since we now know that we have an Indexed Scheme with alpha we will
+      // have to change some settings
+      // For both Delphi and Fpc we will have to use BGRA as target
+      FImageProperties.ColorScheme := csIndexedA;
+      ColorManager.SourceColorScheme := csIndexedA;
+      ColorManager.TargetColorScheme := csBGRA;
+      ColorManager.TargetSamplesPerPixel := 4;
+      ColorManager.TargetBitsPerSample := 8; // Needed for Delphi, in Fpc we already have it set to 8 here.
+      PixelFormat := pf32Bit;
+      // Set Alpha Palette in ColorManager
+      ColorManager.SetSourceAlphaPalette(FTransparency);
     end;
   end;
 end;
@@ -9138,11 +9582,11 @@ begin
       with ColorManager do
       begin
         SourceColorScheme := csG;
-        TargetColorScheme := csG;
-
         SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
         SourceBitsPerSample := BitDepth;
+        {$IFNDEF FPC}
+        TargetColorScheme := csG;
+        TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         case BitDepth of
           2:
@@ -9152,6 +9596,11 @@ begin
         else
           TargetBitsPerSample := BitDepth;
         end;
+        {$ELSE}
+        TargetColorScheme := csBGR;
+        TargetSamplesPerPixel := 3;
+        TargetBitsPerSample := 8;
+        {$ENDIF}
 
         PixelFormat := TargetPixelFormat;
         FPalette := CreateGrayscalePalette(False);
@@ -9179,34 +9628,45 @@ begin
       with ColorManager do
       begin
         SourceColorScheme := csIndexed;
-        TargetColorScheme := csIndexed;
         SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
         SourceBitsPerSample := BitDepth;
+        {$IFNDEF FPC}
+        TargetColorScheme := csIndexed;
+        TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         if BitDepth = 2 then
           TargetBitsPerSample := 4
         else
           TargetBitsPerSample := BitDepth;
+        {$ELSE}
+        // Convert to BGR since fpc has trouble handling the other bitdepths
+        // and indexed mode png might specify a transparency channel in which
+        // case we will later change it to BGRA with 4 spp
+        TargetColorScheme := csBGR;
+        TargetSamplesPerPixel := 3;
+        TargetBitsPerSample := 8;
+        {$ENDIF}
 
-        PixelFormat := TargetPixelFormat;
+        {$IFNDEF FPC}
+        // See comment in LoadIDAT for the reason why this is necessary in Delphi
+        if BitDepth <> 1 then
+        {$ENDIF}
+          PixelFormat := TargetPixelFormat;
         Result := 1;
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
-    4: // gray scale with alpha,
-       // For the moment this format is handled without alpha, but might later be converted
-       // to RGBA with gray pixels or use a totally different approach.
+    4: // gray scale with alpha, handled by converting to RGBA
       if BitDepth in [8, 16] then
       with ColorManager do
       begin
-        SourceSamplesPerPixel := 1;
-        TargetSamplesPerPixel := 1;
+        SourceSamplesPerPixel := 2;
         SourceBitsPerSample := BitDepth;
-        TargetBitsPerSample := 8;
         SourceColorScheme := csGA;
-        TargetColorScheme := csIndexed;
-        PixelFormat := pf8Bit;
+        TargetSamplesPerPixel := 4;
+        TargetBitsPerSample := 8;
+        TargetColorScheme := csBGRA;
+        PixelFormat := TargetPixelFormat;
         FPalette := CreateGrayScalePalette(False);
         Result := 2 * BitDepth div 8;
       end
@@ -9960,37 +10420,38 @@ initialization
     // them first in order to avoid double entries.
     TPicture.UnregisterGraphicClass(TBitmap);
     TPicture.UnregisterGraphicClass(TIcon);
+    {$IFNDEF FPC}
     TPicture.UnregisterGraphicClass(TMetafile);
+    {$ENDIF}
 
     RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TBitmap);
     RegisterFileFormat('ico', gesIcons, '', [ftRaster], False, TIcon);
+    {$IFNDEF FPC}
     RegisterFileFormat('wmf', gesMetaFiles, '', [ftVector], False, TMetafile);
     RegisterFileFormat('emf', gesMetaFiles, gesEnhancedMetaFiles, [ftVector], False, TMetafile);
+    {$ENDIF}
 
     // 2013-06-22 in preparation for better jpeg handling use a define
     // around jpeg specific stuff
-  {$ifdef JpegGraphic}
-    TPicture.UnregisterGraphicClass(TJPEGImage);
-    RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
-    RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
-  {$endif ~JpegGraphic}
-
-    // Paintshop pro *.msk files are just grayscale bitmaps.
-    RegisterFileFormat('msk', '', '', [ftRaster], False, TBitmap);
+    {$ifdef JpegGraphic}
+      TPicture.UnregisterGraphicClass(TJPEGImage);
+      RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
+      RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
+    {$endif ~JpegGraphic}
 
     // register our own formats
     RegisterFileFormat('rle', gesBitmaps, gesRLEBitmaps, [ftRaster], False, TBitmap);
     RegisterFileFormat('dib', '', gesDIBs, [ftRaster], False, TBitmap);
 
-    {$ifdef TargaGraphic}
-      RegisterFileFormat('tga', gesTruevision, '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('vst', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('vda', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('win', '', '', [ftRaster], False, TTargaGraphic);
-      RegisterFileFormat('icb', '', '', [ftRaster], False, TTargaGraphic);
-    {$endif TargaGraphic}
+    {$ifdef PortableNetworkGraphic}
+      RegisterFileFormat('png', gesPortableNetworkGraphic, '', [ftRaster], False, TPNGGraphic);
+    {$endif PortableNetworkGraphic}
+
+    {$ifdef GIFGraphic}
+      RegisterFileFormat('gif', gesCompuserve, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
+    {$endif GIFGraphic}
 
     {$ifdef TIFFGraphic}
       // Set the TIFF error handler
@@ -10002,6 +10463,39 @@ initialization
         RegisterFileFormat('eps', gesEPS, '', [ftRaster], False, TEPSGraphic);
       {$endif EPSGraphic}
     {$endif TIFFGraphic}
+
+    {$ifdef PortableMapGraphic}
+      RegisterFileFormat('ppm', gesPortable, gesPortablePixel, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pnm', '', gesPortableAny, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pgm', '', gesPortableGray, [ftRaster], False, TPPMGraphic);
+      RegisterFileFormat('pbm', '', gesPortableMono, [ftRaster], False, TPPMGraphic);
+    {$endif PortableMapGraphic}
+
+    {$ifdef PhotoshopGraphic}
+      RegisterFileFormat('psd', gesPhotoshop, '', [ftRaster, ftLayered], False, TPSDGraphic);
+      RegisterFileFormat('pdd', '', '', [ftRaster, ftLayered], False, TPSDGraphic);
+    {$endif PhotoshopGraphic}
+
+    {$ifdef PaintshopProGraphic}
+      RegisterFileFormat('psp', gesPaintshopPro, '', [ftRaster, ftVector], False, TPSPGraphic);
+      RegisterFileFormat('pfr', '', gesPaintshopProFrames, [ftRaster, ftVector], False, TPSPGraphic);
+      RegisterFileFormat('tub', '', gesPaintshopProTubes, [ftRaster, ftVector], False, TPSPGraphic);
+
+      // Paintshop pro *.msk files are just grayscale bitmaps.
+      RegisterFileFormat('msk', '', '', [ftRaster], False, TBitmap);
+    {$endif PaintshopProGraphic}
+
+    {$ifdef TargaGraphic}
+      RegisterFileFormat('tga', gesTruevision, '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('vst', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('vda', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('win', '', '', [ftRaster], False, TTargaGraphic);
+      RegisterFileFormat('icb', '', '', [ftRaster], False, TTargaGraphic);
+    {$endif TargaGraphic}
+
+    {$ifdef PCDGraphic}
+      RegisterFileFormat('pcd', gesKodakPhotoCD, '', [ftRaster], False, TPCDGraphic);
+    {$endif PCDGraphic}
 
     {$ifdef PCXGraphic}
       RegisterFileFormat('pcx', gesZSoft, '', [ftRaster], False, TPCXGraphic);
@@ -10021,44 +10515,14 @@ initialization
       RegisterFileFormat('bw', '', gesSGIMono, [ftRaster], False, TSGIGraphic);
     {$endif SGIGraphic}
 
-    {$ifdef PhotoshopGraphic}
-      RegisterFileFormat('psd', gesPhotoshop, '', [ftRaster, ftLayered], False, TPSDGraphic);
-      RegisterFileFormat('pdd', '', '', [ftRaster, ftLayered], False, TPSDGraphic);
-    {$endif PhotoshopGraphic}
-
-    {$ifdef PortableMapGraphic}
-      RegisterFileFormat('ppm', gesPortable, gesPortablePixel, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pnm', '', gesPortableAny, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pgm', '', gesPortableGray, [ftRaster], False, TPPMGraphic);
-      RegisterFileFormat('pbm', '', gesPortableMono, [ftRaster], False, TPPMGraphic);
-    {$endif PortableMapGraphic}
+    {$ifdef CUTGraphic}
+      RegisterFileFormat('cut', gesHalo, '', [ftRaster], False, TCUTGraphic);
+    {$endif CUTGraphic}
 
     {$ifdef AutodeskGraphic}
       RegisterFileFormat('cel', gesAutodesk, '', [ftRaster], False, TAutodeskGraphic);
       RegisterFileFormat('pic', gesAutodesk, '', [ftRaster], False, TAutodeskGraphic);
     {$endif AutodeskGraphic}
-
-    {$ifdef PCDGraphic}
-      RegisterFileFormat('pcd', gesKodakPhotoCD, '', [ftRaster], False, TPCDGraphic);
-    {$endif PCDGraphic}
-
-    {$ifdef GIFGraphic}
-      RegisterFileFormat('gif', gesCompuserve, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
-    {$endif GIFGraphic}
-
-    {$ifdef CUTGraphic}
-      RegisterFileFormat('cut', gesHalo, '', [ftRaster], False, TCUTGraphic);
-    {$endif CUTGraphic}
-
-    {$ifdef PaintshopProGraphic}
-      RegisterFileFormat('psp', gesPaintshopPro, '', [ftRaster, ftVector], False, TPSPGraphic);
-      RegisterFileFormat('pfr', '', gesPaintshopProFrames, [ftRaster, ftVector], False, TPSPGraphic);
-      RegisterFileFormat('tub', '', gesPaintshopProTubes, [ftRaster, ftVector], False, TPSPGraphic);
-    {$endif PaintshopProGraphic}
-
-    {$ifdef PortableNetworkGraphic}
-      RegisterFileFormat('png', gesPortableNetworkGraphic, '', [ftRaster], False, TPNGGraphic);
-    {$endif PortableNetworkGraphic}
 
     {$ifdef ArtsAndLettersGraphic}
       RegisterFileFormat('ged', gesArtsAndLettersGraphic, '', [ftRaster], False, TGEDGraphic);

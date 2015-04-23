@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="ExternalLibs"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\external"/>
+        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Files Count="6">
+      <Item1>
+        <Filename Value="..\external\LibStub.pas"/>
+        <UnitName Value="LibStub"/>
+      </Item1>
+      <Item2>
+        <Filename Value="..\external\LibDelphi.pas"/>
+        <UnitName Value="LibDelphi"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\external\ZLibDelphi.pas"/>
+        <UnitName Value="ZLibDelphi"/>
+      </Item3>
+      <Item4>
+        <Filename Value="..\external\LibJpegDelphi.pas"/>
+        <UnitName Value="LibJpegDelphi"/>
+      </Item4>
+      <Item5>
+        <Filename Value="..\external\LibTiffDelphi.pas"/>
+        <UnitName Value="LibTiffDelphi"/>
+      </Item5>
+      <Item6>
+        <Filename Value="..\external\LibTiffDelphiHelper.pas"/>
+        <UnitName Value="LibTiffDelphiHelper"/>
+      </Item6>
+    </Files>
+    <RequiredPkgs Count="2">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

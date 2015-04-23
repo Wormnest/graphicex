@@ -3,13 +3,19 @@ unit DU_graphicex_TestFramework;
 interface
 
 uses
+  {$IFNDEF FPC}
   TestFramework;
+  {$ELSE}
+  fpcunit, testregistry;
+  {$ENDIF}
 
 type
   // Tests for graphicex TFileFormatList class
   TTestFileFormatList = class(TTestCase)
   private
+    {$IFNDEF FPC}
     MLM : IDUnitMemLeakMonitor;
+    {$ENDIF}
   public
     procedure SetUp; override;
     procedure TearDown; override;
@@ -30,6 +36,11 @@ type
   end;
 
   TRegisterFileFormatExceptionTests = class(TTestCase)
+  private
+    procedure DoNoExtensionException;
+    procedure DoInvalidExtensionException;
+    procedure DoTwiceReplaceFalseException;
+    procedure DoGraphicClassNilException;
   published
     procedure CheckNoExtensionException;
     procedure CheckInvalidExtensionException;
@@ -46,7 +57,9 @@ uses SysUtils, Classes, Graphics,
 procedure TTestFileFormatList.SetUp;
 begin
   inherited;
+  {$IFNDEF FPC}
   MLM := nil;
+  {$ENDIF}
 
   // TODO: Maybe it would be better to create our own FileFormat object here.
 end;
@@ -54,7 +67,9 @@ end;
 procedure TTestFileFormatList.TearDown;
 begin
   inherited;
+  {$IFNDEF FPC}
   MLM := nil;
+  {$ENDIF}
 end;
 
 procedure TTestFileFormatList.TestFileFormatListValid;
@@ -75,12 +90,20 @@ end;
 
 procedure TTestFileFormatList.TestUnregisterFileFormat;
 begin
-  //Check(True);
+  {$IFDEF IGNORE_EMPTY_TEST}
+  Self.Ignore('Test not Implemented!');
+  {$ELSE}
+  Check(False, 'Test not implemented!');
+  {$ENDIF}
 end;
 
 procedure TTestFileFormatList.TestFindExtension;
 begin
-  //Check(True);
+  {$IFDEF IGNORE_EMPTY_TEST}
+  Self.Ignore('Test not Implemented!');
+  {$ELSE}
+  Check(False, 'Test not implemented!');
+  {$ENDIF}
 end;
 
 //////////////// RegisterFileFormat - Basic Tests //////////////////////////
@@ -117,7 +140,9 @@ begin
 
   // Some memory isn't directly freed when registering and unregistering
   // file formats thus we turn FailsOnMemoryLeak off
+  {$IFNDEF FPC}
   FailsOnMemoryLeak := False;
+  {$ENDIF}
 
   // 2. test that extension is created and that Graphic Class is TBitmap
   FileFormatList.RegisterFileFormat('xyz', gesBitmaps, '', [ftRaster], False, TBitmap);
@@ -133,7 +158,9 @@ end;
 procedure TRegisterFileFormatTests.CheckReplacingExtension;
 var grclass: TGraphicClass;
 begin
+  {$IFNDEF FPC}
   FailsOnMemoryLeak := False;
+  {$ENDIF}
 
   // 1. Test that bmp extension exists
   Check(FileFormatList.GraphicFromExtension('bmp') <> nil, 'Graphic Extension bmp should exist!');
@@ -153,20 +180,42 @@ end;
 
 //////////////// RegisterFileFormat - Exception Tests //////////////////////////
 
+procedure TRegisterFileFormatExceptionTests.DoNoExtensionException;
+begin
+  // Setting empty extension should fail
+  FileFormatList.RegisterFileFormat('', gesBitmaps, '', [ftRaster], False, TBitmap);
+end;
+
+procedure TRegisterFileFormatExceptionTests.DoInvalidExtensionException;
+begin
+  // Setting extension starting with a '.' should fail
+  FileFormatList.RegisterFileFormat('.dot', gesBitmaps, '', [ftRaster], False, TBitmap);
+end;
+
+procedure TRegisterFileFormatExceptionTests.DoTwiceReplaceFalseException;
+begin
+  // Setting bmp extension twice should fail when Replace is False
+  FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TBitmap);
+end;
+
+procedure TRegisterFileFormatExceptionTests.DoGraphicClassNilException;
+begin
+  // Registering file format with GraphicClass nil should fail
+  FileFormatList.RegisterFileFormat('xyz', gesBitmaps, '', [ftRaster], False, nil);
+end;
+
 procedure TRegisterFileFormatExceptionTests.CheckNoExtensionException;
 begin
   // Setting empty extension should fail
-  StartExpectingException(EInvalidGraphic);
-  FileFormatList.RegisterFileFormat('', gesBitmaps, '', [ftRaster], False, TBitmap);
-  StopExpectingException('Setting empty extension should fail!');
+  CheckException({$IFDEF FPC}@{$ENDIF}DoNoExtensionException, EInvalidGraphic,
+    'Setting empty extension should fail!');
 end;
 
 procedure TRegisterFileFormatExceptionTests.CheckInvalidExtensionException;
 begin
   // Setting extension starting with a '.' should fail
-  StartExpectingException(EInvalidGraphic);
-  FileFormatList.RegisterFileFormat('.dot', gesBitmaps, '', [ftRaster], False, TBitmap);
-  StopExpectingException('Setting extension starting with a ''.''should fail!');
+  CheckException({$IFDEF FPC}@{$ENDIF}DoInvalidExtensionException, EInvalidGraphic,
+    'Setting extension starting with a ''.''should fail!');
 
 {
   // 5. Test that adding extension starting with '.' fails
@@ -191,25 +240,23 @@ end;
 procedure TRegisterFileFormatExceptionTests.CheckTwiceReplaceFalseException;
 begin
   // Setting bmp extension twice should fail when Replace is False
-  StartExpectingException(EInvalidGraphic);
-  FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TBitmap);
-  StopExpectingException('Setting bmp extension twice should fail when Replace is False!');
+  CheckException({$IFDEF FPC}@{$ENDIF}DoTwiceReplaceFalseException, EInvalidGraphic,
+    'Setting bmp extension twice should fail when Replace is False!');
 end;
 
 procedure TRegisterFileFormatExceptionTests.CheckGraphicClassNilException;
 begin
   // Registering file format with GraphicClass nil should fail
-  StartExpectingException(EInvalidGraphic);
-  FileFormatList.RegisterFileFormat('xyz', gesBitmaps, '', [ftRaster], False, nil);
-  StopExpectingException('Registering file format with GraphicClass nil should fail!');
+  CheckException({$IFDEF FPC}@{$ENDIF}DoGraphicClassNilException, EInvalidGraphic,
+    'Registering file format with GraphicClass nil should fail!');
 end;
 
 
 initialization
   RegisterTests('Test graphicex.Test Class FileFormatList.Basic Tests',
-    [TTestFileFormatList.Suite]);
+    [TTestFileFormatList{$IFNDEF FPC}.Suite{$ENDIF}]);
   RegisterTests('Test graphicex.Test Class FileFormatList.RegisterFileFormat',
-    [TRegisterFileFormatTests.Suite]);
+    [TRegisterFileFormatTests{$IFNDEF FPC}.Suite{$ENDIF}]);
   RegisterTests('Test graphicex.Test Class FileFormatList.RegisterFileFormat.Exceptions',
-    [TRegisterFileFormatExceptionTests.Suite]);
+    [TRegisterFileFormatExceptionTests{$IFNDEF FPC}.Suite{$ENDIF}]);
 end.

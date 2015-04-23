@@ -10,8 +10,17 @@ interface
 
 {$WARN SYMBOL_PLATFORM OFF} // FindFirst: faHidden, faSysFile, faArchive
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses SysUtils, Forms, Classes, Windows, Messages, Graphics, ComCtrls,
+     {$IFNDEF FPC}
      jpeg,
+     {$ELSE}
+     LclType, FPReadJPEG,
+     gexJpegWrapper, // Extended TJpegImage with support for scale (add after Graphics!)
+     {$ENDIF}
      rkView;
 
 const
@@ -177,9 +186,9 @@ type
     procedure DoUpdateThumbnailSize(ASize: Integer); virtual;
     procedure UpdateView; virtual;
 
-    procedure ItemPaintBasic(Canvas: TCanvas; R: TRect; State: TsvItemState);
+    procedure ItemPaintBasic(ACanvas: TCanvas; R: TRect; State: TsvItemState);
     // Paint function to be attached to rkView's OnCellPaint
-    procedure ViewMainCellPaint(Sender: TObject; Canvas: TCanvas;
+    procedure ViewMainCellPaint(Sender: TObject; ACanvas: TCanvas;
       Cell: TRect; IdxA, Idx: Integer; State: TsvItemState);
 
     property MaxThumbSizeW: Integer read FMaxThumbSizeW write FMaxThumbSizeW;
@@ -416,7 +425,12 @@ begin
           iBlu := iBlu + pt.B;
           inc(pt);
         end;
+        {$IFNDEF FPC}
         RowSource := RowSource - iSrc;
+        {$ELSE}
+        // fpc TBitmap rawdata always top to bottom?
+        RowSource := RowSource + iSrc;
+        {$ENDIF}
       end;
       iRatio := $00FFFFFF div (dx * dy);
       pt := PRGB24(RowDest + x3);
@@ -426,7 +440,12 @@ begin
       x1 := x1 + 3 * dx;
       inc(x3, 3);
     end;
+    {$IFNDEF FPC}
     RowDest := RowDest - iDst;
+    {$ELSE}
+    // fpc TBitmap rawdata always top to bottom?
+    RowDest := RowDest + iDst;
+    {$ENDIF}
     RowSourceStart := RowSource;
   end;
 end;
@@ -679,7 +698,9 @@ begin
   if ThumbBmp <> nil then
   begin
     FThumbJpeg.Assign(ThumbBmp);
+    {$IFNDEF FPC}
     FThumbJpeg.Compress;
+    {$ENDIF}
     MS := TMemoryStream.Create;
     try
       MS.Position := 0;
@@ -1077,6 +1098,18 @@ begin
   end;
 end;
 
+{$IFDEF FPC}
+function Rect( ATop, ALeft, ABottom, ARight: Integer): TRect; inline;
+begin
+  with Result do begin
+    Top := ATop;
+    Left := ALeft;
+    Bottom := ABottom;
+    Right := ARight;
+  end;
+end;
+{$ENDIF}
+
 function TgexBaseForm.GetThumbBitmap(Idx: Integer): TBitmap;
 var
   i, n, sf: Integer;
@@ -1144,9 +1177,9 @@ begin
           tmp := TBitmap.Create;
           try
             tmp.Canvas.Lock;
-            tmp.PixelFormat := pf24bit;
             tmp.Width := CellJPEG.Width;
             tmp.Height := CellJPEG.Height;
+            tmp.PixelFormat := pf24bit;
             tmp.Canvas.Draw(0, 0, CellJPEG);
             Bmp.Width := pt.x;
             Bmp.Height := pt.y;
@@ -1202,48 +1235,48 @@ begin
   end;
 end;
 
-procedure TgexBaseForm.ItemPaintBasic(Canvas: TCanvas; R: TRect; State: TsvItemState);
+procedure TgexBaseForm.ItemPaintBasic(ACanvas: TCanvas; R: TRect; State: TsvItemState);
 var
   C: TColor;
 begin
-  Canvas.Brush.Style := bsClear;
+  ACanvas.Brush.Style := bsClear;
   if ( State = svSelected ) or ( State = svHot ) then
   begin
     if ( ThumbView.Focused) and ( State = svSelected ) then
     begin
-      Canvas.Pen.Color := cSelected;
-      WinGradient( Canvas.Handle, R, cGSelectedStart, cGSelectedEnd );
+      ACanvas.Pen.Color := cSelected;
+      WinGradient( ACanvas.Handle, R, cGSelectedStart, cGSelectedEnd );
     end
     else if ( State = svHot ) then
     begin
-      Canvas.Pen.Color := cHot;
-      WinGradient( Canvas.Handle, R, cGHotStart, cGHotEnd );
+      ACanvas.Pen.Color := cHot;
+      WinGradient( ACanvas.Handle, R, cGHotStart, cGHotEnd );
     end
     else
     begin
-      Canvas.Pen.Color := cDisabled;
+      ACanvas.Pen.Color := cDisabled;
       WinGradient( Canvas.Handle, R, cGDisabledStart, cGDisabledEnd );
     end;
-    Canvas.Rectangle( R );
+    ACanvas.Rectangle( R );
     if ( ThumbView.Focused ) then
       C := cShadeSelect
     else
       C := cShadeDisabled;
-    Canvas.Pen.Color := C;
-    Canvas.MoveTo( R.Left + 1, R.Top + 2 );
-    Canvas.LineTo( R.Left + 1, R.Bottom - 2 );
-    Canvas.LineTo( R.Right - 2, R.Bottom - 2 );
-    Canvas.LineTo( R.Right - 2, R.Top + 1 );
-    Canvas.Pen.Style := psSolid;
-    Canvas.Pixels[ R.Left, R.Top ] := C;
-    Canvas.Pixels[ R.Left, R.Bottom - 1 ] := C;
-    Canvas.Pixels[ R.Right - 1, R.Top ] := C;
-    Canvas.Pixels[ R.Right - 1, R.Bottom - 1 ] := C;
+    ACanvas.Pen.Color := C;
+    ACanvas.MoveTo( R.Left + 1, R.Top + 2 );
+    ACanvas.LineTo( R.Left + 1, R.Bottom - 2 );
+    ACanvas.LineTo( R.Right - 2, R.Bottom - 2 );
+    ACanvas.LineTo( R.Right - 2, R.Top + 1 );
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Pixels[ R.Left, R.Top ] := C;
+    ACanvas.Pixels[ R.Left, R.Bottom - 1 ] := C;
+    ACanvas.Pixels[ R.Right - 1, R.Top ] := C;
+    ACanvas.Pixels[ R.Right - 1, R.Bottom - 1 ] := C;
   end;
 end;
 
 // Paint function to be attached to rkView's OnCellPaint
-procedure TgexBaseForm.viewMainCellPaint(Sender: TObject; Canvas: TCanvas;
+procedure TgexBaseForm.viewMainCellPaint(Sender: TObject; ACanvas: TCanvas;
   Cell: TRect; IdxA, Idx: Integer; State: TsvItemState);
 var
   x, y: Integer;
@@ -1259,33 +1292,33 @@ begin
     CellScale);
   TW := pt.X;
   TH := pt.Y;
-  Canvas.Lock; // Lock Canvas since we're in a thread
+  ACanvas.Lock; // Lock Canvas since we're in a thread
   try
-    ItemPaintBasic(Canvas, Cell, State);
+    ItemPaintBasic(ACanvas, Cell, State);
     F := ThumbView.Focused;
     S := State = svSelected;
     x := Cell.Left + ((Cell.Right - (Cell.Left + TW)) shr 1);
     y := Cell.Top + ((Cell.Bottom - (Cell.Top + TH)) shr 1);
     y := y - 10;
     if (Thumb.Image <> nil) and (Thumb.GotThumb) then
-      Canvas.Draw(x, y, GetThumbBitmap(idx));
+      ACanvas.Draw(x, y, GetThumbBitmap(idx));
     R.Left := X;
     R.Top := Y;
     R.Right := X + TW;
     R.Bottom := Y + TH;
-    Canvas.Pen.Color := CellBrdColor[F, S];
+    ACanvas.Pen.Color := CellBrdColor[F, S];
     InflateRect(R, 2, 2);
-    Canvas.Rectangle(R);
-    Canvas.Pen.Color := clWhite;
+    ACanvas.Rectangle(R);
+    ACanvas.Pen.Color := clWhite;
     InflateRect(R, -1, -1);
-    Canvas.Rectangle(R);
+    ACanvas.Rectangle(R);
     R := Cell;
     R.Top := R.Bottom - 20;
     txt := Thumb.Name;
-    DrawText(Canvas.Handle, PChar(txt), Length(txt), R, DT_END_ELLIPSIS or
+    DrawText(ACanvas.Handle, PChar(txt), Length(txt), R, DT_END_ELLIPSIS or
       DT_SINGLELINE or DT_NOPREFIX or DT_CENTER or DT_VCENTER);
   finally
-    Canvas.Unlock;
+    ACanvas.Unlock;
   end;
 end;
 

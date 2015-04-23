@@ -62,6 +62,8 @@ unit GraphicColor;
 interface
 
 {$Include GraphicConfiguration.inc}
+
+{$IFNDEF FPC}
 {$Include Compilers.inc}
 
 {$ifdef COMPILER_7_UP}
@@ -71,6 +73,10 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+   // fpc
+  {$mode Delphi}
+{$ENDIF}
 
 uses
   Windows, Graphics, GraphicStrings, SysUtils;
@@ -83,6 +89,8 @@ type
   // Define UInt64 as Int64 for Delphi versions not having UInt64
   {$IF NOT Declared(UInt64)}
   UInt64 = Int64;
+  {$IFEND}
+  {$IF NOT Declared(PUInt64)}
   PUint64 = ^UInt64;
   {$IFEND}
 
@@ -218,19 +226,25 @@ type
     coNeedByteSwap,   // Endian switch needed
     coLabByteRange,   // CIE L*a*b* only, luminance range is from 0..255 instead 0..100
     coLabChromaOffset,// CIE L*a*b* only, chrominance values a and b are given in 0..255 instead -128..127
-    coSeparatePlanes  // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
+    coSeparatePlanes, // TIF: PlanarConfig = Separate planes: one color/alpha per plane instead of contigious
+    coUnequalSamples, // Signal that bits per sample values for each channel are not equal, e.g. bmp 16bpp 565
+    coPaletteBGR,     // Interlaced palette data is in BGR order instead of RGB
+    coMinIsWhite,     // Grayscale: Minimum value means white instead of black
+    coAlphaPalette    // Png: A separate alpha palette is specified for indexed images
   );
 
-  // Format of the raw data to create a color palette from
+  // Format of the raw data to create a palette from
   TRawPaletteFormat = (
-    pfInterlaced8Triple, // RGB triple with 8 bits per component
-    pfInterlaced8Quad,   // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
-    pfPlane8Triple,      // 3 separate planes of data with 8 bits per component
-    pfPlane8Quad,
-    pfInterlaced16Triple,// RGB triple with 16 bits per component
-    pfInterlaced16Quad,
-    pfPlane16Triple,     // 3 separate planes of data with 16 bits per component
-    pfPlane16Quad
+    pfUnknown,            // Palette format not set
+    pfGrayscale,          // Grayscale palette
+    pfInterlaced8Triple,  // RGB triple with 8 bits per component
+    pfInterlaced8Quad,    // RGB quad with 8 bits per component (fourth entry is reserved as in Windows' logical palette)
+    pfPlane8Triple,       // 3 separate planes of data with 8 bits per component (expected order RGB)
+    pfPlane8Quad,         // 4 separate planes of data with 8 bits per component (expecter order RGBreserved)
+    pfInterlaced16Triple, // RGB triple with 16 bits per component
+    pfInterlaced16Quad,   // RGB quad with 16 bits per component (fourth entry reserved)
+    pfPlane16Triple,      // 3 separate planes of data with 16 bits per component
+    pfPlane16Quad         // 4 separate planes of data with 16 bits per component
   );
 
   // Data format of samples based on the TIFF definitions
@@ -255,10 +269,13 @@ type
     FTargetBPS,                        // Bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
     FSourceSPP,                        // Samples per source pixel (allowed values are 1, 3, 4)
     FTargetSPP: Byte;                  // Samples per target pixel (allowed values are 1, 3, 4)
+    FSourceExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a source pixel
+    FTargetExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a target pixel
+    FSourceMultiBPS: array of Byte;    // Source bits per sample for each channel when not all values are the same (e.g. bmp 565)
+    FTargetMultiBPS: array of Byte;    // Target bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
     FDisplayGamma: Single;             // (Constant) gamma value of the current monitor (default is 2.2)
-    FGammaTable: array[Byte] of Byte;  // Contains precalculated gamma values for each possible component value
-                                       // (range is 0..255)
+    FGammaTable: array of Byte;        // Contains precalculated gamma values for each possible component value (range is usually 0..255)
     FYCbCrCoefficients: array[0..2] of Single;
     FHSubsampling,
     FVSubSampling: Byte;               // Additional parameters used for YCbCr conversion
@@ -269,6 +286,7 @@ type
 
     FSourcePaletteFormat: TRawPaletteFormat; // Format of palette data
     FSourcePaletteData: array of Pointer;    // Pointer(s) to palette data
+    FSourceAlphaPalette: PByteArray;         // Pointer to alpha only palette (256 bytes)
 
     FSourceDataFormat,
     FTargetDataFormat: TSampleDataFormat;
@@ -333,6 +351,8 @@ type
     procedure CreateYCbCrLookup;
     function GetPixelFormat(Index: Integer): TPixelFormat;
     procedure PrepareConversion;
+    procedure InitGammaTable(ASourceBPS, ATargetBPS: Byte);
+    // Property setters
     procedure SetSourceBitsPerSample(const Value: Byte);
     procedure SetSourceColorScheme(const Value: TColorScheme);
     procedure SetSourceSamplesPerPixel(const Value: Byte);
@@ -346,11 +366,14 @@ type
 
     procedure ConvertRow(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     function CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat; ColorCount: Cardinal;
-      RGB: Boolean): HPALETTE;
+      RGB: Boolean = True): HPALETTE;
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
-    procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+    procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
+    procedure SetSourceAlphaPalette(AAlphaPalette: PByteArray);
+    procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+    procedure SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
 
     property SourceBitsPerSample: Byte read FSourceBPS write SetSourceBitsPerSample;
     property SourceColorScheme: TColorScheme read FSourceScheme write SetSourceColorScheme;
@@ -358,12 +381,14 @@ type
     property SourcePixelFormat: TPixelFormat index 0 read GetPixelFormat;
     property SourceSamplesPerPixel: Byte read FSourceSPP write SetSourceSamplesPerPixel;
     property SourceDataFormat: TSampleDataFormat read FSourceDataFormat write SetSourceDataFormat;
+    property SourceExtraBPP: Byte read FSourceExtraBPP write FSourceExtraBPP;
     property TargetBitsPerSample: Byte read FTargetBPS write SetTargetBitsPerSample;
     property TargetColorScheme: TColorScheme read FTargetScheme write SetTargetColorScheme;
     property TargetOptions: TConvertOptions read FTargetOptions write FTargetOptions;
     property TargetPixelFormat: TPixelFormat index 1 read GetPixelFormat;
     property TargetSamplesPerPixel: Byte read FTargetSPP write SetTargetSamplesPerPixel;
     property TargetDataFormat: TSampleDataFormat read FTargetDataFormat write SetTargetDataFormat;
+    property TargetExtraBPP: Byte read FTargetExtraBPP write FTargetExtraBPP;
   end;
 
 // Common color conversion functions
@@ -453,6 +478,11 @@ function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal
 type
   EColorConversionError = class(Exception);
 
+{$IFDEF FPC}
+  // Missing in fpc/lazarus
+var
+  SystemPalette16: HPalette;
+{$ENDIF}
 
 implementation
 
@@ -1290,9 +1320,14 @@ begin
   FTargetBPS := 8;
   FSourceSPP := 3; // 24 bit format
   FTargetSPP := 3; // 24 bit format
-  SetGamma(1, DefaultDisplayGamma);
+  FSourceExtraBPP := 0;
+  FTargetExtraBPP := 0;
   FSourceScheme := csRGB;
   FTargetScheme := csBGR;
+  FMainGamma := 1;
+  FDisplayGamma := DefaultDisplayGamma;
+  SetLength(FGammaTable, 0);
+  FSourcePaletteFormat := pfUnknown;
 
   // defaults are from CCIR Recommendation 601-1
   FYCbCrCoefficients[0] := 0.299;
@@ -1374,42 +1409,66 @@ function TColorManager.ComponentScaleConvert14To8(Value: Word; BitsPerSample: By
 begin
   // Convert/scale down from 14 bits to 8 bits
   // 14 bits 2^14 = 16384 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 16384);
+  //Result := MulDiv16(Value, 256, 16384);
+  // This is faster:
+  Result := Value shr 6;
 end;
 
 function TColorManager.ComponentScaleConvert12To8(Value: Word; BitsPerSample: Byte = 12): Byte;
 begin
   // Convert/scale down from 12 bits to 8 bits
   // 12 bits 2^12 = 4096 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 4096);
+  //Result := MulDiv16(Value, 256, 4096);
+  // This is faster:
+  Result := Value shr 4;
 end;
 
 function TColorManager.ComponentScaleConvert10To8(Value: Word; BitsPerSample: Byte = 10): Byte;
 begin
   // Convert/scale down from 10 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 1024);
+  //Result := MulDiv16(Value, 256, 1024);
+  // This is faster:
+  Result := Value shr 2;
 end;
 
 function TColorManager.ComponentScaleConvert6To8(Value: Word; BitsPerSample: Byte = 6): Byte;
 begin
   // Convert/scale up from 6 bits to 8 bits
   // 10 bits 2^10 = 1024 ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, 64);
+  if Value = 0 then
+    Result := 0
+  else
+    // Scale up to 8 bits
+    Result := (Value+1) shl (8-6) - 1;
 end;
 
 function TColorManager.ComponentScaleConvertUncommonTo8(Value: Word; BitsPerSample: Byte): Byte;
 begin
   // Convert/scale up or down from uncommmon n bits to 8 bits
   // n bits 2^n = ... ==> 8 bits = 256
-  Result := MulDiv16(Value, 256, CBitsDivisor[BitsPerSample]);
+  // Todo: split into 2 functions: 1 one for scaling down and one for scaling up
+  if Value = 0 then
+    Result := 0
+  else if BitsPerSample <= 8 then
+    // Scale up to 8 bits
+    Result := (Value+1) shl (8-BitsPerSample) - 1
+  else // Scale down to 8 bits
+    Result := Value shr (BitsPerSample-8);
 end;
 
 function TColorManager.ComponentScaleConvertTo4(Value: Word; BitsPerSample: Byte): Byte;
 begin
   // Convert/scale up or down from uncommmon n bits to 4 bits
   // n bits 2^n = ... ==> 4 bits = 16
-  Result := MulDiv16(Value, 16, CBitsDivisor[BitsPerSample]);
+  // Todo: split into 2 functions: 1 one for scaling down and one for scaling up
+  if Value = 0 then
+    Result := 0
+  else if BitsPerSample <= 4 then
+    // Scale up to 4
+    Result := (Value+1) shl (4-BitsPerSample) - 1
+  else // Scale down to 4
+    Result := Value shr (BitsPerSample-4);
 end;
 
 function TColorManager.ComponentScaleConvert17_24To8(Value: LongWord; BitsPerSample: Byte): Byte;
@@ -1526,7 +1585,9 @@ end;
 // WARNING: Currently assuming values between 0.0 and 1.0!
 function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte;
 var d: Double absolute Value;
-  TempVal: UInt64;
+  // Use integer since float can be negative and if it's too large to fit
+  // in Int64 then it is out of the expected range anyway
+  TempVal: Int64;
 begin
     TempVal := Trunc(d * 255);
     if TempVal < 0 then
@@ -1539,7 +1600,9 @@ end;
 // WARNING: Currently assuming values between 0.0 and 1.0!
 function TColorManager.ComponentScaleConvertFloat64To8(Value: UInt64): Byte;
 var d: Double absolute Value;
-  TempVal: UInt64;
+  // Use integer since float can be negative and if it's too large to fit
+  // in Int64 then it is out of the expected range anyway
+  TempVal: Int64;
 begin
     TempVal := Trunc(d * 255);
     if TempVal < 0 then
@@ -1554,7 +1617,8 @@ end;
 function TColorManager.ComponentScaleGammaConvert(Value: Word): Byte;
 
 begin
-  Result := FGammaTable[MulDiv16(Value, 255, 65535)];
+  //Result := FGammaTable[MulDiv16(Value, 255, 65535)];
+  Result := FGammaTable[Value shr 8];
 end;
 
 //------------------------------------------------------------------------------
@@ -1562,7 +1626,8 @@ end;
 function TColorManager.ComponentSwapScaleGammaConvert(Value: Word): Byte;
 
 begin
-  Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
+  //Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
+  Result := FGammaTable[Swap(Value) shr 8];
 end;
 
 //------------------------------------------------------------------------------
@@ -1570,7 +1635,8 @@ end;
 function TColorManager.ComponentSwapScaleConvert(Value: Word): Byte;
 
 begin
-  Result := MulDiv16(Swap(Value), 255, 65535);
+  //Result := MulDiv16(Swap(Value), 255, 65535);
+  Result := Swap(Value) shr 8;
 end;
 
 //------------------------------------------------------------------------------
@@ -3605,16 +3671,11 @@ begin
 end;
 
 function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
-var Sum: Cardinal;
 begin
-  Sum := BitIndex + NumberOfBits;
   // TODO Copy available bytes first so we dont get AV at end of buffer!
-  // Currently we expect either 10, 12, or 14 bits as NumberOfBits
-  // Since that can be spread over 3 bytes we use a 4 byte Cardinal
-  // First remove the high end bytes we don't need (shl)
-  // Then remove the unneeded low end bytes (BitIndex) (shr)
+  // Since 10 or more bits can be spread over 3 bytes we use a 4 byte Cardinal
   // NOT USED CURRENTLY since we found out we need to do it with MSB first (big endian)
-  Result := (BitData^ shl (32 - Sum)) shr (32 - NumberOfBits);
+  Result := (BitData^ shr BitIndex) and CBitMask[NumberOfBits];
 end;
 
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -3641,6 +3702,7 @@ var
   BitOffset: Cardinal; // Offset in Source byte where first bit starts
   BitIncrement: Cardinal; // Value to increment bits with, depends on FSourceBPS and AlphaSkip
   Bits, Bits2: Cardinal;
+  StartCount: Cardinal;
   Bits64: UInt64;
   FirstNibble: Boolean;
   GetBits32: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
@@ -3879,18 +3941,18 @@ begin
       else
         // Other targets unsupported for now
       end;
-    3: // Conversion of uncommon 3 bits to 4 bits only for now
+    2..4: // Conversion of 2..4 bits to 4 bits
       case FTargetBPS of
         4: // Convert to 4 bits
           begin
             Source8 := Source[0];
             Target8 := Target;
             BitOffset := 0;
-            Bits2 := 0; // Stop Delphi from complaining about Bits2 not being initialized
-            FirstNibble := True;
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
+            if Mask = $ff then begin
+              // No masking needed
+              Bits2 := 0; // Stop Delphi from complaining about Bits2 not being initialized
+              FirstNibble := True;
+              while Count > 0 do
               begin
                 // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                 // Since we are converting to 4 bits we need 2 values to fill a byte!
@@ -3910,14 +3972,52 @@ begin
                   Inc(Source8);
                   BitOffset := BitOffset mod 8;
                 end;
+                Dec(Count);
               end;
-              asm ROR BYTE PTR [BitRun], 1 end;
-              Dec(Count);
-            end;
-            // We need to check if the last nibble got written
-            if not FirstNibble then begin
-              // No second nibble at end of line: write only first nibble
-              Target8^ := Bits2;
+              // We need to check if the last nibble got written
+              if not FirstNibble then begin
+                // No second nibble at end of line: write only first nibble
+                Target8^ := Bits2;
+              end;
+            end
+            else begin
+              // Mask set (png)
+              StartCount := Count;
+              while Count > 0 do
+              begin
+                if Boolean(Mask and BitRun) then
+                begin
+                  // Since not all loops will go into the if when a mask is used
+                  // we have to compute the Target every time we do get here.
+                  //Bits2 := (StartCount - Count) div 2;
+                  Target8 := Target;
+                  Inc(Target8, (StartCount - Count) div 2);
+                  FirstNibble := (StartCount - Count) mod 2 = 0;
+                  //Bits2 := 0;
+                  // Since we are converting to 4 bits we need 2 values to fill a byte!
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  if FirstNibble then begin // First 4 bits
+                    Bits2 := ComponentScaleConvertTo4(Bits, FSourceBPS) shl 4;
+                    // Use and $ff00 to make sure the initial value of the part
+                    // we are replacing is 0
+                    Target8^ := (Target8^ and $ff00) or Bits2;
+                  end
+                  else begin
+                    // Second 4 bits
+                    // Use and $00ff to make sure the initial value of the part
+                    // we are replacing is 0
+                    Target8^ := (Target8^ and $00ff) or ComponentScaleConvertTo4(Bits, FSourceBPS);
+                  end;
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  if BitOffset >= 8 then begin
+                    Inc(Source8);
+                    BitOffset := BitOffset mod 8;
+                  end;
+                end;
+                asm ROR BYTE PTR [BitRun], 1 end;
+                Dec(Count);
+              end;
             end;
           end;
       else
@@ -3941,10 +4041,8 @@ var
   BitRun,
   TargetMask,
   TargetShift,
-  MaxOutSample,
   TargetBPS: Byte;  // Local copy to ease assembler access
   Done: Cardinal;
-  MaxInSample,      // Supporting up to and including 15 bits per sample for source input
   BitOffset: Word;  // Current start bit in source
 
 begin
@@ -3959,9 +4057,7 @@ begin
     // Make a copy of FTargetBPS from private variable to local variable
     // to ease access during assembler parts in the code
     TargetBPS := FTargetBPS;
-    MaxInSample := (1 shl FSourceBPS) - 1;
     TargetMask := (1 shl (8 - TargetBPS)) - 1;
-    MaxOutSample := (1 shl TargetBPS) - 1;
     TargetShift := 8 - TargetBPS;
     Done := 0;
     BitOffset := 0;
@@ -3983,7 +4079,6 @@ begin
           BitOffset := BitOffset mod 8;
           Inc(SourceRun);
         end;
-        Value := MulDiv16(Value, MaxOutSample, MaxInSample);
         TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
       end;
 
@@ -3998,7 +4093,7 @@ begin
         Dec(TargetShift, TargetBPS);
       Inc(Done);
       // Advance target pointer every (8 div target bit count)
-      if (Done mod (8 div TargetBPS)) = 0 then
+      if (Done mod (8 div Cardinal(TargetBPS))) = 0 then
         Inc(TargetRun);
     end;
   end;
@@ -4103,7 +4198,7 @@ begin
       Dec(TargetShift, TargetBPS);
     Dec(Count);
     // Advance target pointer every (8 div target bit count)
-    if (Count mod (8 div TargetBPS)) = 0 then
+    if (Count mod (8 div Cardinal(TargetBPS))) = 0 then
       Inc(TargetRun8);
   end;
 end;
@@ -4172,7 +4267,7 @@ end;
 // Index 0 in palette data should contain the red channel, 1 = green, 2 = blue.
 // Palette channel data as expected from TIF is always 16 bits.
 // pfPlane8Triple: PSD indexed
-// Mask is currently ignored here.
+// Mask is currently only used when converting png images.
 procedure TColorManager.RowConvertIndexed2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   PalIndex8: Byte;
@@ -4188,20 +4283,24 @@ var
   CopyAlpha: Boolean;
   SourceIncrement,
   TargetIncrement: Integer;
+  Multi: Cardinal;
+  BitRun: Byte;
+  ConvertGammaProc8: function(Value: Byte): Byte of object;
 begin
-  if Length(Source) = 0 then begin
-    ShowError(gesSourcePaletteUndefined);
-    Exit;
-  end;
-  // Mainly support for 8 and 16 bits per sample
-  if not (FSourceBPS in [1..16]) then
-    Exit;
+  BitRun := $80;
 
   AddAlpha := False;
   // Check how we need to handle alpha
   if coAlpha in FSourceOptions then
   begin
-    SourceIncrement := 2; // 1 indexed + 1 alpha
+    if not (coAlphaPalette in FSourceOptions) then
+      // SourceIncrement: Normally 2: 1 indexed + 1 alpha, but can be more e.g. tiff ExtraSamples
+      SourceIncrement := FSourceSPP
+    else begin
+      SourceIncrement := 1; // Separate alpha palette
+      if FSourceAlphaPalette = nil then
+        ShowError('No alpha palette defined!'); // Todo: move message to msg definitions unit
+    end;
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       CopyAlpha := True;
@@ -4213,7 +4312,8 @@ begin
   end
   else
   begin
-    SourceIncrement := 1; // 1 byte grayscale
+    // SourceIncrement: Normally 1 indexed byte, but can be more e.g. tiff ExtraSamples that are not alpha
+    SourceIncrement := FSourceSPP;
     if coAlpha in FTargetOptions then begin
       TargetIncrement := SizeOf(TBGRA);
       AddAlpha := True;
@@ -4401,6 +4501,157 @@ begin
             end;
         end;
       end;
+      pfInterlaced8Triple,
+      pfInterlaced8Quad:
+        begin
+          if Length(FSourcePaletteData) <> 1 then begin
+            ShowError(gesIncorrectPaletteDataCount);
+            Exit;
+          end;
+          case FSourceBPS of
+            8:
+              begin
+                SourceRun8 := Source[0]; // Palette index
+                if Length(Source) = 1 then begin
+                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
+                end
+                else begin
+                  SourceRun8A := Source[1];
+                end;
+                TargetRun8 := Target;
+
+                // If we have a triple then there are 3 components otherwise 4
+                if FSourcePaletteFormat = pfInterlaced8Triple then
+                  Multi := 3
+                else
+                  Multi := 4;
+
+                if coApplyGamma in FTargetOptions then
+                  ConvertGammaProc8 := ComponentGammaConvert
+                else
+                  ConvertGammaProc8 := ComponentNoConvert8;
+
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    // Get palette index
+                    PalIndex8 := SourceRun8^;
+
+                    // Store color info from palette index in Target
+                    // Todo: Check if it would be faster if we pre computed the
+                    // base offset of the prgb once or if the optimizer can
+                    // figure that out on its own
+                    // Todo: Setting color rgb/bgr should be an inline function type assigned before the loop
+                    if not (coPaletteBGR in FSourceOptions) then begin
+                      // RGB palette
+                      TargetRun8^.B := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R);
+                    end
+                    else begin
+                      // BGR palette
+                      TargetRun8^.B := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex8*Multi]).R);
+                    end;
+                    // Todo: Setting Alpha should be an inline function type assigned before the loop
+                    // Handle alpha
+                    if CopyAlpha then
+                      if not (coAlphaPalette in FSourceOptions) then
+                        TargetRun8^.A := SourceRun8A^
+                      else // png with separate transparency palette
+                        TargetRun8^.A := FSourceAlphaPalette^[PalIndex8]
+                    else if AddAlpha then
+                      // Source has no alpha but target needs alpha, set it to $ff
+                      TargetRun8^.A := $ff;
+
+                    Inc(SourceRun8, SourceIncrement);
+                    Inc(SourceRun8A, SourceIncrement);
+                  end; // if mask
+                  // Update BitRun mask
+                  asm ROR BYTE PTR [BitRun], 1 end;
+                  Inc(PByte(TargetRun8), TargetIncrement);
+
+                  Dec(Count);
+                end;
+              end;
+            1..7, 9..16:
+              begin
+                SourceRun8 := Source[0]; // Palette index
+                if Length(Source) = 1 then begin
+                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
+                end
+                else begin
+                  SourceRun8A := Source[1];
+                end;
+                TargetRun8 := Target;
+
+                // If we have a triple then there are 3 components otherwise 4
+                if FSourcePaletteFormat = pfInterlaced8Triple then
+                  Multi := 3
+                else
+                  Multi := 4;
+
+                if coApplyGamma in FTargetOptions then
+                  ConvertGammaProc8 := ComponentGammaConvert
+                else
+                  ConvertGammaProc8 := ComponentNoConvert8;
+
+                BitOffset := 0;
+
+                while Count > 0 do
+                begin
+                  if Boolean(Mask and BitRun) then
+                  begin
+                    // Get palette index
+                    PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun8));
+
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, FSourceBPS);
+                    Inc( PByte(SourceRun8), BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+
+                    // Store color info from palette index in Target
+                    // Todo: Check if it would be faster if we pre computed the
+                    // base offset of the prgb once or if the optimizer can
+                    // figure that out on its own
+                    if not (coPaletteBGR in FSourceOptions) then begin
+                      // RGB palette
+                      TargetRun8^.B := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PRGB(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R);
+                    end
+                    else begin
+                      // BGR palette
+                      TargetRun8^.B := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).B);
+                      TargetRun8^.G := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).G);
+                      TargetRun8^.R := ConvertGammaProc8(PBGR(@PByteArray(FSourcePaletteData[0])^[PalIndex*Multi]).R);
+                    end;
+
+                    // Todo: Setting Alpha should be an inline function type assigned before the loop
+                    // Handle alpha
+                    if CopyAlpha then
+                      if not (coAlphaPalette in FSourceOptions) then
+                        TargetRun8^.A := SourceRun8A^
+                      else // png with separate transparency palette
+                        TargetRun8^.A := FSourceAlphaPalette^[PalIndex]
+                    else if AddAlpha then
+                      // Source has no alpha but target needs alpha, set it to $ff
+                      TargetRun8^.A := $ff;
+
+                    Inc(SourceRun8A, SourceIncrement);
+
+                  end; // if mask
+                  // Update BitRun mask
+                  asm ROR BYTE PTR [BitRun], 1 end;
+
+                  Inc(PByte(TargetRun8), TargetIncrement);
+                  Dec(Count);
+                end;
+              end;
+          end;
+        end;
   else
     ShowError(gesPaletteFormatConversionUnsupported);
   end;
@@ -4409,23 +4660,48 @@ end;
 //------------------------------------------------------------------------------
 
 // Convert Grayscale(A) to BGR(A).
-// Source: Currently only 8 bits grayscale with optional 8 bits alpha
+// Source: grayscale with optional alpha
 // Mask is currently ignored.
 // Target BGR(A) = 24/32 bits only at the moment.
 procedure TColorManager.RowConvertGray2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   SourceRun8: PByte;
   SourceAlphaRun8: PByte;
+  Source32: PLongWord;
+  Source64: PUInt64;
   TargetRun8: PBGRA;
   GrayValue8: Byte;
   CopyAlpha,
   AddAlpha: Boolean;
   SourceIncrement,
   TargetIncrement: Integer;
+  // Convert up to 16 bits to 8 bits
+  ConvertAny16To8: function(Value: Word; BitsPerSample: Byte): Byte of object;
+  // Convert exactly 16 bits to 8 bits
+  Convert16To8: function(Value: Word): Byte of object;
+  Convert32: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
+  Convert64: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
+  SwapProc16: function(Value: Word): Word of object;
+  GetBits32: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+  GetBits64: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): UInt64;
+  Bits,
+  BitOffset,
+  BitIncrement: Cardinal;
+  BitRun: Byte;
+  Bits64: UInt64;
+
 begin
-  if Length(Source) = 0 then begin
-    ShowError(gesSourcePaletteUndefined);
-    Exit;
+  BitRun := $80;
+  // When this is an image with alpha and not planar we need to skip the alpha bits
+  // Tiff can have extrasamples that is not an alpha channel. That's why testing
+  // whether coAlpha is in FSourceOptions may fail in some rare cases.
+  // Thus we will check Source samples per pixel and skip anything above 1.
+  if (FSourceSPP > 1) and not (coSeparatePlanes in FSourceOptions) then
+  begin
+    BitIncrement := FSourceSPP * FSourceBPS; // Bits and alpha value (and possibly extra samples)
+  end
+  else begin
+    BitIncrement := FSourceBPS; // Bits only
   end;
 
   if not (coSeparatePlanes in FSourceOptions) then
@@ -4479,25 +4755,275 @@ begin
 
         while Count > 0 do
         begin
-          // Get grayscale index
-          GrayValue8 := SourceRun8^;
+          if Boolean(Mask and BitRun) then
+          begin
+            // Get grayscale index
+            GrayValue8 := SourceRun8^;
 
-          // Store grayscale info from palette index in Target
-          TargetRun8^.B := GrayValue8;
-          TargetRun8^.G := GrayValue8;
-          TargetRun8^.R := GrayValue8;
-          if CopyAlpha then
-            TargetRun8^.A := SourceAlphaRun8^
-          else if AddAlpha then
-            // Source has no alpha but target needs alpha, set it to $ff
-            TargetRun8^.A := $ff;
+            // If black/white is inverted then we need to invert the value
+            if coMinIsWhite in FSourceOptions then
+              GrayValue8 := not GrayValue8;
 
-          Inc(SourceRun8, SourceIncrement);
-          Inc(SourceAlphaRun8, SourceIncrement);
+            // Apply gamma correction if necessary
+            if (coApplyGamma in FTargetOptions) then
+              GrayValue8 := FGammaTable[GrayValue8];
+
+            // Store grayscale info from palette index in Target
+            TargetRun8^.B := GrayValue8;
+            TargetRun8^.G := GrayValue8;
+            TargetRun8^.R := GrayValue8;
+            if CopyAlpha then
+              TargetRun8^.A := SourceAlphaRun8^
+            else if AddAlpha then
+              // Source has no alpha but target needs alpha, set it to $ff
+              TargetRun8^.A := $ff;
+
+            Inc(SourceRun8, SourceIncrement);
+            Inc(SourceAlphaRun8, SourceIncrement);
+          end; // if mask
+          // Update BitRun mask
+          asm ROR BYTE PTR [BitRun], 1 end;
+
           Inc(PByte(TargetRun8), TargetIncrement);
 
           Dec(Count);
         end;
+      end;
+    16:
+      begin
+        // Currently only 8BPS target supported.
+        if FTargetBPS <> 8 then
+          Exit;
+        if Length(Source) > 1 then
+          Exit; // No planar alpha support here for now
+
+        // Set up source and target pointers
+        SourceRun8 := Source[0]; // Grayscale source
+        SourceAlphaRun8 := SourceRun8; Inc(SourceAlphaRun8, 2);
+        TargetRun8 := Target;    // BGR target
+
+        // Assign scale converter
+        // Half Float sample data format needs different conversion.
+        if FSourceDataFormat = sdfFloat then
+          Convert16To8 := ComponentScaleConvertFloat16To8
+        else
+          Convert16To8 := ComponentScaleConvert16To8;
+        if (coNeedByteSwap in FSourceOptions) then
+          SwapProc16 := ComponentSwapConvert
+        else
+          SwapProc16 := ComponentNoConvert16;
+
+        // Loop over all pixels in the current row
+        while Count > 0 do
+        begin
+          if Boolean(Mask and BitRun) then
+          begin
+            // Get grayscale value
+            GrayValue8 := Convert16To8(SwapProc16(PWord(SourceRun8)^));
+
+            // If black/white is inverted then we need to invert the value
+            if coMinIsWhite in FSourceOptions then
+              GrayValue8 := not GrayValue8;
+
+            // Apply gamma correction if necessary
+            if (coApplyGamma in FTargetOptions) then
+              GrayValue8 := FGammaTable[GrayValue8];
+
+            // Update source
+            Inc(SourceRun8, 2);
+
+            // Store grayscale value in Target
+            TargetRun8^.B := GrayValue8;
+            TargetRun8^.G := GrayValue8;
+            TargetRun8^.R := GrayValue8;
+
+            if CopyAlpha then begin
+              TargetRun8^.A := Convert16To8(SwapProc16(PWord(SourceAlphaRun8)^));
+              Inc(SourceRun8, 2); // Move beyond the alpha bits
+              Inc(SourceAlphaRun8, 4); // 2 alpha and 2 grayscale bytes
+            end
+            else if AddAlpha then
+              // Source has no alpha but target needs alpha, set it to $ff
+              TargetRun8^.A := $ff;
+          end; // if mask
+          // Update BitRun mask
+          asm ROR BYTE PTR [BitRun], 1 end;
+
+          Inc(PByte(TargetRun8), TargetIncrement);
+          Dec(Count);
+        end;
+      end;
+    1..7,
+    9..15:
+      begin
+        // Currently only 8BPS target supported.
+        if FTargetBPS <> 8 then
+          Exit;
+        if Length(Source) > 1 then
+          Exit; // No alpha support here for now
+
+        // Set up source and target pointers
+        SourceRun8 := Source[0]; // Grayscale source
+        SourceAlphaRun8 := SourceRun8; Inc(SourceAlphaRun8, 2); // Only used for 16 bits per sample
+        if (FSourceBPS <> 16) and CopyAlpha then begin
+          // Copying alpha currently only supported for 16 bps
+          AddAlpha := True;
+          CopyAlpha := False;
+        end;
+
+        TargetRun8 := Target;    // BGR target
+
+        // Assign scale converter
+        case FSourceBPS of
+           6: ConvertAny16To8 := ComponentScaleConvert6To8;
+          10: ConvertAny16To8 := ComponentScaleConvert10To8;
+          12: ConvertAny16To8 := ComponentScaleConvert12To8;
+          14: ConvertAny16To8 := ComponentScaleConvert14To8;
+        else
+          ConvertAny16To8 := ComponentScaleConvertUncommonTo8;
+        end;
+        if (coNeedByteSwap in FSourceOptions) and (FSourceBPS = 16) then
+          SwapProc16 := ComponentSwapConvert
+        else
+          SWapProc16 := ComponentNoConvert16;
+
+        // Number of bits to handle for 1 grayscale pixel
+        BitIncrement := FSourceBPS;
+        // Start at bit offset 0
+        BitOffset := 0;
+
+        // Loop over all pixels in the current row
+        while Count > 0 do
+        begin
+          if Boolean(Mask and BitRun) then
+          begin
+            // Get grayscale index
+            Bits := SwapProc16(GetBitsMSB(BitOffset, FSourceBPS, SourceRun8));
+
+            GrayValue8 := ConvertAny16To8(Bits, FSourceBPS);
+
+            // If black/white is inverted then we need to invert the value
+            if coMinIsWhite in FSourceOptions then
+              GrayValue8 := not GrayValue8;
+
+            // Apply gamma correction if necessary
+            if (coApplyGamma in FTargetOptions) then
+              GrayValue8 := FGammaTable[GrayValue8];
+
+            // Update the bit and byte pointers
+            Inc(BitOffset, BitIncrement);
+            Inc(SourceRun8, BitOffset div 8);
+            BitOffset := BitOffset mod 8;
+
+            // Store grayscale value in Target
+            TargetRun8^.B := GrayValue8;
+            TargetRun8^.G := GrayValue8;
+            TargetRun8^.R := GrayValue8;
+
+            if CopyAlpha then begin
+              // Currently assuming this will only happen for 16 bits per sample!
+              TargetRun8^.A := ConvertAny16To8(SwapProc16(PWord(SourceAlphaRun8)^), FSourceBPS);
+              Inc(SourceRun8, 2); // Move beyond the alpha bits
+              Inc(SourceAlphaRun8, 4); // 2 alpha and 2 grayscale bytes
+            end
+            else if AddAlpha then
+              // Source has no alpha but target needs alpha, set it to $ff
+              TargetRun8^.A := $ff;
+          end; // if mask
+          // Update BitRun mask
+          asm ROR BYTE PTR [BitRun], 1 end;
+
+          Inc(PByte(TargetRun8), TargetIncrement);
+          Dec(Count);
+        end;
+      end;
+    // No support for alpha for 17..64 bits per sample source
+    17..32: // Support for high bits per samples (mainly 24/32 bits)
+      case FTargetBPS of
+        8:  // Default 8 bits per sample target
+          begin
+            Source32 := Source[0];
+            TargetRun8 := Target;
+            GetBits32 := GetBitsMSB;
+            case FSourceBPS of
+               32:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat32To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert32To8;
+                 end;
+               24:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat24To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert17_24To8;
+                 end;
+               17..23: Convert32 := ComponentScaleConvert17_24To8;
+            else // Use else for 25..31 or else compiler will complain about uninitialized
+              {25..31:} Convert32 := ComponentScaleConvert25_31To8;
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+              Bits := GetBits32(BitOffset, FSourceBPS, PByte(Source32));
+              TargetRun8^.B := Convert32(Bits, FSourceBPS);
+              TargetRun8^.G := TargetRun8^.B;
+              TargetRun8^.R := TargetRun8^.B;
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source32), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(PByte(TargetRun8), TargetIncrement);
+            end;
+          end;
+      else
+        // Other targets unsupported for now
+      end;
+    33..64: // Support for high bits per samples (mainly 64 bits)
+      case FTargetBPS of
+        8:  // Default 8 bits per sample target
+          begin
+            Source64 := Source[0];
+            TargetRun8 := Target;
+            if FSourceBPS = 64 then begin
+              if FSourceDataFormat = sdfFloat then begin
+                Convert64 := ComponentScaleConvertFloat64To8;
+                GetBits64 := GetBitsDouble; // Apparently not BigEndian
+              end
+              else begin
+                Convert64 := ComponentScaleConvert64To8;
+                GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+              end;
+            end
+            else begin
+              Convert64 := ComponentScaleConvert33_63To8;
+              GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              Bits64 := GetBits64(BitOffset, FSourceBPS, PByte(Source64));
+              TargetRun8^.B := Convert64(Bits64, FSourceBPS);
+              TargetRun8^.G := TargetRun8^.B;
+              TargetRun8^.R := TargetRun8^.B;
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source64), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(PByte(TargetRun8), TargetIncrement);
+            end;
+          end;
+      else
+        // Other targets unsupported for now
       end;
   end;
 end;
@@ -5337,6 +5863,14 @@ begin
                     PBGRA(Target8)^.A := $FF; // opaque
                   end;
 
+                  // When there are extra (unused) bits in every pixel we need
+                  // to moved the offset again to skip those bits.
+                  if FSourceExtraBPP > 0 then begin
+                    Inc(BitOffset, FSourceExtraBPP);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+                  end;
+
                   Dec(Count);
                   Inc(Target8, 3 + AlphaSkip );
                 end;
@@ -5419,6 +5953,7 @@ var
   SourceB16,
   SourceA16: PWord;
 
+  Source8,
   SourceR8,
   SourceG8,
   SourceB8,
@@ -5434,6 +5969,7 @@ var
   SourceB64,
   SourceA64: PUint64;
 
+  Target8: PByte;
   TargetRun16: PRGB16;
   TargetRunA16: PRGBA16;
   TargetRun8: PRGB;
@@ -5448,10 +5984,22 @@ var
   Convert32_8Alpha: function(Value: LongWord): Byte of object;
   Convert64_8: function(Value: UInt64): Byte of object;
   Convert64_8Alpha: function(Value: UInt64): Byte of object;
+  // Convert up to 16 bits to 8 bits
+  ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
+  ConvertAny32To8: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
+  ConvertAny64To8: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
+  Bits,
+  BitOffset,
+  BitIncrement: Cardinal;
+  BitOffsetR,
+  BitOffsetG,
+  BitOffsetB,
+  BitOffsetA: Cardinal;
   CopyAlpha: Boolean;
+  AlphaSkip: Cardinal;
 
 begin
   BitRun := $80;
@@ -5463,6 +6011,7 @@ begin
     TargetIncrement := SizeOf(TRGB);
     if coAlpha in FTargetOptions then
       CopyAlpha := True;
+    AlphaSkip := 1;
   end
   else
   begin
@@ -5471,6 +6020,7 @@ begin
       TargetIncrement := SizeOf(TRGBA)
     else
       TargetIncrement := SizeOf(TRGB);
+    AlphaSkip := 0;
   end;
   // In planar mode source increment is always 1
   if Length(Source) > 1 then
@@ -5980,6 +6530,314 @@ begin
             end;
         end;
       end;
+    1..7,
+    9..15:
+      begin
+        // Currently only supporting conversion to 8 bpp target.
+        // Target 1 and 4 bits would need palette handling.
+        // Mask parameter not supported here since I'm not sure how to correctly
+        // implement it here and no material to test it on.
+
+        if (FSourceBPS = 5) and (FSourceExtraBPP > 0 ) and (Length(Source) = 1) then begin
+          // Special handling needed for 5 bits per sample with 1 extra bit
+          // since it needs special masking
+          Target8 := Target;
+          Source8 := Source[0];
+          if coAlpha in FTargetOptions then
+            AlphaSkip := 1;
+          while Count > 0 do begin
+            // This already includes a scale conversion 5 bits to 8 bits.
+            PRGB(Target8)^.R := Byte((PWord(Source8)^ and $1F) shl 3);
+            PRGB(Target8)^.G := Byte((PWord(Source8)^ and $3E0) shr 2);
+            PRGB(Target8)^.B := Byte((PWord(Source8)^ and $7C00) shr 7);
+
+            if coAlpha in FSourceOptions then begin
+              if coAlpha in FTargetOptions then
+                // Only need to use alpha if Target has alpha
+                if PWord(Source8)^ and $8000 = $8000 then
+                  // Alpha bit on
+                  PRGBA(Target8)^.A := $FF
+                else // Alpha off
+                  PRGBA(Target8)^.A := 0;
+              end
+            else if coAlpha in FTargetOptions then begin
+              // Source no Alpha, Target: add alpha
+              PRGBA(Target8)^.A := $FF; // opaque
+            end;
+
+            // Update Source and Target offsets and count
+            Inc(Source8, 2);
+            Inc(Target8, 3 + AlphaSkip);
+            Dec(Count);
+          end;
+        end
+        else begin
+          // General handling of everything else
+          BitIncrement := FSourceBPS;
+          case FTargetBPS of
+            8: // ... to 888
+              begin
+                Target8 := Target;
+                case FSourceBPS of
+                   6: ConvertAny16To8 := ComponentScaleConvert6To8;
+                  10: ConvertAny16To8 := ComponentScaleConvert10To8;
+                  12: ConvertAny16To8 := ComponentScaleConvert12To8;
+                  14: ConvertAny16To8 := ComponentScaleConvert14To8;
+                else
+                  ConvertAny16To8 := ComponentScaleConvertUncommonTo8;
+                end;
+
+                if Length(Source) = 1 then begin
+                   // Interleaved
+                  Source8 := Source[0];
+                  BitOffset := 0;
+                  while Count > 0 do
+                  begin
+                    // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                    // Red
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    PRGB(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+
+                    // Green
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    PRGB(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+
+                    // Blue
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    PRGB(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+
+                    if coAlpha in FSourceOptions then begin
+                      Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                      // Update the bit and byte pointers
+                      Inc(BitOffset, BitIncrement);
+                      Inc( Source8, BitOffset div 8 );
+                      BitOffset := BitOffset mod 8;
+                      if coAlpha in FTargetOptions then
+                        // Only need to use alpha if Target has alpha
+                        PRGBA(Target8)^.A := ConvertAny16To8(Bits, FSourceBPS);
+                      end
+                    else if coAlpha in FTargetOptions then begin
+                      // Source no Alpha, Target: add alpha
+                      PRGBA(Target8)^.A := $FF; // opaque
+                    end;
+
+                    // When there are extra (unused) bits in every pixel we need
+                    // to moved the offset again to skip those bits.
+                    if FSourceExtraBPP > 0 then begin
+                      Inc(BitOffset, FSourceExtraBPP);
+                      Inc( Source8, BitOffset div 8 );
+                      BitOffset := BitOffset mod 8;
+                    end;
+
+                    Dec(Count);
+                    Inc(Target8, 3 + AlphaSkip );
+                  end;
+                end
+                else begin
+                  // Planar mode
+                  SourceR8 := Source[0];
+                  SourceG8 := Source[1];
+                  SourceB8 := Source[2];
+                  if coAlpha in FSourceOptions then
+                    SourceA8 := Source[3]
+                  else
+                    SourceA8 := nil;
+                  BitOffsetR := 0;
+                  BitOffsetG := 0;
+                  BitOffsetB := 0;
+                  BitOffsetA := 0;
+                  while Count > 0 do
+                  begin
+                    // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                    // Red
+                    Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                    PRGB(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetR, BitIncrement);
+                    Inc( SourceR8, BitOffsetR div 8 );
+                    BitOffsetR := BitOffsetR mod 8;
+
+                    // Green
+                    Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                    PRGB(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetG, BitIncrement);
+                    Inc( SourceG8, BitOffsetG div 8 );
+                    BitOffsetG := BitOffsetG mod 8;
+
+                    // Blue
+                    Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                    PRGB(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetB, BitIncrement);
+                    Inc( SourceB8, BitOffsetB div 8 );
+                    BitOffsetB := BitOffsetB mod 8;
+
+                    if coAlpha in FSourceOptions then begin
+                      Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                      // Update the bit and byte pointers
+                      Inc(BitOffsetA, BitIncrement);
+                      Inc( SourceA8, BitOffsetA div 8 );
+                      BitOffsetA := BitOffsetA mod 8;
+                      if coAlpha in FTargetOptions then
+                        // Only need to use alpha if Target has alpha
+                        PRGBA(Target8)^.A := ConvertAny16To8(Bits, FSourceBPS);
+                      end
+                    else if coAlpha in FTargetOptions then begin
+                      // Source no Alpha, Target: add alpha
+                      PRGBA(Target8)^.A := $FF; // opaque
+                    end;
+
+                    Dec(Count);
+                    Inc(Target8, 3 + AlphaSkip );
+                  end;
+                end;
+              end;
+          end; // case
+        end;
+      end;
+    17..31:
+      begin
+        // Currently only supporting conversion to 8 bpp target.
+        // Mask parameter not supported here since I'm not sure how to correctly
+        // implement it here and no material to test it on.
+
+        BitIncrement := FSourceBPS;
+        case FTargetBPS of
+          8: // ... to 888
+            begin
+              Target8 := Target;
+              // Float sample data format needs separate conversion.
+              if (FSourceDataFormat = sdfFloat) and (FSourceBPS = 24) then
+                ConvertAny32To8 := ComponentScaleConvertFloat24To8
+              else
+                ConvertAny32To8 := ComponentScaleConvert17_24To8;
+
+              if Length(Source) = 1 then begin
+                 // Interleaved
+                Source8 := Source[0];
+                BitOffset := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PRGB(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PRGB(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  PRGB(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffset, BitIncrement);
+                  Inc( Source8, BitOffset div 8 );
+                  BitOffset := BitOffset mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffset, BitIncrement);
+                    Inc( Source8, BitOffset div 8 );
+                    BitOffset := BitOffset mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PRGBA(Target8)^.A := ConvertAny32To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PRGBA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end
+              else begin
+                // Planar mode
+                SourceR8 := Source[0];
+                SourceG8 := Source[1];
+                SourceB8 := Source[2];
+                if coAlpha in FSourceOptions then
+                  SourceA8 := Source[3]
+                else
+                  SourceA8 := nil;
+                BitOffsetR := 0;
+                BitOffsetG := 0;
+                BitOffsetB := 0;
+                BitOffsetA := 0;
+                while Count > 0 do
+                begin
+                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                  // Red
+                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetR, BitIncrement);
+                  Inc( SourceR8, BitOffsetR div 8 );
+                  BitOffsetR := BitOffsetR mod 8;
+
+                  // Green
+                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  PRGB(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetG, BitIncrement);
+                  Inc( SourceG8, BitOffsetG div 8 );
+                  BitOffsetG := BitOffsetG mod 8;
+
+                  // Blue
+                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  PRGB(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
+                  // Update the bit and byte pointers
+                  Inc(BitOffsetB, BitIncrement);
+                  Inc( SourceB8, BitOffsetB div 8 );
+                  BitOffsetB := BitOffsetB mod 8;
+
+                  if coAlpha in FSourceOptions then begin
+                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    // Update the bit and byte pointers
+                    Inc(BitOffsetA, BitIncrement);
+                    Inc( SourceA8, BitOffsetA div 8 );
+                    BitOffsetA := BitOffsetA mod 8;
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      PRGBA(Target8)^.A := ConvertAny32To8(Bits, FSourceBPS);
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PRGBA(Target8)^.A := $FF; // opaque
+                  end;
+
+                  Dec(Count);
+                  Inc(Target8, 3 + AlphaSkip );
+                end;
+              end;
+            end;
+        end; // case
+      end;
+    33..63: ;
   end;
 end;
 
@@ -6922,20 +7780,40 @@ begin
   else
     Exclude(FTargetOptions, coAlpha);
 
+  if (coApplyGamma in FTargetOptions) then
+    if not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
+      InitGammaTable(FSourceBPS, FTargetBPS)
+    else if (FSourceScheme in [csG, csGA]) then
+      if not (FTargetScheme in [csG, csGA]) then
+        // Conversion of grayscale to csBGRA etc expects gamma table to be in range 0..255
+        // for easier conversion.
+        InitGammaTable(8, 8);
+
   case FSourceScheme of
     csG:
-      if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
-         ((FSourceBPS = 3) and (FTargetBPS = 4)) then
-        FRowConversion := RowConvertGray
+      case FTargetScheme of
+        csBGR,
+        csBGRA,
+        csRGB,
+        csRGBA:
+          if (FTargetBPS = 8) and (FSourceBPS <= 64) then
+            FRowConversion := RowConvertGray2BGR;
       else
-        FRowConversion := RowConvertIndexed8;
+        if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
+           ((FSourceBPS in [2..4]) and (FTargetBPS = 4)) then
+          FRowConversion := RowConvertGray
+        else if (FTargetBPS >= FSourceBPS) and (FTargetBPS <= 8) then
+          // Source 1bps CSG --> Target 1bps CSG
+          // Todo: move this to RowConvertGray too
+          FRowConversion := RowConvertIndexed8;
+      end;
     csGA:
       case FTargetScheme of
         csBGR,
         csBGRA,
         csRGB,
         csRGBA:
-          if (FTargetBPS = 8) and (FSourceBPS = 8) then
+          if (FTargetBPS = 8) and (FSourceBPS <= 16) then
             FRowConversion := RowConvertGray2BGR;
       else
         if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
@@ -6963,8 +7841,11 @@ begin
                 else
                   if FTargetBPS = 16 then
                     FRowConversion := RowConvertIndexedTarget16
-                  else if FSourceSPP = FTargetSPP then
-                    FRowConversion := RowConvertIndexed8
+                  else if FSourceSPP = FTargetSPP then begin
+                    if FSourceBPS <= FTargetBPS then
+                      // Using less bits per sample for target than source doesn't make sense for indexed
+                      FRowConversion := RowConvertIndexed8
+                  end
                   else
                     // Tiff extrasamples > 0 but apparently not a normal alpha channel
                     FRowConversion := RowConvertGray;
@@ -6978,7 +7859,7 @@ begin
           csBGRA,
           csRGB,
           csRGBA:
-            if (FTargetBPS = 8) and (FSourceBPS = 8) then
+            if (FTargetBPS = 8) and (FSourceBPS <= 16) then
               FRowConversion := RowConvertIndexed2BGR;
         else
           if (FSourceBPS = 8) and (FTargetBPS = 8) then
@@ -7004,7 +7885,11 @@ begin
         csRGB,
         csRGBA: FRowConversion := RowConvertBGR2RGB;
         csBGR,
-        csBGRA: FRowConversion := RowConvertBGR2BGR;
+        csBGRA:
+          // Since the order of the colors doesn't change BGR -> BGR should be the same
+          // as RGB -> RGB and RowConvertBGR2BGR is less complete than RGB2RGB
+          FRowConversion := RowConvertRGB2RGB;
+          //FRowConversion := RowConvertBGR2BGR;
         csCMY: ;
         csCMYK: ;
         csCMYKA: ;
@@ -7196,6 +8081,14 @@ procedure TColorManager.ConvertRow(Source: array of Pointer; Target: Pointer; Co
 // - YCbCr parameters if any of the color schemes is csYCbCr
 
 begin
+  if Length(Source) = 0 then begin
+    ShowError(gesSourceUndefined);
+    Exit;
+  end;
+  if not Assigned(Target) then begin
+    ShowError(gesTargetUndefined);
+    Exit;
+  end;
   // If there are pending changes then apply them
   if FChanged then
     PrepareConversion;
@@ -7208,26 +8101,70 @@ end;
 
 //------------------------------------------------------------------------------
 
+// Sets flag that the bits per sample values for each channel differ and
+// initializes the bits per sample for each channel.
+// If ASampleCount is 1 or less then it removes the flag for multiple bps values.
+procedure TColorManager.SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+begin
+  if ASampleCount > 1 then begin
+    FSourceOptions := FSourceOptions + [coUnequalSamples];
+    SetLength(FSourceMultiBPS, Length(ASamples));
+    Move(ASamples[Low(ASamples)], FSourceMultiBPS[Low(FSourceMultiBPS)],
+      Length(ASamples)*SizeOf(Byte));
+  end
+  else
+    FSourceOptions := FSourceOptions - [coUnequalSamples];
+end;
+
+// Sets flag that the bits per sample values for each channel differ and
+// initializes the bits per sample for each channel.
+// If ASampleCount is 1 or less then it removes the flag for multiple bps values.
+procedure TColorManager.SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
+begin
+  if ASampleCount > 1 then begin
+    FTargetOptions := FTargetOptions + [coUnequalSamples];
+    SetLength(FTargetMultiBPS, Length(ASamples));
+    Move(ASamples[Low(ASamples)], FTargetMultiBPS[Low(FTargetMultiBPS)],
+      Length(ASamples)*SizeOf(Byte));
+  end
+  else
+    FTargetOptions := FTargetOptions - [coUnequalSamples];
+end;
+
 // Set Source Palette needed if we want to convert from indexed to non indexed format.
-procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat);
+procedure TColorManager.SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
 begin
   // No error checking for now.
   FSourcePaletteFormat := PaletteFormat;
+  if not RGB then
+    Include(FSourceOptions, coPaletteBGR);
   SetLength(FSourcePaletteData, Length(Data));
   Move(Data[Low(Data)], FSourcePaletteData[Low(FSourcePaletteData)], Length(Data)*SizeOf(Pointer));
 end;
 
+// Set Source Alpha palette from indexe png needed to be able to convert
+// IndexedA to BGRA/RGBA
+procedure TColorManager.SetSourceAlphaPalette(AAlphaPalette: PByteArray);
+begin
+  if (AAlphaPalette = nil) or (FSourceScheme <> csIndexedA) then begin
+    Exclude(FSourceOptions, coAlphaPalette);
+    FSourceAlphaPalette := nil;
+  end
+  else begin
+    Include(FSourceOptions, coAlphaPalette);
+    FSourceAlphaPalette := AAlphaPalette;
+  end;
+end;
+
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
-  ColorCount: Cardinal; RGB: Boolean): HPALETTE;
+  ColorCount: Cardinal; RGB: Boolean = True): HPALETTE;
 
 // Creates a color palette from the provided data which can be in various raw formats:
 // - either interlaced or plane
 // - 8 bits or 16 bits per component
 // - in RGB or BGR order
 // - with 3 or 4 components per entry (fourth is ignored)
-// ColorCount determines the number of color entries to create. If this number does not equal the
-// number of palette entries which would result from the given target bits per sample resolution
-// then the palette is adjusted accordingly to allow conversion between resolutions.
+// ColorCount determines the number of color entries to create.
 //
 // Notes: For interlaced formats only one pointer needs to be passed in Data (only the first one is used)
 //        while for plane data 3 pointers are necessary (for each plane one pointer).
@@ -7241,8 +8178,7 @@ function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TR
 // - Source and target bits per sample resolution
 
 var
-  I,
-  MaxIn, MaxOut: Integer;
+  I: Integer;
   LogPalette: TMaxLogPalette;
   RunR8,
   RunG8,
@@ -7261,6 +8197,12 @@ begin
   else
     LogPalette.palNumEntries := ColorCount;
 
+  if (coApplyGamma in FTargetOptions) then
+    // Since we currently don't support gamma conversion higher than 8 bits
+    // we don't need to see if the source or target palette is 16 bits.
+    // Because palette color entries are all 8 bits we just initialize to 8, 8.
+    InitGammaTable(8, 8);
+
   case DataFormat of
     pfInterlaced8Triple,
     pfInterlaced8Quad:
@@ -7275,9 +8217,9 @@ begin
         begin
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
-            LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
-            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
             LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
             if DataFormat = pfInterlaced8Quad then
               Inc(RunR8);
           end;
@@ -7286,9 +8228,9 @@ begin
         begin
           for I := 0 to LogPalette.palNumEntries - 1 do
           begin
-            LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
-            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
             LogPalette.palPalEntry[I].peBlue := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peGreen := Convert8(RunR8^); Inc(RunR8);
+            LogPalette.palPalEntry[I].peRed := Convert8(RunR8^); Inc(RunR8);
             if DataFormat = pfInterlaced8Quad then
               Inc(RunR8);
           end;
@@ -7382,52 +8324,12 @@ begin
         end;
       end;
   end;
-
-  MaxIn := (1 shl FSourceBPS);
-  MaxOut := (1 shl FTargetBPS);
-  if (FTargetBPS <= 8) and (MaxIn <> MaxOut) then
-  begin
-    if FSourceBPS < 16 then begin
-      // If target resolution and given color depth differ then the palette needs to be adjusted.
-      // Consider the case for 2 bit to 4 bit conversion. Only 4 colors will be given to create
-      // the palette but after scaling all values will be up to 15 for which no color is in the palette.
-      // This and the reverse case need to be accounted for.
-      if MaxIn < MaxOut then
-      begin
-        // Palette is too small, enhance it
-        for I := MaxOut-1 downto 0 do
-        begin
-          LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peRed;
-          LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peGreen;
-          LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxIn, MaxOut)].peBlue;
-        end;
-      end
-      else
-      begin
-        // Palette contains too many entries, shorten it
-        if FTargetBPS < 8 then begin
-          for I := 0 to MaxOut-1 do
-          begin
-            LogPalette.palPalEntry[I].peRed := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peRed;
-            LogPalette.palPalEntry[I].peGreen := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peGreen;
-            LogPalette.palPalEntry[I].peBlue := LogPalette.palPalEntry[MulDiv16(I, MaxOut, MaxIn)].peBlue;
-          end;
-        end
-        else if FTargetBPS > 8 then begin
-          // jb This is far more complicated than implemented above because a palette index
-          // is not the same as color where you can just downscale from 16 bit to 8 bit
-          // and only loose a little detail since subsequent palette indexes don't need
-          // to have subsequent color values.
-          // Therefore it's best not to use this function for 16 bit color palettes
-          // Instead it should probably be converted to a 24 bit rgb image.
-          // For now: just leave the palette as it is (already truncated to 256 indexes above)
-        end;
-      end;
-    end
-    else begin
-    end;
-    LogPalette.palNumEntries := MaxOut;
-  end;
+  if (FSourceBPS <> FTargetBPS) and (FTargetBPS <= 8) then
+    // We assume that cases where FTargetBPS < FSourceBPS will be handled differently.
+    // Set the palette size to the size of the target palette. Palette entries
+    // that were not initialized yet above will be left uninitialized since
+    // those entries will be unused.
+    LogPalette.palNumEntries := 1 shl FTargetBPS;
 
   // Finally create palette
   Result := CreatePalette(PLogPalette(@LogPalette)^);
@@ -7479,11 +8381,15 @@ begin
     end
     else
     begin
+      // Since target palette entries are 8 bits per sample we initialize
+      // gamma table target to 8 bps. The gamma table source is set to
+      // our target bps since that is the gamma range we want to convert to.
+      InitGammaTable(FTargetBPS, 8);
       for I := 0 to Upper do
       begin
-        LogPalette.palPalEntry[Upper - I].peBlue := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[Upper - I].peGreen := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[Upper - I].peRed := FGammaTable[I * Factor];
+        LogPalette.palPalEntry[Upper - I].peBlue := FGammaTable[I];
+        LogPalette.palPalEntry[Upper - I].peGreen := FGammaTable[I];
+        LogPalette.palPalEntry[Upper - I].peRed := FGammaTable[I];
       end;
     end;
   end
@@ -7500,11 +8406,15 @@ begin
     end
     else
     begin
+      // Since target palette entries are 8 bits per sample we initialize
+      // gamma table target to 8 bps. The gamma table source is set to
+      // our target bps since that is the gamma range we want to convert to.
+      InitGammaTable(FTargetBPS, 8);
       for I := 0 to Upper do
       begin
-        LogPalette.palPalEntry[I].peBlue := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[I].peGreen := FGammaTable[I * Factor];
-        LogPalette.palPalEntry[I].peRed := FGammaTable[I * Factor];
+        LogPalette.palPalEntry[I].peBlue := FGammaTable[I];
+        LogPalette.palPalEntry[I].peGreen := FGammaTable[I];
+        LogPalette.palPalEntry[I].peRed := FGammaTable[I];
       end;
     end;
   end;
@@ -7514,44 +8424,58 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
+{ InitGammaTable - Creates the gamma lookup table
 
-// Sets the current gamma values and creates the gamma lookup table
-//
-// Needed settings:
-// - Source bits per samples must be set
-// - Target bits per samples must be set
-
+ Needed settings:
+ - FMainGamma en FDisplayGamma must be set
+ - Parameters ASourceBPS and ATargetBPS:
+   For non indexed this should be the same as FSourceBPS and FTargetBPS
+   For grayscale source is the target bps and target 8bps (size of a palette color)
+   For indexed images they should be both 8 (size of a palette color)
+}
+// Todo: Check if we need additional handling for 16 bits source gamma handling
+// See also: http://www.w3.org/TR/PNG/#13Decoder-gamma-handling
+procedure TColorManager.InitGammaTable(ASourceBPS, ATargetBPS: Byte);
 var
   I,
   SourceHighBound,
   TargetHighBound: Integer;
   Gamma: Single;
+begin
+  Gamma := 1 / (FMainGamma * FDisplayGamma);
 
+  // Source high bound is the maximum possible source value which can appear (0..255)
+  if ASourceBPS >= 8 then
+    SourceHighBound := 255
+  else
+    SourceHighBound := (1 shl ASourceBPS) - 1;
+  // Target high bound is the target value which corresponds to a target sample value of 1 (0..255)
+  if ATargetBPS >= 8 then
+    TargetHighBound := 255
+  else
+    TargetHighBound := (1 shl ATargetBPS) - 1;
+  SetLength(FGammaTable, SourceHighBound+1);
+  for I := 0 to SourceHighBound  do
+    FGammaTable[I] := Round(Power((I / SourceHighBound), Gamma) * TargetHighBound);
+end;
+
+//------------------------------------------------------------------------------
+
+// Sets the current gamma values and sets FChanged to True
+// Since we can't be certain at this time that source and target bits per sample
+// have been set we will create the gamma table at a later stage.
+procedure TColorManager.SetGamma(MainGamma, DisplayGamma: Single);
 begin
   if MainGamma <= 0 then
     FMainGamma := 1
   else
     FMainGamma := MainGamma;
   if DisplayGamma <= 0 then
-    FDisplayGamma := 2.2 // Default value for a usual CRT
+    FDisplayGamma := DefaultDisplayGamma // Default value for a usual CRT
   else
     FDisplayGamma := DisplayGamma;
-
-  Gamma := 1 / (FMainGamma * FDisplayGamma);
-
-  // Source high bound is the maximum possible source value which can appear (0..255)
-  if FSourceBPS >= 8 then
-    SourceHighBound := 255
-  else
-    SourceHighBound := (1 shl FTargetBPS) - 1;
-  // Target high bound is the target value which corresponds to a target sample value of 1 (0..255)
-  if FTargetBPS >= 8 then
-    TargetHighBound := 255
-  else
-    TargetHighBound := (1 shl FTargetBPS) - 1;
-  for I := 0 to SourceHighBound  do
-    FGammaTable[I] := Round(Power((I / SourceHighBound), Gamma) * TargetHighBound);
+  SetLength(FGammaTable, 0);
+  FChanged := True;
 end;
 
 //------------------------------------------------------------------------------
@@ -7583,4 +8507,9 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPC}
+initialization
+  // Since it's a stock object, it doesn't have to be deleted on finalization
+  SystemPalette16 := GetStockObject(DEFAULT_PALETTE);
+{$ENDIF}
 end.

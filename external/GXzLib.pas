@@ -20,6 +20,7 @@ unit GXzLib;
 
 interface
 
+{$IFNDEF FPC}
 {$Include Compilers.inc}
 
 {$TYPEDADDRESS OFF}
@@ -38,6 +39,13 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
+{$ELSE}
+
+// fpc directives
+{$Z2}         // Enum size = word
+{$Align 4}    // Align record structures to 4 byte boundaries.
+
+{$ENDIF}
 
 const
   ZLIB_VERSION = '1.1.4';
@@ -128,6 +136,7 @@ implementation
 uses
   LibStub;
 
+{$IFNDEF FPC}
 {$L adler32.obj}
 {$L compress.obj}
 {$L crc32.obj}
@@ -141,6 +150,9 @@ uses
 {$L infcodes.obj}
 {$L infutil.obj}
 {$L inffast.obj}
+{$ELSE}
+{$linklib libz.a}
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 

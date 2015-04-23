@@ -253,7 +253,7 @@ Set the default options for FastMM here.
   {$define FullDebugMode}
   {$define EnableMemoryLeakReporting}
   {$define UseOutputDebugString}
-  {$define ManualLeakReportingControl}
+  {.$define ManualLeakReportingControl} // JB can't use this since GUITestRunner uses a system var not available in D6
   {.$define CheckHeapForCorruption} // JGB added 10-9-2005, en weer uitgeschakeld
   {.$undef LogMemoryLeakDetailToFile} // jgb added 10-9-2005
   {.$undef LogErrorsToFile}

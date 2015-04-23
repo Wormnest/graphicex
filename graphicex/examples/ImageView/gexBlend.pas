@@ -6,6 +6,10 @@ unit gexBlend;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses Windows;
 
 type
@@ -37,6 +41,11 @@ procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: T
 
 implementation
 
+uses gexTypes;
+
+type
+  // Exception when trying to perform a blend operation.
+  EGexBlendException = class(EBaseGraphicExException);
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -352,13 +361,15 @@ begin
   begin
     if GetObject(Bitmap, SizeOf(DIB), @DIB) = SizeOf(DIB) then
     begin
-      Assert(DIB.dsBm.bmPlanes * DIB.dsBm.bmBitsPixel = 32, 'Alpha blending error: bitmap must use 32 bpp.');
+      if DIB.dsBm.bmPlanes * DIB.dsBm.bmBitsPixel <> 32 then
+        raise EGexBlendException.Create('Alpha blending error: source is not a 32 bpp bitmap!');
       Result := DIB.dsBm.bmBits;
       Width := DIB.dsBmih.biWidth;
       Height := DIB.dsBmih.biHeight;
     end;
   end;
-  Assert(Result <> nil, 'Alpha blending DC error: no bitmap available.');
+  if Result = nil then
+    raise EGexBlendException.Create('Alpha blending error: no bitmap available in DC.');
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -368,8 +379,13 @@ function CalculateScanline(Bits: Pointer; Width, Height, Row: Integer): Pointer;
 // Helper function to calculate the start address for the given row.
 
 begin
+//  {$IFNDEF FPC}
   if Height > 0 then  // bottom-up DIB
     Row := Height - Row - 1;
+//  {$ELSE}
+  // fpc TBitmap raw data is never bottom up. If we want to start using something
+  // else we may need to re evaluate this
+//  {$ENDIF}
   // Return DWORD aligned address of the requested scanline.
   Integer(Result) := Integer(Bits) + Row * ((Width * 32 + 31) and not 31) div 8;
 end;
@@ -697,7 +713,7 @@ end;
 // The following code sample divides a window into three horizontal areas. Then it draws
 // an alpha-blended bitmap in each of the window areas.
 
-
+{ Not used currently. For fpc we would have to use Win32extra.pas or jwawingdi.pas for AlphaBlend
 const
  AC_SRC_ALPHA = $1;
 
@@ -783,7 +799,7 @@ begin
     DeleteDC(Ahdc);
 
 end;
-
+}
 
 // See also JVCL JvCaptionButton:
 // uses AlphaBlend and TransparentBlt functions

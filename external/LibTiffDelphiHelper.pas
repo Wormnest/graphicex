@@ -6,6 +6,10 @@ unit LibTiffDelphiHelper;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, ExtCtrls,
   LibTiffDelphi;

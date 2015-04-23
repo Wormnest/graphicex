@@ -9,6 +9,10 @@ unit gexBmpWrapper;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses Classes, GraphicEx;
 
 type
@@ -94,9 +98,10 @@ begin
     end;
 
     if bmpInfoHeader.biBitCount > 8 then begin
-      if bmpInfoHeader.biBitCount <> 16 then begin
-        FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel div 8;
-        FImageProperties.SamplesPerPixel := FImageProperties.BitsPerPixel div FImageProperties.BitsPerSample;
+      if bmpInfoHeader.biBitCount > 16 then begin
+        FImageProperties.SamplesPerPixel := FImageProperties.BitsPerPixel div 8;
+        FImageProperties.BitsPerSample := 8;
+        FImageProperties.HasAlpha := FImageProperties.BitsPerPixel = 32;
       end
       else begin
         FImageProperties.SamplesPerPixel := 3;

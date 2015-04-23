@@ -12,6 +12,10 @@ unit gexLayers;
 
 interface
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
+
 uses Classes, GraphicEx;
 
 type
@@ -92,6 +96,7 @@ end;
 
 constructor TgexLayers.Create(Graphic: TGraphicExGraphic; LayerClass: TgexLayerClass);
 begin
+  inherited Create; // todo: not needed for Delphi? Check!
   FGraphic := Graphic;
   FLayerClass := LayerClass;
   Capacity := 16; // Set a default layer amount
