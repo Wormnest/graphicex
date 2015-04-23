@@ -1,0 +1,23 @@
+syntax: glob
+lib
+*.bak
+*.lps
+*.o
+*.a
+*.res
+*.ico
+*.exe
+graphicex/examples/bin
+external/obj
+*.dcu
+tests/bin
+*.~*
+*.cfg
+*.dof
+*.drc
+*.dsk
+*.obj
+testing
+twain-wilson/Opmerkingen JGB.txt
+graphicex/external/source/compileall.bat
+graphicex/examples/View/View.bdsproj
