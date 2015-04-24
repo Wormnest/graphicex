@@ -1,17 +1,17 @@
 {******************************************************************************}
-{ FileName............: CompVers.inc
-{ Project.............: library
-{ Author(s)...........: PZ
-{ Version.............: 1.4.0.0
+{ FileName............: CompVers.inc                                           }
+{ Project.............: library                                                }
+{ Author(s)...........: PZ                                                     }
+{ Version.............: 1.4.0.0                                                }
 {------------------------------------------------------------------------------}
-{ General include file for Delphi version depended handling.
-{
-{ Version  Date   Comment
-{ 1.0.0.0 041200  - First release.
-{ 1.1.0.0 300602  - Added Delphi 6 compiler directives
-{ 1.2.0.0 171102  - Added Delphi 7 compiler directives
-{ 1.3.0.0 061103  - Added general COMPILERv_UP directives.
-{ 1.4.0.0 251104  - Added Delphi 2005 compiler directives.
+{ General include file for Delphi version depended handling.                   }
+{                                                                              }
+{ Version  Date   Comment                                                      }
+{ 1.0.0.0 041200  - First release.                                             }
+{ 1.1.0.0 300602  - Added Delphi 6 compiler directives                         }
+{ 1.2.0.0 171102  - Added Delphi 7 compiler directives                         }
+{ 1.3.0.0 061103  - Added general COMPILERv_UP directives.                     }
+{ 1.4.0.0 251104  - Added Delphi 2005 compiler directives.                     }
 {******************************************************************************}
 
 {$B-} { Boolean shortcut evaluation. }
@@ -98,7 +98,7 @@
 
 
 {******************************************************************************}
-{ COMPILERx_UP definitions
+{ COMPILERx_UP definitions                                                     }
 {******************************************************************************}
 
 {$IFDEF COMPILER1}
@@ -175,7 +175,7 @@
 
 
 {******************************************************************************}
-{ DELPHIx_UP definitions for Delphi
+{ DELPHIx_UP definitions for Delphi                                            }
 {******************************************************************************}
 
 {$IFDEF DELPHI1}
@@ -240,7 +240,7 @@
 
 
 {******************************************************************************}
-{ BCBx_UP definitions for C++ Builder
+{ BCBx_UP definitions for C++ Builder                                          }
 {******************************************************************************}
 
 {$IFDEF BCB3}
@@ -291,3 +291,6 @@
   {$ObjExportAll On}
 {$ENDIF}
 
+{$IFDEF FPC}
+  {$mode delphi}
+{$ENDIF}
