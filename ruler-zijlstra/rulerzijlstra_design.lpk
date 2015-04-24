@@ -19,6 +19,7 @@
     <Files Count="1">
       <Item1>
         <Filename Value="RulersReg.pas"/>
+        <HasRegisterProc Value="True"/>
         <UnitName Value="RulersReg"/>
       </Item1>
     </Files>

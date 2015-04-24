@@ -13,6 +13,7 @@ implementation
 
 procedure Register;
 begin
+  RegisterUnit('RulersReg', @RulersReg.Register);
 end;
 
 initialization
