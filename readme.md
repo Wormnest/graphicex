@@ -25,17 +25,7 @@ especially in PSP and TIFF loading.
 I have also added support for loading Gimp XCF files, an ImageViewer example,
 and some unit tests.
 
-2. ghostscript
---------------
-A version of gsapi.pas which is an interface to the Ghostscript API
-adapted to my needs.
-
-3. twain-wilson
----------------
-A twain api interface made by Colin Wilson with bugfixes by me and
-further adapted to my needs.
-
-4. external
+2. external
 -----------
 Interface code for linking with external C libraries and C rtl replacement
 functions. Used by grapicex but can also be used separately.
@@ -43,6 +33,22 @@ Currently available here are zlib, libtiff and libjpeg.
 The .obj files needed by Delphi for zlib, JPG and TIFF support are available as a
 separate download since versioning them in hg doesn't work well.
 https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj_libtiff_397.zip
+
+3. ghostscript
+--------------
+A version of gsapi.pas which is an interface to the Ghostscript API
+adapted to my needs.
+
+4. twain-wilson
+---------------
+A twain api interface made by Colin Wilson with bugfixes by me and
+further adapted to my needs.
+
+5. ruler-zijlstra
+-----------------
+A ruler component made by Pieter Zijlstra. We use version 1.73 since
+that version is working fine for our needs. However newer versions
+are available from his website.
 
 August 2013 - April 2015
 Jacob Boerema
