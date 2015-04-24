@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="RulerZijlstra"/>
+    <Author Value="Pieter Zijlstra"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <IncludeFiles Value="."/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+      </SearchPaths>
+    </CompilerOptions>
+    <Description Value="A horizontal ruler component."/>
+    <License Value="Copyright © 2003-2005 Pieter Zijlstra"/>
+    <Version Major="1" Minor="73"/>
+    <Files Count="2">
+      <Item1>
+        <Filename Value="Ruler.pas"/>
+        <AddToUsesPkgSection Value="False"/>
+      </Item1>
+      <Item2>
+        <Filename Value="RERuler.pas"/>
+        <AddToUsesPkgSection Value="False"/>
+      </Item2>
+    </Files>
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="FCL"/>
+      </Item1>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
