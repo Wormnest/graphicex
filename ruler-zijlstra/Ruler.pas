@@ -4411,6 +4411,7 @@ var
   PrinterHandle: HDC;
 begin
   PrinterHandle := 0;
+  {$IFNDEF FPC}
   try
     if ((roUseDefaultPrinterWidth in FRulerOptions) or
         (roAutoUpdatePrinterWidth in FRulerOptions)) and
@@ -4419,6 +4420,7 @@ begin
   except
     // Eat errors in case the default printer is not available.
   end;
+  {$ENDIF}
 
   if PrinterHandle <> 0 then
   begin
