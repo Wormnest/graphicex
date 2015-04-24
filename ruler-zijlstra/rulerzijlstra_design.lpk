@@ -2,32 +2,36 @@
 <CONFIG>
   <Package Version="4">
     <PathDelim Value="\"/>
-    <Name Value="RulerZijlstra"/>
+    <Name Value="RulerZijlstra_design"/>
+    <Type Value="DesignTime"/>
     <Author Value="Pieter Zijlstra"/>
     <CompilerOptions>
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <IncludeFiles Value="."/>
+        <OtherUnitFiles Value="."/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
       </SearchPaths>
     </CompilerOptions>
-    <Description Value="A horizontal ruler component."/>
+    <Description Value="Registration for Ruler component."/>
     <License Value="Copyright © 2003-2005 Pieter Zijlstra"/>
     <Version Major="1" Minor="73"/>
     <Files Count="1">
       <Item1>
-        <Filename Value="Ruler.pas"/>
-        <AddToUsesPkgSection Value="False"/>
+        <Filename Value="RulersReg.pas"/>
+        <UnitName Value="RulersReg"/>
       </Item1>
     </Files>
-    <RequiredPkgs Count="2">
+    <RequiredPkgs Count="3">
       <Item1>
-        <PackageName Value="LCL"/>
+        <PackageName Value="RulerZijlstra"/>
       </Item1>
       <Item2>
-        <PackageName Value="FCL"/>
+        <PackageName Value="LCL"/>
       </Item2>
+      <Item3>
+        <PackageName Value="FCL"/>
+      </Item3>
     </RequiredPkgs>
     <UsageOptions>
       <UnitPath Value="$(PkgOutDir)"/>

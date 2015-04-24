@@ -2,7 +2,7 @@ unit RulersReg;
 
 interface
 
-uses Classes, Ruler, RERuler;
+uses Classes, Ruler{$IFNDEF FPC} , RERuler {$ENDIF};
 
 procedure Register;
 
@@ -13,7 +13,7 @@ implementation
 
 procedure Register;
 begin
-  RegisterComponents('Rulers', [TRuler, TRERuler]);
+  RegisterComponents('Rulers', [TRuler{$IFNDEF FPC} , TRERuler {$ENDIF}]);
 end;
 
 end.
