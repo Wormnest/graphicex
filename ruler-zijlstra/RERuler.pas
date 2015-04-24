@@ -1,25 +1,25 @@
 {******************************************************************************}
-{                                  TRERuler
-{                                  --------
-{
-{                       Copyright © 2004 Pieter Zijlstra
-{
-{ TRERuler is a descendant of TRuler specialized for the standard TRichEdit.
-{
-{ E-mail: p.zylstra@hccnet.nl
-{ Website: http://home.hccnet.nl/p.zylstra/
-{===============================================================================
-{                           This software is FREEWARE
-{                           -------------------------
-{
-{ You may freely use it in any software, including commercial software, but
-{ be-aware that the code is provided as-is, with no implied warranty.
-{===============================================================================
-{
-{ Version history:
-{ 1.0.0.0 22 feb 2004 - First release.
-{ 1.6.1.1 21 may 2004 - Changed the Parents of the fake margins to the same
-{                       parent of the RichEdit (it used to be the TForm).
+{                                  TRERuler                                    }
+{                                  --------                                    }
+{                                                                              }
+{                       Copyright © 2004 Pieter Zijlstra                       }
+{                                                                              }
+{ TRERuler is a descendant of TRuler specialized for the standard TRichEdit.   }
+{                                                                              }
+{ E-mail: p.zylstra@hccnet.nl                                                  }
+{ Website: http://home.hccnet.nl/p.zylstra/                                    }
+{==============================================================================}
+{                           This software is FREEWARE                          }
+{                           -------------------------                          }
+{                                                                              }
+{ You may freely use it in any software, including commercial software, but    }
+{ be-aware that the code is provided as-is, with no implied warranty.          }
+{==============================================================================}
+{                                                                              }
+{ Version history:                                                             }
+{ 1.0.0.0 22 feb 2004 - First release.                                         }
+{ 1.6.1.1 21 may 2004 - Changed the Parents of the fake margins to the same    }
+{                       parent of the RichEdit (it used to be the TForm).      }
 {******************************************************************************}
 unit RERuler;
 

@@ -1,167 +1,167 @@
 {******************************************************************************}
-{                                    Ruler
-{                                    -----
-{
-{                     Copyright © 2003-2005 Pieter Zijlstra
-{
-{ A horizontal ruler component simular like the one used in Word(Pad).
-{ - Adjustable left and right margins.
-{ - Adjustable first, hanging, left and right indent markers.
-{ - Tabs can be added/removed at runtime and designtime.
-{ - Tabs support left, center, right, decimal and wordbar alignment when
-{   toAdvancedTabs is set in TabsSettings.Options.
-{
-{ E-mail: p.zylstra@hccnet.nl
-{ Website: http://home.hccnet.nl/p.zylstra/
-{===============================================================================
-{                           This software is FREEWARE
-{                           -------------------------
-{
-{ You may freely use it in any software, including commercial software, but
-{ be-aware that the code is provided as-is, with no implied warranty.
-{===============================================================================
-{
-{ Notes:
-{ - This component uses different names for the same indentations:
-{   Indent-Left is for the visible part (eg Hint) called "hanging indent" and
-{   to make it more confusing, Indent-Both is called "left indent" (ala Word).
-{
-{ - XP themes.
-{   - for D4-6 when using Mike Lischkes ThemeManager the ruler will paint its
-{     background using the parent when ParentColor := True.
-{   - for D7 set ParentBackGround to True so that the ruler use the parent's
-{     theme background to draw its own background.
-{
-{
-{ Version history:
-{ 0.9.9.0 11 feb 2003 - First public release (BETA)
-{ 0.9.9.1 27 may 2003 - Added property UnitsDisplay.
-{                     - Based on comments of Andrew Fiddian-Green:
-{                       - Removed RulerAdj (4/3) 'kludge' .
-{                       - Property Pixels of TTab is now actual returning the
-{                         number of pixels instead of points it was doing before
-{                         whith the above mentioned (removed) RulerAdj 'kludge'.
-{                       - Added new property TTab.Points.
-{                       - Improved 3D look of the outline of the ruler.
-{ 1.0.0.0 14 jun 2003 - Draw default tab stops as little dot markers at the
-{                       bottom of the ruler.
-{                     - SnapToRuler for Tabs, Indents and Margins.
-{                     - Adjustable margins (by dragging them).
-{                     - Indent and Tab hints can be modified from the OI.
-{ 1.0.1.0 31 jul 2003 - Based on bug report by John Bennett:
-{                       - SetFirstIndent sets the LeftIndent back to the
-{                         original position when the FirstIndent is moved
-{                         outside the margins and kept within margins by code.
-{ 1.0.2.0 29 oct 2003 - BugFix:
-{                       - Left and RightMargin were not stored when they were
-{                         set to zero in the OI. This default action (for some
-{                         of the types) of Delphi is now overruled by using
-{                         DefineProperties and separate readers and writers.
-{ 1.1.0.0  1 nov 2003 - New IndentOption, ioKeepWithinMargins. This one is
-{                       set to True by default because this was (roughly) the
-{                       default behaviour of the previous versions. BTW setting
-{                       this option to False is not very usefull when using a
-{                       standard TRichEdit.
-{                     - Indents and Margins can no longer be dragged outside
-{                       the paper-area.
-{                     - The First/Left/Both idents can no longer be dragged
-{                       closer then a 1/8 inch towards the RightIndent (and
-{                       vice versa).
-{                     - The LeftMargin can no longer be dragged closer then
-{                       a 1/8 inch towards the RightMargin (and vice versa).
-{                     - Added following procedures for use with TRVRuler
-{                         DoRulerItemSelect(...);
-{                         DoRulerItemMove(...)
-{                         DoRulerItemRelease;
-{                     - Made it compatible with D2 and D3 (and hopefully D4).
-{ 1.2.0.0  5 nov 2003 - Added new ruler units ruMillimeters, ruPicas, ruPixels
-{                       and ruPoints.
-{                     - Removed previous added DefineProperties (see v1.0.2.0)
-{                       LeftMargin and RightMargin are now only set in the
-{                       constructor when the Ruler is dropped on a component
-{                       from within the IDE.
-{                     - Improved ioKeepWithinMargins so that you can't drag the
-{                       indents beyond the margins when this is option is set.
-{                     - Improved handling of indents when dragging. The
-{                       First/Left/Both indents are now kept separated from the
-{                       Right indent.
-{                     - Added MarginSettings.GripColor. It will only be painted
-{                       when the color is not the same as the MarginColor or the
-{                       RulerColor.
-{                     - Added "DoubleBuffered" for Delphi versions below D4.
-{                     - BugFix: Arrggh, forgot to set the Font of the Canvas.
-{ 1.2.1.0  6 nov 2003 - Changed compiler directives and the file-order of some
-{                       record definitions for C++ Builder compatibility.
-{ 1.3.0.0 19 feb 2004 - BugFix: in SetUnitsProgram the conversion for ruPicas
-{                               to other ruler units was missing.
-{                     - New options to enable displaying of the last position
-{                       of an item (only Indents) while it's being dragged.
-{                     - When SnapToRuler is True and a tab is placed on the
-{                       ruler by clicking on the empty ruler it will also be
-{                       directly 'snapped' into the right place.
-{                     - Register moved to RulersReg.pas
-{                     ~ New TableEditor for TRichView (under construction).
-{                     - RTL (beta)
-{ 1.3.0.1 20 feb 2004 - Left and RightMargin handling changed for RTL.
-{                       Tabs are changed from LeftAligned to RightAligned when
-{                       the BiDiMode has changed.
-{ 1.3.1.0 21 feb 2004 - Corrected RTL drawing of OutLine.
-{                     - Corrected handling of Tabs in RTL mode.
-{                     - Implemented ItemSeparation for RTL mode.
-{                     - Also Tabs can display their last position while it's
-{                       being dragged (set roItemsShowLastPos of Ruler.Options).
-{                     - Added property BiDiModeRuler that can be used to force
-{                       the ruler to use LTR or RTL independent of Delphi's
-{                       build-in BiDiMode handling.
-{ 1.4.0.0 22 feb 2004 - Ruler goes vertical:
-{                       - Added property RulerType
-{                       - Added property TopMargin
-{                       - Added property BottomMargin
-{                       - Added 'specialised' component TVRuler which just sets
-{                         the defaults for using the Ruler in vertical mode.
-{                     - New property Flat
-{                     - Property LeftInset is replaced by property Inset.
-{ 1.4.1.0 28 feb 2004 - Cleaning up (double) code.
-{                     - Added property Zoom (in percentage, default is 100%).
-{ 1.4.2.0 29 feb 2004 - Scale will be drawn relative to the margin when
-{                       roScaleRelativeToMargin is set.
-{ 1.5.0.0 23 mar 2004 - TableEditor for TRichView.
-{                     - Made property ScreenRes writable (for TRichView)
-{                     - Improved handling of the default printer/paper
-{                       dimensions. In case the printer is not available
-{                       (network disconnected) paper dimensions will use
-{                       default "Letter" settings.
-{ 1.5.0.1 02 apr 2004 - Added property DefaultTabWidth.
-{ 1.5.0.2 04 apr 2004 - BugFix: Forgot to update DefaultTabWidth
-{                               when UnitsProgram is changed.
-{                     - Drawing of Tabs (and DefaultTabs) within table cells.
-{                     - Limitted drag of columns/borders to neighbouring
-{                       columns/borders.
-{ 1.6.0.0 12 apr 2004 - Added TableEditor.DraggedDelta.
-{                     - Changed drawing of the margins a little when Flat is
-{                       True. Also the Table graphics will be drawn flat now.
-{                     - Table: Drag/Shift when VK_SHIFT is pressed.
-{                     - BugFix: KeepDragWithinPageArea did not function
-{                               correctly in RTL mode.
-{                     - BugFix: KeepColumnsSeparated did not function
-{                               correctly in RTL mode.
-{ 1.6.1.0 13 apr 2004 - BugFix: When DefaultTabWidth did not have a valid
-{                               value (it should be >0) it would cause the
-{                               drawing routines to go into an endless loop.
-{ 1.7.0.0 19 dec 2004 - Added the basics for Bullets & Numbering for TRichView.
-{ 1.7.1.0 21 apr 2005 - Improved drawing for themed applications, background
-{                       did not show correctly on for instance PageControls.
-{                       (thanks to Alexander Halser for fixing this).
-{ 1.7.2.0 01 may 2005 - BugFix: The first time the position was calculated for
-{                               a tab when adding tabs did not take the margin
-{                               into account.
-{                     - Default tabs are no longer drawn by default before the
-{                       LeftIndent. If you want them back you can turn off
-{                       toDontShowDefaultTabsBeforeLeftIndent of
-{                       TabSettings.Options.
-{ 1.7.3.0 14 may 2005 - BugFix: The Font could be modified by themed drawing
-{                               The Canvas is now forced to (re)create its
-{                               drawing objects (Brush, Font, Pen).
+{                                    Ruler                                     }
+{                                    -----                                     }
+{                                                                              }
+{                     Copyright © 2003-2005 Pieter Zijlstra                    }
+{                                                                              }
+{ A horizontal ruler component simular like the one used in Word(Pad).         }
+{ - Adjustable left and right margins.                                         }
+{ - Adjustable first, hanging, left and right indent markers.                  }
+{ - Tabs can be added/removed at runtime and designtime.                       }
+{ - Tabs support left, center, right, decimal and wordbar alignment when       }
+{   toAdvancedTabs is set in TabsSettings.Options.                             }
+{                                                                              }
+{ E-mail: p.zylstra@hccnet.nl                                                  }
+{ Website: http://home.hccnet.nl/p.zylstra/                                    }
+{==============================================================================}
+{                           This software is FREEWARE                          }
+{                           -------------------------                          }
+{                                                                              }
+{ You may freely use it in any software, including commercial software, but    }
+{ be-aware that the code is provided as-is, with no implied warranty.          }
+{==============================================================================}
+{                                                                              }
+{ Notes:                                                                       }
+{ - This component uses different names for the same indentations:             }
+{   Indent-Left is for the visible part (eg Hint) called "hanging indent" and  }
+{   to make it more confusing, Indent-Both is called "left indent" (ala Word). }
+{                                                                              }
+{ - XP themes.                                                                 }
+{   - for D4-6 when using Mike Lischkes ThemeManager the ruler will paint its  }
+{     background using the parent when ParentColor := True.                    }
+{   - for D7 set ParentBackGround to True so that the ruler use the parent's   }
+{     theme background to draw its own background.                             }
+{                                                                              }
+{                                                                              }
+{ Version history:                                                             }
+{ 0.9.9.0 11 feb 2003 - First public release (BETA)                            }
+{ 0.9.9.1 27 may 2003 - Added property UnitsDisplay.                           }
+{                     - Based on comments of Andrew Fiddian-Green:             }
+{                       - Removed RulerAdj (4/3) 'kludge' .                    }
+{                       - Property Pixels of TTab is now actual returning the  }
+{                         number of pixels instead of points it was doing before }
+{                         whith the above mentioned (removed) RulerAdj 'kludge'. }
+{                       - Added new property TTab.Points.                      }
+{                       - Improved 3D look of the outline of the ruler.        }
+{ 1.0.0.0 14 jun 2003 - Draw default tab stops as little dot markers at the    }
+{                       bottom of the ruler.                                   }
+{                     - SnapToRuler for Tabs, Indents and Margins.             }
+{                     - Adjustable margins (by dragging them).                 }
+{                     - Indent and Tab hints can be modified from the OI.      }
+{ 1.0.1.0 31 jul 2003 - Based on bug report by John Bennett:                   }
+{                       - SetFirstIndent sets the LeftIndent back to the       }
+{                         original position when the FirstIndent is moved      }
+{                         outside the margins and kept within margins by code. }
+{ 1.0.2.0 29 oct 2003 - BugFix:                                                }
+{                       - Left and RightMargin were not stored when they were  }
+{                         set to zero in the OI. This default action (for some }
+{                         of the types) of Delphi is now overruled by using    }
+{                         DefineProperties and separate readers and writers.   }
+{ 1.1.0.0  1 nov 2003 - New IndentOption, ioKeepWithinMargins. This one is     }
+{                       set to True by default because this was (roughly) the  }
+{                       default behaviour of the previous versions. BTW setting}
+{                       this option to False is not very usefull when using a  }
+{                       standard TRichEdit.                                    }
+{                     - Indents and Margins can no longer be dragged outside   }
+{                       the paper-area.                                        }
+{                     - The First/Left/Both idents can no longer be dragged    }
+{                       closer then a 1/8 inch towards the RightIndent (and    }
+{                       vice versa).                                           }
+{                     - The LeftMargin can no longer be dragged closer then    }
+{                       a 1/8 inch towards the RightMargin (and vice versa).   }
+{                     - Added following procedures for use with TRVRuler       }
+{                         DoRulerItemSelect(...);                              }
+{                         DoRulerItemMove(...)                                 }
+{                         DoRulerItemRelease;                                  }
+{                     - Made it compatible with D2 and D3 (and hopefully D4).  }
+{ 1.2.0.0  5 nov 2003 - Added new ruler units ruMillimeters, ruPicas, ruPixels }
+{                       and ruPoints.                                          }
+{                     - Removed previous added DefineProperties (see v1.0.2.0) }
+{                       LeftMargin and RightMargin are now only set in the     }
+{                       constructor when the Ruler is dropped on a component   }
+{                       from within the IDE.                                   }
+{                     - Improved ioKeepWithinMargins so that you can't drag the}
+{                       indents beyond the margins when this is option is set. }
+{                     - Improved handling of indents when dragging. The        }
+{                       First/Left/Both indents are now kept separated from the}
+{                       Right indent.                                          }
+{                     - Added MarginSettings.GripColor. It will only be painted}
+{                       when the color is not the same as the MarginColor or the}
+{                       RulerColor.                                            }
+{                     - Added "DoubleBuffered" for Delphi versions below D4.   }
+{                     - BugFix: Arrggh, forgot to set the Font of the Canvas.  }
+{ 1.2.1.0  6 nov 2003 - Changed compiler directives and the file-order of some }
+{                       record definitions for C++ Builder compatibility.      }
+{ 1.3.0.0 19 feb 2004 - BugFix: in SetUnitsProgram the conversion for ruPicas  }
+{                               to other ruler units was missing.              }
+{                     - New options to enable displaying of the last position  }
+{                       of an item (only Indents) while it's being dragged.    }
+{                     - When SnapToRuler is True and a tab is placed on the    }
+{                       ruler by clicking on the empty ruler it will also be   }
+{                       directly 'snapped' into the right place.               }
+{                     - Register moved to RulersReg.pas                        }
+{                     ~ New TableEditor for TRichView (under construction).    }
+{                     - RTL (beta)                                             }
+{ 1.3.0.1 20 feb 2004 - Left and RightMargin handling changed for RTL.         }
+{                       Tabs are changed from LeftAligned to RightAligned when }
+{                       the BiDiMode has changed.                              }
+{ 1.3.1.0 21 feb 2004 - Corrected RTL drawing of OutLine.                      }
+{                     - Corrected handling of Tabs in RTL mode.                }
+{                     - Implemented ItemSeparation for RTL mode.               }
+{                     - Also Tabs can display their last position while it's   }
+{                       being dragged (set roItemsShowLastPos of Ruler.Options).}
+{                     - Added property BiDiModeRuler that can be used to force }
+{                       the ruler to use LTR or RTL independent of Delphi's    }
+{                       build-in BiDiMode handling.                            }
+{ 1.4.0.0 22 feb 2004 - Ruler goes vertical:                                   }
+{                       - Added property RulerType                             }
+{                       - Added property TopMargin                             }
+{                       - Added property BottomMargin                          }
+{                       - Added 'specialised' component TVRuler which just sets}
+{                         the defaults for using the Ruler in vertical mode.   }
+{                     - New property Flat                                      }
+{                     - Property LeftInset is replaced by property Inset.      }
+{ 1.4.1.0 28 feb 2004 - Cleaning up (double) code.                             }
+{                     - Added property Zoom (in percentage, default is 100%).  }
+{ 1.4.2.0 29 feb 2004 - Scale will be drawn relative to the margin when        }
+{                       roScaleRelativeToMargin is set.                        }
+{ 1.5.0.0 23 mar 2004 - TableEditor for TRichView.                             }
+{                     - Made property ScreenRes writable (for TRichView)       }
+{                     - Improved handling of the default printer/paper         }
+{                       dimensions. In case the printer is not available       }
+{                       (network disconnected) paper dimensions will use       }
+{                       default "Letter" settings.                             }
+{ 1.5.0.1 02 apr 2004 - Added property DefaultTabWidth.                        }
+{ 1.5.0.2 04 apr 2004 - BugFix: Forgot to update DefaultTabWidth               }
+{                               when UnitsProgram is changed.                  }
+{                     - Drawing of Tabs (and DefaultTabs) within table cells.  }
+{                     - Limitted drag of columns/borders to neighbouring       }
+{                       columns/borders.                                       }
+{ 1.6.0.0 12 apr 2004 - Added TableEditor.DraggedDelta.                        }
+{                     - Changed drawing of the margins a little when Flat is   }
+{                       True. Also the Table graphics will be drawn flat now.  }
+{                     - Table: Drag/Shift when VK_SHIFT is pressed.            }
+{                     - BugFix: KeepDragWithinPageArea did not function        }
+{                               correctly in RTL mode.                         }
+{                     - BugFix: KeepColumnsSeparated did not function          }
+{                               correctly in RTL mode.                         }
+{ 1.6.1.0 13 apr 2004 - BugFix: When DefaultTabWidth did not have a valid      }
+{                               value (it should be >0) it would cause the     }
+{                               drawing routines to go into an endless loop.   }
+{ 1.7.0.0 19 dec 2004 - Added the basics for Bullets & Numbering for TRichView.}
+{ 1.7.1.0 21 apr 2005 - Improved drawing for themed applications, background   }
+{                       did not show correctly on for instance PageControls.   }
+{                       (thanks to Alexander Halser for fixing this).          }
+{ 1.7.2.0 01 may 2005 - BugFix: The first time the position was calculated for }
+{                               a tab when adding tabs did not take the margin }
+{                               into account.                                  }
+{                     - Default tabs are no longer drawn by default before the }
+{                       LeftIndent. If you want them back you can turn off     }
+{                       toDontShowDefaultTabsBeforeLeftIndent of               }
+{                       TabSettings.Options.                                   }
+{ 1.7.3.0 14 may 2005 - BugFix: The Font could be modified by themed drawing   }
+{                               The Canvas is now forced to (re)create its     }
+{                               drawing objects (Brush, Font, Pen).            }
 {******************************************************************************}
 unit Ruler;
 
