@@ -495,7 +495,7 @@ type
     DataBytes : TW_UINT32;       (* Number of bytes in Data buffer *)
     DataBytesXFered : TW_UINT32; (* Number of bytes successfully transferred *)
   end;
-  pTW_PASSTHRU = ^pTW_PASSTHRU;
+  pTW_PASSTHRU = ^TW_PASSTHRU;
 
 (* DAT_SETUPAUDIOFILEXFER, information required to setup an audio file transfer *)
   TW_SETUPAUDIOFILEXFER = packed record
