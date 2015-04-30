@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="TwainWilson"/>
+    <Author Value="Colin Wilson"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\twain-wilson"/>
+        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)\"/>
+      </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <SyntaxMode Value="Delphi"/>
+        </SyntaxOptions>
+      </Parsing>
+    </CompilerOptions>
+    <Description Value="Twain component"/>
+    <License Value="Presumably MPL"/>
+    <Version Major="1"/>
+    <Files Count="3">
+      <Item1>
+        <Filename Value="..\twain-wilson\unitCallbackComponent.pas"/>
+        <UnitName Value="unitCallbackComponent"/>
+      </Item1>
+      <Item2>
+        <Filename Value="..\twain-wilson\Twain_Wilson.pas"/>
+        <UnitName Value="Twain_Wilson"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\twain-wilson\cmpTwain.pas"/>
+        <UnitName Value="cmpTwain"/>
+      </Item3>
+    </Files>
+    <RequiredPkgs Count="2">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
