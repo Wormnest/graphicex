@@ -27,7 +27,11 @@ type
 {$IFDEF SELECT_FORMAT}
     fTransferFormat: TTransferFormat;
 {$ENDIF}
+    {$IFNDEF FPC}
     fWindowList : pointer;
+    {$ELSE}
+    fWindowList : TList;
+    {$ENDIF}
     fActiveWindow : HWND;
     fPict : TPicture;  // jgb here instead of private as a test
 
@@ -117,12 +121,20 @@ begin
   twUserInterface.ModalUI := True;
 
   fActiveWindow := GetActiveWindow;
+  {$IFNDEF FPC}
   fWindowList := DisableTaskWindows (0);
+  {$ELSE}
+  fWindowList := Screen.DisableForms(nil);
+  {$ENDIF}
   try
     TwainCheck (DSM_Entry (@fAppID, @fSourceID, DG_CONTROL, DAT_USERINTERFACE, MSG_ENABLEDS, @twUserInterface));
     fEnabled := True
   except
+    {$IFNDEF FPC}
     EnableTaskWindows (fWindowList);
+    {$ELSE}
+    Screen.EnableForms(fWindowList);
+    {$ENDIF}
     SetActiveWindow (fActiveWindow)
   end
 end;
@@ -183,11 +195,19 @@ begin
   FImageAvailable := False;
   SetActive (True);
   fActiveWindow := GetActiveWindow;
+  {$IFNDEF FPC}
   fWindowList := DisableTaskWindows (0);
+  {$ELSE}
+  fWindowList := Screen.DisableForms(nil);
+  {$ENDIF}
   try
     result := TwainCheck (DSM_Entry (@fAppId, Nil, DG_CONTROL, DAT_IDENTITY, MSG_USERSELECT, @fSourceId)) = TWRC_SUCCESS;
   finally
+    {$IFNDEF FPC}
     EnableTaskWindows (fWindowList);
+    {$ELSE}
+    Screen.EnableForms(fWindowList);
+    {$ENDIF}
     SetActiveWindow (fActiveWindow)
   end
 end;
@@ -426,7 +446,11 @@ begin
 {JGB added: (see also ...\Overige\Twain2\Twain.pas) }
             FillChar (twUserInterface, SizeOf (twUserInterface), 0);
             TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface));
+            {$IFNDEF FPC}
             EnableTaskWindows (fWindowList);
+            {$ELSE}
+            Screen.EnableForms(fWindowList);
+            {$ENDIF}
             SetActiveWindow (fActiveWindow);
             SetOpen (False);
             if Assigned(FOnScanningDone) then
@@ -438,7 +462,11 @@ begin
           begin
             FillChar (twUserInterface, SizeOf (twUserInterface), 0);
             TwainCheck (DSM_Entry (@fAppId, @fSourceId, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface));
+            {$IFNDEF FPC}
             EnableTaskWindows (fWindowList);
+            {$ELSE}
+            Screen.EnableForms(fWindowList);
+            {$ENDIF}
             SetActiveWindow (fActiveWindow);
             SetOpen (False)
           end;
