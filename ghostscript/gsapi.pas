@@ -349,9 +349,11 @@ uses SysUtils, Classes {TStringList},
 {$IFDEF DEBUG_LOG}
      JgbDebugHelper,  // debug log helper 2007-04-02
 {$ELSE}
+     {$IFNDEF FPC}
      TransExceptionDlg, // 2007-04-27 To make sure that the exception interception
                         // code will be loaded BEFORE this unit so that we can
                         // show any problems encountered here.
+     {$ENDIF}
 {$ENDIF DEBUG_LOG}
 {$ENDIF USE_IN_TRANSCRIPT}
      JclRegistry;
