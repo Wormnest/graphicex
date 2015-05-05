@@ -23,7 +23,7 @@ unit unitCallbackComponent;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes;
+  Windows, Messages, SysUtils, Classes{$IFDEF FPC} , LclIntf {$ENDIF};
 
 type
   TCallbackComponent = class(TComponent)
@@ -46,12 +46,12 @@ implementation
 constructor TCallbackComponent.Create (AOwner : TComponent);
 begin
   inherited create (AOwner);
-  fWindowHandle := AllocateHWnd (WndProc);
+  fWindowHandle := {$IFDEF FPC} LclIntf. {$ENDIF}AllocateHWnd (WndProc);
 end;
 
 destructor TCallbackComponent.Destroy;
 begin
-  DeallocateHWnd (fWindowHandle);
+  {$IFDEF FPC} LclIntf. {$ENDIF}DeallocateHWnd (fWindowHandle);
   inherited
 end;
 
