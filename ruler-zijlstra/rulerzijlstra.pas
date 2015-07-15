@@ -6,6 +6,9 @@ unit RulerZijlstra;
 
 interface
 
+uses
+  Ruler;
+
 implementation
 
 end.

@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <IncludeFiles Value="."/>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Description Value="A horizontal ruler component."/>
@@ -18,7 +18,7 @@
     <Files Count="1">
       <Item1>
         <Filename Value="Ruler.pas"/>
-        <AddToUsesPkgSection Value="False"/>
+        <UnitName Value="Ruler"/>
       </Item1>
     </Files>
     <RequiredPkgs Count="2">
@@ -35,5 +35,8 @@
     <PublishOptions>
       <Version Value="2"/>
     </PublishOptions>
+    <CustomOptions Items="ExternHelp" Version="2">
+      <_ExternHelp Items="Count"/>
+    </CustomOptions>
   </Package>
 </CONFIG>
