@@ -161,7 +161,7 @@ begin
   pb := @Data;
   BitsResult := GetBits(BitOffset,BitsPerSample,PCardinal(pb));
   Inc(DoTestCounter);
-  Check(BitsResult = ExpectedResult, Format('Test %d: BitsResult should be %x but it is %x!',
+  Check(BitsResult = ExpectedResult, Format('Test %u: BitsResult should be %x but it is %x!',
     [DoTestCounter, ExpectedResult, BitsResult]));
 end;
 
@@ -215,11 +215,16 @@ begin
   CvtResult := ScaleConvert16(AValue, ABitsPerSample);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
+{$IFDEF FPC}
+  {$PUSH}
+  {$RANGECHECKS OFF Range checks off, since values used in array of const used by Format is
+     always checked against signed integer values even if you used an unsigned value.}
+{$ENDIF}
 procedure TScaleConvertTests.DoTestMax32ToMax8(AValue: LongWord; ABitsPerSample: Byte;
   ExpectedResult: Byte);
 var
@@ -228,10 +233,13 @@ begin
   CvtResult := ScaleConvert32(AValue, ABitsPerSample);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
+{$IFDEF FPC}
+  {$POP}
+{$ENDIF}
 
 procedure TScaleConvertTests.DoTestMax64ToMax8(AValue: UInt64; ABitsPerSample: Byte;
   ExpectedResult: Byte);
@@ -241,8 +249,8 @@ begin
   CvtResult := ScaleConvert64(AValue, ABitsPerSample);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
@@ -485,16 +493,16 @@ begin
   CvtResult := FCM.ComponentScaleConvert16To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   AValue := 0;
   ExpectedResult := 0;
   CvtResult := FCM.ComponentScaleConvert16To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   // Extra test to make sure values in the middle of the range are also converted correctly
   AValue := $8000;
@@ -502,11 +510,16 @@ begin
   CvtResult := FCM.ComponentScaleConvert16To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
+{$IFDEF FPC}
+  {$PUSH}
+  {$RANGECHECKS OFF Range checks off, since values used in array of const used by Format is
+     always checked against signed integer values even if you used an unsigned value.}
+{$ENDIF}
 procedure TScaleConvertTests.CheckComponentScaleConvert32To8_1param;
 var
   CvtResult,
@@ -521,16 +534,16 @@ begin
   CvtResult := FCM.ComponentScaleConvert32To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   AValue := 0;
   ExpectedResult := 0;
   CvtResult := FCM.ComponentScaleConvert32To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   // Extra test to make sure values in the middle of the range are also converted correctly
   AValue := $80000000;
@@ -538,10 +551,13 @@ begin
   CvtResult := FCM.ComponentScaleConvert32To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
+{$IFDEF FPC}
+  {$POP}
+{$ENDIF}
 
 procedure TScaleConvertTests.CheckComponentScaleConvert64To8_1param;
 var
@@ -557,16 +573,16 @@ begin
   CvtResult := FCM.ComponentScaleConvert64To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   AValue := 0;
   ExpectedResult := 0;
   CvtResult := FCM.ComponentScaleConvert64To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   // Extra test to make sure values in the middle of the range are also converted correctly
   AValue := UInt64($8000000000000000);
@@ -574,8 +590,8 @@ begin
   CvtResult := FCM.ComponentScaleConvert64To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
@@ -595,8 +611,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat16To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   //AValue := 0;
   AHalfFloat := FloatToHalf(0.0);
@@ -604,8 +620,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat16To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
@@ -632,8 +648,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat24To8(AValue, 24);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   //AValue := 0;
   AFloat24 := FloatToFloat24(0.0);
@@ -641,8 +657,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat24To8(AValue, 24);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 }
 end;
@@ -663,8 +679,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat32To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   //AValue := 0;
   ASingle := 0.0;
@@ -672,8 +688,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat32To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
@@ -693,8 +709,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat64To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   //AValue := 0;
   AFloat := 0.0;
@@ -702,8 +718,8 @@ begin
   CvtResult := FCM.ComponentScaleConvertFloat64To8(AValue);
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
@@ -722,16 +738,16 @@ begin
   CvtResult := FCM.ComponentSwapScaleConvert(Swap(AValue));
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   AValue := 0;
   ExpectedResult := 0;
   CvtResult := FCM.ComponentSwapScaleConvert(Swap(AValue));
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
   // Extra test to make sure values in the middle of the range are also converted correctly
   AValue := $8000;
@@ -739,8 +755,8 @@ begin
   CvtResult := FCM.ComponentSwapScaleConvert(Swap(AValue));
   Inc(DoTestCounter);
   Check( CvtResult = ExpectedResult,
-    Format('Conversion test %d: Incorrect conversion result for value %d at %d bits per sample. ' +
-    'Result is %d but we expected %d.',
+    Format('Conversion test %u: Incorrect conversion result for value %u at %u bits per sample. ' +
+    'Result is %u but we expected %u.',
     [DoTestCounter, AValue, ABitsPerSample, CvtResult, ExpectedResult]));
 end;
 
