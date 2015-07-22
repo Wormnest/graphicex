@@ -102,6 +102,6 @@ var
 
 initialization
   ImageReadingTestsClass := TImageReadingTests;
-  AddImageReaderTests('Test graphicex.Image Formats', ImagesBasePath,
+  AddImageReaderTests('Test Loading Image Formats', ImagesBasePath,
     XmlConfig_FileName, ImageReadingTestsClass);
 end.
