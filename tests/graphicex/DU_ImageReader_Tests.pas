@@ -2,11 +2,12 @@ unit DU_ImageReader_Tests;
 
 interface
 
-uses Graphics,
+uses
   GraphicEx,
   gexBmpWrapper,
   gexJpegWrapper,
   gexXCF,
+  Graphics, // Use after gexBmpWrapper otherwise our bmp wrapper sometimes doesn't work. Why?
   TestFrameWork,
   TestFrameworkXmlConfig;
 
