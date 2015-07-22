@@ -7,7 +7,7 @@ uses
   gexBmpWrapper,
   gexJpegWrapper,
   gexXCF,
-  Graphics, // Use after gexBmpWrapper otherwise our bmp wrapper sometimes doesn't work. Why?
+  Graphics,
   TestFrameWork,
   TestFrameworkXmlConfig;
 
@@ -29,14 +29,24 @@ type
 
 implementation
 
-uses SysUtils;
+uses SysUtils,
+  GraphicStrings;
 
 const
   ImagesBasePath = 'E:\Delphi\Projects\Transcript\test-images\';
   XmlConfig_FileName = 'unit-tests.xml';
 
 procedure TImageReadingTests.SetUp;
+var gc: TGraphicClass;
 begin
+  // The FileFormat tests may have left the FileFormat list without our bmp wrapper class.
+  // Thus make sure it gets initialized to our bmp wrapper class.
+  gc := FileFormatList.GraphicFromExtension('.bmp');
+  if (FileFormatList.GraphicFromExtension('bmp') = nil) or
+     (gc = TBitmap) then begin
+    FileFormatList.UnregisterFileFormat('bmp', Graphics.TBitmap);
+    FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TgexBmpGraphic);
+  end;
 end;
 
 procedure TImageReadingTests.TearDown;
