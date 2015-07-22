@@ -2,6 +2,11 @@ unit DU_GraphicColor_Tests;
 
 interface
 
+// Do this before uses since GraphicColor defines UInt64!
+{$IF NOT Declared(UInt64)}
+  {$DEFINE NO_UINT64}
+{$IFEND}
+
 uses
      GraphicColor,
      {$IFNDEF FPC}
@@ -272,12 +277,17 @@ const
   Max15Bits = 32765;
   Max16Bits = 65535;
   Max32Bits = High(LongWord);
+  {$IFNDEF NO_UINT64}
   Max64Bits = High(UInt64);
+  {$ELSE}
+  // Delphi 6 doesn't know the real UInt64 so we can't use High(UInt64)!
+  Max64Bits = Int64(-1);
+  {$ENDIF}
 
   MaxBits17_32: array [17..32] of LongWord = (
     1 shl 17 - 1, 1 shl 18 - 1, 1 shl 19 - 1, 1 shl 20 - 1, 1 shl 21 - 1,
     1 shl 22 - 1, 1 shl 23 - 1, 1 shl 24 - 1, 1 shl 25 - 1, 1 shl 26 - 1,
-    1 shl 27 - 1, 1 shl 28 - 1, 1 shl 29 - 1, 1 shl 30 - 1, 1 shl 31 - 1,
+    1 shl 27 - 1, 1 shl 28 - 1, 1 shl 29 - 1, 1 shl 30 - 1, High(LongInt),
     High(LongWord));
 
   MaxBits33_64: array [33..64] of UInt64 = (
@@ -287,7 +297,13 @@ const
     UInt64(1) shl 48 - 1, UInt64(1) shl 49 - 1, UInt64(1) shl 50 - 1, UInt64(1) shl 51 - 1, UInt64(1) shl 52 - 1,
     UInt64(1) shl 53 - 1, UInt64(1) shl 54 - 1, UInt64(1) shl 55 - 1, UInt64(1) shl 56 - 1, UInt64(1) shl 57 - 1,
     UInt64(1) shl 58 - 1, UInt64(1) shl 59 - 1, UInt64(1) shl 60 - 1, UInt64(1) shl 61 - 1, UInt64(1) shl 62 - 1,
-    UInt64(1) shl 63 - 1, High(UInt64));
+    {$IFNDEF NO_UINT64}
+    High(Int64), High(UInt64));
+    {$ELSE}
+    // Delphi 6 doesn't know the real UInt64 so we can't use High(UInt64)!
+    // -1 represents the same value as High(UInt64)
+    High(Int64), -1);
+    {$ENDIF}
 
 procedure TScaleConvertTests.CheckComponentScaleConvert1_15To8;
 begin
