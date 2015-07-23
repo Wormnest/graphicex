@@ -17,7 +17,7 @@
     <VersionInfo>
       <StringTable ProductVersion=""/>
     </VersionInfo>
-    <BuildModes Count="4">
+    <BuildModes Count="6">
       <Item1 Name="Default" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -46,9 +46,6 @@
             </Checks>
           </CodeGeneration>
           <Linking>
-            <Debugging>
-              <UseHeaptrc Value="True"/>
-            </Debugging>
             <Options>
               <Win32>
                 <GraphicApplication Value="True"/>
@@ -126,7 +123,6 @@
           <Linking>
             <Debugging>
               <DebugInfoType Value="dsDwarf2Set"/>
-              <UseHeaptrc Value="True"/>
             </Debugging>
             <Options>
               <Win32>
@@ -139,6 +135,93 @@
           </Other>
         </CompilerOptions>
       </Item4>
+      <Item5 Name="Debug with Heaptrc">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="bin\$(BuildMode)_DU_graphicex_test_$(TargetCPU)"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
+            <OtherUnitFiles Value="graphicex;common"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <IncludeAssertionCode Value="True"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <UseHeaptrc Value="True"/>
+            </Debugging>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+          <Other>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dHEAPTRC"/>
+          </Other>
+        </CompilerOptions>
+      </Item5>
+      <Item6 Name="Debug64 with Heaptrc">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="bin\$(BuildMode)_DU_graphicex_test_$(TargetCPU)"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
+            <OtherUnitFiles Value="graphicex;common"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <IncludeAssertionCode Value="True"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+            <TargetCPU Value="x86_64"/>
+            <TargetOS Value="win64"/>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <DebugInfoType Value="dsDwarf2Set"/>
+              <UseHeaptrc Value="True"/>
+            </Debugging>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+          <Other>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dHEAPTRC"/>
+          </Other>
+        </CompilerOptions>
+      </Item6>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -148,19 +231,22 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <RequiredPackages Count="4">
+    <RequiredPackages Count="5">
       <Item1>
-        <PackageName Value="FCL"/>
+        <PackageName Value="Jcl"/>
       </Item1>
       <Item2>
-        <PackageName Value="graphicexlib"/>
+        <PackageName Value="FCL"/>
       </Item2>
       <Item3>
-        <PackageName Value="fpcunittestrunner"/>
+        <PackageName Value="graphicexlib"/>
       </Item3>
       <Item4>
-        <PackageName Value="LCL"/>
+        <PackageName Value="fpcunittestrunner"/>
       </Item4>
+      <Item5>
+        <PackageName Value="LCL"/>
+      </Item5>
     </RequiredPackages>
     <Units Count="1">
       <Unit0>
