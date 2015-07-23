@@ -3,9 +3,12 @@ unit DU_GraphicColor_Tests;
 interface
 
 // Do this before uses since GraphicColor defines UInt64!
+// Not working in Fpc so added IFNDEF FPC.
+{$IFNDEF FPC}
 {$IF NOT Declared(UInt64)}
   {$DEFINE NO_UINT64}
 {$IFEND}
+{$ENDIF}
 
 uses
      GraphicColor,
