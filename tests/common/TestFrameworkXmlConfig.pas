@@ -10,7 +10,11 @@ unit TestFrameworkXmlConfig;
 interface
 
 uses
+  {$IFNDEF FPC}
   TestFramework;
+  {$ELSE}
+  fpcunit, testregistry;
+  {$ENDIF}
 
 const
   CRootName     = 'Test';
@@ -33,13 +37,35 @@ type
   public
     constructor Create(const AMethodName, ATestFileName: string; ATestPage: Cardinal;
       ACompareFileName: string); reintroduce; overload; virtual;
+    {$IFNDEF FPC}
     function GetName: string; override;
+    {$ELSE}
+    function GetTestName: string; override;
+    {$ENDIF}
     property TestFileName: string read FTestFileName;
     property TestPage: Cardinal read FTestPage;
     property CompareFileName: string read FCompareFileName;
   end;
 
-  TImageReaderTestSuite = class(TTestSuite)
+  TExtendedTestSuite = class(TTestSuite)
+  private
+  protected
+    // Called from AddTests
+    procedure AddMethodTests(TestClass: TTestCaseClass; const NameOfMethod: string); overload; virtual;
+  public
+    {$IFDEF FPC}
+    // Change Create to make it DUnit compatible by calling AddTests.
+    constructor Create(AClass: TClass); override;
+    {$ENDIF}
+
+    procedure AddTests(TestClass: TTestCaseClass); {$IFNDEF FPC} override; {$ELSE} virtual; {$ENDIF}
+    {$IFDEF FPC}
+    // DUnit compatible procedure
+    procedure AddSuite(Suite: TTestSuite); virtual;
+    {$ENDIF}
+  end;
+
+  TImageReaderTestSuite = class(TExtendedTestSuite)
   private
     FBaseFolder: string;
     FXmlFile: string;
@@ -55,13 +81,17 @@ type
     FReadable,
     FComparison: string;
   protected
-    procedure AddMethodTests(TestClass: TTestCaseClass; const NameOfMethod: string); overload; virtual;
+    procedure AddMethodTests(TestClass: TTestCaseClass; const NameOfMethod: string); override;
+    {$IFNDEF FPC}
     procedure ProcessXml(Suite: ITestSuite; TestClass: TImageTestCaseClass; const NameOfMethod, Path, XmlFile: string;
         Recursive: Boolean); overload; virtual;
+    {$ELSE}
+    procedure ProcessXml(Suite: TTestSuite; TestClass: TImageTestCaseClass; const NameOfMethod, Path, XmlFile: string;
+        Recursive: Boolean); overload; virtual;
+    {$ENDIF}
 
   public
     constructor Create(TestClass: TImageTestCaseClass; const ABaseFolder, AXmlFile: string; ARecursive: Boolean); overload;
-    procedure AddTests(testClass: TTestCaseClass); override;
     property BaseFolder: string read FBaseFolder;
     property XmlFile: string read FXmlFile;
     property Recursive: Boolean read FRecursive;
@@ -87,8 +117,94 @@ uses
   SysUtils,
   Classes,
   Types,
+  {$IFDEF FPC}
+  testutils, // GetMethodList
+  {$ENDIF}
   JclFileUtils,
   JclSimpleXml;
+
+
+{$IFDEF FPC}
+constructor TExtendedTestSuite.Create(AClass: TClass);
+begin
+  TAssert.AssertNotNull(AClass);
+  Create(AClass.ClassName);
+  if AClass.InheritsFrom(TTestCase) then
+  begin
+    // Replace the inline part of the original Create with a call to AddTests
+    // for DUnit compatibility.
+    AddTests(TTestCaseClass(AClass));
+  end
+  else
+    AddTest(Warning(AClass.ClassName + SNoValidInheritance));
+  if Tests.Count = 0 then
+    AddTest(Warning(SNoValidTests + AClass.ClassName));
+end;
+{$ENDIF}
+
+{$IFNDEF FPC}
+procedure TExtendedTestSuite.AddTests(testClass: TTestCaseClass);
+var
+  MethodIter     :  Integer;
+  NameOfMethod   :  string;
+  MethodEnumerator:  TMethodEnumerator;
+begin
+  { call on the method enumerator to get the names of the test
+    cases in the testClass }
+  MethodEnumerator := nil;
+  try
+    MethodEnumerator := TMethodEnumerator.Create(testClass);
+    { make sure we add each test case  to the list of tests }
+    for MethodIter := 0 to MethodEnumerator.Methodcount-1 do begin
+      NameOfMethod := MethodEnumerator.nameOfMethod[MethodIter];
+      AddMethodTests(testClass, NameOfMethod);
+    end;
+  finally
+    MethodEnumerator.free;
+  end;
+end;
+
+{$ELSE}
+
+// DUnit compatible AddTests that calls AddMethodTests making it easier to
+// only override the relevant part (AddMethodTests).
+procedure TExtendedTestSuite.AddTests(TestClass: TTestCaseClass);
+var
+  ml: TStringList;
+  i: integer;
+  tc: TTestCaseClass;
+begin
+  tc := TestClass;
+  ml := TStringList.Create;
+  try
+    GetMethodList(TestClass, ml);
+    for i := 0 to ml.Count -1 do
+    begin
+      AddMethodTests(TestClass, ml.Strings[i]);
+    end;
+  finally
+    ml.Free;
+  end;
+end;
+{$ENDIF}
+
+procedure TExtendedTestSuite.AddMethodTests(TestClass: TTestCaseClass; const NameOfMethod: string);
+begin
+  {$IFNDEF FPC}
+  Self.AddTest(TestClass.Create(NameOfMethod) as ITest);
+  {$ELSE}
+  Self.AddTest(TestClass.CreateWith(NameOfMethod, TestClass.ClassName));
+  {$ENDIF}
+end;
+
+{$IFDEF FPC}
+procedure TExtendedTestSuite.AddSuite(Suite: TTestSuite);
+begin
+  AddTest(Suite);
+end;
+{$ENDIF}
+
+////////////////////////////////////////////////////////////////////////////////
 
 constructor TImageReaderTestSuite.Create(TestClass: TImageTestCaseClass; const ABaseFolder, AXmlFile: string; ARecursive:
     Boolean);
@@ -112,7 +228,11 @@ end;
 
 procedure TImageReaderTestSuite.AddMethodTests(TestClass: TTestCaseClass; const NameOfMethod: string);
 var
+  {$IFNDEF FPC}
   Suite: ITestSuite;
+  {$ELSE}
+  Suite: TTestSuite;
+  {$ENDIF}
 begin
   if TestClass.InheritsFrom(TImageTestCase) then begin
     Suite := TTestSuite.Create(NameOfMethod);
@@ -120,33 +240,21 @@ begin
     ProcessXml(Suite, TImageTestCaseClass(TestClass), NameOfMethod, BaseFolder, XmlFile, Recursive);
   end
   else begin
+    {$IFNDEF FPC}
     AddTest(TestClass.Create(NameOfMethod));
+    {$ELSE}
+    AddTest(TestClass.CreateWithName(NameOfMethod));
+    {$ENDIF}
   end;
 end;
 
-procedure TImageReaderTestSuite.AddTests(testClass: TTestCaseClass);
-var
-  MethodIter     :  Integer;
-  NameOfMethod   :  string;
-  MethodEnumerator:  TMethodEnumerator;
-begin
-  { call on the method enumerator to get the names of the test
-    cases in the testClass }
-  MethodEnumerator := nil;
-  try
-    MethodEnumerator := TMethodEnumerator.Create(testClass);
-    { make sure we add each test case  to the list of tests }
-    for MethodIter := 0 to MethodEnumerator.Methodcount-1 do begin
-      NameOfMethod := MethodEnumerator.nameOfMethod[MethodIter];
-      AddMethodTests(testClass, NameOfMethod);
-    end;
-  finally
-    MethodEnumerator.free;
-  end;
-end;
-
+{$IFNDEF FPC}
 procedure TImageReaderTestSuite.ProcessXml(Suite: ITestSuite; TestClass: TImageTestCaseClass; const NameOfMethod, Path,
     XmlFile: string; Recursive: Boolean);
+{$ELSE}
+procedure TImageReaderTestSuite.ProcessXml(Suite: TTestSuite; TestClass: TImageTestCaseClass; const NameOfMethod, Path,
+    XmlFile: string; Recursive: Boolean);
+{$ENDIF}
 var
   i, j: integer;
   // Xml handling
@@ -206,10 +314,18 @@ begin
   FTestFileName := ATestFileName;
   FTestPage := ATestPage;
   FCompareFileName := ACompareFileName;
+  {$IFNDEF FPC}
   inherited Create(AMethodName);
+  {$ELSE}
+  inherited CreateWithName(AMethodName);
+  {$ENDIF}
 end;
 
+{$IFNDEF FPC}
 function TImageTestCase.GetName: string;
+{$ELSE}
+function TImageTestCase.GetTestName: string;
+{$ENDIF}
 begin
   result := ExtractFileName(TestFileName);
 end;
