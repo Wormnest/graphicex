@@ -8,7 +8,11 @@ uses
   gexJpegWrapper,
   gexXCF,
   Graphics,
-  TestFrameWork,
+  {$IFNDEF FPC}
+  TestFramework,
+  {$ELSE}
+  fpcunit,
+  {$ENDIF}
   TestFrameworkXmlConfig;
 
 type
@@ -17,7 +21,11 @@ type
   private
     Graphic: TGraphic;
   public
+    {$IFNDEF FPC}
     class function Suite: ITestSuite; override;
+    {$ELSE}
+    class function Suite: TTestSuite; virtual;
+    {$ENDIF}
 
     procedure SetUp; override;
     procedure TearDown; override;
@@ -43,7 +51,7 @@ begin
   // Thus make sure it gets initialized to our bmp wrapper class.
   gc := FileFormatList.GraphicFromExtension('.bmp');
   if (FileFormatList.GraphicFromExtension('bmp') = nil) or
-     (gc = TBitmap) then begin
+     (gc <> TgexBmpGraphic) then begin
     FileFormatList.UnregisterFileFormat('bmp', Graphics.TBitmap);
     FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TgexBmpGraphic);
   end;
@@ -101,7 +109,11 @@ begin
   Graphic := nil;
 end;
 
+{$IFNDEF FPC}
 class function TImageReadingTests.Suite: ITestSuite;
+{$ELSE}
+class function TImageReadingTests.Suite: TTestSuite;
+{$ENDIF}
 begin
   Result := TImageReaderTestSuite.Create(self, ImagesBasePath, XmlConfig_FileName, False);
 end;
