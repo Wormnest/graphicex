@@ -31,6 +31,7 @@ type
     procedure TearDown; override;
 
     function DetermineImageFormat(AImage: string): TGraphicExGraphicClass;
+    procedure ExpectExceptionReadingImage;
   published
     procedure TestReadImage;
   end;
@@ -89,21 +90,41 @@ begin
   Result := GraphicClass;
 end;
 
+procedure TImageReadingTests.ExpectExceptionReadingImage;
+begin
+  // Load image for which we are expecting an exception while trying to read it...
+  TGraphicExGraphic(Graphic).LoadFromFileByIndex(TestFileName, TestPage);
+end;
+
 procedure TImageReadingTests.TestReadImage;
 var GraphicClass: TGraphicExGraphicClass;
 begin
   // Determine type of image
   GraphicClass := DetermineImageFormat(TestFileName);
-  Check( GraphicClass <> nil, Format('Failed to determine image format of %s!', [TestFileName]));
+  if not Unrecognized then
+    Check( GraphicClass <> nil, Format('Failed to determine image format of %s!', [TestFileName]))
+  else begin
+    // should not be recognized as an image
+    Check( GraphicClass = nil, Format('%s should not be recognized as an image!', [TestFileName]));
+    Exit;
+  end;
 
   // Create correct graphic image format
   Graphic := GraphicClass.Create;
   // On purpose no try finally since we are testing
   Check( Graphic <> nil, Format('Failed to create Graphic for %s!', [TestFileName]));
 
-  // Load image
-  TGraphicExGraphic(Graphic).LoadFromFileByIndex(TestFileName, TestPage);
-  Check(Graphic.Empty = False, Format('Failed to load image %s!', [TestFileName]));
+  if Readable then begin
+    // Load image
+    TGraphicExGraphic(Graphic).LoadFromFileByIndex(TestFileName, TestPage);
+    if not EmptyImage then
+      Check(Graphic.Empty = False, Format('Failed to load image %s!', [TestFileName]))
+    else
+      Check(Graphic.Empty = True, Format('%s is unexpectedly not empty!', [TestFileName]));
+  end
+  else
+    AssertException('We didn''t get the exception we expected!', ExceptionType,
+      {$IFDEF FPC}@{$ENDIF}ExpectExceptionReadingImage, ExceptionMessage);
 
   Graphic.Free;
   Graphic := nil;

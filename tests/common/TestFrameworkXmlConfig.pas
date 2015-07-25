@@ -26,25 +26,71 @@ const
   CPage         = 'Page';
   CReadable     = 'Readable';
   CComparison   = 'Comparison';
+  CUnrecognized = 'Unrecognized';
+  CEmpty        = 'Empty';
+
+  CExpectedResult = 'ExpectedResult';
+  CTester         = 'Tester';
+  CException      = 'Exception';
+  CMessage        = 'Message';
+
+  TesterAll       = 'All';
+  {$IFDEF FPC}
+  CurrentTester   = 'Lazarus';
+  {$ENDIF}
+  {$IFDEF VER140}
+  CurrentTester   = 'Delphi6';
+  {$ENDIF}
 
 type
+  TImageTestData = record
+    TestFileName: string;
+    TestPage: Cardinal;
+    CompareFileName: string;
+    Comparison: Boolean;
+    Readable: Boolean;
+    Unrecognized: Boolean;
+    EmptyImage: Boolean;
+    ExceptionType: string;
+    ExceptionMessage: string;
+  end;
+
   TImageTestCaseClass = class of TImageTestCase;
   TImageTestCase = class(TTestCase)
   private
     FTestFileName: string;
     FTestPage: Cardinal;
     FCompareFileName: string;
+    FComparison: Boolean;
+    FUnrecognized: Boolean;
+    FEmptyImage: Boolean;
+    FReadable: Boolean;
+    FExceptionType: string;
+    FExceptionMessage: string;
   public
     constructor Create(const AMethodName, ATestFileName: string; ATestPage: Cardinal;
       ACompareFileName: string); reintroduce; overload; virtual;
+    constructor Create(const AMethodName: string; const ATestData: TImageTestData); reintroduce; overload; virtual;
     {$IFNDEF FPC}
     function GetName: string; override;
     {$ELSE}
     function GetTestName: string; override;
     {$ENDIF}
+    {$IFDEF FPC}
+    class procedure AssertException(const AMessage: string; AExceptionClass: string;
+      AMethod: TRunMethod; AExceptionMessage : String = '';
+      AExceptionContext : Integer = 0; AErrorAddr : Pointer = Nil); overload;
+    {$ENDIF}
+
     property TestFileName: string read FTestFileName;
     property TestPage: Cardinal read FTestPage;
     property CompareFileName: string read FCompareFileName;
+    property Comparison: Boolean read FComparison;
+    property Unrecognized: Boolean read FUnrecognized;
+    property EmptyImage: Boolean read FEmptyImage;
+    property Readable: Boolean read FReadable;
+    property ExceptionType: string read FExceptionType;
+    property ExceptionMessage: string read FExceptionMessage;
   end;
 
   TExtendedTestSuite = class(TTestSuite)
@@ -263,6 +309,8 @@ var
   Prop: TJclSimpleXMLProp;
   NameOfTest: string;
   ImgFile, ImgPage, CompareFile: string;
+  TempStr: string;
+  TestData: TImageTestData;
   function GetPropValue(ANode: TJclSimpleXMLElem; APropName: string): string;
   var
     Prop: TJclSimpleXMLProp;
@@ -272,6 +320,18 @@ var
       Result := Prop.Value
     else
       Result := '';
+  end;
+  procedure ResetTestData;
+  begin
+    TestData.TestFileName := '';
+    TestData.TestPage := 0;
+    TestData.CompareFileName := '';
+    TestData.Comparison := False;
+    TestData.Unrecognized := False;
+    TestData.EmptyImage := False;
+    TestData.Readable := True;      // Default should be that image is readable!
+    TestData.ExceptionType := '';
+    TestData.ExceptionMessage := '';
   end;
 begin
 
@@ -288,6 +348,7 @@ begin
         NameOfTest := '<unnamed test>';
       Node := Node.Items.Item[0];
       for i := 0 to Node.Items.Count - 1 do begin
+        ResetTestData;
         FileNode := Node.Items.Item[i];
         ImgFile := ''; ImgPage := ''; CompareFile := '';
         for j := 0 to FileNode.Items.Count -1 do begin
@@ -295,12 +356,35 @@ begin
           if SameText(FileData.Name, FTestSubject) then begin
             ImgFile := GetPropValue(FileData, FName);
             ImgPage := GetPropValue(FileData, FPage);
+            TestData.TestFileName := Path + ImgFile;
+            TestData.TestPage := StrToIntDef(ImgPage, 0);
+            TempStr := GetPropValue(FileData, CUnrecognized);
+            if SameText(TempStr, '1') then
+              TestData.Unrecognized := True;
+            TempStr := GetPropValue(FileData, CEmpty);
+            if SameText(TempStr, '1') then
+              TestData.EmptyImage := True;
           end
           else if SameText(FileData.Name, FCompareWith) then begin
             CompareFile := GetPropValue(FileData, FName);
+            TestData.CompareFileName := Path + CompareFile;
+          end
+          else if SameText(FileData.Name, CExpectedResult) then begin
+            TempStr := GetPropValue(FileData, CTester);
+            if SameText(TempStr, CurrentTester) or SameText(TempStr, TesterAll) then begin
+              TempStr := GetPropValue(FileData, FReadable);
+              if SameText(TempStr, '1') then
+                TestData.Readable := True
+              else begin
+                TestData.Readable := False;
+                TestData.ExceptionType := GetPropValue(FileData, CException);
+                TestData.ExceptionMessage := GetPropValue(FileData, CMessage);
+              end;
+            end;
           end;
         end;
-        Suite.AddTest(TestClass.Create(NameOfMethod, Path+ImgFile, StrToIntDef(ImgPage, 0), Path+CompareFile));
+        //Suite.AddTest(TestClass.Create(NameOfMethod, Path+ImgFile, StrToIntDef(ImgPage, 0), Path+CompareFile));
+        Suite.AddTest(TestClass.Create(NameOfMethod, TestData));
       end;
     end;
   finally
@@ -321,14 +405,75 @@ begin
   {$ENDIF}
 end;
 
+constructor TImageTestCase.Create(const AMethodName: string; const ATestData: TImageTestData);
+begin
+  FTestFileName := ATestData.TestFileName;
+  FTestPage := ATestData.TestPage;
+  FCompareFileName := ATestData.CompareFileName;
+  FComparison := ATestData.Comparison;
+  FUnrecognized := ATestData.Unrecognized;
+  FEmptyImage := ATestData.EmptyImage;
+  FReadable := ATestData.Readable;
+  FExceptionType := ATestData.ExceptionType;
+  FExceptionMessage := ATestData.ExceptionMessage;
+
+  {$IFNDEF FPC}
+  inherited Create(AMethodName);
+  {$ELSE}
+  inherited CreateWithName(AMethodName);
+  {$ENDIF}
+end;
+
 {$IFNDEF FPC}
 function TImageTestCase.GetName: string;
 {$ELSE}
 function TImageTestCase.GetTestName: string;
 {$ENDIF}
 begin
-  result := ExtractFileName(TestFileName);
+  Result := ExtractFileName(TestFileName);
+  if Unrecognized then
+    Result := Result + ' (Image format that we can''t read or not an image)'
+  else if EmptyImage then
+    Result := Result + ' (Empty image or image with content we can''t read yet)'
+  else if not Readable and (ExceptionType <> '') then
+    Result := Result + ' (Expecting exception ' + ExceptionType + ')';
 end;
+
+{$IFDEF FPC}
+class procedure TImageTestCase.AssertException(const AMessage: string; AExceptionClass: string;
+  AMethod: TRunMethod; AExceptionMessage : String = '';
+  AExceptionContext : Integer = 0; AErrorAddr : Pointer = Nil);
+
+  Function MisMatch (AClassName : String) : String;
+
+  begin
+    Result:=Format(SExceptionCompare,[AExceptionClass, AClassName])
+  end;
+
+var
+  FailMsg : string;
+begin
+  If AErrorAddr=Nil then
+    AErrorAddr:=CallerAddr;
+  FailMsg:='';
+  try
+    AMethod;
+    FailMsg:=MisMatch(SNoException);
+  except
+    on E: Exception do
+      begin
+      if not (AExceptionClass = E.ClassName) then
+        FailMsg:=MisMatch(E.ClassName)
+      else if not CompareText(AExceptionMessage, E.Message) = 0 then
+        FailMsg := ComparisonMsg(SExceptionMessageCompare, AExceptionMessage, E.Message)
+      else if (AExceptionContext <> 0) and (AExceptionContext <> E.HelpContext) then
+        FailMsg := ComparisonMsg(SExceptionHelpContextCompare, IntToStr(AExceptionContext),
+          IntToStr(E.HelpContext))
+      end;
+  end;
+  AssertTrue(AMessage + FailMsg, FailMsg='', AErrorAddr);
+end;
+{$ENDIF}
 
 procedure AddImageReaderTests(ASuitePath, ARootPath, AXmlFileName: string;
   ATestClass: TImageTestCaseClass);
