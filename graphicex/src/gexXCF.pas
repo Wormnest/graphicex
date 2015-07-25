@@ -1086,7 +1086,9 @@ begin
 
       FinishProgressSection(False);
     end;
-  end;
+  end
+  else
+    FatalMessage('XCF: Error reading image');
 end;
 
 function TXcfGraphic.GetParasite(var Memory: PByte; var Parasite: TXcfParasite): Boolean;
