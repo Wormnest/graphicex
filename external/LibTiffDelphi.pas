@@ -1021,6 +1021,12 @@ begin
     m := sprintfsec(nil, Fmt, Args);
     SetLength(n, m);
     sprintfsec(Pointer(n), Fmt, Args);
+    // The length set is including the #0 at the end of the string.
+    // Since in some cases having the #0 included in the string can lead to
+    // problems (writing the #0 in xml unittest results), we will change the
+    // length here
+    if (m > 0) and (n[m] = #0) then
+      SetLength(n, m-1);
     FLibTiffDelphiErrorHandler(Module, n);
   end;
 end;
