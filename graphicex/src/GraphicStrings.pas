@@ -109,6 +109,7 @@ resourcestring
   gesIncorrectPaletteDataCount = 'Incorrect amount of palette data for this palette format.';
   gesSourceUndefined = 'Source data not assigned.';
   gesTargetUndefined = 'Target data not assigned.';
+  gesGammaTableNotInitialized = 'Gamma table not initialized!';
 
   // progress strings
   gesPreparing = 'Preparing...';

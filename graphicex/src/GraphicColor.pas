@@ -7780,7 +7780,7 @@ begin
   else
     Exclude(FTargetOptions, coAlpha);
 
-  if (coApplyGamma in FTargetOptions) then
+  if (coApplyGamma in FTargetOptions) then begin
     if not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
       InitGammaTable(FSourceBPS, FTargetBPS)
     else if (FSourceScheme in [csG, csGA]) then
@@ -7788,6 +7788,10 @@ begin
         // Conversion of grayscale to csBGRA etc expects gamma table to be in range 0..255
         // for easier conversion.
         InitGammaTable(8, 8);
+    // Security check: make sure we have initialized FGammaTable
+    if Length(FGammaTable) = 0 then
+      ShowError(gesGammaTableNotInitialized);
+  end;
 
   case FSourceScheme of
     csG:
