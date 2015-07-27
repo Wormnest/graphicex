@@ -462,13 +462,13 @@ begin
   except
     on E: Exception do
       begin
-      if not (AExceptionClass = E.ClassName) then
-        FailMsg:=MisMatch(E.ClassName)
-      else if not CompareText(AExceptionMessage, E.Message) = 0 then
-        FailMsg := ComparisonMsg(SExceptionMessageCompare, AExceptionMessage, E.Message)
-      else if (AExceptionContext <> 0) and (AExceptionContext <> E.HelpContext) then
-        FailMsg := ComparisonMsg(SExceptionHelpContextCompare, IntToStr(AExceptionContext),
-          IntToStr(E.HelpContext))
+        if not (AExceptionClass = E.ClassName) then
+          FailMsg:=MisMatch(E.ClassName)
+        else if not SameText(AExceptionMessage, E.Message) then
+          FailMsg := ComparisonMsg(SExceptionMessageCompare, AExceptionMessage, E.Message)
+        else if (AExceptionContext <> 0) and (AExceptionContext <> E.HelpContext) then
+          FailMsg := ComparisonMsg(SExceptionHelpContextCompare, IntToStr(AExceptionContext),
+            IntToStr(E.HelpContext))
       end;
   end;
   AssertTrue(AMessage + FailMsg, FailMsg='', AErrorAddr);
