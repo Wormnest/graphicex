@@ -775,6 +775,7 @@ type
                                // color.
     FTransparentColor: TColor; // transparent color for gray and RGB
     FBackgroundColor: TColor;  // index or color ref
+    FEOF: Pointer;             // End of File in memory buffer: position AFTER the last byte in the file
     procedure ApplyFilter(Filter: Byte; Line, PrevLine, Target: PByte; BPP, BytesPerRow: Integer);
     function IsChunk(ChunkType: TChunkType): Boolean;
     function LoadAndSwapHeader(var Source: PByte): Cardinal;
@@ -785,6 +786,7 @@ type
     procedure ReadDataAndCheckCRC(var Source: PByte);
     procedure ReadRow(var Source: PByte; RowBuffer: Pointer; BytesPerRow: Integer);
     function SetupColorDepth(ColorType, BitDepth: Integer): Integer;
+    procedure ValidateMemoryPosition(const CurPos: Pointer; const AOffset: Cardinal);
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
@@ -9083,6 +9085,7 @@ var
   Run: PByte;
 
 begin
+  FEOF := Memory + Size;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
   if Result then
@@ -9490,6 +9493,18 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+procedure TPNGGraphic.ValidateMemoryPosition(const CurPos: Pointer; const AOffset: Cardinal);
+begin
+  // Security check: make sure the target memory position doesn't point beyond EOF
+  // FEOF here means the memory position of the first byte after the end of file
+  // Always convert to UInt64 first since the result of the addition can be
+  // larger than High(Cardinal)
+  if UInt64(CurPos) + AOffset >= UInt64(FEOF) then
+    GraphicExError(gesStreamReadError, ['PNG']);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
 procedure TPNGGraphic.ReadDataAndCheckCRC(var Source: PByte);
 
 // Allocates memory in FRawBuffer and reads the next Header.Length bytes from Stream.
@@ -9501,6 +9516,7 @@ var
   FileCRC: Cardinal;
 
 begin
+  ValidateMemoryPosition(Source, FHeader.Length);
   ReallocMem(FRawBuffer, FHeader.Length);
   Move(Source^, FRawBuffer^, FHeader.Length);
   Inc(Source, FHeader.Length);
