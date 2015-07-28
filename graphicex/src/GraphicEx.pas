@@ -9085,7 +9085,7 @@ var
   Run: PByte;
 
 begin
-  FEOF := Memory + Size;
+  FEOF := PAnsiChar(Memory) + Size;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
   if Result then
