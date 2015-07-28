@@ -80,6 +80,9 @@ type
     class procedure AssertException(const AMessage: string; AExceptionClass: string;
       AMethod: TRunMethod; AExceptionMessage : String = '';
       AExceptionContext : Integer = 0; AErrorAddr : Pointer = Nil); overload;
+    {$ELSE}
+    procedure AssertException(const AMessage: string; AExceptionClass: string;
+      AMethod: TTestMethod; AExceptionMessage : String = ''); overload;
     {$ENDIF}
 
     property TestFileName: string read FTestFileName;
@@ -472,6 +475,30 @@ begin
       end;
   end;
   AssertTrue(AMessage + FailMsg, FailMsg='', AErrorAddr);
+end;
+{$ELSE}
+procedure TImageTestCase.AssertException(const AMessage: string; AExceptionClass: string;
+  AMethod: TTestMethod; AExceptionMessage : String = '');
+var
+  FailMsg : string;
+begin
+  FCheckCalled := True;
+  FailMsg := '';
+  try
+    Invoke(AMethod);
+  except
+    on E :Exception do
+    begin
+        if not (AExceptionClass = E.ClassName) then
+          FailMsg := Format('Exception names not the same. We expected <%s> but we got <%s>.',
+            [AExceptionClass, E.ClassName])
+        else if not SameText(AExceptionMessage, E.Message) then
+          FailMsg := Format('Exception messages not the same. We expected <%s> but we got <%s>.',
+            [AExceptionMessage, E.Message]);
+    end;
+  end;
+  if FailMsg <> '' then
+    Fail(FailMsg, CallerAddr);
 end;
 {$ENDIF}
 
