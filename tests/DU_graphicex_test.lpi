@@ -173,7 +173,7 @@
           </Linking>
           <Other>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
--dHEAPTRC"/>
+-dHEAPTRC_LOG"/>
           </Other>
         </CompilerOptions>
       </Item5>
@@ -264,7 +264,7 @@
         </CompilerOptions>
       </Item7>
       <SharedMatrixOptions Count="1">
-        <Item1 ID="707623224695" Modes="Debug" Value="-dEnableUTF8RTL"/>
+        <Item1 ID="707623224695" Value="-dEnableUTF8RTL"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
@@ -292,11 +292,16 @@
         <PackageName Value="LCL"/>
       </Item5>
     </RequiredPackages>
-    <Units Count="1">
+    <Units Count="2">
       <Unit0>
         <Filename Value="DU_graphicex_test.dpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
+      <Unit1>
+        <Filename Value="common\heaptrclog.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="HeaptrcLog"/>
+      </Unit1>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -323,7 +328,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="4">
+    <Exceptions Count="5">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -336,6 +341,9 @@
       <Item4>
         <Name Value="EInvalidGraphic"/>
       </Item4>
+      <Item5>
+        <Name Value="EColorConversionError"/>
+      </Item5>
     </Exceptions>
   </Debugging>
 </CONFIG>

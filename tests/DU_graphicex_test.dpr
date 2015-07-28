@@ -18,8 +18,8 @@ uses
   FastMM4,
   D6Support,                           // Ignore known memory leaks
   {$ELSE}
-  {$IFDEF HEAPTRC}
-  SysUtils,
+  {$IFDEF HEAPTRC_LOG}
+  HeaptrcLog,                          // Heaptrc logging should start as early as possible
   {$ENDIF}
   Forms, Interfaces,
   fpcunittestrunner,
@@ -35,12 +35,6 @@ begin
   {$IFNDEF FPC}
   GUITestRunner.RunRegisteredTests;
   {$ELSE}
-  {$IFDEF HEAPTRC}
-  // Set up -gh output for the Leakview package:
-  if FileExists('heaptrc.log') then
-    DeleteFile('heaptrc.log');
-  SetHeapTraceOutput('heaptrc.log');
-  {$ENDIF DEBUG}
   Application.Initialize;
   Application.CreateForm(TGuiTestRunner, TestRunner);
   Application.Run;
