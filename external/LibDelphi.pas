@@ -16,7 +16,9 @@ function  fputc(c: Integer; stream: Pointer): Integer; cdecl;
 function  isprint(c: Integer): Integer; cdecl;
 procedure memset(a: Pointer; b: Integer; c: Cardinal); cdecl;
 function  memcpy(dest: Pointer; const src: Pointer; count: Cardinal): Pointer; cdecl;
+{$IFNDEF CPU64}
 function  _ftol: Integer; cdecl;
+{$ENDIF}
 function  malloc(s: Longint): Pointer; cdecl;
 procedure free(p: Pointer); cdecl;
 function  _ltolower(ch: Integer): Integer; cdecl;
@@ -352,6 +354,7 @@ begin
   Result := AllocMem(s);
 end;
 
+{$IFNDEF CPU64}
 function _ftol: Integer; cdecl;
 var
   f: double;
@@ -362,6 +365,7 @@ begin
   end;
   Result := Trunc(f);
 end;
+{$ENDIF}
 
 function memcpy(dest: Pointer; const src: Pointer; count: Cardinal): Pointer; cdecl;
 begin
