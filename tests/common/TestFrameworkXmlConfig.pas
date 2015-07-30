@@ -360,12 +360,6 @@ begin
             ImgPage := GetPropValue(FileData, FPage);
             TestData.TestFileName := Path + ImgFile;
             TestData.TestPage := StrToIntDef(ImgPage, 0);
-            TempStr := GetPropValue(FileData, CUnrecognized);
-            if SameText(TempStr, '1') then
-              TestData.Unrecognized := True;
-            TempStr := GetPropValue(FileData, CEmpty);
-            if SameText(TempStr, '1') then
-              TestData.EmptyImage := True;
           end
           else if SameText(FileData.Name, FCompareWith) then begin
             CompareFile := GetPropValue(FileData, FName);
@@ -374,6 +368,12 @@ begin
           else if SameText(FileData.Name, CExpectedResult) then begin
             TempStr := GetPropValue(FileData, CTester);
             if SameText(TempStr, CurrentTester) or SameText(TempStr, TesterAll) then begin
+              TempStr := GetPropValue(FileData, CUnrecognized);
+              if SameText(TempStr, '1') then
+                TestData.Unrecognized := True;
+              TempStr := GetPropValue(FileData, CEmpty);
+              if SameText(TempStr, '1') then
+                TestData.EmptyImage := True;
               TempStr := GetPropValue(FileData, FReadable);
               if SameText(TempStr, '1') then
                 TestData.Readable := True
