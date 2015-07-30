@@ -27,7 +27,11 @@ const
   CPrecompiled    = #13#10'Pre-compiled LibTiff for ';
   CRepository     = #13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
   CLibTiffDelphi  = 'LibTiffDelphi ';
+  {$IFDEF LIBTIFF4}
+  CLibTiffVersion = '4.0.4';
+  {$ELSE}
   CLibTiffVersion = '3.9.7';
+  {$ENDIF}
   {$IFNDEF FPC}
   CCompiler       = 'Delphi';
   {$ELSE}
