@@ -37,9 +37,8 @@ const
   TesterAll       = 'All';
   {$IFDEF FPC}
   CurrentTester   = 'Lazarus';
-  {$ENDIF}
-  {$IFDEF VER140}
-  CurrentTester   = 'Delphi6';
+  {$ELSE}
+  CurrentTester   = 'Delphi';
   {$ENDIF}
 
 type
