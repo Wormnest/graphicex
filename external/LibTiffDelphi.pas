@@ -22,11 +22,18 @@ uses
   Windows, SysUtils, Classes;
 
 const
+  CPrecompiled    = #13#10'Pre-compiled LibTiff for ';
+  CRepository     = #13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  CLibTiffDelphi  = 'LibTiffDelphi ';
+  CLibTiffVersion = '3.9.7';
   {$IFNDEF FPC}
-  LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Delphi'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  CCompiler       = 'Delphi';
   {$ELSE}
-  LibTiffDelphiVersionString = 'LibTiffDelphi 3.9.7'#13#10'Pre-compiled LibTiff for Fpc/Lazarus'#13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  CCompiler       = 'Fpc/Lazarus';
   {$ENDIF}
+  // Define this as a typed const; that way it will always get included.
+  LibTiffDelphiVersionString: string = CLibTiffDelphi + CLibTiffVersion +
+    CPrecompiled + CCompiler + CRepository;
 
   // Defines taken from tiff.h
   TIFF_VERSION          = 42;
