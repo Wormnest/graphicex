@@ -1,6 +1,8 @@
-{ LibTiffDelphi This version is based on the one found in ImagingLib which
+{ LibTiffDelphi
+  This version is based on the one found in ImagingLib which
   is based on libtiff 3.9.1 and 3.9.4.
-  The version  here is updated to libtiff 3.9.7.
+  The version here was first updated to libtiff 3.9.7 and further enhanced
+  and adapted by me Jacob Boerema.
 }
 
 unit LibTiffDelphi;
