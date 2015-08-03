@@ -480,6 +480,33 @@ procedure TImageTestCase.AssertException(const AMessage: string; AExceptionClass
   AMethod: TTestMethod; AExceptionMessage : String = '');
 var
   FailMsg : string;
+
+  // StripChars strips any char below space, except tab which is replaced by one space
+  // Multiple spaces are replaced by just one space
+  function StripChars(const AString: string): string;
+  var i, DestPos: Integer;
+    LastChar: Char;
+  begin
+    LastChar := #0;
+    DestPos := 0; // 0 because it gets incremented before use
+    SetLength(Result, Length(AString));
+    for i := 1 to Length(AString) do
+      if AString[i] <= ' ' then begin
+        if AString[i] in [#9, ' '] then // tab, space
+          if LastChar <> ' ' then begin
+            Inc(DestPos);
+            Result[DestPos] := ' ';
+            LastChar := ' ';
+          end;
+      end
+      else begin
+        Inc(DestPos);
+        Result[DestPos] := AString[i];
+        LastChar := AString[i];
+      end;
+    SetLength(Result, DestPos);
+  end;
+
 begin
   FCheckCalled := True;
   FailMsg := '';
@@ -491,7 +518,7 @@ begin
         if not (AExceptionClass = E.ClassName) then
           FailMsg := Format('Exception names not the same. We expected <%s> but we got <%s>.',
             [AExceptionClass, E.ClassName])
-        else if not SameText(AExceptionMessage, E.Message) then
+        else if not SameText(StripChars(AExceptionMessage), StripChars(E.Message)) then
           FailMsg := Format('Exception messages not the same. We expected <%s> but we got <%s>.',
             [AExceptionMessage, E.Message]);
     end;
