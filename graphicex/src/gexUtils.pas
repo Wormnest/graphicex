@@ -77,6 +77,9 @@ function SwapLong(Value: Cardinal): Cardinal; overload;
 // Swaps high and low bytes of the given 32 bit value.
 function SwapLong(Value: Integer): Integer; overload;
 
+// Reverses the order of the 8 bytes.
+function SwapLong64(Value: Int64): Int64; overload;
+
 // Reverses the byte order in Source which must be 8 bytes in size (as well as the target).
 procedure SwapDouble(const Source; var Target);
 
@@ -141,6 +144,14 @@ function SwapLong(Value: Integer): Integer; overload;
 
 asm
         BSWAP   EAX
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// Reverses the order of the 8 bytes.
+function SwapLong64(Value: Int64): Int64; overload;
+begin
+  Result := SwapLong(Cardinal(Value shr 32)) + Int64(SwapLong(Cardinal(Value))) shl 32;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
