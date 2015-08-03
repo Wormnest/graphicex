@@ -141,6 +141,8 @@ function _lfind(const key, base: Pointer; num: Psize_t; width: size_t; Compare: 
 {$IFNDEF FPC}
 {$IFNDEF WIN64}
 procedure _llmod;
+procedure _llmul;
+procedure _lludiv;
 {$ENDIF}
 {$ENDIF}
 
@@ -845,6 +847,20 @@ procedure _llmod;
 asm
   jmp System.@_llmod;
 end;
+
+// Next two functions used in LibTiff 4.x
+// Implementation from: https://github.com/synopse/mORMot/blob/master/SynSQLite3Static.pas
+// See also: http://stackoverflow.com/questions/8694846/linking-sqlite3-obj-emits-uunsatisfied-forward-declarations-errors
+procedure _llmul;
+asm
+  jmp System.@_llmul
+end;
+
+procedure _lludiv;
+asm
+  jmp System.@_lludiv
+end;
+
 {$ENDIF}
 {$ENDIF}
 
