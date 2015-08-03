@@ -33,6 +33,8 @@ var
   __turboFloat: LongBool = False;
   _streams: Integer;
 
+type ELibDelphiError = class(Exception);
+
 implementation
 
 {PODD}
@@ -122,22 +124,22 @@ end;
 
 function _ltolower(ch: Integer): Integer; cdecl;
 begin
-  raise Exception.Create('LibDelphi - call to _ltolower - should presumably not occur');
+  raise ELibDelphiError.Create('LibDelphi - call to _ltolower - should presumably not occur');
 end;
 
 function _ltoupper(ch: Integer): Integer; cdecl;
 begin
-  raise Exception.Create('LibDelphi - call to _ltoupper - should presumably not occur');
+  raise ELibDelphiError.Create('LibDelphi - call to _ltoupper - should presumably not occur');
 end;
 
 function _ltowlower(ch: Integer): Integer; cdecl;
 begin
-  raise Exception.Create('LibDelphi - call to _ltowlower - should presumably not occur');
+  raise ELibDelphiError.Create('LibDelphi - call to _ltowlower - should presumably not occur');
 end;
 
 function _ltowupper(ch: Integer): Integer; cdecl;
 begin
-  raise Exception.Create('LibDelphi - call to _ltowupper - should presumably not occur');
+  raise ELibDelphiError.Create('LibDelphi - call to _ltowupper - should presumably not occur');
 end;
 
 function sprintfsec(buffer: Pointer; format: Pointer; arguments: Pointer): Integer;
@@ -313,7 +315,7 @@ begin
           Ord('n'): mb:=False;
           Ord('p'): mb:=False;
         else
-          raise Exception.Create('LibDelphi');
+          raise ELibDelphiError.Create('LibDelphi: unexpected specifier in sprintfsec');
         end;
       end;
       if mb=False then
