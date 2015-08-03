@@ -2042,7 +2042,10 @@ type
   TTIFFHeader = packed record
     ByteOrder: Word;
     Version: Word;
-    FirstIFD: Cardinal;
+    case boolean of
+      False: (FirstIFD: Cardinal); // Classic TIFF
+      True: (OffsetSize, Unused: Word;
+             FirstIFD64: UInt64); // Big TIFF
   end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2834,8 +2837,10 @@ begin
         TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
       if Assigned(TIFFImage) then
       try
-        // This version is actually a magic number, which does never change.
-        Version := TIFF_VERSION;
+        // This version is actually a magic number.
+        Version := pTIFFHEADER(FMemory).Version;
+        if pTIFFHEADER(FMemory).ByteOrder = TIFF_BIGENDIAN then
+          Version := Swap(Version);
         try
           // Account for invalid files.
           ImageCount := TIFFNumberOfDirectories(TIFFImage);
