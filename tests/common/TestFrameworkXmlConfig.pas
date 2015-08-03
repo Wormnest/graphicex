@@ -433,6 +433,8 @@ function TImageTestCase.GetTestName: string;
 {$ENDIF}
 begin
   Result := ExtractFileName(TestFileName);
+  if TestPage > 0 then
+    Result := Result + ', page ' + IntToStr(TestPage);
   if Unrecognized then
     Result := Result + ' (Image format that we can''t read or not an image)'
   else if EmptyImage then
