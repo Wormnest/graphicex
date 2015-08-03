@@ -2801,7 +2801,7 @@ var
   TIFFImage: PTIFF;
   PhotometricInterpretation: Word;
   ExtraSamples: Word;
-  SampleInfo: PWord;
+  SampleInfo: PWordArray;
   TIFFValue: Word;
   TIFFCompression: Word;
   ResUnit: Word;
@@ -2874,7 +2874,7 @@ begin
 
         // Determine whether extra samples must be considered.
         HasAlpha := (ExtraSamples >= 1) and
-          (SampleInfo^ in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
+          (SampleInfo^[0] in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
 
         // SampleFormat determines DataType of samples (default = unsigned int)
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLEFORMAT, @TIFFValue);
