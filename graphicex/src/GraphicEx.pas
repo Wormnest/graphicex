@@ -2460,14 +2460,14 @@ var
   I: Integer;
   Line: Pointer;
 
-  {$ifndef DELPHI_7_UP}
+  {$ifndef DELPHI_6_UP}
     // Structure used to build a va_list array.
     ExtraInfo: record
       Value1: Pointer;
       Value2: Pointer;
       Value3: Pointer;
     end;
-  {$endif DELPHI_7_UP}
+  {$endif DELPHI_6_UP}
   RedMap,
   GreenMap,
   BlueMap: PWord;
@@ -2714,14 +2714,14 @@ begin
 
             if ColorScheme in [csIndexed, csIndexedA] then
             begin
-              {$ifndef DELPHI_7_UP}
+              {$ifndef DELPHI_6_UP}
                 ExtraInfo.Value1 := @RedMap;
                 ExtraInfo.Value2 := @GreenMap;
                 ExtraInfo.Value3 := @BlueMap;
                 GotPalette := TIFFVGetField(TIFFImage, TIFFTAG_COLORMAP, @ExtraInfo);
               {$else}
                 GotPalette := TIFFGetField(TIFFImage, TIFFTAG_COLORMAP, @RedMap, @GreenMap, @BlueMap);
-              {$endif DELPHI_7_UP}
+              {$endif DELPHI_6_UP}
 
               if GotPalette > 0 then
               begin
@@ -2808,13 +2808,13 @@ var
   FillOrder: Word;
   TiffStringValue: array [0..0] of PAnsiChar;
 
-  {$ifndef DELPHI_7_UP}
+  {$ifndef DELPHI_6_UP}
     // Structure used to build a va_list array.
     ExtraInfo: record
       Value1: Pointer;
       Value2: Pointer;
     end;
-  {$endif DELPHI_7_UP}
+  {$endif DELPHI_6_UP}
   
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
@@ -2864,13 +2864,13 @@ begin
         // Photometric interpretation determines the color space.
         TIFFGetField(TIFFImage, TIFFTAG_PHOTOMETRIC, @PhotometricInterpretation);
         // Type of extra information for additional samples per pixel.
-        {$ifndef DELPHI_7_UP}
+        {$ifndef DELPHI_6_UP}
           ExtraInfo.Value1 := @ExtraSamples;
           ExtraInfo.Value2 := @SampleInfo;
           TIFFVGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraInfo);
         {$else}
           TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraSamples, @SampleInfo);
-        {$endif DELPHI_7_UP}
+        {$endif DELPHI_6_UP}
 
         // Determine whether extra samples must be considered.
         HasAlpha := (ExtraSamples >= 1) and
