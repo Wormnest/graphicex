@@ -2161,9 +2161,12 @@ end;
 procedure TiffError(const Module, ErrorString: AnsiString);
 begin
   if Length(Module) > 0 then
-    GraphicExError( Module + ':  ' + ErrorString )
+    if (Length(ErrorString) > 0) and (ErrorString[1] <> ':') then
+      GraphicExError(Module + ': ' + ErrorString)
+    else
+      GraphicExError(Module + ErrorString)
   else
-    GraphicExError( ErrorString );
+    GraphicExError(ErrorString);
 end;
 
 procedure TTIFFGraphic.ReadContiguous(tif: PTIFF);
