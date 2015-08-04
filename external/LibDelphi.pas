@@ -40,15 +40,21 @@ type ELibDelphiError = class(Exception);
 
 implementation
 
-type
   {$IF NOT Declared(UInt64)}
+type
   UInt64 = Int64;
+  {$IFEND}
+  {$IF NOT Declared(PUInt64)}
+  // Fpc has UInt64 but not PUint64 so handle this separately from UInt64
+type
   PUint64 = ^Uint64;
   {$IFEND}
   {$IF NOT Declared(NativeInt)}
+type
   NativeInt = Integer;
   {$IFEND}
   {$IF NOT Declared(NativeUInt)}
+type
   NativeUInt = Cardinal;
   {$IFEND}
 
