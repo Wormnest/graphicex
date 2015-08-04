@@ -1038,6 +1038,8 @@ begin
   begin
     SizeLow := GetFileSize(FFileHandle, @SizeHigh);
     FFileSize := Int64(SizeHigh) shl 32 + SizeLow;
+    if FFileSize = 0 then
+      Exit; // Empty file should not give an error here. We will handle it in our graphics type detection
     FFileMapping := CreateFileMapping(FFileHandle, nil, PAGE_READONLY	, 0, 0, nil);
     if FFileMapping = 0 then
       RaiseLastOSError;
@@ -1065,6 +1067,8 @@ begin
 
   SizeLow := GetFileSize(Stream.Handle, @SizeHigh);
   FFileSize := Int64(SizeHigh) shl 32 + SizeLow;
+    if FFileSize = 0 then
+      Exit; // Empty file should not give an error here. We will handle it in our graphics type detection
   FFileMapping := CreateFileMapping(Stream.Handle, nil, PAGE_READONLY, 0, 0, nil);
   if FFileMapping = 0 then
     RaiseLastOSError;
