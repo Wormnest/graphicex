@@ -328,7 +328,7 @@
     </Other>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="5">
+    <Exceptions Count="13">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -344,6 +344,30 @@
       <Item5>
         <Name Value="EColorConversionError"/>
       </Item5>
+      <Item6>
+        <Name Value="FPImageException"/>
+      </Item6>
+      <Item7>
+        <Name Value="Exception"/>
+      </Item7>
+      <Item8>
+        <Name Value="RunError(215)"/>
+      </Item8>
+      <Item9>
+        <Name Value="EIntOverflow"/>
+      </Item9>
+      <Item10>
+        <Name Value="RunError(203)"/>
+      </Item10>
+      <Item11>
+        <Name Value="EOutOfMemory"/>
+      </Item11>
+      <Item12>
+        <Name Value="EAssertionFailedError"/>
+      </Item12>
+      <Item13>
+        <Name Value="EOSError"/>
+      </Item13>
     </Exceptions>
   </Debugging>
 </CONFIG>
