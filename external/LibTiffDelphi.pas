@@ -1140,7 +1140,7 @@ procedure TIFFYCbCrtoRGB(ycbcr: PTIFFYCbCrToRGB; Y: uint32; Cb: int32; Cr: int32
     If the value is 4 bytes or less, then it is placed in the offset field to save space.  If the value
     is less than 4 bytes, it is left-justified in the offset field.
   }
-
+type
   TTIFFDirEntry = record
     tdir_tag: Word;        // see below
     tdir_type: Word;       // data type; see below
