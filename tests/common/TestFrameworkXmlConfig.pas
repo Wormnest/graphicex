@@ -220,9 +220,7 @@ procedure TExtendedTestSuite.AddTests(TestClass: TTestCaseClass);
 var
   ml: TStringList;
   i: integer;
-  tc: TTestCaseClass;
 begin
-  tc := TestClass;
   ml := TStringList.Create;
   try
     GetMethodList(TestClass, ml);
@@ -309,7 +307,6 @@ var
   SimpleXML: TJclSimpleXML;
   Node, FileNode, FileData: TJclSimpleXMLElem;
   Prop: TJclSimpleXMLProp;
-  NameOfTest: string;
   ImgFile, ImgPage, CompareFile: string;
   TempStr: string;
   TestData: TImageTestData;
@@ -344,10 +341,6 @@ begin
     if (SameText(Node.Name, FRootName)) and (Node.Items.Count = 1) and
       (Node.Items.Item[0].Name = FTestFiles) then begin
       Prop := Node.Properties.ItemNamed[FName];
-      if Assigned(Prop) then
-        NameOfTest := Prop.Value
-      else
-        NameOfTest := '<unnamed test>';
       Node := Node.Items.Item[0];
       for i := 0 to Node.Items.Count - 1 do begin
         ResetTestData;
