@@ -99,6 +99,9 @@ end;
 procedure TImageReadingTests.TestReadImage;
 var GraphicClass: TGraphicExGraphicClass;
 begin
+  {$IFNDEF FPC}
+  FailsOnMemoryLeak := True;
+  {$ENDIF}
   // Determine type of image
   GraphicClass := DetermineImageFormat(TestFileName);
   if not Unrecognized then
