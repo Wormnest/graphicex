@@ -38,18 +38,110 @@ const
   CCompiler       = 'Fpc/Lazarus';
   {$ENDIF}
   // Define this as a typed const; that way it will always get included.
-  LibTiffDelphiVersionString: string = CLibTiffDelphi + CLibTiffVersion +
+  LibTiffDelphiVersionString: AnsiString = CLibTiffDelphi + CLibTiffVersion +
     CPrecompiled + CCompiler + CRepository;
 
-  // Defines taken from tiff.h
+
+  // tiff.h
+
+  {$IFDEF LIBTIFF4}
+  TIFF_VERSION_CLASSIC  = 42;
+  TIFF_VERSION_BIG      = 43;
+  {$ELSE}
   TIFF_VERSION          = 42;
   TIFF_BIGTIFF_VERSION  = 43;
+  {$ENDIF}
   TIFF_BIGENDIAN     = $4D4D;
   TIFF_LITTLEENDIAN  = $4949;
   MDI_LITTLEENDIAN   = $5045;
   MDI_BIGENDIAN      = $4550;
 
-  // TIFFDataType enum
+type
+
+{*
+ * Intrinsic data types required by the file format:
+ *
+ * 8-bit quantities     int8/uint8
+ * 16-bit quantities    int16/uint16
+ * 32-bit quantities    int32/uint32
+ * 64-bit quantities    int64/uint64
+ * strings              unsigned char*
+ *}
+  int8   = ShortInt;
+  uint8  = Byte;
+  int16  = SmallInt;
+  uint16 = Word;
+  int32  = Integer;
+  uint32 = LongWord;
+  //int64 - Already defined
+
+  // jb Following types added here to make our life easier
+  {$IF NOT Declared(UInt64)}
+  uint64 = int64;
+  puint64 = ^uint64;
+  {$IFEND}
+  {$IF NOT Declared(NativeInt)}
+  NativeInt = Integer;
+  {$IFEND}
+  {$IF NOT Declared(NativeUInt)}
+  NativeUInt = Cardinal;
+  {$IFEND}
+  float = Single;
+  pfloat = ^float;
+  puint8 = ^uint8;
+  puint16 = ^uint16;
+  pint32 = ^int32;
+  puint32 = ^uint32;
+  ppuint32 = ^puint32;
+
+{*
+ * Some types as promoted in a variable argument list
+ * We use uint16_vap rather then directly using int, because this way
+ * we document the type we actually want to pass through, conceptually,
+ * rather then confusing the issue by merely stating the type it gets
+ * promoted to
+ *}
+
+  uint16_vap = Integer; // Dependant on 32/64 bits compiler? Needs to be checked!!!
+
+  // TIFF header.
+
+  {$IFNDEF LIBTIFF4}
+  TTIFFHeader = record
+    tiff_magic: Word;      // magic number (defines byte order)
+    tiff_version: Word;    // TIFF version number
+    tiff_diroff: Cardinal; // byte offset to first directory
+  end;
+  {$ELSE}
+  TTIFFHeaderCommon = record
+    tiff_magic: uint16;      // magic number (defines byte order)
+    tiff_version: uint16;    // TIFF version number
+  end;
+
+  TTIFFHeaderClassic = record
+    tiff_magic: uint16;      // magic number (defines byte order)
+    tiff_version: uint16;    // TIFF version number
+    tiff_diroff: uint32;     // byte offset to first directory
+  end;
+
+  TTIFFHeaderBig = record
+    tiff_magic: uint16;      // magic number (defines byte order)
+    tiff_version: uint16;    // TIFF version number
+    tiff_offsetsize: uint16; // size of offsets, should be 8
+    tiff_unused: uint16;     // unused word, should be 0
+    tiff_diroff: uint64;     // byte offset to first directory
+  end;
+  {$ENDIF}
+
+const
+  {  NB: In the comments below,
+     - items marked with a + are obsoleted by revision 5.0,
+     - items marked with a ! are introduced in revision 6.0.
+     - items marked with a % are introduced post revision 6.0.
+     - items marked with a $ are obsoleted by revision 6.0.
+     - items marked with a & are introduced by Adobe DNG specification.
+  }
+
   // Tag data type information.
   // Note: RATIONALs are the ratio of two 32-bit integer values.
   TIFF_NOTYPE                           = 0;
@@ -66,19 +158,18 @@ const
   TIFF_FLOAT                            = 11;      { !32-bit IEEE floating point }
   TIFF_DOUBLE                           = 12;      { !64-bit IEEE floating point }
   TIFF_IFD                              = 13;      { %32-bit unsigned integer (offset) }
-  // jb The values below are not defined in tiff.h 3.9.7
-  TIFF_UNICODE                          = 14;
-  TIFF_COMPLEX                          = 15;
-  TIFF_LONG8                            = 16;
-  TIFF_SLONG8                           = 17;
-  TIFF_IFD8                             = 18;
+  TIFF_UNICODE                          = 14;      // Not defined in tiff 3.9.7 and 4.0.4
+  TIFF_COMPLEX                          = 15;      // Not defined in tiff 3.9.7 and 4.0.4
+  TIFF_LONG8                            = 16;      // BigTIFF 64-bit unsigned integer
+  TIFF_SLONG8                           = 17;      // BigTIFF 64-bit signed integer
+  TIFF_IFD8                             = 18;      // BigTIFF 64-bit unsigned integer (offset)
 
   // TIFF Tag Definitions.
   TIFFTAG_SUBFILETYPE                   = 254;     { subfile data descriptor }
     FILETYPE_REDUCEDIMAGE               = $1;      { reduced resolution version }
     FILETYPE_PAGE                       = $2;      { one page of many }
     FILETYPE_MASK                       = $4;      { transparency mask }
-  TIFFTAG_OSUBFILETYPE                  = 255;     { kind of data in subfile }
+  TIFFTAG_OSUBFILETYPE                  = 255;     { +kind of data in subfile }
     OFILETYPE_IMAGE                     = 1;       { full resolution image data }
     OFILETYPE_REDUCEDIMAGE              = 2;       { reduced size image data }
     OFILETYPE_PAGE                      = 3;       { one page of many }
@@ -95,8 +186,7 @@ const
     COMPRESSION_LZW		        = 5;       { Lempel-Ziv  & Welch }
     COMPRESSION_OJPEG		        = 6;	   { !6.0 JPEG }
     COMPRESSION_JPEG		        = 7;	   { %JPEG DCT compression }
-    // jb Next 2 values defined in 4.0.3
-    COMPRESSION_T85			= 9;	   {* !TIFF/FX T.85 JBIG compression }
+    COMPRESSION_T85			= 9;	   { !TIFF/FX T.85 JBIG compression }
     COMPRESSION_T43			= 10;	   { !TIFF/FX T.43 colour by layered JBIG compression }
     COMPRESSION_NEXT		        = 32766;   { NeXT 2-bit RLE }
     COMPRESSION_CCITTRLEW	        = 32771;   { #1 w/ word alignment }
@@ -117,12 +207,13 @@ const
     COMPRESSION_JBIG		        = 34661;   { ISO JBIG }
     COMPRESSION_SGILOG		        = 34676;   { SGI Log Luminance RLE }
     COMPRESSION_SGILOG24	        = 34677;   { SGI Log 24-bit packed }
-    COMPRESSION_JP2000                  = 34712;   { Leadtools JPEG2000 }
+
     // jb Not documented in tiff.h but encountered compression scheme(s):
     // jb Note that Lead Tools apparently has more proprietary TIFF formats for
     //    which we don't know the values but most likely around 34710.
     COMPRESSION_LEADTOOLS_CMP           = 34709;    { LeadTools Proprietary "FILE_TIF_CMP".}
-    // Defined in 4.0.3
+
+    COMPRESSION_JP2000                  = 34712;   { Leadtools JPEG2000 }
     COMPRESSION_LZMA		        = 34925;   { LZMA2 }
   TIFFTAG_PHOTOMETRIC                   = 262;     { photometric interpretation }
     PHOTOMETRIC_MINISWHITE              = 0;       { min value is white }
@@ -135,6 +226,7 @@ const
     PHOTOMETRIC_CIELAB                  = 8;       { !1976 CIE L*a*b* }
     PHOTOMETRIC_ICCLAB                  = 9;       { ICC L*a*b* [Adobe TIFF Technote 4] }
     PHOTOMETRIC_ITULAB                  = 10;      { ITU L*a*b* }
+    PHOTOMETRIC_CFA                     = 32803;   { color filter array }
     PHOTOMETRIC_LOGL                    = 32844;   { CIE Log2(L) }
     PHOTOMETRIC_LOGLUV                  = 32845;   { CIE Log2(L) (u',v') }
   TIFFTAG_THRESHHOLDING                 = 263;     { thresholding used on data }
@@ -251,8 +343,6 @@ const
   TIFFTAG_INDEXED                       = 346;     { %Indexed [Adobe TIFF Technote 3] }
   TIFFTAG_JPEGTABLES                    = 347;     { %JPEG table stream }
   TIFFTAG_OPIPROXY                      = 351;     { %OPI Proxy [Adobe TIFF technote] }
-
-  // Tags 400-435 taken from tiff.h 4.0.3
   // Tags 400-435 are from the TIFF/FX spec.
   TIFFTAG_GLOBALPARAMETERSIFD	        = 400;	   { ! }
   TIFFTAG_PROFILETYPE			= 401;	   { ! }
@@ -277,7 +367,6 @@ const
   TIFFTAG_DECODE			= 433;	   { !TIFF/FX decode }
   TIFFTAG_IMAGEBASECOLOR		= 434;	   { !TIFF/FX image base colour }
   TIFFTAG_T82OPTIONS			= 435;	   { !TIFF/FX T.82 options }
-
   { Tags 512-521 are obsoleted by Technical Note #2
     which specifies a revised JPEG-in-TIFF scheme. }
   TIFFTAG_JPEGPROC                      = 512;     { !JPEG processing algorithm }
@@ -297,6 +386,7 @@ const
     YCBCRPOSITION_CENTERED              = 1;       { !as in PostScript Level 2 }
     YCBCRPOSITION_COSITED               = 2;       { !as in CCIR 601-1 }
   TIFFTAG_REFERENCEBLACKWHITE           = 532;     { !colorimetry info }
+  TIFFTAG_STRIPROWCOUNTS		= 559;     { !TIFF/FX strip row counts }
   TIFFTAG_XMLPACKET                     = 700;     { %XML packet [Adobe XMP technote 9-14-02] (dkelly@apago.com) }
   TIFFTAG_OPIIMAGEID                    = 32781;   { %OPI ImageID [Adobe TIFF technote] }
   { tags 32952-32956 are private tags registered to Island Graphics }
@@ -325,6 +415,8 @@ const
   TIFFTAG_PIXAR_MATRIX_WORLDTOCAMERA    = 33306;
   { tag 33405 is a private tag registered to Eastman Kodak }
   TIFFTAG_WRITERSERIALNUMBER            = 33405;   { device serial number }
+  TIFFTAG_CFAREPEATPATTERNDIM	        = 33421;   { dimensions of CFA pattern }
+  TIFFTAG_CFAPATTERN		        = 33422;   { color filter array pattern }
   { tag 33432 is listed in the 6.0 spec w/ unknown ownership }
   TIFFTAG_COPYRIGHT                     = 33432;   { copyright string }
   { IPTC TAG from RichTIFF specifications }
@@ -545,6 +637,47 @@ const
   EXIFTAG_SUBJECTDISTANCERANGE          = 41996;   { Subject distance range (in exif ver.2.2) }
   EXIFTAG_IMAGEUNIQUEID                 = 42016;   { Unique image ID (in exif ver.2.2) }
 
+  // End of tiff.h
+  // Start of tiffio.h
+
+type
+  PTIFF = Pointer;
+
+  {
+   * The following typedefs define the intrinsic size of
+   * data types used in the *exported* interfaces.  These
+   * definitions depend on the proper definition of types
+   * in tiff.h.  Note also that the varargs interface used
+   * to pass tag types and values uses the types defined in
+   * tiff.h directly.
+   *
+   * NB: ttag_t is unsigned int and not unsigned short because
+   *     ANSI C requires that the type before the ellipsis be a
+   *     promoted type (i.e. one of int, unsigned int, pointer,
+   *     or double) and because we defined pseudo-tags that are
+   *     outside the range of legal Aldus-assigned tags.
+   * NB: tsize_t is int32 and not uint32 because some functions
+   *     return -1.
+   * NB: toff_t is not off_t for many reasons; TIFFs max out at
+   *     32-bit file offsets, and BigTIFF maxes out at 64-bit
+   *     offsets being the most important, and to ensure use of
+   *     a consistently unsigned type across architectures.
+   *     Prior to libtiff 4.0, this was an unsigned 32 bit type.
+   *}
+  {
+    this is the machine addressing size type, only it's signed, so make it
+    int32 on 32bit machines, int64 on 64bit machines
+  }
+  tmsize_t = NativeInt;
+  {$IFDEF LIBTIFF4}
+  toff_t   = uint64;
+  {$ELSE} // LIBTIFF 3.x
+  toff_t   = uint32;
+  {$ENDIF}
+  ptoff_t = ^toff_t;
+  thandle_t = THANDLE;
+
+const
   { Flags to pass to TIFFPrintDirectory to control printing of data structures that are potentially very large. Bit-or these flags to
     enable printing multiple items. }
   TIFFPRINT_NONE                        = $0;      { no extra info }
@@ -555,45 +688,450 @@ const
   TIFFPRINT_JPEGACTABLES                = $200;    { JPEG AC tables }
   TIFFPRINT_JPEGDCTABLES                = $200;    { JPEG DC tables }
 
-  // Stuff, related to tag handling and creating custom tags.
-  // See also: TIFFFieldInfo, TIFFTagValue and TIFFGetTagListEntry
-  TIFF_ANY                              = TIFF_NOTYPE;   { for field descriptor searching }
-  TIFF_VARIABLE                         = -1;      { marker for variable length tags }
-  TIFF_SPP                              = -2;      { marker for SamplesPerPixel tags }
-  TIFF_VARIABLE2                        = -3;      { marker for uint32 var-length tags }
+  // Colour conversion stuff
 
-  FIELD_CUSTOM                          = 65;
+  // reference white
+  D65_X0 = 95.0470;
+  D65_Y0 = 100.0;
+  D65_Z0 = 108.8827;
+
+  D50_X0 = 96.4250;
+  D50_Y0 = 100.0;
+  D50_Z0 = 82.4680;
 
 type
-  ELibJpegError = class(Exception);
+  // Structure for holding information about a display device.
+  TIFFRGBValue = Byte;                 { 8-bit samples }
+  PTIFFRGBValue = ^TIFFRGBValue;
 
-  PTIFF = Pointer;
-  PTIFFRGBAImage = Pointer;
+  TIFFDisplay = record
+      d_mat: array [0..2, 0..2] of float;  { XYZ -> luminance matrix }
+      d_YCR: float;		       { Light o/p for reference white }
+      d_YCG: float;
+      d_YCB: float;
+      d_Vrwr: uint32;		       { Pixel values for ref. white }
+      d_Vrwg: uint32;
+      d_Vrwb: uint32;
+      d_Y0R: float;		       { Residual light for black pixel }
+      d_Y0G: float;
+      d_Y0B: float;
+      d_gammaR: float;		       { Gamma values for the three guns }
+      d_gammaG: float;
+      d_gammaB: float;
+  end;
+  PTIFFDisplay = ^TIFFDisplay;
 
-  TIFFErrorHandler = procedure(Module: PAnsiChar; Fmt: PAnsiChar; Args: Pointer); cdecl;
-  TIFFErrorHandlerExt = procedure(Fd: Pointer; Module: PAnsiChar; Fmt: PAnsiChar; Args: Pointer); cdecl;
-  LibTiffDelphiErrorHandler = procedure(const Module, Error: AnsiString);
-  TIFFReadWriteProc = function(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
-  TIFFSeekProc = function(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
-  TIFFCloseProc = function(Fd: Cardinal): Integer; cdecl;
-  TIFFSizeProc = function(Fd: Cardinal): Cardinal; cdecl;
-  TIFFMapFileProc = function(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl;
-  TIFFUnmapFileProc = procedure(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl;
-  TIFFExtendProc = procedure(Handle: PTIFF); cdecl;
+  // YCbCr->RGB support
+  RecTIFFYCbCrToRGB = record
+    clamptab: PTIFFRGBValue;	       { range clamping table }
+    Cr_r_tab: PInteger;
+    Cb_b_tab: PInteger;
+    Cr_g_tab: pint32;
+    Cb_g_tab: pint32;
+    Y_tab: pint32;
+  end;
+  PTIFFYCbCrToRGB = ^RecTIFFYCbCrToRGB;
 
-  TIFFInitMethod = function(Handle: PTIFF; Scheme: Integer): Integer; cdecl;
+const
+  CIELABTORGB_TABLE_RANGE = 1500;
 
-  TIFFVSetMethod = function(Handle: PTIFF; Tag: Cardinal; args: va_list): Integer; cdecl;
-  TIFFVGetMethod = function(Handle: PTIFF; Tag: Cardinal; args: va_list): Integer; cdecl;
-  TIFFPrintMethod = procedure(Handle: PTIFF; FileHandle: Pointer; Value: LongWord); cdecl;
+type
+  // CIE Lab 1976->RGB support
+  RecTIFFCIELabToRGB = record
+    range: Integer;		       { Size of conversion table }
+    rstep, gstep, bstep: float;
+    X0, Y0, Z0: float;		       { Reference white point }
+    display: TIFFDisplay;
+    Yr2r: array [0..CIELABTORGB_TABLE_RANGE] of float;  { Conversion of Yr to r }
+    Yg2g: array [0..CIELABTORGB_TABLE_RANGE] of float;  { Conversion of Yg to g }
+    Yb2b: array [0..CIELABTORGB_TABLE_RANGE] of float;  { Conversion of Yb to b }
+  end;
+  PTIFFCIELabToRGB = ^RecTIFFCIELabToRGB;
 
-  // From tiff.h
-  TTIFFHeader = record
-    tiff_magic: Word;      // magic number (defines byte order)
-    tiff_version: Word;    // TIFF version number
-    tiff_diroff: Cardinal; // byte offset to first directory
+  // RGBA-style image support.
+  PTIFFRGBAImage = ^_TIFFRGBAImage;  //Pointer;
+
+{*
+ * The image reading and conversion routines invoke
+ * ``put routines'' to copy/image/whatever tiles of
+ * raw image data.  A default set of routines are
+ * provided to convert/copy raw image data to 8-bit
+ * packed ABGR format rasters.  Applications can supply
+ * alternate routines that unpack the data into a
+ * different format or, for example, unpack the data
+ * and draw the unpacked raster on the display.
+ *}
+
+  tileContigRoutine = procedure(img: PTIFFRGBAImage; cp: puint32;
+    x, y, w, h, fromskew, toskew: uint32; pp: PByte);
+  tileSeparateRoutine = procedure(img: PTIFFRGBAImage; cp: puint32;
+    x, y, w, h, fromskew, toskew: uint32; r, g, b, a: PByte);
+  getRoutine = function(img: PTIFFRGBAImage; raster: puint32; w, h: uint32): PInteger;
+
+  put_rec = record
+    case boolean of
+      False: (contig: tileContigRoutine);
+      True: (separate: tileSeparateRoutine);
   end;
 
+  _TIFFRGBAImage = record
+	tif: PTIFF;                             // image handle
+	stoponerr: Integer;                     // stop on read error
+	isContig: Integer;                      // data is packed/separate
+	alpha: Integer;                         // type of alpha data present
+	width: uint32;                          // image width
+	height: uint32;                         // image height
+	bitspersample: uint16;                  // image bits/sample
+	samplesperpixel: uint16;                // image samples/pixel
+	orientation: uint16;                    // image orientation
+	req_orientation: uint16;                // requested orientation
+	photometric: uint16;                    // image photometric interp
+	redcmap: puint16;                       // colormap pallete
+	greencmap: puint16;
+	bluecmap: puint16;
+	{* get image data routine *}
+        get: getRoutine;
+	{* put decoded strip/tile *}
+        put: put_rec;
+	Map: PTIFFRGBValue;                     // sample mapping array
+	BWmap: ppuint32;                        // black&white map
+	PALmap: ppuint32;                       // palette image map
+	ycbcr: PTIFFYCbCrToRGB;                 // YCbCr conversion state
+	cielab: PTIFFCIELabToRGB;               // CIE L*a*b conversion state
+
+	UaToAa: puint8;                         // Unassociated alpha to associated alpha convertion LUT
+	Bitdepth16To8: puint8;                  // LUT for conversion from 16bit to 8bit values
+
+	row_offset: Integer;
+	col_offset: Integer;
+  end;
+
+  {
+   * A CODEC is a software package that implements decoding,
+   * encoding, or decoding+encoding of a compression algorithm.
+   * The library provides a collection of builtin codecs.
+   * More codecs may be registered through calls to the library
+   * and/or the builtin implementations may be overridden.
+  }
+  TIFFInitMethod = function(Handle: PTIFF; Scheme: Integer): Integer; cdecl;
+
+  PTIFFCodec = ^TIFFCodec;
+  TIFFCodec = record
+    name: PAnsiChar;
+    scheme: Word;
+    init: TIFFInitMethod;
+  end;
+
+  {* share internal LogLuv conversion routines? *}
+  {$IFNDEF LOGLUV_PUBLIC}
+    {$DEFINE LOGLUV_PUBLIC 1}
+  {$ENDIF}
+
+  TIFFErrorHandler = procedure(const Module: PAnsiChar; const Fmt: PAnsiChar; Args: Pointer); cdecl;
+  TIFFErrorHandlerExt = procedure(Fd: thandle_t; const Module: PAnsiChar; const Fmt: PAnsiChar; Args: Pointer); cdecl;
+  LibTiffDelphiErrorHandler = procedure(const Module, Error: AnsiString);
+  TIFFReadWriteProc = function(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
+  TIFFSeekProc = function(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl;
+  TIFFCloseProc = function(Fd: thandle_t): Integer; cdecl;
+  TIFFSizeProc = function(Fd: thandle_t): toff_t; cdecl;
+  TIFFMapFileProc = function(Fd: thandle_t; PBase: PPointer; PSize: ptoff_t): Integer; cdecl;
+  TIFFUnmapFileProc = procedure(Fd: thandle_t; Base: Pointer; Size: toff_t); cdecl;
+  TIFFExtendProc = procedure(Handle: PTIFF); cdecl;
+
+function  TIFFGetVersion: PAnsiChar; cdecl; external;
+function  LibTiffDelphiVersion: AnsiString;
+function  LibTiffDelphiGetVersionNumber: AnsiString;
+
+// Codec handling.
+function  TIFFFindCODEC(Scheme: uint16): PTIFFCodec; cdecl; external;
+function  TIFFRegisterCODEC(Scheme: uint16; Name: PAnsiChar; InitMethod: TIFFInitMethod): PTIFFCodec; cdecl; external;
+procedure TIFFUnRegisterCODEC(c: PTIFFCodec); cdecl; external;
+function  TIFFIsCODECConfigured(Scheme: uint16): Integer; cdecl; external;
+function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
+
+// Stuff, related to tag handling and creating custom tags.
+// See also: TIFFFieldInfo, TIFFTagValue and TIFFGetTagListEntry
+function  TIFFGetTagListCount(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFGetTagListEntry(Handle: PTIFF; TagIndex: Integer): uint32; cdecl; external;
+
+const
+  TIFF_ANY       = TIFF_NOTYPE; { for field descriptor searching }
+  TIFF_VARIABLE  = -1;          { marker for variable length tags }
+  TIFF_SPP       = -2;          { marker for SamplesPerPixel tags }
+  TIFF_VARIABLE2 = -3;          { marker for uint32 var-length tags }
+
+  FIELD_CUSTOM   = 65;
+
+type
+  {$IFNDEF LIBTIFF4}
+
+  // Stuff, related to tag handling and creating custom tags.
+  PTIFFFieldInfo = ^TIFFFieldInfo;
+  TIFFFieldInfo = record
+    FieldTag: Cardinal;              { field's tag }
+    FieldReadCount: Smallint;        { read count/TIFF_VARIABLE/TIFF_SPP }
+    FieldWriteCount: Smallint;       { write count/TIFF_VARIABLE }
+    FieldType: Integer;              { type of associated data }
+    FieldBit: Word;                  { bit in fieldsset bit vector }
+    FieldOkToChange: Byte;           { if true, can change while writing }
+    FieldPassCount: Byte;            { if true, pass dir count on set }
+    FieldName: PAnsiChar;            { ASCII name }
+  end;
+
+  PTIFFTagValue = ^TIFFTagValue;
+  TIFFTagValue = record
+    Info: PTIFFFieldInfo;
+    Count: Integer;
+    Value: Pointer;
+  end;
+
+function  TIFFFindFieldInfo(Handle: PTIFF; Tag: Cardinal; Dt: Integer): PTIFFFieldInfo; cdecl; external;
+function  TIFFFindFieldInfoByName(Handle: PTIFF; FieldName: PAnsiChar; Dt: Integer): PTIFFFieldInfo; cdecl; external;
+function  TIFFFieldWithTag(Handle: PTIFF; Tag: Cardinal): PTIFFFieldInfo; cdecl; external;
+function  TIFFFieldWithName(Handle: PTIFF; FieldName: PAnsiChar): PTIFFFieldInfo; cdecl; external;
+
+{$ELSE} // LIBTIFF 4
+
+  PTIFFField = Pointer;
+  PTIFFFieldArray = Pointer;
+
+function  TIFFFindField(Handle: PTIFF; Tag: uint32; DataType: uint32): PTIFFField; cdecl; external;
+function  TIFFFieldWithTag(Handle: PTIFF; Tag: uint32): PTIFFField; cdecl; external;
+function  TIFFFieldWithName(Handle: PTIFF; const FieldName: PAnsiChar): PTIFFField; cdecl; external;
+
+function  TIFFFieldTag(const Fip: PTIFFField): uint32; cdecl; external;
+function  TIFFFieldName(const Fip: PTIFFField): PAnsiChar; cdecl; external;
+function  TIFFFieldDataType(const Fip: PTIFFField): uint32; cdecl; external;
+function  TIFFFieldPassCount(const Fip: PTIFFField): Integer; cdecl; external;
+function  TIFFFieldReadCount(const Fip: PTIFFField): Integer; cdecl; external;
+function  TIFFFieldWriteCount(const Fip: PTIFFField): Integer; cdecl; external;
+
+{$ENDIF ~LIBTIFF4}
+
+type
+  TIFFVSetMethod = function(Handle: PTIFF; Tag: uint32; args: va_list): Integer; cdecl;
+  TIFFVGetMethod = function(Handle: PTIFF; Tag: uint32; args: va_list): Integer; cdecl;
+  TIFFPrintMethod = procedure(Handle: PTIFF; FileHandle: Pointer; Value: LongWord); cdecl;
+
+  PTIFFTagMethods = ^TIFFTagMethods;
+  TIFFTagMethods = record
+    vsetfield: TIFFVSetMethod;  { tag set routine }
+    vgetfield: TIFFVGetMethod;  { tag get routine }
+    printdir:  TIFFPrintMethod; { directory print routine }
+  end;
+
+function  TIFFAccessTagMethods(Handle: PTIFF): PTIFFTagMethods; cdecl; external;
+function  TIFFGetClientInfo(Handle: PTIFF; const Name : PAnsiChar): Pointer; cdecl; external;
+procedure TIFFSetClientInfo(Handle: PTIFF; Data: Pointer; const Name : PAnsiChar); cdecl; external;
+
+procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
+procedure TIFFClose(Handle: PTIFF); cdecl; external;
+function  TIFFFlush(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFFlushData(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFGetField(Handle: PTIFF; Tag: uint32): Integer; cdecl; external; varargs;
+function  TIFFVGetField(Handle: PTIFF; Tag: uint32; Ap: Pointer): Integer; cdecl; external;
+function  TIFFGetFieldDefaulted(Handle: PTIFF; Tag: uint32): Integer; cdecl; external; varargs;
+function  TIFFVGetFieldDefaulted(tif: Pointer; Tag: uint32; Ap: Pointer): Integer; cdecl; external;
+
+function  TIFFReadDirectory(Handle: PTIFF): Integer; cdecl; external;
+{$IFNDEF LIBTIFF4}
+function  TIFFReadCustomDirectory(Handle: PTIFF; DirOff: toff_t; Info: PTIFFFieldInfo; N: Integer): Integer; cdecl; external;
+{$ELSE} // LIBTIFF 4
+function  TIFFReadCustomDirectory(Handle: PTIFF; DirOff: toff_t; InfoArray: PTIFFFieldArray): Integer; cdecl; external;
+{$ENDIF ~LIBTIFF4}
+function  TIFFReadEXIFDirectory(Handle: PTIFF; DirOff: toff_t): Integer; cdecl; external;
+
+function  TIFFScanlineSize(Handle: PTIFF): tmsize_t; cdecl; external;
+function  TIFFRasterScanlineSize(Handle: PTIFF): tmsize_t; cdecl; external;
+function  TIFFStripSize(Handle: PTIFF): tmsize_t; cdecl; external;
+function  TIFFRawStripSize(Handle: PTIFF; Strip: uint32): tmsize_t; cdecl; external;
+function  TIFFVStripSize(Handle: PTIFF; NRows: uint32): tmsize_t; cdecl; external;
+function  TIFFTileRowSize(Handle: PTIFF): tmsize_t; cdecl; external;
+function  TIFFTileSize(Handle: PTIFF): tmsize_t; cdecl; external;
+function  TIFFVTileSize(Handle: PTIFF; NRows: uint32): tmsize_t; cdecl; external;
+
+{$IFDEF LIBTIFF4}
+function  TIFFScanlineSize64(Handle: PTIFF): uint64; cdecl; external;
+function  TIFFRasterScanlineSize64(Handle: PTIFF): uint64; cdecl; external;
+function  TIFFStripSize64(Handle: PTIFF): uint64; cdecl; external;
+function  TIFFRawStripSize64(Handle: PTIFF; Strip: uint32): uint64; cdecl; external;
+function  TIFFVStripSize64(Handle: PTIFF; NRows: uint32): uint64; cdecl; external;
+function  TIFFTileRowSize64(Handle: PTIFF): uint64; cdecl; external;
+function  TIFFTileSize64(Handle: PTIFF): uint64; cdecl; external;
+function  TIFFVTileSize64(Handle: PTIFF; NRows: uint32): uint64; cdecl; external;
+{$ENDIF LIBTIFF4}
+
+function  TIFFDefaultStripSize(Handle: PTIFF; Request: uint32): uint32; cdecl; external;
+procedure TIFFDefaultTileSize(Handle: PTIFF; Tw: puint32; Th: puint32); cdecl; external;
+function  TIFFFileno(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFSetFileno(Handle: PTIFF; Newvalue: Integer): Integer; cdecl; external;
+function  TIFFClientdata(Handle: PTIFF): thandle_t; cdecl; external;
+function  TIFFSetClientdata(Handle: PTIFF; Newvalue: thandle_t): thandle_t; cdecl; external;
+function  TIFFGetMode(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFSetMode(Handle: PTIFF; Mode: Integer): Integer; cdecl; external;
+function  TIFFIsTiled(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFIsByteSwapped(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFIsUpSampled(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFIsMSB2LSB(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFIsBigEndian(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFGetReadProc(Handle: PTIFF): TIFFReadWriteProc; cdecl; external;
+function  TIFFGetWriteProc(Handle: PTIFF): TIFFReadWriteProc; cdecl; external;
+function  TIFFGetSeekProc(Handle: PTIFF): TIFFSeekProc; cdecl; external;
+function  TIFFGetCloseProc(Handle: PTIFF): TIFFCloseProc; cdecl; external;
+function  TIFFGetSizeProc(Handle: PTIFF): TIFFSizeProc; cdecl; external;
+function  TIFFGetMapFileProc(Handle: PTIFF): TIFFMapFileProc; cdecl; external;
+function  TIFFGetUnmapFileProc(Handle: PTIFF): TIFFUnmapFileProc; cdecl; external;
+function  TIFFCurrentRow(Handle: PTIFF): uint32; cdecl; external;
+function  TIFFCurrentDirectory(Handle: PTIFF): uint16; cdecl; external;
+function  TIFFNumberOfDirectories(Handle: PTIFF): uint16; cdecl; external;
+{$IFNDEF LIBTIFF4}
+function  TIFFCurrentDirOffset(Handle: PTIFF): uint32; cdecl; external;
+{$ELSE}
+function  TIFFCurrentDirOffset(Handle: PTIFF): uint64; cdecl; external;
+{$ENDIF ~LIBTIFF4}
+function  TIFFCurrentStrip(Handle: PTIFF): uint32; cdecl; external;
+function  TIFFCurrentTile(Handle: PTIFF): uint32; cdecl; external;
+function  TIFFReadBufferSetup(Handle: PTIFF; Buf: Pointer; Size: tmsize_t): Integer; cdecl; external;
+function  TIFFWriteBufferSetup(Handle: PTIFF; Buf: Pointer; Size: tmsize_t): Integer; cdecl; external;
+function  TIFFSetupStrips(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFWriteCheck(Handle: PTIFF; Tiles: Integer; const Module: PAnsiChar): Integer; cdecl; external;
+procedure TIFFFreeDirectory(Handle: PTIFF); cdecl; external;
+function  TIFFCreateDirectory(Handle: PTIFF): Integer; cdecl; external;
+{$IFDEF LIBTIFF4}
+function  TIFFCreateCustomDirectory(Handle: PTIFF; const InfoArray: PTIFFFieldArray): Integer; cdecl; external;
+function  TIFFCreateEXIFDirectory(Handle: PTIFF): Integer; cdecl; external;
+{$ENDIF LIBTIFF4}
+function  TIFFLastDirectory(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFSetDirectory(Handle: PTIFF; Dirn: uint16): Integer; cdecl; external;
+{$IFNDEF LIBTIFF4}
+function  TIFFSetSubDirectory(Handle: PTIFF; DirOff: uint32): Integer; cdecl; external;
+{$ELSE}
+function  TIFFSetSubDirectory(Handle: PTIFF; DirOff: uint64): Integer; cdecl; external;
+{$ENDIF ~LIBTIFF4}
+function  TIFFUnlinkDirectory(handle: PTIFF; Dirn: uint16): Integer; cdecl; external;
+function  TIFFSetField(Handle: PTIFF; Tag: uint32): Integer; cdecl; external; varargs;
+function  TIFFVSetField(Handle: PTIFF; Tag: uint32; Ap: Pointer): Integer; cdecl; external;
+{$IFDEF LIBTIFF4}
+function  TIFFUnsetField(Handle: PTIFF; Tag: uint32): Integer; cdecl; external;
+function  TIFFWriteCustomDirectory(Handle: PTIFF; PDirOff: puint64): Integer; cdecl; external;
+{$ENDIF LIBTIFF4}
+function  TIFFWriteDirectory(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFCheckpointDirectory(Handle: PTIFF): Integer; cdecl; external;
+function  TIFFRewriteDirectory(Handle: PTIFF): Integer; cdecl; external;
+
+procedure TIFFPrintDirectory(Handle: PTIFF; Fd: Pointer; Flags: Integer); cdecl; external;
+function  TIFFReadScanline(Handle: PTIFF; Buf: Pointer; Row: uint32; Sample: uint16): Integer; cdecl; external;
+function  TIFFWriteScanline(Handle: PTIFF; Buf: Pointer; Row: uint32; Sample: uint16): Integer; cdecl; external;
+function  TIFFReadRGBAImage(Handle: PTIFF; RWidth, RHeight: uint32; Raster: puint32; Stop: Integer): Integer; cdecl; external;
+function  TIFFReadRGBAImageOriented(Handle: PTIFF; RWidth, RHeight: uint32; Raster: puint32; Orientation: Integer; Stop: Integer): Integer; cdecl; external;
+
+function  TIFFReadRGBAStrip(Handle: PTIFF; Row: uint32; Raster: puint32): Integer; cdecl; external;
+function  TIFFReadRGBATile(Handle: PTIFF; Col, Row: uint32; Raster: puint32): Integer; cdecl; external;
+// jb is the following correct (twice)? Original param Emsg in c is "char [1024]"
+function  TIFFRGBAImageOk(Handle: PTIFF; Emsg: PAnsiChar): Integer; cdecl; external;
+function  TIFFRGBAImageBegin(Img: PTIFFRGBAImage; Handle: PTIFF; Stop: Integer; Emsg: PAnsiChar): Integer; cdecl; external;
+function  TIFFRGBAImageGet(Img: PTIFFRGBAImage; Raster: puint32; W, H: uint32): Integer; cdecl; external;
+procedure TIFFRGBAImageEnd(Img: PTIFFRGBAImage); cdecl; external;
+
+{$IFNDEF LIBTIFF4}
+function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
+// TODO implement Wide version of open
+//function  TIFFOpenW(const Name: WideString; const Mode: AnsiString): PTIFF;
+{$ENDIF ~LIBTIFF4}
+function  TIFFOpenStream(const Stream: TStream; const Mode: AnsiString): PTIFF;
+
+function  TIFFClientOpen(const Name: PAnsiChar; const Mode: PAnsiChar; ClientData: thandle_t;
+  ReadProc: TIFFReadWriteProc; WriteProc: TIFFReadWriteProc; SeekProc: TIFFSeekProc;
+  CloseProc: TIFFCloseProc; SizeProc: TIFFSizeProc;
+  MapProc: TIFFMapFileProc; UnmapProc: TIFFUnmapFileProc): PTIFF; cdecl; external;
+
+function  TIFFFileName(Handle: PTIFF): PAnsiChar; cdecl; external;
+function  TIFFSetFileName(Handle: PTIFF; Name: PAnsiChar): PAnsiChar; cdecl; external;
+procedure TIFFError(const Module: PAnsiChar; const Fmt: PAnsiChar); cdecl; external; varargs;
+procedure TIFFErrorExt(Fd: Pointer; const Module: PAnsiChar; const Fmt: PAnsiChar); cdecl; external; varargs;
+procedure TIFFWarning(const Module: PAnsiChar; const Fmt: PAnsiChar); cdecl; external; varargs;
+procedure TIFFWarningExt(Fd: Pointer; const Module: PAnsiChar; const Fmt: PAnsiChar); cdecl; external; varargs;
+function  TIFFSetErrorHandler(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl; external;
+function  TIFFSetErrorHandlerExt(Handler: TIFFErrorHandlerExt): TIFFErrorHandlerExt; cdecl; external;
+function  TIFFSetWarningHandler(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl; external;
+function  TIFFSetWarningHandlerExt(Handler: TIFFErrorHandlerExt): TIFFErrorHandlerExt; cdecl; external;
+
+function  LibTiffDelphiGetErrorHandler: LibTiffDelphiErrorHandler;
+function  LibTiffDelphiSetErrorHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
+function  LibTiffDelphiGetWarningHandler: LibTiffDelphiErrorHandler;
+function  LibTiffDelphiSetWarningHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
+
+function  TIFFSetTagExtender(Extender: TIFFExtendProc): TIFFExtendProc; cdecl; external;
+function  TIFFComputeTile(Handle: PTIFF; x, y, z: uint32; S: uint16): uint32; cdecl; external;
+function  TIFFCheckTile(Handle: PTIFF; x, y, z: uint32; s: uint16): Integer; cdecl; external;
+function  TIFFNumberOfTiles(Handle: PTIFF): uint32; cdecl; external;
+function  TIFFReadTile(Handle: PTIFF; Buf: Pointer; x, y, z: uint32; s: uint16): tmsize_t; cdecl; external;
+function  TIFFWriteTile(Handle: PTIFF; Buf: Pointer; x, y, z: uint32; s: uint16): tmsize_t; cdecl; external;
+function  TIFFComputeStrip(Handle: PTIFF; Row: uint32; Sample: uint16): uint32; cdecl; external;
+function  TIFFNumberOfStrips(Handle: PTIFF): uint32; cdecl; external;
+function  TIFFReadEncodedStrip(Handle: PTIFF; Strip: uint32; Buf: Pointer; Size: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFReadRawStrip(Handle: PTIFF; Strip: uint32; Buf: Pointer; Size: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFReadEncodedTile(Handle: PTIFF; Tile: uint32; Buf: Pointer; Size: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFReadRawTile(Handle: PTIFF; Tile: uint32; Buf: Pointer; Size: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFWriteEncodedStrip(Handle: PTIFF; Strip: uint32; Data: Pointer; Cc: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFWriteRawStrip(Handle: PTIFF; Strip: uint32; Data: Pointer; Cc: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFWriteEncodedTile(Handle: PTIFF; Tile: uint32; Data: Pointer; Cc: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFWriteRawTile(Handle: PTIFF; Tile: uint32; Data: Pointer; Cc: tmsize_t): tmsize_t; cdecl; external;
+function  TIFFDataWidth(DataType: uint32): Integer; cdecl; external;  // table of tag datatype widths
+procedure TIFFSetWriteOffset(Handle: PTIFF; Off: toff_t); cdecl; external;
+
+procedure TIFFSwabShort(Wp: puint16); cdecl; external;
+procedure TIFFSwabLong(Lp: puint32); cdecl; external;
+procedure TIFFSwabDouble(Dp: PDouble); cdecl; external;
+procedure TIFFSwabArrayOfShort(Wp: puint16; N: tmsize_t); cdecl; external;
+procedure TIFFSwabArrayOfTriples(Tp: puint8; N: tmsize_t); cdecl; external;
+procedure TIFFSwabArrayOfLong(Lp: puint32; N: tmsize_t); cdecl; external;
+procedure TIFFSwabArrayOfDouble(Dp: PDouble; N: tmsize_t); cdecl; external;
+procedure TIFFReverseBits(Cp: puint8; N: tmsize_t); cdecl; external;
+function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external;
+
+{$IFDEF LIBTIFF4}
+procedure TIFFSwabLong8(Lp: puint64); cdecl; external;
+procedure TIFFSwabFloat(Fp: pfloat); cdecl; external;
+procedure TIFFSwabArrayOfLong8(Lp: puint64; N: tmsize_t); cdecl; external;
+procedure TIFFSwabArrayOfFloat(Fp: pfloat; N: tmsize_t); cdecl; external;
+
+{$IFDEF LOGLUV_PUBLIC}
+const
+  U_NEU   = 0.210526316;
+  V_NEU   = 0.473684211;
+  UVSCALE = 410.0;
+
+function  LogL16toY(p16: Integer): Double; cdecl; external;
+function  LogL10toY(p10: Integer): Double; cdecl; external;
+procedure XYZtoRGB24(xyz: pfloat; rgb: puint8); cdecl; external;
+function  uv_decode(up: pdouble; vp: pdouble; c: Integer): Integer; cdecl; external;
+procedure LogLuv24toXYZ(p: uint32; XYZ: pfloat); cdecl; external;
+procedure LogLuv32toXYZ(p: uint32; XYZ: pfloat); cdecl; external;
+
+function  LogL16fromY(Y: double; Em: Integer): Integer; cdecl; external;
+function  LogL10fromY(Y: double; Em: Integer): Integer; cdecl; external;
+function  uv_encode(u: double;v: double; Em: Integer): Integer; cdecl; external;
+function  LogLuv24fromXYZ(XYZ: pfloat; Em: Integer): uint32; cdecl; external;
+function  LogLuv32fromXYZ(XYZ: pfloat; Em: Integer): uint32; cdecl; external;
+{$ENDIF LOGLUV_PUBLIC}
+
+{$ENDIF LIBTIFF4}
+
+function  TIFFCIELabToRGBInit(cielab: PTIFFCIELabToRGB; display: PTIFFDisplay;
+  refWhite: pfloat): Integer; cdecl; external;
+procedure TIFFCIELabToXYZ(cielab: PTIFFCIELabToRGB; l: uint32; a: int32; b: int32;
+  X: pfloat; Y: pfloat; Z: pfloat); cdecl; external;
+procedure TIFFXYZToRGB(cielab: PTIFFCIELabToRGB; X: float; Y: float; Z: float;
+  r: puint32; g: puint32; b: puint32); cdecl; external;
+
+function  TIFFYCbCrToRGBInit(ycbcr: PTIFFYCbCrToRGB; luma: pfloat;
+  refBlackWhite: pfloat): Integer; cdecl; external;
+procedure TIFFYCbCrtoRGB(ycbcr: PTIFFYCbCrToRGB; Y: uint32; Cb: int32; Cr: int32;
+  r: puint32; g: puint32; b: puint32); cdecl; external;
+
+
+{$IFNDEF LIBTIFF4}
   {
     TIFF Image File Directories are comprised of a table of field descriptors of the form shown
     below.  The table is sorted in ascending order by tag.  The values associated with each entry
@@ -610,282 +1148,15 @@ type
     tdir_offset: Cardinal; // byte offset to field data
   end;
 
-  {
-   * A CODEC is a software package that implements decoding,
-   * encoding, or decoding+encoding of a compression algorithm.
-   * The library provides a collection of builtin codecs.
-   * More codecs may be registered through calls to the library
-   * and/or the builtin implementations may be overridden.
-  }
-  PTIFFCodec = ^TIFFCodec;
-  TIFFCodec = record
-    Name: PAnsiChar;
-    Scheme: Word;
-    Init: TIFFInitMethod;
-  end;
-
-  // Stuff, related to tag handling and creating custom tags.
-  PTIFFFieldInfo = ^TIFFFieldInfo;
-  TIFFFieldInfo = record
-    FieldTag: Cardinal;              { field's tag }
-    FieldReadCount: Smallint;        { read count/TIFF_VARIABLE/TIFF_SPP }
-    FieldWriteCount: Smallint;       { write count/TIFF_VARIABLE }
-    FieldType: Integer;              { type of associated data }
-    FieldBit: Word;                  { bit in fieldsset bit vector }
-    FieldOkToChange: Byte;           { if true, can change while writing }
-    FieldPassCount: Byte;            { if true, pass dir count on set }
-    FieldName: PAnsiChar;            { ASCII name }
-  end;
-
-  // tif_dir.h
-  PTIFFTagValue = ^TIFFTagValue;
-  TIFFTagValue = record
-    Info: PTIFFFieldInfo;
-    Count: Integer;
-    Value: Pointer;
-  end;
-
-  // tiffio.h
-  PTIFFTagMethods = ^TIFFTagMethods;
-  TIFFTagMethods = record
-    vsetfield: TIFFVSetMethod;  { tag set routine }
-    vgetfield: TIFFVGetMethod;  { tag get routine }
-    printdir:  TIFFPrintMethod; { directory print routine }
-  end;
-
-const
-  // Colour conversion stuff
-
-  // reference white
-  D65_X0 = 95.0470;
-  D65_Y0 = 100.0;
-  D65_Z0 = 108.8827;
-
-  D50_X0 = 96.4250;
-  D50_Y0 = 100.0;
-  D50_Z0 = 82.4680;
-
-  CIELABTORGB_TABLE_RANGE = 1500;
-
-type
-  // Structure for holding information about a display device.
-  TIFFRGBValue = Byte;                 { 8-bit samples }
-  PTIFFRGBValue = ^TIFFRGBValue;
-
-  TIFFDisplay = record
-      d_mat: array [0..2, 0..2] of Single;  { XYZ -> luminance matrix }
-      d_YCR: Single;		       { Light o/p for reference white }
-      d_YCG: Single;
-      d_YCB: Single;
-      d_Vrwr: Cardinal;		       { Pixel values for ref. white }
-      d_Vrwg: Cardinal;
-      d_Vrwb: Cardinal;
-      d_Y0R: Single;		       { Residual light for black pixel }
-      d_Y0G: Single;
-      d_Y0B: Single;
-      d_gammaR: Single;		       { Gamma values for the three guns }
-      d_gammaG: Single;
-      d_gammaB: Single;
-  end;
-  PTIFFDisplay = ^TIFFDisplay;
-
-  // YCbCr->RGB support
-  RecTIFFYCbCrToRGB = record
-    clamptab: PTIFFRGBValue;	       { range clamping table }
-    Cr_r_tab: PInteger;                // jb int = Integer or ShortInt?
-    Cb_b_tab: PInteger;                // jb int = Integer or ShortInt?
-    Cr_g_tab: PInteger;
-    Cb_g_tab: PInteger;
-    Y_tab: PInteger;
-  end;
-  PTIFFYCbCrToRGB = ^RecTIFFYCbCrToRGB;
-
-  // CIE Lab 1976->RGB support
-  RecTIFFCIELabToRGB = record
-    range: Integer;		       { Size of conversion table }
-    rstep, gstep, bstep: Single;
-    X0, Y0, Z0: Single;		       { Reference white point }
-    display: TIFFDisplay;
-    Yr2r: array [0..CIELABTORGB_TABLE_RANGE] of Single;  { Conversion of Yr to r }
-    Yg2g: array [0..CIELABTORGB_TABLE_RANGE] of Single;  { Conversion of Yg to g }
-    Yb2b: array [0..CIELABTORGB_TABLE_RANGE] of Single;  { Conversion of Yb to b }
-  end;
-  PTIFFCIELabToRGB = ^RecTIFFCIELabToRGB;
-
-
-function  LibTiffDelphiVersion: AnsiString;
-function  TIFFGetVersion: PAnsiChar; cdecl; external;
-
-function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
-function  TIFFOpenStream(const Stream: TStream; const Mode: AnsiString): PTIFF;
-function  TIFFClientOpen(Name: PAnsiChar; Mode: PAnsiChar; ClientData: Cardinal;
-          ReadProc: TIFFReadWriteProc;
-          WriteProc: TIFFReadWriteProc;
-          SeekProc: TIFFSeekProc;
-          CloseProc: TIFFCloseProc;
-          SizeProc: TIFFSizeProc;
-          MapProc: TIFFMapFileProc;
-          UnmapProc: TIFFUnmapFileProc): PTIFF; cdecl; external;
-procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
-procedure TIFFClose(Handle: PTIFF); cdecl; external;
-
-function  TIFFReadRGBAImageOriented(Handle: PTIFF; RWidth, RHeight: Cardinal; Raster: Pointer; Orientation: Integer; Stop: Integer): Integer; cdecl; external;
-function  TIFFReadRGBAImage(Handle: PTIFF; RWidth, RHeight: Cardinal; Raster: Pointer; Stop: Integer): Integer; cdecl; external;
-function  TIFFReadRGBAStrip(Handle: PTIFF; Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
-function  TIFFReadRGBATile(Handle: PTIFF; Col, Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
-function  TIFFRGBAImageOk(Handle: PTIFF; Emsg: PAnsiChar): Integer; cdecl; external;
-function  TIFFRGBAImageBegin(Img: PTIFFRGBAImage; Handle: PTIFF; Stop: Integer; Emsg: PAnsiChar): Integer; cdecl; external;
-function  TIFFRGBAImageGet(Img: PTIFFRGBAImage; Raster: Pointer; W, H: Cardinal): Integer; cdecl; external;
-procedure TIFFRGBAImageEnd(Img: PTIFFRGBAImage); cdecl; external;
-
-function  TIFFStripSize(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFRawStripSize(Handle: PTIFF; Strip: Cardinal): Integer; cdecl; external;
-function  TIFFVStripSize(Handle: PTIFF; NRows: Cardinal): Integer; cdecl; external;
-function  TIFFDefaultStripSize(Handle: PTIFF; Request: Cardinal): Cardinal; cdecl; external;
-function  TIFFNumberOfStrips(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFComputeStrip(Handle: PTIFF; Row: Cardinal; Sample: Word): Cardinal; cdecl; external;
-function  TIFFReadRawStrip(Handle: PTIFF; Strip: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
-function  TIFFReadEncodedStrip(Handle: PTIFF; Strip: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
-function  TIFFWriteRawStrip(Handle: PTIFF; Strip: Cardinal; Data: Pointer; Cc: Integer): Integer; cdecl; external;
-function  TIFFWriteEncodedStrip(Handle: PTIFF; Strip: Cardinal; Data: Pointer; Cc: Integer): Integer; cdecl; external;
-function  TIFFCurrentStrip(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFWriteBufferSetup(Handle: PTIFF; Buf: Pointer; Size: Integer): Integer; cdecl; external;
-
-function  TIFFTileSize(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFTileRowSize(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFVTileSize(Handle: PTIFF; NRows: Cardinal): Integer; cdecl; external;
-procedure TIFFDefaultTileSize(Handle: PTIFF; Tw: PCardinal; Th: PCardinal); cdecl; external;
-function  TIFFNumberOfTiles(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFComputeTile(Handle: PTIFF; X, Y, Z: Cardinal; S: Word): Cardinal; cdecl; external;
-function  TIFFCheckTile(Handle: PTIFF; x: Cardinal; y: Cardinal; z: Cardinal; s: Word): Integer; cdecl; external;
-function  TIFFReadRawTile(Handle: PTIFF; Tile: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
-function  TIFFReadEncodedTile(Handle: PTIFF; Tile: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
-function  TIFFWriteRawTile(Handle: PTIFF; Tile: Cardinal; Data: Pointer; Cc: Integer): Integer; cdecl; external;
-function  TIFFWriteEncodedTile(Handle: PTIFF; Tile: Cardinal; Data: Pointer; Cc: Integer): Integer; cdecl; external;
-function  TIFFCurrentTile(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFReadTile(Handle: Pointer; Buf: Pointer; x: Cardinal; y: Cardinal; z: Cardinal; s: Word): Integer; cdecl; external;
-function  TIFFWriteTile(Handle: Pointer; Buf: Pointer; x: Cardinal; y: Cardinal; z: Cardinal; s: Word): Integer; cdecl; external;
-function  TIFFSetupStrips(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFWriteCheck(Handle: PTIFF; Tiles: Integer; Module: PAnsiChar): Integer; cdecl; external;
-
-function  TIFFScanlineSize(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFRasterScanlineSize(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFReadScanline(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: Word): Integer; cdecl; external;
-function  TIFFWriteScanline(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: Word): Integer; cdecl; external;
-procedure TIFFSetWriteOffset(Handle: PTIFF; Off: Cardinal); cdecl; external;
-
-procedure TIFFError(Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
-procedure TIFFErrorExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
-function  TIFFSetErrorHandler(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl; external;
-function  TIFFSetErrorHandlerExt(Handler: TIFFErrorHandlerExt): TIFFErrorHandlerExt; cdecl; external;
-function  LibTiffDelphiGetErrorHandler: LibTiffDelphiErrorHandler;
-function  LibTiffDelphiSetErrorHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
-procedure TIFFWarning(Module: Pointer; Fmt: Pointer); cdecl; external; varargs;
-procedure TIFFWarningExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
-function  TIFFSetWarningHandler(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl; external;
-function  TIFFSetWarningHandlerExt(Handler: TIFFErrorHandlerExt): TIFFErrorHandlerExt; cdecl; external;
-function  LibTiffDelphiGetWarningHandler: LibTiffDelphiErrorHandler;
-function  LibTiffDelphiSetWarningHandler(Handler: LibTiffDelphiErrorHandler): LibTiffDelphiErrorHandler;
-
-function  TIFFGetReadProc(Handle: PTIFF): TIFFReadWriteProc; cdecl; external;
-function  TIFFGetWriteProc(Handle: PTIFF): TIFFReadWriteProc; cdecl; external;
-function  TIFFGetSeekProc(Handle: PTIFF): TIFFSeekProc; cdecl; external;
-function  TIFFGetCloseProc(Handle: PTIFF): TIFFCloseProc; cdecl; external;
-function  TIFFGetSizeProc(Handle: PTIFF): TIFFSizeProc; cdecl; external;
-function  TIFFGetMapFileProc(Handle: PTIFF): TIFFMapFileProc; cdecl; external;
-function  TIFFGetUnmapFileProc(Handle: PTIFF): TIFFUnmapFileProc; cdecl; external;
-
-function  TIFFFileno(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFSetFileno(Handle: PTIFF; Newvalue: Integer): Integer; cdecl; external;
-function  TIFFGetMode(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFSetMode(Handle: PTIFF; Mode: Integer): Integer; cdecl; external;
-function  TIFFFileName(Handle: PTIFF): PAnsiChar; cdecl; external;
-function  TIFFSetFileName(Handle: PTIFF; Name: PAnsiChar): PAnsiChar; cdecl; external;
-
-function  TIFFFlush(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFFlushData(Handle: PTIFF): Integer; cdecl; external;
-
-function  TIFFClientdata(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFSetClientdata(Handle: PTIFF; Newvalue: Cardinal): Cardinal; cdecl; external;
-
-function  TIFFReadDirectory(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFReadCustomDirectory(Handle: PTIFF; DirOff: Cardinal; Info: PTIFFFieldInfo; N: Integer): Integer; cdecl; external;
-function  TIFFReadEXIFDirectory(Handle: PTIFF; DirOff: Cardinal): Integer; cdecl; external;
-function  TIFFCurrentDirectory(Handle: PTIFF): Word; cdecl; external;
-function  TIFFWriteDirectory(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFRewriteDirectory(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFCheckpointDirectory(Handle: PTIFF): Integer; cdecl; external;
-procedure TIFFPrintDirectory(Handle: PTIFF; Fd: Pointer; Flags: Integer); cdecl; external;
-
-function  TIFFGetField(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; external; varargs;
-function  TIFFGetFieldDefaulted(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; external; varargs;
-function  TIFFVGetField(Handle: PTIFF; Tag: Cardinal; Ap: Pointer): Integer; cdecl; external;
-function  TIFFVGetFieldDefaulted(tif: Pointer; tag: Cardinal; ap: Pointer): Integer; cdecl; external;
-function  TIFFSetField(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; external; varargs;
-function  TIFFVSetField(Handle: PTIFF; Tag: Cardinal; Ap: Pointer): Integer; cdecl; external;
-procedure TIFFFreeDirectory(Handle: PTIFF); cdecl; external;
-function  TIFFSetTagExtender(Extender: TIFFExtendProc): TIFFExtendProc; cdecl; external;
-function  TIFFCreateDirectory(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFDefaultDirectory(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFNumberOfDirectories(Handle: PTIFF): Word; cdecl; external;
-function  TIFFSetDirectory(Handle: PTIFF; Dirn: Word): Integer; cdecl; external;
-function  TIFFSetSubDirectory(Handle: PTIFF; DirOff: Cardinal): Integer; cdecl; external;
-function  TIFFCurrentDirOffset(Handle: PTIFF): Cardinal; cdecl; external;
-function  TIFFLastDirectory(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFUnlinkDirectory(handle: PTIFF; Dirn: Word): Integer; cdecl; external;
-
-function  TIFFGetTagListCount(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFGetTagListEntry(Handle: PTIFF; TagIndex: Integer): Cardinal; cdecl; external;
-function  TIFFAccessTagMethods(Handle: PTIFF): PTIFFTagMethods; cdecl; external;
-function  TIFFGetClientInfo( Handle: PTIFF; const Name : PAnsiChar): Pointer; cdecl; external;
-procedure TIFFSetClientInfo( Handle: PTIFF; Data: Pointer; const Name : PAnsiChar); cdecl; external;
-
-function  TIFFFindFieldInfo(Handle: PTIFF; Tag: Cardinal; Dt: Integer): PTIFFFieldInfo; cdecl; external;
-function  TIFFFindFieldInfoByName(Handle: PTIFF; FieldName: PAnsiChar; Dt: Integer): PTIFFFieldInfo; cdecl; external;
-function  TIFFFieldWithTag(Handle: PTIFF; Tag: Cardinal): PTIFFFieldInfo; cdecl; external;
-function  TIFFFieldWithName(Handle: PTIFF; FieldName: PAnsiChar): PTIFFFieldInfo; cdecl; external;
 procedure TIFFMergeFieldInfo(Handle: PTIFF; Info: PTIFFFieldInfo; N: Integer); cdecl; external;
-function  TIFFDataWidth(DataType: Integer): Integer; cdecl; external;
-
-function  TIFFIsBigEndian(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFIsTiled(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFIsByteSwapped(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFIsUpSampled(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFIsMSB2LSB(Handle: PTIFF): Integer; cdecl; external;
-function  TIFFCurrentRow(Handle: PTIFF): Cardinal; cdecl; external;
-
-procedure TIFFSwabShort(Wp: PWord); cdecl; external;
-procedure TIFFSwabLong(Lp: PCardinal); cdecl; external;
-procedure TIFFSwabDouble(Dp: PDouble); cdecl; external;
-procedure TIFFSwabArrayOfShort(Wp: PWord; N: Cardinal); cdecl; external;
-procedure TIFFSwabArrayOfTriples(Tp: PByte; N: Cardinal); cdecl; external;
-procedure TIFFSwabArrayOfLong(Lp: PCardinal; N: Cardinal); cdecl; external;
-procedure TIFFSwabArrayOfDouble(Dp: PDouble; N: Cardinal); cdecl; external;
-procedure TIFFReverseBits(Cp: Pointer; N: Cardinal); cdecl; external;
-function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external;
-
-// Color space conversion routines.
-
-procedure TIFFCIELabToXYZ(cielab: PTIFFCIELabToRGB; l: Cardinal; a: Integer; b: Integer; X: PSingle; Y: PSingle; Z: PSingle); cdecl; external;
-procedure TIFFXYZToRGB(cielab: PTIFFCIELabToRGB; X: Single; Y: Single; Z: Single; r: PCardinal; g: PCardinal; b: PCardinal); cdecl; external;
-function  TIFFCIELabToRGBInit(cielab: PTIFFCIELabToRGB; display: PTIFFDisplay; refWhite: PSingle): Integer; cdecl; external;
-
-procedure TIFFYCbCrtoRGB(ycbcr: PTIFFYCbCrToRGB; Y: Cardinal; Cb: Integer; Cr: Integer; r: PCardinal; g: PCardinal; b: PCardinal); cdecl; external;
-function  TIFFYCbCrToRGBInit(ycbcr: PTIFFYCbCrToRGB; luma: PSingle; refBlackWhite: PSingle): Integer; cdecl; external;
-
-// Codec handling.
-function  TIFFFindCODEC(Scheme: Word): PTIFFCodec; cdecl; external;
-function  TIFFRegisterCODEC(Scheme: Word; Name: PAnsiChar; InitMethod: TIFFInitMethod): PTIFFCodec; cdecl; external;
-procedure TIFFUnRegisterCODEC(c: PTIFFCodec); cdecl; external;
-function  TIFFIsCODECConfigured(Scheme: Word): Integer; cdecl; external;
-function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
-
+{$ENDIF ~LIBTIFF4}
 
 
 implementation
 
 uses
-  LibDelphi, {$IFNDEF FPC}LibStub,{$ENDIF} LibJpegDelphi, ZLibDelphi;
+  LibDelphi, {$IFNDEF FPC}LibStub,{$ENDIF} LibJpegDelphi, ZLibDelphi, StrUtils;
 
 {$IFDEF FPC}
   // fpc: link libtiff
@@ -906,9 +1177,49 @@ var
 // -----  Required TIFF memory handling functions. -----------------------------
 
 {$IFNDEF FPC}
-function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl;
+function _TIFFmalloc(s: tmsize_t): Pointer; cdecl;
 {$ELSE}
-function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: Cardinal): Integer; cdecl; public name '__TIFFmemcmp';
+function _TIFFmalloc(s: tmsize_t): Pointer; cdecl; public name '__TIFFmalloc';
+{$ENDIF}
+begin
+  Result := AllocMem(s);
+end;
+
+{$IFNDEF FPC}
+function _TIFFrealloc(p: Pointer; s: tmsize_t): Pointer; cdecl;
+{$ELSE}
+function _TIFFrealloc(p: Pointer; s: tmsize_t): Pointer; cdecl; public name '__TIFFrealloc';
+//[public,alias:'__TIFFrealloc'];
+{$ENDIF}
+begin
+  if p = nil then
+    Result := AllocMem(s)
+  else
+    Result := ReallocMemory(p,s);
+end;
+
+{$IFNDEF FPC}
+procedure _TIFFmemset(p: Pointer; v: Integer; c: tmsize_t); cdecl;
+{$ELSE}
+procedure _TIFFmemset(p: Pointer; v: Integer; c: tmsize_t); cdecl; public name '__TIFFmemset';
+{$ENDIF}
+begin
+  FillMemory(p, c, v);
+end;
+
+{$IFNDEF FPC}
+procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: tmsize_t); cdecl;
+{$ELSE}
+procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: tmsize_t); cdecl; public name '__TIFFmemcpy';
+{$ENDIF}
+begin
+  CopyMemory(d, s, c);
+end;
+
+{$IFNDEF FPC}
+function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: tmsize_t): Integer; cdecl;
+{$ELSE}
+function _TIFFmemcmp(buf1: Pointer; buf2: Pointer; count: tmsize_t): Integer; cdecl; public name '__TIFFmemcmp';
 {$ENDIF}
 var
   ma, mb: PByte;
@@ -917,7 +1228,7 @@ begin
   ma := buf1;
   mb := buf2;
   n := 0;
-  while Cardinal(n) < Count do
+  while n < Count do
   begin
     if ma^ <> mb^ then
     begin
@@ -935,52 +1246,12 @@ begin
 end;
 
 {$IFNDEF FPC}
-procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl;
-{$ELSE}
-procedure _TIFFmemset(p: Pointer; v: Integer; c: Longint); cdecl; public name '__TIFFmemset';
-{$ENDIF}
-begin
-  FillMemory(p, c, v);
-end;
-
-{$IFNDEF FPC}
-function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl;
-{$ELSE}
-function _TIFFrealloc(p: Pointer; s: Longint): Pointer; cdecl; public name '__TIFFrealloc';
-//[public,alias:'__TIFFrealloc'];
-{$ENDIF}
-begin
-  if p = nil then
-    Result := AllocMem(s)
-  else
-    Result := ReallocMemory(p,s);
-end;
-
-{$IFNDEF FPC}
 procedure _TIFFfree(p: Pointer); cdecl;
 {$ELSE}
 procedure _TIFFfree(p: Pointer); cdecl; public name '__TIFFfree';
 {$ENDIF}
 begin
   FreeMem(p);
-end;
-
-{$IFNDEF FPC}
-procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl;
-{$ELSE}
-procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: Longint); cdecl; public name '__TIFFmemcpy';
-{$ENDIF}
-begin
-  CopyMemory(d, s, c);
-end;
-
-{$IFNDEF FPC}
-function _TIFFmalloc(s: Longint): Pointer; cdecl;
-{$ELSE}
-function _TIFFmalloc(s: Longint): Pointer; cdecl; public name '__TIFFmalloc';
-{$ENDIF}
-begin
-  Result := AllocMem(s);
 end;
 
 
@@ -1010,7 +1281,18 @@ begin
   Result := Result + #13#10 + LibTiffDelphiVersionString;
 end;
 
-procedure LibTiffDelphiWarningThrp(Module: PAnsiChar; Fmt: PAnsiChar; Args: Pointer); cdecl;
+function  LibTiffDelphiGetVersionNumber: AnsiString;
+const CLibTiffStart = 'LIBTIFF, Version ';
+var TiffVer: AnsiString;
+begin
+  TiffVer := TIFFGetVersion;
+  if AnsiStartsStr(CLibTiffStart, TiffVer) and (Length(TiffVer) >= Length(CLibTiffStart)+5) then
+    Result := Copy(TiffVer, Length(CLibTiffStart)+1, 5)
+  else
+    Result := '0.0.0';
+end;
+
+procedure LibTiffDelphiWarningThrp(const Module: PAnsiChar; const Fmt: PAnsiChar; Args: Pointer); cdecl;
 var
   m: Integer;
   n: AnsiString;
@@ -1024,7 +1306,33 @@ begin
   end;
 end;
 
-procedure LibTiffDelphiErrorThrp(Module: PAnsiChar; Fmt: PAnsiChar; Args: Pointer); cdecl;
+{$DEFINE ADAPT_TIFF_ERRORS}
+{$IFDEF ADAPT_TIFF_ERRORS}
+const
+  // Wang has made an error writing their own private tag which causes errors
+  // in libtif 4.x which I think in this case should just be a warning
+  // therefore we check for this error and send it further as a warning
+  ErrorStart = ': Null count for "Tag ';
+  //WangTagError = ': Null count for "Tag 32934" (type 4, writecount -3, passcount 1)';
+  // See also: http://www.imagemagick.org/discourse-server/viewtopic.php?t=27173
+  // Other tags I've encountered that may do this: 34022 (type 1), 62630
+  // And according to the link: 34025, 34026, 34031
+
+// We assume here that AString starts with ErrorStart
+function CanWeIgnoreError(AString: AnsiString): boolean;
+var TagCode: Integer;
+begin
+  // Assume the 5 chars following ErrorStart are a tag number
+  TagCode := StrToIntDef(Copy(AString, Length(ErrorStart)+1, 5), 0);
+  case TagCode of
+    34022, 34025, 34026, 34031, 32934, 62630: Result := True;
+  else
+    Result := False;
+  end;
+end;
+{$ENDIF}
+
+procedure LibTiffDelphiErrorThrp(const Module: PAnsiChar; const Fmt: PAnsiChar; Args: Pointer); cdecl;
 var
   m: Integer;
   n: AnsiString;
@@ -1040,6 +1348,13 @@ begin
     // length here
     if (m > 0) and (n[m] = #0) then
       SetLength(n, m-1);
+{$IFDEF ADAPT_TIFF_ERRORS}
+    if AnsiStartsStr(ErrorStart, n) and CanWeIgnoreError(n) then begin
+      if @FLibTiffDelphiWarningHandler <> nil then
+        FLibTiffDelphiWarningHandler(Module, n);
+    end
+    else
+{$ENDIF}
     FLibTiffDelphiErrorHandler(Module, n);
   end;
 end;
@@ -1066,13 +1381,129 @@ begin
   FLibTiffDelphiErrorHandler := Handler;
 end;
 
+{$IFDEF LIBTIFF4}
+// The tiff .obj files need access to private extern functions declared in
+// tiffiop.h etc.
+// Since they just need to be referenced we are not going to add the
+// complete parameter lists.
+
+// From tif_dir.h
+procedure _TIFFGetFields(); external;
+procedure _TIFFGetExifFields(); external;
+procedure _TIFFSetupFields(); external;
+procedure _TIFFPrintFieldInfo(); external;
+procedure _TIFFFillStriles(); external;
+procedure _TIFFMergeFields(); external;
+procedure _TIFFFindOrRegisterField(); external;
+procedure _TIFFCreateAnonField(); external;
+
+
+// From tiffiop.h
+// _TIFFGetMode is used in our TIFFOpen therefore we do add the exact
+// parameter declaration for this one even though it should stay private.
+function  _TIFFGetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; external;
+procedure _TIFFNoRowEncode(); external;
+procedure _TIFFNoStripEncode(); external;
+procedure _TIFFNoTileEncode(); external;
+procedure _TIFFNoRowDecode(); external;
+procedure _TIFFNoStripDecode(); external;
+procedure _TIFFNoTileDecode(); external;
+procedure _TIFFNoPostDecode(); external;
+procedure _TIFFNoPreCode(); external;
+procedure _TIFFNoSeek(); external;
+procedure _TIFFSwab16BitData(); external;
+procedure _TIFFSwab24BitData(); external;
+procedure _TIFFSwab32BitData(); external;
+procedure _TIFFSwab64BitData(); external;
+procedure TIFFFlushData1(); external;
+procedure TIFFDefaultDirectory(); external;
+procedure _TIFFSetDefaultCompressionState(); external;
+procedure _TIFFRewriteField(); external;
+procedure TIFFSetCompressionScheme(); external;
+//procedure TIFFSetDefaultCompressionState(); external; - not present anywhere but tiffiop.h?
+procedure _TIFFDefaultStripSize(); external;
+procedure _TIFFDefaultTileSize(); external;
+procedure _TIFFDataSize(); external;
+
+procedure _TIFFsetByteArray(); external;
+procedure _TIFFsetString(); external;
+procedure _TIFFsetShortArray(); external;
+procedure _TIFFsetLongArray(); external;
+procedure _TIFFsetFloatArray(); external;
+procedure _TIFFsetDoubleArray(); external;
+
+procedure _TIFFprintAscii(); external;
+procedure _TIFFprintAsciiTag(); external;
+
+//procedure _TIFFwarningHandler(); external;
+//procedure _TIFFerrorHandler(); external;
+//procedure _TIFFwarningHandlerExt(); external;
+//procedure _TIFFerrorHandlerExt(); external;
+
+procedure _TIFFMultiply32(); external;
+procedure _TIFFMultiply64(); external;
+procedure _TIFFCheckMalloc(); external;
+procedure _TIFFCheckRealloc(); external;
+
+procedure _TIFFUInt64ToDouble(); external;
+procedure _TIFFUInt64ToFloat(); external;
+
+procedure TIFFInitDumpMode(); external;
+
+// From tif_predict.h
+procedure TIFFPredictorInit(); external;
+procedure TIFFPredictorCleanup(); external;
+{$ENDIF LIBTIFF4}
+
 
 // -----  LINK libtiff obj files and -------------------------------------------
+
+{$IFNDEF FPC}
+
+{$LINK tif_read.obj}
+{$LINK tif_dirinfo.obj}
+{$LINK tif_dirwrite.obj}
+{$LINK tif_flush.obj}
+{$LINK tif_write.obj}
+{$LINK tif_dumpmode.obj}
+{$LINK tif_compress.obj}
+{$LINK tif_dirread.obj}
+{$LINK tif_dir.obj}
+{$LINK tif_aux.obj}
+{$LINK tif_color.obj}
+{$LINK tif_close.obj}
+{$LINK tif_extension.obj}
+{$LINK tif_open.obj}
+{$LINK tif_getimage.obj}
+{$LINK tif_predict.obj}
+{$LINK tif_print.obj}
+{$LINK tif_error.obj}
+{$LINK tif_strip.obj}
+{$LINK tif_swab.obj}
+{$LINK tif_tile.obj}
+{$LINK tif_warning.obj}
+{$LINK tif_version.obj}
+{$LINK tif_codec.obj}
+{$LINK tif_fax3.obj}
+{$LINK tif_fax3sm.obj}
+{$LINK tif_jpeg.obj}
+{$LINK tif_luv.obj}
+{$LINK tif_lzw.obj}
+{$LINK tif_next.obj}
+{$LINK tif_packbits.obj}
+{$LINK tif_pixarlog.obj}
+{$LINK tif_thunder.obj}
+{$LINK tif_zip.obj}
+{$LINK tif_ojpeg.obj}
+
+{$ENDIF ~FPC}
+
+{$IFNDEF LIBTIFF4}
+
 // Note: Commented out functions starting with (I) are defined in the interface,
 //       those starting with (R) have redefined names.
 //       To make it easier to find back where they are defined in the source
 //       we also mention them in the implemention with the linked obj file.
-
 
 // -----  tif_read -------------------------------------------------------------
 // Scanline-oriented Read Support
@@ -1087,17 +1518,13 @@ function  TIFFFillStrip(Handle: PTIFF; Strip : Cardinal): Integer; cdecl; extern
 // (I) function  TIFFReadEncodedTile(Handle: PTIFF; Tile: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
 // (I) function  TIFFReadRawTile(Handle: PTIFF; Tile: Cardinal; Buf: Pointer; Size: Integer): Integer; cdecl; external;
 function  TIFFFillTile(Handle: PTIFF; Tile: Cardinal): Integer; cdecl; external;
-function  TIFFReadBufferSetup(Handle: PTIFF; bp: Pointer; Size: Integer): Integer; cdecl; external;
+// (I) function  TIFFReadBufferSetup(Handle: PTIFF; bp: Pointer; Size: Integer): Integer; cdecl; external;
 
 procedure _TIFFNoPostDecode(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFSwab16BitData(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFSwab24BitData(Handle: PTIFF; Buf: pointer; cc: integer); cdecl; external;
 procedure _TIFFSwab32BitData(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
 procedure _TIFFSwab64BitData(Handle: PTIFF; Buf: Pointer; cc: Integer); cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_read.obj}
-{$ENDIF}
 
 
 // -----  tiff_dir.h -----------------------------------------------------------
@@ -1127,10 +1554,6 @@ function  _TIFFSampleToTagType(Handle: PTIFF): Integer; cdecl; external;
 function  _TIFFFindOrRegisterFieldInfo( Handle: PTIFF; Tag: Cardinal; Dt: Integer ): PTIFFFieldInfo; cdecl; external;
 function  _TIFFCreateAnonFieldInfo(Handle: PTIFF; Tag: Cardinal; field_type: Integer): PTIFFFieldInfo; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_dirinfo.obj}
-{$ENDIF}
-
 
 // ----- tif_dirwrite ----------------------------------------------------------
 // Directory Write Support Routines.
@@ -1139,19 +1562,11 @@ function  _TIFFCreateAnonFieldInfo(Handle: PTIFF; Tag: Cardinal; field_type: Int
 function  TIFFWriteCustomDirectory(Handle: PTIFF; pdiroff: PCardinal): Integer; cdecl; external;
 // (I) function  TIFFRewriteDirectory(Handle: PTIFF): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_dirwrite.obj}
-{$ENDIF}
-
 
 // -----  tif_flush ------------------------------------------------------------
 
 // (I) function  TIFFFlush(Handle: PTIFF): Integer; cdecl; external;
 // (I) function  TIFFFlushData(Handle: PTIFF): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_flush.obj}
-{$ENDIF}
 
 
 // -----  tif_write ------------------------------------------------------------
@@ -1169,19 +1584,11 @@ function  TIFFWriteCustomDirectory(Handle: PTIFF; pdiroff: PCardinal): Integer; 
 function  TIFFFlushData1(Handle: PTIFF): Integer; cdecl; external;
 // (I) procedure TIFFSetWriteOffset(Handle: PTIFF; Off: Cardinal); cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_write.obj}
-{$ENDIF}
-
 
 // -----  tif_dumpmode ---------------------------------------------------------
 // "Null" Compression Algorithm Support.
 
 function  TIFFInitDumpMode(Handle: PTIFF; Scheme: Integer): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_dumpmode.obj}
-{$ENDIF}
 
 
 // -----  tif_compress ---------------------------------------------------------
@@ -1194,10 +1601,6 @@ function  TIFFSetCompressionScheme(Handle: PTIFF; Scheme: Integer): Integer; cde
 // (I) procedure TIFFUnRegisterCODEC(c: PTIFFCodec); cdecl; external;
 // (I) function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_compress.obj}
-{$ENDIF}
-
 
 // -----  tif_dirread ----------------------------------------------------------
 // Directory Read Support Routines.
@@ -1205,10 +1608,6 @@ function  TIFFSetCompressionScheme(Handle: PTIFF; Scheme: Integer): Integer; cde
 // (I) function  TIFFReadDirectory(Handle: PTIFF): Integer; cdecl; external;
 // (I) function  TIFFReadCustomDirectory(Handle: PTIFF; DirOff: Cardinal; Info: PTIFFFieldInfo; N: Integer): Integer; cdecl; external;
 // (I) function  TIFFReadEXIFDirectory(Handle: PTIFF; DirOff: Cardinal): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_dirread.obj}
-{$ENDIF}
 
 
 // -----  tif_dir --------------------------------------------------------------
@@ -1234,20 +1633,12 @@ procedure _TIFFsetString(cpp: Pointer; cp: Pointer); cdecl; external;
 // TIFFReassignTagToIgnore FIXME: this is never used properly. Should be removed in the future.
 function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_dir.obj}
-{$ENDIF}
-
 
 // -----  tif_aux --------------------------------------------------------------
 // Auxiliary Support Routines.
 
 // (I) function  TIFFVGetFieldDefaulted(tif: Pointer; tag: Cardinal; ap: Pointer): Integer; cdecl; external;
 // (I) function  TIFFGetFieldDefaulted(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; external; varargs;
-
-{$IFNDEF FPC}
-{$LINK tif_aux.obj}
-{$ENDIF}
 
 
 // -----  tif_color ------------------------------------------------------------
@@ -1259,18 +1650,10 @@ function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; c
 // (I) procedure TIFFYCbCrtoRGB(ycbcr: PTIFFYCbCrToRGB; Y: Cardinal; Cb: Integer; Cr: Integer; r: PCardinal; g: PCardinal; b: PCardinal); cdecl; external;
 // (I) function  TIFFYCbCrToRGBInit(ycbcr: PTIFFYCbCrToRGB; luma: PSingle; refBlackWhite: PSingle): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_color.obj}
-{$ENDIF}
-
 
 // -----  tif_close ------------------------------------------------------------
 // (I) procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
 // (I) procedure TIFFClose(Handle: PTIFF); cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_close.obj}
-{$ENDIF}
 
 
 // -----  tif_extension --------------------------------------------------------
@@ -1282,10 +1665,6 @@ function  TIFFReassignTagToIgnore(Task: Integer; TIFFtagID: Integer): Integer; c
 // (I) function  TIFFAccessTagMethods(Handle: PTIFF): PTIFFTagMethods; cdecl; external;
 // (I) function  TIFFGetClientInfo( Handle: PTIFF; const Name : PAnsiChar): Pointer; cdecl; external;
 // (I) procedure TIFFSetClientInfo( Handle: PTIFF; Data: Pointer; const Name : PAnsiChar); cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_extension.obj}
-{$ENDIF}
 
 
 // -----  tif_open -------------------------------------------------------------
@@ -1324,10 +1703,6 @@ function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; exte
 // (I) function  TIFFGetMapFileProc(Handle: PTIFF): TIFFMapFileProc; cdecl; external;
 // (I) function  TIFFGetUnmapFileProc(Handle: PTIFF): TIFFUnmapFileProc; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_open.obj}
-{$ENDIF}
-
 
 // -----  tif_getimage ---------------------------------------------------------
 // Read and return a packed RGBA image.
@@ -1341,29 +1716,17 @@ function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; exte
 // (I) function  TIFFReadRGBAStrip(Handle: PTIFF; Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
 // (I) function  TIFFReadRGBATile(Handle: PTIFF; Col, Row: Cardinal; Raster: Pointer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_getimage.obj}
-{$ENDIF}
-
 
 // -----  tif_predict ----------------------------------------------------------
 
 function  TIFFPredictorInit(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFPredictorCleanup(Handle: PTIFF):integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_predict.obj}
-{$ENDIF}
-
 
 // -----  tif_print ------------------------------------------------------------
 // Directory Printing Support.
 
 // (I) procedure TIFFPrintDirectory(Handle: PTIFF; Fd: Pointer; Flags: Integer); cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_print.obj}
-{$ENDIF}
 
 
 // -----  tif_error ------------------------------------------------------------
@@ -1372,10 +1735,6 @@ function  TIFFPredictorCleanup(Handle: PTIFF):integer; cdecl; external;
 // (I) function  TIFFSetErrorHandlerExt(Handler: TIFFErrorHandlerExt): TIFFErrorHandlerExt; cdecl; external;
 // (I) procedure TIFFError(Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
 // (I) procedure TIFFErrorExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
-
-{$IFNDEF FPC}
-{$LINK tif_error.obj}
-{$ENDIF}
 
 
 // -----  tif_strip ------------------------------------------------------------
@@ -1393,10 +1752,6 @@ function  TIFFOldScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) function  TIFFRasterScanlineSize(Handle: PTIFF): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_strip.obj}
-{$ENDIF}
-
 
 // -----  tif_swab -------------------------------------------------------------
 // TIFF Library Bit & Byte Swapping Support.
@@ -1412,10 +1767,6 @@ function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external;
 // (I) procedure TIFFReverseBits(Cp: Pointer; N: Cardinal); cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_swab.obj}
-{$ENDIF}
-
 
 // -----  tif_tile -------------------------------------------------------------
 // Tiled Image Support Routines.
@@ -1429,10 +1780,6 @@ function  TIFFNewScanlineSize(Handle: PTIFF): Cardinal; cdecl; external;
 // (I) procedure TIFFDefaultTileSize(Handle: PTIFF; Tw: PCardinal; Th: PCardinal); cdecl; external;
 procedure _TIFFDefaultTileSize(Handle: PTIFF; tw: Pointer; th: Pointer); cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_tile.obj}
-{$ENDIF}
-
 
 // -----  tif_warning ----------------------------------------------------------
 
@@ -1441,27 +1788,15 @@ procedure _TIFFDefaultTileSize(Handle: PTIFF; tw: Pointer; th: Pointer); cdecl; 
 // (I) procedure TIFFWarning(Module: Pointer; Fmt: Pointer); cdecl; external; varargs;
 // (I) procedure TIFFWarningExt(Fd: Pointer; Module: PAnsiChar; Fmt: Pointer); cdecl; external; varargs;
 
-{$IFNDEF FPC}
-{$LINK tif_warning.obj}
-{$ENDIF}
-
 
 // -----  tif_version ----------------------------------------------------------
 
 // (I) function  TIFFGetVersion: PAnsiChar; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_version.obj}
-{$ENDIF}
-
 
 // -----  tif_codec ------------------------------------------------------------
 
 // (I) function  TIFFIsCODECConfigured(Scheme: Word): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_codec.obj}
-{$ENDIF}
 
 
 // -----  TIFF Codecs used -----------------------------------------------------
@@ -1473,17 +1808,10 @@ function  TIFFInitCCITTRLE(tif: PTIFF; scheme: Integer): Integer; cdecl; externa
 function  TIFFInitCCITTRLEW(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 function  TIFFInitCCITTFax3(tif: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_fax3.obj}
-{$ENDIF}
-
 
 // -----  tif_fax3sm -----------------------------------------------------------
 
-{$IFNDEF FPC}
-{$LINK tif_fax3sm.obj}
-{$ENDIF}
-
+{$ENDIF ~LIBTIFF4}
 
 // -----  tif_jpeg -------------------------------------------------------------
 
@@ -1698,75 +2026,46 @@ begin
   end;
 end;
 
-function  TIFFInitJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
+{$IFNDEF LIBTIFF4}
 
-{$IFNDEF FPC}
-{$LINK tif_jpeg.obj}
-{$ENDIF}
+function  TIFFInitJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
 
 // -----  tif_luv --------------------------------------------------------------
 
 function  TIFFInitSGILog(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_luv.obj}
-{$ENDIF}
-
 
 // -----  tif_lzw --------------------------------------------------------------
 
 function  TIFFInitLZW(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_lzw.obj}
-{$ENDIF}
 
 
 // -----  tif_next -------------------------------------------------------------
 
 function  TIFFInitNeXT(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_next.obj}
-{$ENDIF}
-
 
 // -----  tif_packbits ---------------------------------------------------------
 
 function  TIFFInitPackBits(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_packbits.obj}
-{$ENDIF}
 
 
 // -----  tif_pixarlog ---------------------------------------------------------
 
 function  TIFFInitPixarLog(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_pixarlog.obj}
-{$ENDIF}
-
 
 // -----  tif_thunder ----------------------------------------------------------
 
 function  TIFFInitThunderScan(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
-
-{$IFNDEF FPC}
-{$LINK tif_thunder.obj}
-{$ENDIF}
 
 
 // -----  tif_zip --------------------------------------------------------------
 
 function  TIFFInitZIP(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_zip.obj}
-{$ENDIF}
-
+{$ENDIF ~LIBTIFF4}
 
 // ----- tif_ojpeg -------------------------------------------------------------
 
@@ -1830,32 +2129,32 @@ begin
   // TODO! Not sure what we need to do here.
 end;
 
+{$IFNDEF LIBTIFF4}
+
 function  TIFFInitOJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; external;
 
-{$IFNDEF FPC}
-{$LINK tif_ojpeg.obj}
-{$ENDIF}
+{$ENDIF ~LIBTIFF4}
 
-// TODO: Add JBIG codec (needs downloading and compiling separate library).
+// TODO: Add LZMA and JBIG codec (needs downloading and compiling separate libraries).
 
 // -----  LibTiffDelphi --------------------------------------------------------
 
-function  TIFFFileReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFFileWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFFileSizeProc(Fd: Cardinal): Cardinal; cdecl; forward;
-function  TIFFFileSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl; forward;
-function  TIFFFileCloseProc(Fd: Cardinal): Integer; cdecl; forward;
+function  TIFFFileReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
+function  TIFFFileWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
+function  TIFFFileSizeProc(Fd: thandle_t): toff_t; cdecl; forward;
+function  TIFFFileSeekProc(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl; forward;
+function  TIFFFileCloseProc(Fd: thandle_t): Integer; cdecl; forward;
 
-function  TIFFStreamReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFStreamWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFStreamSizeProc(Fd: Cardinal): Cardinal; cdecl; forward;
-function  TIFFStreamSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl; forward;
-function  TIFFStreamCloseProc(Fd: Cardinal): Integer; cdecl; forward;
+function  TIFFStreamReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
+function  TIFFStreamWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
+function  TIFFStreamSizeProc(Fd: thandle_t): toff_t; cdecl; forward;
+function  TIFFStreamSeekProc(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl; forward;
+function  TIFFStreamCloseProc(Fd: thandle_t): Integer; cdecl; forward;
 
-function  TIFFNoMapProc(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl; forward;
-procedure TIFFNoUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl; forward;
+function  TIFFNoMapProc(Fd: thandle_t; PBase: PPointer; PSize: ptoff_t): Integer; cdecl; forward;
+procedure TIFFNoUnmapProc(Fd: thandle_t; Base: Pointer; Size: toff_t); cdecl; forward;
 
-function TIFFFileCloseProc(Fd: Cardinal): Integer; cdecl;
+function TIFFFileCloseProc(Fd: thandle_t): Integer; cdecl;
 begin
   if CloseHandle(Fd) = True then
     Result := 0
@@ -1863,12 +2162,12 @@ begin
     Result := -1;
 end;
 
-function TIFFFileSizeProc(Fd: Cardinal): Cardinal; cdecl;
+function TIFFFileSizeProc(Fd: thandle_t): toff_t; cdecl;
 begin
   Result := GetFileSize(Fd, nil);
 end;
 
-function TIFFFileSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
+function TIFFFileSeekProc(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl;
 const
   SEEK_SET = 0;
   SEEK_CUR = 1;
@@ -1891,7 +2190,7 @@ begin
   Result := SetFilePointer(Fd, Off, nil, MoveMethod);
 end;
 
-function TIFFFileReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
+function TIFFFileReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 var
   m: Cardinal;
 begin
@@ -1901,7 +2200,7 @@ begin
     Result := m;
 end;
 
-function TIFFFileWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
+function TIFFFileWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 var
   m: Cardinal;
 begin
@@ -1911,12 +2210,12 @@ begin
     Result := m;
 end;
 
-function TIFFStreamCloseProc(Fd: Cardinal): Integer; cdecl;
+function TIFFStreamCloseProc(Fd: thandle_t): Integer; cdecl;
 begin
   Result := 0;
 end;
 
-function TIFFStreamSizeProc(Fd: Cardinal): Cardinal; cdecl;
+function TIFFStreamSizeProc(Fd: thandle_t): toff_t; cdecl;
 begin
   try
     Result := TStream(Fd).Size;
@@ -1925,7 +2224,7 @@ begin
   end;
 end;
 
-function TIFFStreamSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
+function TIFFStreamSeekProc(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl;
 const
   SEEK_SET = 0;
   SEEK_CUR = 1;
@@ -1952,7 +2251,7 @@ begin
   end;
 end;
 
-function TIFFStreamReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
+function TIFFStreamReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 begin
   try
     Result := TStream(Fd).Read(Buffer^, Size);
@@ -1961,7 +2260,7 @@ begin
   end;
 end;
 
-function TIFFStreamWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
+function TIFFStreamWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 begin
   try
     Result := TStream(Fd).Write(Buffer^, Size);
@@ -1970,12 +2269,12 @@ begin
   end;
 end;
 
-function TIFFNoMapProc(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl;
+function TIFFNoMapProc(Fd: thandle_t; PBase: PPointer; PSize: ptoff_t): Integer; cdecl;
 begin
   Result := 0;
 end;
 
-procedure TIFFNoUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl;
+procedure TIFFNoUnmapProc(Fd: thandle_t; Base: Pointer; Size: toff_t); cdecl;
 begin
 end;
 
