@@ -2057,26 +2057,23 @@ type
 // For the libtiff library we need global functions to do the data retrieval. The setup is so that the currently
 // loading TIFF instance is given in the fd parameter.
 
-//function TIFFReadProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
-function TIFFReadProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
-
+function TIFFReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 var
   Graphic: TTIFFGraphic;
-  MaxLocation: Cardinal;
-  UsableSize: Cardinal;
-
+  MaxLocation: UInt64;
+  UsableSize: UInt64;
 begin
   Graphic := TTIFFGraphic(Fd);
   // Make sure we have a valid location (can happen with invalid or hacked tiff files)
-  MaxLocation := Cardinal(PAnsiChar(Graphic.FMemory) + Graphic.FSize);
-  if (Cardinal(Graphic.FCurrentPointer) + Cardinal(Size) > MaxLocation) then begin
-    if (Cardinal(Graphic.FCurrentPointer) > MaxLocation) then begin
+  MaxLocation := UInt64(PAnsiChar(Graphic.FMemory) + Graphic.FSize);
+  if (UInt64(Graphic.FCurrentPointer) + UInt64(Size) > MaxLocation) then begin
+    if (UInt64(Graphic.FCurrentPointer) > MaxLocation) then begin
       // Current position is beyond eof
       Result := 0;
       Exit;
     end
     else // We can still read a part of the requested data
-      UsableSize := MaxLocation - Cardinal(Graphic.FCurrentPointer);
+      UsableSize := MaxLocation - UInt64(Graphic.FCurrentPointer);
   end
   else
     UsableSize := Size;
@@ -2087,26 +2084,20 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//function TIFFWriteProc(fd: thandle_t; buf: tdata_t; size: tsize_t): tsize_t;
-function TIFFWriteProc(Fd: Cardinal; Buffer: Pointer; Size: Integer): Integer; cdecl;
-
+function TIFFWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl;
 begin
   Result := 0; // Writing is not supported yet.
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//function TIFFSeekProc(fd: thandle_t; off: toff_t; whence: Integer): toff_t;
-function TIFFSeekProc(Fd: Cardinal; Off: Cardinal; Whence: Integer): Cardinal; cdecl;
-
+function TIFFSeekProc(Fd: thandle_t; Off: toff_t; Whence: Integer): toff_t; cdecl;
 const
   SEEK_SET = 0; // seek to an absolute position
   SEEK_CUR = 1; // seek relative to current position
   SEEK_END = 2; // seek relative to end of file
-
 var
   Graphic: TTIFFGraphic;
-
 begin
   Graphic := TTIFFGraphic(Fd);
 
@@ -2124,20 +2115,17 @@ begin
   {$ELSE}
   if (Graphic.FCurrentPointer >= Graphic.FMemory+Graphic.FSize) or
   {$ENDIF}
-     (Cardinal(Graphic.FCurrentPointer) < Cardinal(Graphic.FMemory)) then
+     (UInt64(Graphic.FCurrentPointer) < UInt64(Graphic.FMemory)) then
     Result := 0
   else
-    Result := Cardinal(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
+    Result := UInt64(PAnsiChar(Graphic.FCurrentPointer) - PAnsiChar(Graphic.FMemory));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//function TIFFCloseProc(fd: thandle_t): Integer;
-function TIFFCloseProc(Fd: Cardinal): Integer; cdecl;
-
+function TIFFCloseProc(Fd: thandle_t): Integer; cdecl;
 var
   Graphic: TTIFFGraphic;
-
 begin
   Graphic := TTIFFGraphic(Fd);
   Graphic.FCurrentPointer := nil;
@@ -2146,12 +2134,9 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//function TIFFSizeProc(fd: thandle_t): toff_t;
-function TIFFSizeProc(Fd: Cardinal): Cardinal; cdecl;
-
+function TIFFSizeProc(Fd: thandle_t): toff_t; cdecl;
 var
   Graphic: TTIFFGraphic;
-
 begin
   Graphic := TTIFFGraphic(Fd);
   Result := Graphic.FSize;
@@ -2159,18 +2144,14 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//function TIFFMapProc(fd: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer;
-function TIFFMapProc(Fd: Cardinal; PBase: PPointer; PSize: PCardinal): Integer; cdecl;
-
+function TIFFMapProc(Fd: thandle_t; PBase: PPointer; PSize: ptoff_t): Integer; cdecl;
 begin
   Result := 0;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-//procedure TIFFUnmapProc(fd: thandle_t; base: tdata_t; size: toff_t);
-procedure TIFFUnmapProc(Fd: Cardinal; Base: Pointer; Size: Cardinal); cdecl;
-
+procedure TIFFUnmapProc(Fd: thandle_t; Base: Pointer; Size: toff_t); cdecl;
 begin
 end;
 
