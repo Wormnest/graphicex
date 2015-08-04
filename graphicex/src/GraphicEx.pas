@@ -2430,10 +2430,26 @@ begin
         if ByteOrder = TIFF_BIGENDIAN then
         begin
           Version := Swap(Header.Version);
+          {$IFNDEF LIBTIFF4}
           FirstIFD := SwapLong(Header.FirstIFD);
+          {$ELSE}
+          if Version = TIFF_VERSION_CLASSIC then
+            FirstIFD := SwapLong(Header.FirstIFD)
+          else if Version = TIFF_VERSION_BIG then
+            FirstIFD64 := SwapLong64(Header.FirstIFD64);
+          {$ENDIF}
         end;
 
+        {$IFNDEF LIBTIFF4}
         Result := (Version = TIFF_VERSION) and (Integer(FirstIFD) < Size);
+        {$ELSE}
+        case Version of
+          TIFF_VERSION_CLASSIC: Result := Int64(FirstIFD) < Size;
+          TIFF_VERSION_BIG: Result := Int64(FirstIFD64) < Size;
+        else
+          Result := False;
+        end;
+        {$ENDIF}
       end;
     end;
   end;
