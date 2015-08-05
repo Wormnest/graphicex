@@ -19,7 +19,9 @@
 /* #undef CHUNKY_STRIP_READ_SUPPORT */
 
 /* Support C++ stream API (requires C++ compiler) */
-/* #define CXX_SUPPORT 1 */
+#ifndef __BORLANDC__
+  #define CXX_SUPPORT 1
+#endif
 
 /* Treat extra sample as alpha (default enabled). The RGBA interface will
    treat a fourth sample with no EXTRASAMPLE_ value as being ASSOCALPHA. Many
@@ -170,7 +172,9 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
-/*#define HAVE_UNISTD_H 1*/
+#ifndef __BORLANDC__
+  #define HAVE_UNISTD_H 1
+#endif
 
 /* Use nonstandard varargs form for the GLU tesselator callback */
 /* #undef HAVE_VARARGS_GLU_TESSCB */
@@ -308,8 +312,11 @@
 #define TIFF_INT64_FORMAT "%I64d"
 
 /* Signed 64-bit type */
-/*#define TIFF_INT64_T signed long long*/
-#define TIFF_INT64_T signed __int64
+#ifdef __BORLANDC__
+	#define TIFF_INT64_T signed __int64
+#else
+	#define TIFF_INT64_T signed long long
+#endif
 
 /* Signed 8-bit type */
 #define TIFF_INT8_T signed char
@@ -345,8 +352,11 @@
 #define TIFF_UINT64_FORMAT "%I64u"
 
 /* Unsigned 64-bit type */
-/*#define TIFF_UINT64_T unsigned long long*/
-#define TIFF_UINT64_T unsigned __int64
+#ifdef __BORLANDC__
+	#define TIFF_UINT64_T unsigned __int64
+#else
+	#define TIFF_UINT64_T unsigned long long
+#endif
 
 /* Unsigned 8-bit type */
 #define TIFF_UINT8_T unsigned char
@@ -398,9 +408,13 @@
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
-# ifndef inline
-#  define inline __inline
-# endif
+	#ifdef __BORLANDC__
+		# ifndef inline
+		#  define inline __inline
+		# endif
+	#else
+		/* #undef inline */
+	#endif
 #endif
 
 /* Define to `long int' if <sys/types.h> does not define. */

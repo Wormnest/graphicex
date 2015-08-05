@@ -12,7 +12,9 @@
    we add a dummy define for _MSC_VER. We set it to 100 since there
    are some tests for a number with the highest being 1900.
    Both values 1900 and 1500 led to errors.   */
+#ifdef __BORLANDC__
 #define _MSC_VER 100
+#endif
 
 /* Signed 16-bit type */
 #define TIFF_INT16_T signed short
@@ -21,8 +23,11 @@
 #define TIFF_INT32_T signed int
 
 /* Signed 64-bit type */
-/*#define TIFF_INT64_T signed long long*/
-#define TIFF_INT64_T signed __int64
+#ifdef __BORLANDC__
+	#define TIFF_INT64_T signed __int64
+#else
+	#define TIFF_INT64_T signed long long
+#endif
 
 /* Signed 8-bit type */
 #define TIFF_INT8_T signed char
@@ -34,8 +39,11 @@
 #define TIFF_UINT32_T unsigned int
 
 /* Unsigned 64-bit type */
-/*#define TIFF_UINT64_T unsigned long long*/
-#define TIFF_UINT64_T unsigned __int64
+#ifdef __BORLANDC__
+	#define TIFF_UINT64_T unsigned __int64
+#else
+	#define TIFF_UINT64_T unsigned long long
+#endif
 
 /* Unsigned 8-bit type */
 #define TIFF_UINT8_T unsigned char
