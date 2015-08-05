@@ -11,6 +11,9 @@
         <OtherUnitFiles Value="..\external"/>
         <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Other>
+        <CustomOptions Value="-dLIBTIFF4"/>
+      </Other>
     </CompilerOptions>
     <Files Count="5">
       <Item1>

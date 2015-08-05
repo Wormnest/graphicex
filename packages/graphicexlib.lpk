@@ -10,6 +10,9 @@
         <OtherUnitFiles Value="..\graphicex\src"/>
         <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Other>
+        <CustomOptions Value="-dLIBTIFF4"/>
+      </Other>
     </CompilerOptions>
     <Files Count="17">
       <Item1>
