@@ -1403,7 +1403,9 @@ procedure _TIFFCreateAnonField(); external;
 // From tiffiop.h
 // _TIFFGetMode is used in our TIFFOpen therefore we do add the exact
 // parameter declaration for this one even though it should stay private.
-function  _TIFFGetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; external;
+// N.B.: Lazarus requires the following declaration to be the same case:
+// thus no uppercase G for GetMode!
+function  _TIFFgetMode(Mode: PAnsiChar; Module: PAnsiChar): Integer; cdecl; external;
 procedure _TIFFNoRowEncode(); external;
 procedure _TIFFNoStripEncode(); external;
 procedure _TIFFNoTileEncode(); external;
