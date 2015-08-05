@@ -1035,8 +1035,8 @@ function  TIFFRGBAImageBegin(Img: PTIFFRGBAImage; Handle: PTIFF; Stop: Integer; 
 function  TIFFRGBAImageGet(Img: PTIFFRGBAImage; Raster: puint32; W, H: uint32): Integer; cdecl; external;
 procedure TIFFRGBAImageEnd(Img: PTIFFRGBAImage); cdecl; external;
 
-{$IFNDEF LIBTIFF4}
 function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
+{$IFNDEF LIBTIFF4}
 // TODO implement Wide version of open
 //function  TIFFOpenW(const Name: WideString; const Mode: AnsiString): PTIFF;
 {$ENDIF ~LIBTIFF4}
