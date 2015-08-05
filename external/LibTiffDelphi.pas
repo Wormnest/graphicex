@@ -1163,6 +1163,11 @@ uses
 {$IFDEF FPC}
   // fpc: link libtiff
   {$LINKLIB libtiff.a}
+  {$IFDEF LIBTIFF4}
+    {$LINKLIB libgcc.a} // __udivdi3
+    // Also missing _snprint. Can't figure out what's wrong atm so we will use
+    // snprintf from LibDelphi for now.
+  {$ENDIF}
 {$ENDIF}
 
 var
