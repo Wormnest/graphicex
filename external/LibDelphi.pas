@@ -12,6 +12,7 @@ uses
 function  fprintf(stream: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
 function  sprintf(buffer: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
 function  snprintf(buffer: Pointer; bufsize: Integer; format: Pointer; arguments: Pointer): Integer; cdecl;
+{$IFDEF FPC} public name '_snprintf';{$ENDIF}
 function  fputs(s: Pointer; stream: Pointer): Integer; cdecl;
 function  fputc(c: Integer; stream: Pointer): Integer; cdecl;
 function  isprint(c: Integer): Integer; cdecl;
