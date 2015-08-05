@@ -1,5 +1,5 @@
 # 2015-03-09 changed makefile to work for our requirements jb
-# 2015-08-04 Fix clean
+# 2015-08-04 now used for libtiff 4.x too
 
 # The name of your C compiler:
 CC= gcc
@@ -10,7 +10,7 @@ CFLAGS= -O3
 # NOT via -D switches here.
 
 # Link-time cc options:
-LDFLAGS= 
+LDFLAGS="$LDFLAGS -static-libgcc" 
 
 # To link any special libraries, add the necessary -l commands here.
 LDLIBS= 
