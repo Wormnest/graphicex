@@ -78,7 +78,9 @@ type
   // jb Following types added here to make our life easier
   {$IF NOT Declared(UInt64)}
   uint64 = int64;
-  puint64 = ^uint64;
+  {$IFEND}
+  {$IF NOT Declared(PUInt64)}
+  puint64 = ^uint64; // Separate from declaring UInt64 since Fpc doesn't define puint64.
   {$IFEND}
   {$IF NOT Declared(NativeInt)}
   NativeInt = Integer;
