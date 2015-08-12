@@ -903,18 +903,28 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// For "at ReturnAddr" syntax see: http://stackoverflow.com/questions/8950513/what-does-at-returnaddress-mean-in-delphi
+// Apparently Fpc doesn't have ReturnAddr, see: http://www.freepascal.org/docs-html/ref/refse101.html
 procedure GraphicExError(ErrorString: string); overload;
 
 begin
-  raise EInvalidGraphic.Create(ErrorString);
-end;                                                  
+  {$IFNDEF FPC}
+  raise EInvalidGraphic.Create(ErrorString) at ReturnAddr;
+  {$ELSE}
+  raise EInvalidGraphic.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  {$ENDIF}
+end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
 procedure GraphicExError(ErrorString: string; Args: array of const); overload;
 
 begin
-  raise EInvalidGraphic.CreateFmt(ErrorString, Args);
+  {$IFNDEF FPC}
+  raise EInvalidGraphic.CreateFmt(ErrorString, Args) at ReturnAddr;
+  {$ELSE}
+  raise EInvalidGraphic.CreateFmt(ErrorString, Args) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  {$ENDIF}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
