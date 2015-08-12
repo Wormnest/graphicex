@@ -1162,11 +1162,30 @@ uses
 
 {$IFDEF FPC}
   // fpc: link libtiff
-  {$LINKLIB libtiff.a}
+  {$LINKLIB libtiff.a} // Todo: should be last to be loaded
+                       // However: since it's a hassle to figure out a
+                       // working loading order we leave it like this for now.
   {$IFDEF LIBTIFF4}
-    {$LINKLIB libgcc.a} // __udivdi3
-    // Also missing _snprint. Can't figure out what's wrong atm so we will use
-    // snprintf from LibDelphi for now.
+    {$IFDEF MSWINDOWS}
+      {$IFNDEF CPU64}
+        {$LINKLIB libgcc.a} // __udivdi3
+        // Also missing _snprint. Can't figure out what's wrong atm so we will use
+        // snprintf from LibDelphi for now.
+      {$ELSE}
+        {$LINKLIB libmingwex.a}
+        {$LINKLIB libmingw32.a}
+        {$LINKLIB libmsvcrt.a}
+        {$LINKLIB libmingw32.a}
+        {$LINKLIB libkernel32.a}
+        {$LINKLIB libuser32.a}
+        {$LINKLIB libmsvcrt.a}
+
+        {.$LINKLIB liblzma.a}   // Only needed if you link libtiff with lzma enabled
+      {$ENDIF}
+    {$ENDIF}
+    {$IFDEF UNIX}
+      Todo...
+    {$ENDIF}
   {$ENDIF}
 {$ENDIF}
 
