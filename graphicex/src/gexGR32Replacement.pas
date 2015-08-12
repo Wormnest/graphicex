@@ -11,6 +11,7 @@ interface
 
 {$IFDEF FPC}
   {$mode delphi}
+  {$DEFINE USEINLINING}
 {$ENDIF}
 
 type
