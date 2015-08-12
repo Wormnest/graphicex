@@ -17,7 +17,7 @@
     <VersionInfo>
       <StringTable ProductVersion=""/>
     </VersionInfo>
-    <BuildModes Count="7">
+    <BuildModes Count="9">
       <Item1 Name="Default" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -28,7 +28,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\obj;E:\MinGW\lib\;e:\MinGW\lib\gcc\mingw32\4.7.2\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -66,7 +65,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -101,7 +99,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -131,6 +128,9 @@
             </Options>
           </Linking>
           <Other>
+            <Verbosity>
+              <ShowAll Value="True"/>
+            </Verbosity>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST"/>
           </Other>
         </CompilerOptions>
@@ -144,7 +144,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -186,7 +185,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -231,7 +229,6 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <Libraries Value="..\external\source\libjpeg;..\external\source\libtiff;..\external\source\zlib;E:\MinGW\lib\"/>
             <OtherUnitFiles Value="graphicex;common"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -263,8 +260,105 @@
           </Other>
         </CompilerOptions>
       </Item7>
-      <SharedMatrixOptions Count="1">
+      <Item8 Name="Debug64 with Tracetool">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="bin\$(BuildMode)_DU_graphicex_test_$(TargetCPU)"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="graphicex;common"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Conditionals Value="// example for adding linker options on Mac OS X
+//if TargetOS='darwin' then
+//  LinkerOptions := ' -framework OpenGL';
+
+// example for adding a unit and include path on Windows
+//if SrcOS='win' then begin
+//  UnitPath += ';win';
+//  IncPath += ';win';
+//end;
+
+if TargetOS='Win64' then
+   UnitPath += ';..\..\tracetool\Delphi\Delphi Library';"/>
+          <Parsing>
+            <SyntaxOptions>
+              <IncludeAssertionCode Value="True"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+            <TargetCPU Value="x86_64"/>
+            <TargetOS Value="win64"/>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <DebugInfoType Value="dsDwarf2Set"/>
+            </Debugging>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+          <Other>
+            <Verbosity>
+              <ShowAll Value="True"/>
+            </Verbosity>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dENABLE_TRACETOOL"/>
+          </Other>
+        </CompilerOptions>
+      </Item8>
+      <Item9 Name="Debug with Tracetool">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="bin\$(BuildMode)_DU_graphicex_test_$(TargetCPU)"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="graphicex;common"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <IncludeAssertionCode Value="True"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+          </CodeGeneration>
+          <Linking>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+          <Other>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dENABLE_TRACETOOL"/>
+          </Other>
+        </CompilerOptions>
+      </Item9>
+      <SharedMatrixOptions Count="2">
         <Item1 ID="707623224695" Value="-dEnableUTF8RTL"/>
+        <Item2 ID="868206001400" Modes="Debug64 with Tracetool,Debug with Tracetool" Value="-dENABLE_TRACETOOL"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>

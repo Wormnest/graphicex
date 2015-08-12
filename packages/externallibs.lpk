@@ -7,7 +7,6 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <Libraries Value="..\external\obj"/>
         <OtherUnitFiles Value="..\external"/>
         <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
@@ -46,7 +45,7 @@
       </Item2>
     </RequiredPkgs>
     <UsageOptions>
-      <LibraryPath Value="..\external\obj"/>
+      <LibraryPath Value="..\external\lib\$(TargetCPU)-$(TargetOS)"/>
       <UnitPath Value="$(PkgOutDir)"/>
     </UsageOptions>
     <PublishOptions>
