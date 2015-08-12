@@ -1194,8 +1194,13 @@ var
   _TIFFwarningHandler: TIFFErrorHandler;
   _TIFFerrorHandler: TIFFErrorHandler;
   {$ELSE}
+  {$IFNDEF CPU64}
   __TIFFwarningHandler: TIFFErrorHandler; public name '__TIFFwarningHandler';
   __TIFFerrorHandler: TIFFErrorHandler; public name  '__TIFFerrorHandler';
+  {$ELSE}
+  __TIFFwarningHandler: TIFFErrorHandler;
+  __TIFFerrorHandler: TIFFErrorHandler;
+  {$ENDIF}
   {$ENDIF}
   FLibTiffDelphiWarningHandler: LibTiffDelphiErrorHandler;
   FLibTiffDelphiErrorHandler: LibTiffDelphiErrorHandler;
@@ -2375,8 +2380,16 @@ initialization
   _TIFFwarningHandler := LibTiffDelphiWarningThrp;
   _TIFFerrorHandler := LibTiffDelphiErrorThrp;
   {$ELSE}
+  {$IFNDEF CPU64}
   __TIFFwarningHandler := @LibTiffDelphiWarningThrp;
   __TIFFerrorHandler := @LibTiffDelphiErrorThrp;
+  {$ELSE}
+  // We apparently can't replace the external error handlers here which use
+  // a single underscore. Thus we just define our own with two underscores
+  // and use the SetErrorHandler functions to assign them.
+  __TIFFerrorHandler := TIFFSetErrorHandler(@LibTiffDelphiErrorThrp);
+  __TIFFwarningHandler := TIFFSetWarningHandler(@LibTiffDelphiWarningThrp);
+  {$ENDIF}
   {$ENDIF}
 end.
 
