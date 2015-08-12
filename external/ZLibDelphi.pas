@@ -40,7 +40,7 @@ type
     State: Pointer;
     AllocFunc: Pointer;
     FreeFunc: Pointer;
-    Opaque: Cardinal;
+    Opaque: Pointer;
     DataType: Integer;
     Adler: Cardinal;
     Reserved: Cardinal;
