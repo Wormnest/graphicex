@@ -1110,7 +1110,7 @@ var
   IntVal: Integer;
   PropType,
   Propsize: Cardinal;
-  EndOfParasites: Cardinal;
+  EndOfParasites: NativeUInt;
   Parasite: TXcfParasite;
 begin
   FLastError := '';
@@ -1229,8 +1229,8 @@ begin
           begin
             // We are currently only interested in comments.
             // Gimp can also store exif data from files converted to xcf.
-            EndOfParasites := Cardinal(Run)+PropSize;
-            while Cardinal(Run) < EndOfParasites do begin
+            EndOfParasites := NativeUInt(Run)+PropSize;
+            while NativeUInt(Run) < EndOfParasites do begin
               if GetParasite(Run, Parasite) and (CompareText('gimp-comment'+#0, Parasite.Name) = 0) then begin
                 // This is a Gimp comment block
                 if (Parasite.Size > 0) and (AnsiChar(Parasite.Data[Parasite.Size-1]) = #0) then
