@@ -88,7 +88,7 @@ begin
     m[0]:=AnsiChar(c);
     n:=1;
   end;
-  WriteFile(Cardinal(stream),m[0],n,o,nil);
+  WriteFile(NativeUInt(stream),m[0],n,o,nil);
   Result:=c;
 end;
 
@@ -113,7 +113,7 @@ begin
     Inc(m);
     Inc(PByte(n));
   end;
-  WriteFile(Cardinal(stream),s^,Cardinal(m),o,nil);
+  WriteFile(NativeUInt(stream),s^,Cardinal(m),o,nil);
   Result:=1;
 end;
 
@@ -136,7 +136,7 @@ begin
   m:=sprintfsec(nil,format,arguments);
   GetMem(n,m);
   sprintfsec(n,format,arguments);
-  WriteFile(Cardinal(stream),n^,Cardinal(m),o,nil);
+  WriteFile(NativeUInt(stream),n^,Cardinal(m),o,nil);
   FreeMem(n);
   Result := m;
 end;
@@ -296,7 +296,11 @@ begin
           Ord('h'): mb:=False;
           Ord('l'), Ord('I'):
           begin
+            {$IFNDEF CPU64}
             Modifier:=4;
+            {$ELSE}
+            Modifier:=8; // On 64 bits OS this is a 64-bits type
+            {$ENDIF}
             Inc(m);
           end;
           Ord('L'): mb:=False;
@@ -329,7 +333,7 @@ begin
               begin
                 Append(IntToStr(PInteger(n)^));
                 Inc(m);
-                Inc(n,SizeOf(Integer));
+                Inc(n,SizeOf(NativeInt));
               end;
               8:
               begin
@@ -346,11 +350,13 @@ begin
           Ord('u'):
           begin
             case Modifier of
-              0,4:
+              0, 4:
               begin
                 Append(IntToStr(PCardinal(n)^));
                 Inc(m);
-                Inc(n,SizeOf(Cardinal));
+                // Note that although we use 4 bytes to show the value on
+                // 64 bits Windows the value is apparently put on the stack in 64 bits, 8 bytes!
+                Inc(n, SizeOf(NativeUInt));
               end;
               8:
               begin
@@ -362,7 +368,7 @@ begin
                 Append(IntToStr(PUInt64(n)^));
                 {$IFEND}
                 Inc(m);
-                Inc(n,SizeOf(UInt64));
+                Inc(n, SizeOf(UInt64));
               end;
             else
               mb:=False;
@@ -373,10 +379,16 @@ begin
             case Modifier of
               0,4:
               begin
-                Append(IntToHex(PCardinal(n)^,8));
+                Append(IntToHex(PCardinal(n)^, 8));
                 Inc(m);
-                Inc(n,SizeOf(Cardinal));
+                Inc(n, SizeOf(NativeUInt));
               end;
+              8:
+              begin
+                Append(IntToHex(PUInt64(n)^, 16));
+                Inc(m);
+                Inc(n, SizeOf(UInt64));
+              end
             else
               mb:=False;
             end;
@@ -450,7 +462,7 @@ begin
   end;
   if buffer<>nil then o^:=0;
   Inc(o);
-  Result:=(Cardinal(o)-Cardinal(buffer));
+  Result:=(NativeUInt(o)-NativeUInt(buffer));
 end;
 
 procedure free(p: Pointer); cdecl;
