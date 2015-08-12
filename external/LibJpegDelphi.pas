@@ -603,7 +603,17 @@ procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: C
 {$L jidctflt.obj}
 {$ELSE}
   // fpc
-  {$LINKLIB libcrtdll} // _malloc and _free
+  {$IFDEF MSWINDOWS}
+    {$IFNDEF CPU64}
+      {$LINKLIB libcrtdll} // _malloc and _free
+    {$ELSE}
+      {$LINKLIB libmsvcrt.a}
+      {$LINKLIB libkernel32.a}
+    {$ENDIF}
+  {$ENDIF}
+  {$IFDEF UNIX}
+    Todo...
+  {$ENDIF}
   {$LINKLIB libjpeg.a}
 {$ENDIF}
 
