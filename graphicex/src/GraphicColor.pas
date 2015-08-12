@@ -495,7 +495,11 @@ uses
 procedure ShowError(const Msg: String);
 
 begin
-  raise EColorConversionError.Create(Msg);
+  {$IFNDEF FPC}
+  raise EColorConversionError.Create(Msg) at ReturnAddr;
+  {$ELSE}
+  raise EColorConversionError.Create(Msg) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  {$ENDIF}
 end;
 
 //------------------------------------------------------------------------------
