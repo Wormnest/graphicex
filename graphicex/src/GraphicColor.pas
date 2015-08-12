@@ -12,7 +12,7 @@ unit GraphicColor;
 //
 // The original code is GraphicCompression.pas, released November 1, 1999.
 //
-// The initial developer of the original code is Dipl. Ing. Mike Lischke (Plei�a, Germany, www.delphi-gems.com),
+// The initial developer of the original code is Dipl. Ing. Mike Lischke (Pleißa, Germany, www.delphi-gems.com),
 //
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
@@ -1657,7 +1657,7 @@ function TColorManager.ComponentSwapScaleGammaConvert(Value: Word): Byte;
 
 begin
   //Result := FGammaTable[MulDiv16(Swap(Value), 255, 65535)];
-  Result := FGammaTable[Swap(Value) shr 8];
+  Result := FGammaTable[SwapEndian(Value) shr 8];
 end;
 
 //------------------------------------------------------------------------------
@@ -1666,7 +1666,7 @@ function TColorManager.ComponentSwapScaleConvert(Value: Word): Byte;
 
 begin
   //Result := MulDiv16(Swap(Value), 255, 65535);
-  Result := Swap(Value) shr 8;
+  Result := SwapEndian(Value) shr 8;
 end;
 
 //------------------------------------------------------------------------------
@@ -1674,7 +1674,7 @@ end;
 function TColorManager.ComponentSwapConvert(Value: Word): Word;
 
 begin
-  Result := Swap(Value);
+  Result := SwapEndian(Value);
 end;
 
 //----------------- Row conversion routines ------------------------------------
@@ -2419,7 +2419,7 @@ const
   // TIFF 6.0 specification tells that it is no default value for the WhitePoint,
   // but AdobePhotoshop TIFF Technical Note tells that it should be CIE D50.
 
-  // Observer= 2°, Illuminant= D50
+  // Observer= 2Â°, Illuminant= D50
   ref_X =  96.422;
   ref_Y = 100.000;
   ref_Z =  82.521;
@@ -3827,7 +3827,7 @@ begin
               begin
                 if Boolean(Mask and BitRun) then
                 begin
-                  Target16^ := Swap(Source16^);
+                  Target16^ := SwapEndian(Source16^);
                   Inc(Source16, 1 + AlphaSkip);
                 end;
                 BitRun := RorByte(BitRun);
@@ -4150,7 +4150,7 @@ begin
     begin
       if Boolean(Mask and BitRun) then
       begin
-        TargetRun^ := Swap(SourceRun^);
+        TargetRun^ := SwapEndian(SourceRun^);
         Inc(SourceRun);
       end;
       BitRun := RorByte(BitRun);
@@ -4208,7 +4208,7 @@ begin
     if Boolean(Mask and BitRun) then
     begin
       if coNeedByteSwap in FSourceOptions then
-        Value := MulDiv16(Swap(SourceRun16^), MaxOutSample, 65535)
+        Value := MulDiv16(SwapEndian(SourceRun16^), MaxOutSample, 65535)
       else
         Value := MulDiv16(SourceRun16^, MaxOutSample, 65535);
       TargetRun8^ := (TargetRun8^ and TargetMask) or (Value shl TargetShift);
@@ -4262,7 +4262,7 @@ begin
       Value := (SourceRun8^ and SourceMask) shr SourceShift;
       Value := MulDiv16(Value, 65535, MaxInSample);
       if coNeedByteSwap in FSourceOptions then
-        TargetRun16^ := Swap(Value)
+        TargetRun16^ := SwapEndian(Value)
       else
         TargetRun16^ := Value;
       if SourceShift = 0 then
@@ -4416,7 +4416,7 @@ begin
               begin
                 // Get palette index
                 if coNeedByteSwap in FSourceOptions then
-                  PalIndex := Swap(SourceRun16^)
+                  PalIndex := SwapEndian(SourceRun16^)
                 else
                   PalIndex := SourceRun16^;
 
@@ -4428,7 +4428,7 @@ begin
                 // Handle alpha channel
                 if CopyAlpha then begin
                   if coNeedByteSwap in FSourceOptions then
-                    AlphaVal16 := Swap(SourceRun16A^)
+                    AlphaVal16 := SwapEndian(SourceRun16A^)
                   else
                     AlphaVal16 := SourceRun16A^;
                   TargetRun8^.A := ComponentScaleConvert16To8(AlphaVal16);
