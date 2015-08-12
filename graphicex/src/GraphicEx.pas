@@ -1794,7 +1794,7 @@ begin
     begin
       // There are not many unique fields which can be used for identification, so
       // we do some simple plausibility checks too.
-      Result := (Swap(Magic) = SGIMagic) and (BPC in [1, 2]) and (Swap(Dimension) in [1..3]);
+      Result := (SwapEndian(Magic) = SGIMagic) and (BPC in [1, 2]) and (SwapEndian(Dimension) in [1..3]);
     end;
 end;
 
@@ -1830,7 +1830,7 @@ begin
       // SGI images are always stored in big endian style
       ColorManager.SourceOptions := [coNeedByteSwap];
       with Header do
-        ColorMap := SwapLong(ColorMap);
+        ColorMap := SwapEndian(ColorMap);
 
       if Compression = ctRLE then
       begin
@@ -1839,9 +1839,9 @@ begin
         SetLength(FRowSize, Count);
         // Convert line starts and sizes.
         Move(Run^, Pointer(FRowStart)^, Count * SizeOf(Cardinal));
-        SwapLong(Pointer(FRowStart), Count);
+        SwapArrayEndian(PCardinal(FRowStart), Count);
         Move(Run^, Pointer(FRowSize)^, Count * SizeOf(Cardinal));
-        SwapLong(Pointer(FRowSize), Count);
+        SwapArrayEndian(PCardinal(FRowSize), Count);
         Decoder := TSGIRLEDecoder.Create(BitsPerSample);
       end
       else
@@ -2016,13 +2016,13 @@ begin
     with FImageProperties do
     begin
       Move(Memory^, Header, SizeOf(TSGIHeader));
-      if Swap(Header.Magic) = SGIMagic then
+      if SwapEndian(Header.Magic) = SGIMagic then
       begin
         Options := [ioBigEndian];
         BitsPerSample := Header.BPC * 8;
-        Width := Swap(Header.XSize);
-        Height := Swap(Header.YSize);
-        SamplesPerPixel := Swap(Header.ZSize);
+        Width := SwapEndian(Header.XSize);
+        Height := SwapEndian(Header.YSize);
+        SamplesPerPixel := SwapEndian(Header.ZSize);
         case SamplesPerPixel of
           4:
             ColorScheme := csRGBA;
@@ -2439,14 +2439,16 @@ begin
       begin
         if ByteOrder = TIFF_BIGENDIAN then
         begin
-          Version := Swap(Header.Version);
+          Version := SwapEndian(Header.Version);
           {$IFNDEF LIBTIFF4}
           FirstIFD := SwapLong(Header.FirstIFD);
           {$ELSE}
-          if Version = TIFF_VERSION_CLASSIC then
-            FirstIFD := SwapLong(Header.FirstIFD)
-          else if Version = TIFF_VERSION_BIG then
-            FirstIFD64 := SwapLong64(Header.FirstIFD64);
+          if Version = TIFF_VERSION_CLASSIC then begin
+            FirstIFD := SwapEndian(Header.FirstIFD);
+          end
+          else if Version = TIFF_VERSION_BIG then begin
+            FirstIFD64 := SwapEndian(Header.FirstIFD64);
+          end
           {$ENDIF}
         end;
 
@@ -2511,7 +2513,7 @@ begin
       // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
       // Since we are already using a memory mapped file ourselves it is not
       // necessary to let libtif also use a memory mapped file.
-      TIFFImage := TIFFClientOpen('', 'rm', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
+      TIFFImage := TIFFClientOpen('', 'rm', NativeUInt(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
         TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
       try
         // The preparation part is finished. Finish also progress section (which will step the main progress).
@@ -2549,7 +2551,7 @@ begin
               // for bottom-up images (which is usually the case).
               // jgb 2012-04-13 but take into account the case where there is only
               // 1 scanline (height=1)
-              if (Height = 1) or (Integer(Scanline[0]) - Integer(Scanline[1]) > 0) then
+              if (Height = 1) or (NativeInt(Scanline[0]) - NativeInt(Scanline[1]) > 0) then
               begin
                 StartProgressSection(0, gesLoadingData);
                 TIFFReadRGBAImageOriented(TIFFImage, Width, Height, Scanline[Height - 1],
@@ -2847,14 +2849,14 @@ begin
       // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
       // Since we are already using a memory mapped file ourselves it is not
       // necessary to let libtif also use a memory mapped file.
-      TIFFImage := TIFFClientOpen('', 'rm', Cardinal(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
+      TIFFImage := TIFFClientOpen('', 'rm', NativeUInt(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
         TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
       if Assigned(TIFFImage) then
       try
         // This version is actually a magic number.
         Version := pTIFFHEADER(FMemory).Version;
         if pTIFFHEADER(FMemory).ByteOrder = TIFF_BIGENDIAN then
-          Version := Swap(Version);
+          Version := SwapEndian(Version);
         try
           // Account for invalid files.
           ImageCount := TIFFNumberOfDirectories(TIFFImage);
@@ -3617,7 +3619,7 @@ begin
       Height := Self.Height;
       PixelSize := 8 * BPP;
       // if the image is a bottom-up DIB then indicate this in the image descriptor
-      if Cardinal(Scanline[0]) > Cardinal(Scanline[1]) then
+      if NativeUInt(Scanline[0]) > NativeUInt(Scanline[1]) then
         ImageDescriptor := $20
       else
         ImageDescriptor := 0;
@@ -3814,6 +3816,9 @@ var
   Line: PByte;
   Increment: Integer;
   TempPixelFormat: TPixelFormat;
+  {$IFDEF CPU64}
+  BitNum: Byte;
+  {$ENDIF}
 
 begin
   inherited;
@@ -3960,10 +3965,14 @@ begin
               // number of bytes to write
               DataSize := (Width * BitsPerPixel + 7) div 8;
               Mask := 0;
+              {$IFDEF CPU64}
+              BitNum := 7;
+              {$ENDIF}
               while DataSize > 0 do
               begin
                 Value := 0;
                 for J := 0 to 1 do
+                {$IFNDEF CPU64}
                 asm
                   MOV AL, [Value]
 
@@ -3985,6 +3994,15 @@ begin
 
                   MOV [Value], AL
                 end;
+                {$ELSE} // TODO: TEST IF THIS IS A CORRECT TRANSLATION OF THE ABOVE!!!!!!!!!!!!!!!!!
+                begin
+                  if (Plane1^ shr BitNum) and $1 <> 0 then Value := Value or $01;
+                  if (Plane2^ shr BitNum) and $1 <> 0 then Value := Value or $02;
+                  if (Plane3^ shr BitNum) and $1 <> 0 then Value := Value or $04;
+                  if (Plane4^ shr BitNum) and $1 <> 0 then Value := Value or $08;
+                  Dec(BitNum);
+                end;
+                {$ENDIF}
                 Line^ := Value;
                 Inc(Line);
                 Dec(DataSize);
@@ -5154,7 +5172,7 @@ begin
       for I := 0 to LogPalette.palNumEntries - 1 do
       begin
         // load next 512 bytes buffer if necessary
-        if (Integer(Run) - Integer(@Buffer)) > 506 then
+        if (NativeInt(Run) - NativeInt(@Buffer)) > 506 then
         begin
           ReadBuffer(Buffer, SizeOf(Buffer));
           Run := @Buffer;
@@ -5772,7 +5790,7 @@ begin
       Inc(Run, SizeOf(TRLAHeader)); // Offsets are located right after the header
       Move(Run^, Offsets[0], Height * SizeOf(Cardinal));
       Inc(Run, Height * SizeOf(Cardinal));
-      SwapLong(Pointer(Offsets), Height);
+      SwapArrayEndian(PCardinal(Offsets), Height);
 
       // Setup intermediate storage.
       Decoder := TRLADecoder.Create;
@@ -5799,21 +5817,21 @@ begin
           // red
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
-          RLELength := Swap(RLELength);
+          RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
           Decoder.Decode(RawBuffer, RedBuffer, RLELength, Width);
           // green
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
-          RLELength := Swap(RLELength);
+          RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
           Decoder.Decode(RawBuffer, GreenBuffer, RLELength, Width);
           // blue
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
-          RLELength := Swap(RLELength);
+          RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
           Decoder.Decode(RawBuffer, BlueBuffer, RLELength, Width);
@@ -5827,7 +5845,7 @@ begin
             // alpha
             Move(Run^, RLELength, SizeOf(RLELength));
             Inc(Run, SizeOf(RLELength));
-            RLELength := Swap(RLELength);
+            RLELength := SwapEndian(RLELength);
             Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, Width);
 
             ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], Line, Width, $FF);
@@ -5950,22 +5968,22 @@ procedure TRLAGraphic.SwapHeader(var Header);
 begin
   with TRLAHeader(Header) do
   begin
-    SwapShort(@Window, 4);
-    SwapShort(@Active_window, 4);
-    Frame := Swap(Frame);
-    Storage_type := Swap(Storage_type);
-    Num_chan := Swap(Num_chan);
-    Num_matte := Swap(Num_matte);
-    Num_aux := Swap(Num_aux);
-    Revision := Swap(Revision);
-    Job_num  := SwapLong(Job_num);
-    Field := Swap(Field);
-    Chan_bits := Swap(Chan_bits);
-    Matte_type := Swap(Matte_type);
-    Matte_bits := Swap(Matte_bits);
-    Aux_type := Swap(Aux_type);
-    Aux_bits := Swap(Aux_bits);
-    Next := SwapLong(Next);
+    SwapArrayEndian(PWord(@Window), 4);
+    SwapArrayEndian(PWord(@Active_window), 4);
+    Frame := SwapEndian(Frame);
+    Storage_type := SwapEndian(Storage_type);
+    Num_chan := SwapEndian(Num_chan);
+    Num_matte := SwapEndian(Num_matte);
+    Num_aux := SwapEndian(Num_aux);
+    Revision := SwapEndian(Revision);
+    Job_num  := SwapEndian(Job_num);
+    Field := SwapEndian(Field);
+    Chan_bits := SwapEndian(Chan_bits);
+    Matte_type := SwapEndian(Matte_type);
+    Matte_bits := SwapEndian(Matte_bits);
+    Aux_type := SwapEndian(Aux_type);
+    Aux_bits := SwapEndian(Aux_bits);
+    Next := SwapEndian(Next);
   end;
 end;
 
@@ -6736,7 +6754,7 @@ begin
               SetLength(RLELength, AHeight);
               Count := 2 * AHeight;
               Move(Run^, Pointer(RLELength)^, Count); // RLE lengths are word values.
-              SwapShort(Pointer(RLELength), AHeight);
+              SwapArrayEndian(PWord(RLELength), AHeight);
               Dec(RemainingSize, Count);
               // Advance the running pointer to after the RLE lenghts.
               Inc(Run, Count);
@@ -7035,7 +7053,7 @@ begin
         // Hence we have to make a copy of the RLE lengths.
         SetLength(RLELength, Count);
         Move(Source^, Pointer(RLELength)^, 2 * Count);
-        SwapShort(Pointer(RLELength), Count);
+        SwapArrayEndian(PWord(RLELength), Count);
         // Advance the running pointer to after the RLE lenghts.
         Inc(Source, 2 * Count);
       end;
@@ -7285,7 +7303,7 @@ begin
   // Skip the layer section size. We are going to read the full section.
   Inc(Run, SizeOf(Cardinal));
 
-  LayerCount := Swap(PSmallInt(Run)^);
+  LayerCount := SwapEndian(PSmallInt(Run)^);
   // If LayerCount is < 0 then it means the first alpha channel contains the transparency data for the
   // composite image (the merged result). I'm not sure what to do with that info.
   LayerCount := Abs(LayerCount);
@@ -7323,7 +7341,7 @@ begin
       begin
         with Layer.Channels[I] do
         begin
-          ChannelID := Swap(PSmallInt(Run)^);
+          ChannelID := SwapEndian(PSmallInt(Run)^);
           Inc(Run, SizeOf(Word));
           Size := ReadBigEndianCardinal(Run);
         end;
@@ -7511,7 +7529,7 @@ begin
     Inc(Run);
     SetString(Name, PAnsiChar(Run), I);
     Inc(Run, I);
-    Inc(Run, Integer(Run) and 1); // Padded to even size.
+    Inc(Run, NativeInt(Run) and 1); // Padded to even size.
 
     // Resource size.
     Size := ReadBigEndianCardinal(Run);
@@ -7541,7 +7559,7 @@ begin
       // Simply skip any unknown entries.
       Inc(Run, Size);
     end;
-    Inc(Run, Integer(Run) and 1); // Padded to even size.
+    Inc(Run, NativeInt(Run) and 1); // Padded to even size.
   end;
 end;
 
@@ -7651,7 +7669,7 @@ begin
   Result := Size > SizeOf(TPSDHeader);
   if Result then
     with PPSDHeader(Memory)^ do
-      Result := (StrLIComp(Signature, '8BPS', 4) = 0) and (Swap(Version) = 1);
+      Result := (StrLIComp(Signature, '8BPS', 4) = 0) and (SwapEndian(Version) = 1);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -7759,11 +7777,11 @@ begin
         with Header do
         begin
           // PSD files are big endian only.
-          Channels := Swap(Channels);
-          Rows := SwapLong(Rows);
-          Columns := SwapLong(Columns);
-          Depth := Swap(Depth);
-          Mode := Swap(Mode);
+          Channels := SwapEndian(Channels);
+          Rows := SwapEndian(Rows);
+          Columns := SwapEndian(Columns);
+          Depth := SwapEndian(Depth);
+          Mode := SwapEndian(Mode);
         end;
 
         Options := [ioBigEndian];
@@ -8810,7 +8828,7 @@ begin
   Inc(Source, SizeOf(FHeader));
 
   Result := CRC32(0, @FHeader.ChunkType, 4);
-  FHeader.Length := SwapLong(FHeader.Length);
+  FHeader.Length := SwapEndian(FHeader.Length);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8992,7 +9010,7 @@ begin
         // read IHDR chunk
         ReadDataAndCheckCRC(Run);
         Move(FRawBuffer^, Description, SizeOf(Description));
-        SwapLong(@Description, 2);
+        SwapArrayEndian(PCardinal(@Description), 2);
 
         // currently only one compression type is supported by PNG (LZ77)
         if Compression = ctLZ77 then
@@ -9040,7 +9058,7 @@ begin
               begin
                 ReadDataAndCheckCRC(Run);
                 // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-                ColorManager.SetGamma(SwapLong(PCardinal(FRawBuffer)^) / 100000);
+                ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
                 ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
                 Include(Options, ioUseGamma);
                 Continue;
@@ -9068,7 +9086,7 @@ begin
           // Length = 0 should not happen but I have seen a broken png that has
           // no IEND chunk but does have length = 0
           // Also make sure a broken png doesn't set Run to illegal offset
-          if (FHeader.Length = 0) or (Cardinal(Run) >= Cardinal(PAnsiChar(Memory)+Size)) then
+          if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
             Break;
 
           // Note: According to the specs an unknown, but as critical marked chunk is a fatal error.
@@ -9124,7 +9142,7 @@ begin
           // read IHDR chunk
           ReadDataAndCheckCRC(Run);
           Move(FRawBuffer^, Description, SizeOf(Description));
-          SwapLong(@Description, 2);
+          SwapArrayEndian(PCardinal(@Description), 2);
 
           if (Description.Width = 0) or (Description.Height = 0) then
             Exit;
@@ -9172,7 +9190,7 @@ begin
             begin
               ReadDataAndCheckCRC(Run);
               // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-              FileGamma := SwapLong(PCardinal(FRawBuffer)^) / 100000;
+              FileGamma := SwapEndian(PCardinal(FRawBuffer)^) / 100000;
               Include(Options, ioUseGamma);
               Continue;
             end
@@ -9189,7 +9207,7 @@ begin
             // Length = 0 should not happen but I have seen a broken png that has
             // no IEND chunk but does have length = 0
             // Also make sure a broken png doesn't set Run to illegal offset
-            if (FHeader.Length = 0) or (Cardinal(Run) >= Cardinal(PAnsiChar(Memory)+Size)) then
+            if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
               Break;
           until False;
 
@@ -9221,11 +9239,11 @@ begin
         begin
           case BitDepth of
             2:
-              FBackgroundColor := MulDiv16(Swap(PWord(FRawBuffer)^), 15, 3);
+              FBackgroundColor := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 15, 3);
             16:
-              FBackgroundColor := MulDiv16(Swap(PWord(FRawBuffer)^), 255, 65535);
+              FBackgroundColor := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 255, 65535);
           else // 1, 4, 8 bits gray scale
-            FBackgroundColor := Byte(Swap(PWord(FRawBuffer)^));
+            FBackgroundColor := Byte(SwapEndian(PWord(FRawBuffer)^));
           end;
         end;
       2, 6:  // RGB(A)
@@ -9233,15 +9251,15 @@ begin
           Run := FRawBuffer;
           if BitDepth = 16 then
           begin
-            R := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            G := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            B := MulDiv16(Swap(Run^), 255, 65535);
+            R := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+            G := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+            B := MulDiv16(SwapEndian(Run^), 255, 65535);
           end
           else
           begin
-            R := Byte(Swap(Run^)); Inc(Run);
-            G := Byte(Swap(Run^)); Inc(Run);
-            B := Byte(Swap(Run^));
+            R := Byte(SwapEndian(Run^)); Inc(Run);
+            G := Byte(SwapEndian(Run^)); Inc(Run);
+            B := Byte(SwapEndian(Run^));
           end;
           FBackgroundColor := RGB(R, G, B);
         end;
@@ -9459,11 +9477,11 @@ begin
         begin
           case BitDepth of
             2:
-              R := MulDiv16(Swap(PWord(FRawBuffer)^), 15, 3);
+              R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 15, 3);
             16:
-              R := MulDiv16(Swap(PWord(FRawBuffer)^), 255, 65535);
+              R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 255, 65535);
           else // 1, 4, 8 bits gray scale
-            R := Byte(Swap(PWord(FRawBuffer)^));
+            R := Byte(SwapEndian(PWord(FRawBuffer)^));
           end;
           FTransparentColor := RGB(R, R, R);
         end;
@@ -9472,15 +9490,15 @@ begin
           Run := FRawBuffer;
           if BitDepth = 16 then
           begin
-            R := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            G := MulDiv16(Swap(Run^), 255, 65535); Inc(Run);
-            B := MulDiv16(Swap(Run^), 255, 65535);
+            R := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+            G := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+            B := MulDiv16(SwapEndian(Run^), 255, 65535);
           end
           else
           begin
-            R := Byte(Swap(Run^)); Inc(Run);
-            G := Byte(Swap(Run^)); Inc(Run);
-            B := Byte(Swap(Run^));
+            R := Byte(SwapEndian(Run^)); Inc(Run);
+            G := Byte(SwapEndian(Run^)); Inc(Run);
+            B := Byte(SwapEndian(Run^));
           end;
           FTransparentColor := RGB(R, G, B);
         end;
@@ -9542,7 +9560,7 @@ begin
 
   Move(Source^, FileCRC, SizeOf(FileCRC));
   Inc(Source, SizeOf(FileCRC));
-  FileCRC := SwapLong(FileCRC);
+  FileCRC := SwapEndian(FileCRC);
   // The type field of a chunk is included in the CRC, this serves as initial value
   // for the calculation here and is determined in LoadAndSwapHeader.
   FCurrentCRC := CRC32(FCurrentCRC, FRawBuffer, FHeader.Length);
@@ -9585,7 +9603,7 @@ begin
     end;
 
     // this decode call will advance Source and Target accordingly
-    Decoder.Decode(FCurrentSource, LocalBuffer, FIDATSize - (Integer(FCurrentSource) - Integer(FRawBuffer)),
+    Decoder.Decode(FCurrentSource, LocalBuffer, FIDATSize - (NativeInt(FCurrentSource) - NativeInt(FRawBuffer)),
       PendingOutput);
 
     if TLZ77Decoder(Decoder).ZLibResult = Z_STREAM_END then
@@ -9598,7 +9616,7 @@ begin
     if TLZ77Decoder(Decoder).ZLibResult <> Z_OK then
       GraphicExError(gesCompression, ['PNG']);
 
-    PendingOutput := BytesPerRow - (Integer(LocalBuffer) - Integer(RowBuffer));
+    PendingOutput := BytesPerRow - (NativeInt(LocalBuffer) - NativeInt(RowBuffer));
   until PendingOutput = 0;
 end;
 
