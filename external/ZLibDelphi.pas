@@ -102,7 +102,17 @@ end;
 {.$L uncompr.obj} // Seems not to be needed by, uncompress also isn't declared here.
 {$ELSE}
   // fpc
-  {$LINKLIB libcrtdll} // _malloc and _free
+  {$IFDEF MSWINDOWS}
+    {$IFNDEF CPU64}
+      {$LINKLIB libcrtdll} // _malloc and _free
+    {$ELSE}
+      {$LINKLIB libmsvcrt.a}
+      {$LINKLIB libkernel32.a}
+    {$ENDIF}
+  {$ENDIF}
+  {$IFDEF UNIX}
+    Todo...
+  {$ENDIF}
   {$LINKLIB libz.a}
 {$ENDIF}
 
