@@ -9,6 +9,8 @@ interface
 uses
   Windows, SysUtils;
 
+procedure _exit(code: Integer); cdecl;
+{$IFDEF FPC} public name 'exit';{$ENDIF}
 function  fprintf(stream: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
 function  sprintf(buffer: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
 function  snprintf(buffer: Pointer; bufsize: Integer; format: Pointer; arguments: Pointer): Integer; cdecl;
@@ -61,6 +63,13 @@ type
 
 
 {PODD}
+
+// Needed for 64 bits version of LibTiff etc since we can't figure out the
+// order yet that we need to link the libs for exit to be found in msvcrt.a
+procedure _exit(code: Integer); cdecl;
+begin
+  Halt(code);
+end;
 
 function fputc(c: Integer; stream: Pointer): Integer; cdecl;
 var
