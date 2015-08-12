@@ -88,7 +88,6 @@ uses
   {$endif ~JpegGraphic}
   {$IFDEF FPC}
   FPImage, // Progress stage defines
-  d2fGraphics, // CopyPalette
   {$ENDIF}
   GraphicCompression, GraphicStrings, GraphicColor;
 

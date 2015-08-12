@@ -391,6 +391,10 @@ type
     property TargetExtraBPP: Byte read FTargetExtraBPP write FTargetExtraBPP;
   end;
 
+
+// Fpc/Lazarus is missing the CopyPalette function present in Delphi.
+function CopyPalette(Palette: HPALETTE): HPALETTE;
+
 // Common color conversion functions
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 function RGBToHLS(const RGB: TRGBFloat): THLSFloat;
@@ -568,6 +572,35 @@ end;
 {$ENDIF}
 
 //----------------- Common color conversion functions --------------------------
+
+// From Jvcl JvClipboardViewer
+// Fpc/Lazarus is missing the CopyPalette function present in Delphi.
+function CopyPalette(Palette: HPALETTE): HPALETTE;
+var
+  PaletteSize: Integer;
+  LogSize: Integer;
+  LogPalette: PLogPalette;
+begin
+  Result := 0;
+  if Palette = 0 then
+    Exit;
+  GetObject(Palette, SizeOf(PaletteSize), @PaletteSize);
+  LogSize := SizeOf(TLogPalette) + (PaletteSize - 1) * SizeOf(TPaletteEntry);
+  GetMem(LogPalette, LogSize);
+  try
+    with LogPalette^ do
+    begin
+      palVersion := $0300;
+      palNumEntries := PaletteSize;
+      GetPaletteEntries(Palette, 0, PaletteSize, palPalEntry);
+    end;
+    Result := CreatePalette(LogPalette^);
+  finally
+  FreeMem(LogPalette, LogSize);
+  end;
+end;
+
+//------------------------------------------------------------------------------
 
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 
