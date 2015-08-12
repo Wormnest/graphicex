@@ -319,7 +319,11 @@ type
 procedure CompressionError(ErrorString: String); overload;
 
 begin
-  raise EGraphicCompression.Create(ErrorString);
+  {$IFNDEF FPC}
+  raise EGraphicCompression.Create(ErrorString) at ReturnAddr;
+  {$ELSE}
+  raise EGraphicCompression.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  {$ENDIF}
 end;
 
 //----------------- TDecoder (generic decoder class) -------------------------------------------------------------------
