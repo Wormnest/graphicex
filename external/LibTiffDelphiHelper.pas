@@ -137,11 +137,11 @@ begin
         ma:=Bitmap.ScanLine[ny];
         for nx:=0 to Bitmap.Width-1 do
         begin
-          mb^:=PByte(Cardinal(ma)+2)^;
+          mb^:=PByte(NativeUInt(ma)+2)^;
           Inc(mb);
-          mb^:=PByte(Cardinal(ma)+1)^;
+          mb^:=PByte(NativeUInt(ma)+1)^;
           Inc(mb);
-          mb^:=PByte(Cardinal(ma)+0)^;
+          mb^:=PByte(NativeUInt(ma)+0)^;
           Inc(mb);
           Inc(ma,3);
         end;
@@ -155,11 +155,11 @@ begin
         ma:=Bitmap.ScanLine[ny];
         for nx:=0 to Bitmap.Width-1 do
         begin
-          mb^:=PByte(Cardinal(ma)+2)^;
+          mb^:=PByte(NativeUInt(ma)+2)^;
           Inc(mb);
-          mb^:=PByte(Cardinal(ma)+1)^;
+          mb^:=PByte(NativeUInt(ma)+1)^;
           Inc(mb);
-          mb^:=PByte(Cardinal(ma)+0)^;
+          mb^:=PByte(NativeUInt(ma)+0)^;
           Inc(mb);
           Inc(ma,4);
         end;
