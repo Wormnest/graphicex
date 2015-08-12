@@ -15,7 +15,7 @@
 // Portions created by Mike Lischke are
 // Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 // Portions created by Jacob Boerema are
-// Copyright (C) 2013 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
 // This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
 //
 // gexUtils Utility functions for GraphicEx.
@@ -65,20 +65,28 @@ function ReadUtf8String(var Run: PByte; Len: Cardinal): WideString;
 function ReadUtf8StringBigEndianLength(var Run: PByte): WideString;
 
 
-// swaps high and low byte of 16 bit values
-procedure SwapShort(P: PWord; Count: Cardinal);
+// Swap/Reverse high and low byte of an array of 16 bit values
+procedure SwapArrayEndian(P: PWord; Count: Cardinal); overload;
 
-// swaps high and low bytes of 32 bit values
-procedure SwapLong(P: PInteger; Count: Cardinal); overload;
+// Reverse bytes (endianness) of an array of 32 bit values
+procedure SwapArrayEndian(P: PCardinal; Count: Cardinal); overload;
 
-// Swaps high and low bytes of the given 32 bit value.
-function SwapLong(Value: Cardinal): Cardinal; overload;
+{$IFNDEF FPC}
+// Reverse bytes of the given 16 bit value. Same as normal Swap for 16 bit values.
+function SwapEndian(Value: Word): Word; overload;
 
-// Swaps high and low bytes of the given 32 bit value.
-function SwapLong(Value: Integer): Integer; overload;
+// Reverse bytes of the given 32 bit value.
+function SwapEndian(Value: Cardinal): Cardinal; overload;
+function SwapLong(Value: Cardinal): Cardinal; overload; // deprecated version
+
+// Reverse bytes of the given 32 bit value.
+function SwapEndian(Value: Integer): Integer; overload;
+function SwapLong(Value: Integer): Integer; overload; // deprecated version
 
 // Reverses the order of the 8 bytes.
-function SwapLong64(Value: Int64): Int64; overload;
+function SwapEndian(Value: Int64): Int64; overload;
+function SwapLong64(Value: Int64): Int64; overload; // deprecated version
+{$ENDIF}
 
 // Reverses the byte order in Source which must be 8 bytes in size (as well as the target).
 procedure SwapDouble(const Source; var Target);
@@ -88,11 +96,20 @@ implementation
 
 //----------------- support functions for image loading ----------------------------------------------------------------
 
-procedure SwapShort(P: PWord; Count: Cardinal);
+{$IFNDEF FPC}
+function SwapEndian(W: Word): Word;
+asm
+   {$IFDEF CPU64}
+   mov rax, rcx
+   {$ENDIF}
+   xchg   al, ah
+end;
+{$ENDIF}
 
-// swaps high and low byte of 16 bit values
+// Swap/Reverse high and low byte of an array of 16 bit values
+procedure SwapArrayEndian(P: PWord; Count: Cardinal);
+{$IFNDEF CPU64}
 // EAX contains P, EDX contains Count
-
 asm
         TEST    EDX, EDX
         JZ      @@Finish
@@ -105,14 +122,23 @@ asm
         JNZ     @@Loop
 @@Finish:
 end;
+{$ELSE}
+var i: Cardinal;
+begin
+  if Count > 0 then
+    for i := 0 to Count-1 do begin
+      P^:= SwapEndian(P^); // Same as Swap for Word values
+      Inc(P);
+    end;
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure SwapLong(P: PInteger; Count: Cardinal); overload;
-
-// swaps high and low bytes of 32 bit values
+// Reverse bytes (endianness) of an array of 32 bit values
+procedure SwapArrayEndian(P: PCardinal; Count: Cardinal); overload;
+{$IFNDEF CPU64}
 // EAX contains P, EDX contains Count
-
 asm
         TEST    EDX, EDX
         JZ      @@Finish
@@ -125,82 +151,111 @@ asm
         JNZ     @@Loop
 @@Finish:
 end;
+{$ELSE}
+var i: Cardinal;
+begin
+  if Count > 0 then
+    for i := 0 to Count-1 do begin
+      {$IFDEF FPC}
+      P^:= SwapEndian(P^);
+      {$ELSE}
+      P^:= SwapLong(P^);
+      {$ENDIF}
+      Inc(P);
+    end;
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function SwapLong(Value: Cardinal): Cardinal; overload;
-
-// Swaps high and low bytes of the given 32 bit value.
-
+{$IFNDEF FPC}
+// Reverses bytes of the given 32 bit value.
+function SwapEndian(Value: Cardinal): Cardinal; overload;
 asm
+{$IFDEF CPU64}
+        mov     rax, rcx
+{$ENDIF}
         BSWAP   EAX
+end;
+
+function SwapLong(Value: Cardinal): Cardinal; overload; // deprecated version
+begin
+  Result := Swap(Value);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function SwapLong(Value: Integer): Integer; overload;
-
 // Swaps high and low bytes of the given 32 bit value.
-
+function Swap(Value: Integer): Integer; overload;
 asm
+{$IFDEF CPU64}
+        mov     rax, rcx
+{$ENDIF}
         BSWAP   EAX
 end;
 
+function SwapLong(Value: Integer): Integer; overload; // deprecated version
+begin
+  Result := Swap(Value);
+end;
 //----------------------------------------------------------------------------------------------------------------------
 
 // Reverses the order of the 8 bytes.
-function SwapLong64(Value: Int64): Int64; overload;
+function Swap(Value: Int64): Int64; overload;
 begin
   Result := SwapLong(Cardinal(Value shr 32)) + Int64(SwapLong(Cardinal(Value))) shl 32;
 end;
 
+function SwapLong64(Value: Int64): Int64; overload; // deprecated version
+begin
+  Result := Swap(Value);
+end;
+{$ENDIF}
+
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure SwapDouble(const Source; var Target);
-
 // Reverses the byte order in Source which must be 8 bytes in size (as well as the target).
-
+procedure SwapDouble(const Source; var Target);
+{$IFNDEF FPC}
 var
   I: Int64;
-
+{$ENDIF}
 begin
+  {$IFNDEF FPC}
   I := Int64(Source);
   Int64(Target) := SwapLong(Cardinal(I shr 32)) + Int64(SwapLong(Cardinal(I))) shl 32;
+  {$ELSE}
+  Int64(Target) := SwapEndian(Int64(Source));
+  {$ENDIF}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianCardinal(var Run: PByte): Cardinal;
-
 // Reads the next four bytes from the memory pointed to by Run, converts this into a
 // cardinal number (inclusive byte order swapping) and advances Run.
-
+function ReadBigEndianCardinal(var Run: PByte): Cardinal;
 begin
-  Result := SwapLong(PCardinal(Run)^);
+  Result := {$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PCardinal(Run)^);
   Inc(PCardinal(Run));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianInteger(var Run: PByte): Integer;
-
 // Reads the next four bytes from the memory pointed to by Run, converts this into a
 // cardinal number (inclusive byte order swapping) and advances Run.
-
+function ReadBigEndianInteger(var Run: PByte): Integer;
 begin
-  Result := SwapLong(PInteger(Run)^);
+  Result := {$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PInteger(Run)^);
   Inc(PInteger(Run));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function ReadBigEndianWord(var Run: PByte): Word;
-
 // Reads the next two bytes from the memory pointed to by Run, converts this into a
 // word number (inclusive byte order swapping) and advances Run.
-
+function ReadBigEndianWord(var Run: PByte): Word;
 begin
-  Result := Swap(PWord(Run)^);
+  Result := SwapEndian(PWord(Run)^);
   Inc(Run, SizeOf(Word));
 end;
 
@@ -215,7 +270,8 @@ type TSingleCardinal = record
          1: (CardinalValue: Cardinal);
      end;
 begin
-  TSingleCardinal(Result).SingleValue := TSingleCardinal(SwapLong(PCardinal(Run)^)).SingleValue;
+  TSingleCardinal(Result).SingleValue :=
+    TSingleCardinal({$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PCardinal(Run)^)).SingleValue;
   Inc(PCardinal(Run));
 end;
 
@@ -241,7 +297,7 @@ function ReadBigEndianString(var Run: PByte; Len: Cardinal): WideString; overloa
 begin
   SetString(Result, PWideChar(Run), Len);
   Inc(PWideChar(Run), Len);
-  SwapShort(Pointer(Result), Len);
+  SwapArrayEndian(PWord(Result), Len);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
