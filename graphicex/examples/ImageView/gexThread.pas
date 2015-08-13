@@ -1,6 +1,6 @@
 { gexThread A Threaded thumbnail creator based on R.M. Klever's Threaded ThumbNail Demo.
   License: MPL 1.1.
-  Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+  Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
   All Rights Reserved.
   This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
 }
@@ -55,7 +55,7 @@ type
     Name: string;
     ThumbWidth: Word;
     ThumbHeight: Word;
-    Size: Integer;
+    Size: Int64;
     Modified: TDateTime;
     IWidth, IHeight: Word;
     GotThumb: Boolean;
@@ -363,12 +363,12 @@ procedure MakeThumbNail(Src, Dst: TBitmap);
 var
   x, y, ix, iy, w, h, dx, dy: Integer;
   x1, x2, x3: integer;
-  RowDest, RowSource, RowSourceStart: Integer;
+  RowDest, RowSource, RowSourceStart: NativeInt;
   iRatio: Integer;
   Ratio: Single;
   iRed, iGrn, iBlu: Integer;
   pt: PRGB24;
-  iSrc, iDst: Integer;
+  iSrc, iDst: NativeInt;
   lutW, lutH: array of Integer;
 begin
   if (Src.Width <= Dst.Width) and (Src.Height <= Dst.Height) then
@@ -398,8 +398,8 @@ begin
     x1 := x2;
     x2 := Trunc((x + 2) * Ratio);
   end;
-  RowDest := Integer(Dst.Scanline[0]);
-  RowSourceStart := integer(Src.Scanline[0]);
+  RowDest := NativeInt(Dst.Scanline[0]);
+  RowSourceStart := NativeInt(Src.Scanline[0]);
   RowSource := RowSourceStart;
   iDst := ((w * 24 + 31) and not 31) shr 3;
   iSrc := ((Src.Width * 24 + 31) and not 31) shr 3;
@@ -997,25 +997,26 @@ var
   i, x1, x2, z, z2, iz2: Integer;
   w1, w2, w3, w4: Integer;
   Ratio: Integer;
-  sDst, sDstOff: Integer;
+  sDst, sDstOff: NativeInt;
   sScanLine: array[0..255] of PRGBArray;
   Src1, Src2: PRGBArray;
   C, C1, C2: TRGB24;
-  y1, y2, y3, x3, iRed, iGrn, iBlu: Integer;
+  y1, y2, y3: NativeInt;
+  x3, iRed, iGrn, iBlu: Integer;
   p1, p2, p3, p4, p5: PRGB24;
 begin
   // ScanLine buffer for Source
-  sDst := Integer(src.Scanline[0]);
-  sDstOff := Integer(src.Scanline[1]) - sDst;
+  sDst := NativeInt(src.Scanline[0]);
+  sDstOff := NativeInt(src.Scanline[1]) - sDst;
   for i := 0 to src.Height - 1 do
   begin
     sScanLine[i] := PRGBArray(sDst);
     sDst := sDst + sDstOff;
   end;
   // ScanLine for Destiantion
-  sDst := Integer(Dest.Scanline[0]);
+  sDst := NativeInt(Dest.Scanline[0]);
   y1 := sDst; // only for sharpening...
-  sDstOff := Integer(Dest.Scanline[1]) - sDst;
+  sDstOff := NativeInt(Dest.Scanline[1]) - sDst;
   // Ratio is same for width and height
   Ratio := ((src.Width - 1) shl 15) div Dest.Width;
   py := 0;
