@@ -33,6 +33,12 @@ const
   CTester         = 'Tester';
   CException      = 'Exception';
   CMessage        = 'Message';
+  CVersion        = 'Version';
+  {$IFDEF LIBTIFF4}
+  CVersionDefault = '4';
+  {$ELSE}
+  CVersionDefault = '3';
+  {$ENDIF}
 
   TesterAll       = 'All';
   {$IFDEF FPC}
@@ -361,19 +367,22 @@ begin
           else if SameText(FileData.Name, CExpectedResult) then begin
             TempStr := GetPropValue(FileData, CTester);
             if SameText(TempStr, CurrentTester) or SameText(TempStr, TesterAll) then begin
-              TempStr := GetPropValue(FileData, CUnrecognized);
-              if SameText(TempStr, '1') then
-                TestData.Unrecognized := True;
-              TempStr := GetPropValue(FileData, CEmpty);
-              if SameText(TempStr, '1') then
-                TestData.EmptyImage := True;
-              TempStr := GetPropValue(FileData, FReadable);
-              if SameText(TempStr, '1') then
-                TestData.Readable := True
-              else begin
-                TestData.Readable := False;
-                TestData.ExceptionType := GetPropValue(FileData, CException);
-                TestData.ExceptionMessage := GetPropValue(FileData, CMessage);
+              TempStr := GetPropValue(FileData, CVersion);
+              if (TempStr = '') or SameText(TempStr, CVersionDefault) then begin
+                TempStr := GetPropValue(FileData, CUnrecognized);
+                if SameText(TempStr, '1') then
+                  TestData.Unrecognized := True;
+                TempStr := GetPropValue(FileData, CEmpty);
+                if SameText(TempStr, '1') then
+                  TestData.EmptyImage := True;
+                TempStr := GetPropValue(FileData, FReadable);
+                if SameText(TempStr, '1') then
+                  TestData.Readable := True
+                else begin
+                  TestData.Readable := False;
+                  TestData.ExceptionType := GetPropValue(FileData, CException);
+                  TestData.ExceptionMessage := GetPropValue(FileData, CMessage);
+                end;
               end;
             end;
           end;
