@@ -1,6 +1,6 @@
 unit rkView;
 
-//  rkView © 2010 by Roy Magne Klever. All rights reserved
+//  rkView Â© 2010 by Roy Magne Klever. All rights reserved
 //
 //  This file is not distributable without permission by Roy Magne Klever
 //  WEB: www.rmklever.com
@@ -928,11 +928,12 @@ end;
 
 procedure TrkCustomView.PaintView;
 var
-  x, y, w, h, cx, cy, nx, ny, fx, fy, d1, scr: integer;
-  XPos, YPos, Index, Col, Row, idxLimit, ImageHeight: Integer;
-  YCount, bx, by, bdx, bdy, addx, addy, imw, imh: Integer;
+  x, y, w, h, d1, scr: integer;
+  XPos, YPos, Index: Integer;
+  Row: NativeInt;
+  YCount, bx, by, bdx, bdy, imw, imh: Integer;
   R: TRect;
-  slSize, slMain: integer;
+  slSize, slMain: NativeInt;
   slPnt: PRGB24;
   bool: boolean;
   SItem: TsvItemState;
@@ -964,8 +965,8 @@ begin
 
   if (not (csDesigning in ComponentState)) and (not FUpdating) then
   begin
-    slMain := Integer(FMainBmp.ScanLine[0]);
-    slSize := Integer(FMainBmp.ScanLine[1]) - slMain;
+    slMain := NativeInt(FMainBmp.ScanLine[0]);
+    slSize := NativeInt(FMainBmp.ScanLine[1]) - slMain;
     if vsbVisible then
     begin
       YCount := ((sbVert.Position - FCellOffset) + FCellSpace) div ImgHeight;
@@ -1753,6 +1754,7 @@ begin
       FColumns[FDragColumn] := i
     else
       FColumns[FDragColumn] := 2;
+    s := '';
     for i := 0 to High(FColumns) do
       s := s + IntToStr(FColumns[i]) + ',';
     j := Length(s);
