@@ -76,13 +76,19 @@ end;
 
 procedure TIntList.Error(const Msg: string; Data: Integer);
 
+  {$IFNDEF FPC}
   function ReturnAddr: Pointer;
   asm
           MOV     EAX,[EBP+4]
   end;
+  {$ENDIF}
 
 begin
-  raise EStringListError.CreateFmt(Msg, [Data])at ReturnAddr;
+  {$IFNDEF FPC}
+  raise EStringListError.CreateFmt(Msg, [Data]) at ReturnAddr;
+  {$ELSE}
+  raise EStringListError.CreateFmt(Msg, [Data]) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  {$ENDIF}
 end;
 
 const
