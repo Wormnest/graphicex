@@ -3815,9 +3815,6 @@ var
   Line: PByte;
   Increment: Integer;
   TempPixelFormat: TPixelFormat;
-  {$IFDEF CPU64}
-  BitNum: Byte;
-  {$ENDIF}
 
 begin
   inherited;
@@ -3964,9 +3961,6 @@ begin
               // number of bytes to write
               DataSize := (Width * BitsPerPixel + 7) div 8;
               Mask := 0;
-              {$IFDEF CPU64}
-              BitNum := 7;
-              {$ENDIF}
               while DataSize > 0 do
               begin
                 Value := 0;
@@ -3993,13 +3987,20 @@ begin
 
                   MOV [Value], AL
                 end;
-                {$ELSE} // TODO: TEST IF THIS IS A CORRECT TRANSLATION OF THE ABOVE!!!!!!!!!!!!!!!!!
+                {$ELSE}
                 begin
-                  if (Plane1^ shr BitNum) and $1 <> 0 then Value := Value or $01;
-                  if (Plane2^ shr BitNum) and $1 <> 0 then Value := Value or $02;
-                  if (Plane3^ shr BitNum) and $1 <> 0 then Value := Value or $04;
-                  if (Plane4^ shr BitNum) and $1 <> 0 then Value := Value or $08;
-                  Dec(BitNum);
+                  Value := Value shl 1; // No effect the first time since Value will be 0
+                  if Plane4^ and $80 <> 0 then Value := Value or $01;
+                  Value := Value shl 1;
+                  Plane4^ := Plane4^ shl 1;
+                  if Plane3^ and $80 <> 0 then Value := Value or $01;
+                  Value := Value shl 1;
+                  Plane3^ := Plane3^ shl 1;
+                  if Plane2^ and $80 <> 0 then Value := Value or $01;
+                  Value := Value shl 1;
+                  Plane2^ := Plane2^ shl 1;
+                  if Plane1^ and $80 <> 0 then Value := Value or $01;
+                  Plane1^ := Plane1^ shl 1;
                 end;
                 {$ENDIF}
                 Line^ := Value;
