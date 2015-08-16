@@ -1402,9 +1402,11 @@ begin
   FColorSelection.R := Byte(C);
   for i := 0 to 255 do
   begin
-    Ra[i] := (FColorSelection.R - i) shr 3 + i;
-    Ga[i] := (FColorSelection.G - i) shr 3 + i;
-    Ba[i] := (FColorSelection.B - i) shr 3 + i;
+    // Added Byte() around the computation, otherwise we get a crash when
+    // compiled for 64 bits with debug on when running; seems to be related to overflow
+    Ra[i] := Byte((FColorSelection.R - i) shr 3 + i);
+    Ga[i] := Byte((FColorSelection.G - i) shr 3 + i);
+    Ba[i] := Byte((FColorSelection.B - i) shr 3 + i);
   end;
 end;
 
