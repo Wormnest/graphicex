@@ -1675,6 +1675,7 @@ begin
       R.Right := j + FColumns[i];
     end;
     bool := False;
+    InfoTip := '';
     OnHintShow(Self, Item, FHintColumn, InfoTip, bool);
     bugStr := 'Bummer: ' + IntToStr(FHintColumn);
     if (not bool) or (InfoTip = '') or (Selecting) or (FDragging) or (IsEditing)
