@@ -665,22 +665,26 @@ begin
     bmp.Canvas.Draw(0, 0, Img);
     try
       ThumbBmp := TBitmap.Create;
-      ThumbBmp.Canvas.Lock;
-      ThumbSize := CalcThumbSize(bmp.Width, bmp.Height, FMaxThumbSizeW,
-        FMaxThumbSizeH);
-      newW := ThumbSize.X;
-      newH := ThumbSize.Y;
-      if newW <= 0 then
-        newW := 1;
-      if newH <= 0 then
-        newH := 1;
-      ThumbBmp.PixelFormat := pf24Bit;
-      ThumbBmp.Width := newW;
-      ThumbBmp.Height := newH;
-      MakeThumbNail(bmp, ThumbBmp);
+      try
+        ThumbBmp.Canvas.Lock;
+        ThumbSize := CalcThumbSize(bmp.Width, bmp.Height, FMaxThumbSizeW,
+          FMaxThumbSizeH);
+        newW := ThumbSize.X;
+        newH := ThumbSize.Y;
+        if newW <= 0 then
+          newW := 1;
+        if newH <= 0 then
+          newH := 1;
+        ThumbBmp.PixelFormat := pf24Bit;
+        ThumbBmp.Width := newW;
+        ThumbBmp.Height := newH;
+        MakeThumbNail(bmp, ThumbBmp);
+      finally
+        ThumbBmp.Canvas.UnLock;
+      end;
       Result := ThumbBmp;
     except
-      ThumbBmp.Canvas.UnLock;
+      // Only free ThumbBmp in case we get an exception!
       FreeAndNil(ThumbBmp);
       raise;
     end;
