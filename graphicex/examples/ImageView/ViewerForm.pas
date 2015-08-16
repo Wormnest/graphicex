@@ -157,6 +157,8 @@ type
     FThumbWidth,
     FThumbHeight: Integer;
     FThumbnailBackground: TBitmap;
+    FCheckerboardColor1,
+    FCheckerboardColor2: TColor;
     FPicture: TPicture;
 
     FLoadTick,
@@ -227,6 +229,7 @@ type
 
     // Creates the checkered default background for an entry.
     procedure CreateDefaultBackground;
+    procedure UpdateDefaultBackground;
     procedure FillBackground(R: TRect; Target: TCanvas);
     procedure WMEraseBkgnd(var Msg: TWMEraseBkgnd); message WM_ERASEBKGND;
 
@@ -267,6 +270,12 @@ const
   C_ImgFolderHeight = 'ImageFolderViewHeight';
   C_MiddleViewWidth = 'MiddleViewWidth';
   C_Maximized       = 'Maximized';  // 1 = maximized, 0 = not maximized
+
+const
+  Light_bgColor1 = clBtnFace;
+  Light_bgColor2 = clBtnHighlight;
+  Dark_bgColor1 = TColor($606060); // a medium dark gray
+  Dark_bgColor2 = TColor($909090); // a little lighter gray
 
 var TiffError: array[0..1000] of Char;
   CollectErrors: Boolean;
@@ -380,6 +389,9 @@ begin
   // Add disabled state bitmaps to our page SpeedButtons
   AddDisabledBmp([spbtnFirst, spbtnPrev, spbtnNext, spbtnLast]);
 
+  // Default checkerboard background colors are darkish
+  FCheckerboardColor1 := Dark_bgColor1;
+  FCheckerboardColor2 := Dark_bgColor2;
   // Make the checkered background
   CreateDefaultBackground;
   // Initialize picture
@@ -1714,9 +1726,17 @@ begin
   begin
     Width := 16;
     Height := 16;
-    Canvas.Brush.Color := clBtnFace;
+    UpdateDefaultBackground;
+  end;
+end;
+
+procedure TfrmViewer.UpdateDefaultBackground;
+begin
+  with FThumbnailBackground do
+  begin
+    Canvas.Brush.Color := FCheckerboardColor1;
     Canvas.FillRect(Rect(0, 0, Width, Height));
-    Canvas.Brush.Color := clBtnHighlight;
+    Canvas.Brush.Color := FCheckerboardColor2;
     Canvas.FillRect(Rect(0, 0, 8, 8));
     Canvas.FillRect(Rect(8, 8, 16, 16));
   end;
