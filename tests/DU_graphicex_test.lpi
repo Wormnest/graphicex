@@ -52,7 +52,8 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-dIGNORE_EMPTY_TEST"/>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item2>
@@ -86,7 +87,8 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-dIGNORE_EMPTY_TEST"/>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item3>
@@ -131,7 +133,8 @@
             <Verbosity>
               <ShowAll Value="True"/>
             </Verbosity>
-            <CustomOptions Value="-dIGNORE_EMPTY_TEST"/>
+            <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item4>
@@ -172,7 +175,8 @@
           </Linking>
           <Other>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
--dHEAPTRC_LOG"/>
+-dHEAPTRC_LOG
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item5>
@@ -216,6 +220,7 @@
           </Linking>
           <Other>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4
 -dHEAPTRC"/>
           </Other>
         </CompilerOptions>
@@ -256,7 +261,8 @@
             <CustomOptions Value="-FcUTF8
 -dIGNORE_EMPTY_TEST
 -dUNICODE
--dEnableUTF8"/>
+-dEnableUTF8
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item7>
@@ -314,6 +320,7 @@ if TargetOS='Win64' then
               <ShowAll Value="True"/>
             </Verbosity>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4
 -dENABLE_TRACETOOL"/>
           </Other>
         </CompilerOptions>
@@ -352,13 +359,15 @@ if TargetOS='Win64' then
           </Linking>
           <Other>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
+-dLIBTIFF4
 -dENABLE_TRACETOOL"/>
           </Other>
         </CompilerOptions>
       </Item9>
-      <SharedMatrixOptions Count="2">
+      <SharedMatrixOptions Count="3">
         <Item1 ID="707623224695" Value="-dEnableUTF8RTL"/>
-        <Item2 ID="868206001400" Modes="Debug64 with Tracetool,Debug with Tracetool" Value="-dENABLE_TRACETOOL"/>
+        <Item2 ID="868206001400" Modes="Debug with Tracetool,Debug64 with Tracetool" Value="-dENABLE_TRACETOOL"/>
+        <Item3 ID="018455230448" Modes="Debug64,Debug,Release,Debug with Heaptrc,Debug64 with Heaptrc,Debug UTF8,Debug64 with Tracetool,Debug with Tracetool" Value="-dLIBTIFF4"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
