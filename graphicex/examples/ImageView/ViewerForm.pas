@@ -1595,11 +1595,13 @@ begin
       // usually be more conservative with eating all exceptions.
       on e:EInvalidGraphic do begin
         LoadingFailed := True;
-        lblStatus.Caption := 'Error loading image: ' + FileName;
+        lblStatus.Caption := 'Error loading image: ' + FileName +#13#10 +
+          e.Message;
       end;
       on e:EColorConversionError do begin
         LoadingFailed := True;
-        lblStatus.Caption := 'Color conversion error loading image: ' + FileName;
+        lblStatus.Caption := 'Color conversion error loading image: ' + FileName +
+          #13#10 + e.Message;
       end;
       on e:EOutOfMemory do begin
         LoadingFailed := True;
