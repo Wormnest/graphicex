@@ -364,9 +364,9 @@ var
   x, y, ix, iy, w, h, dx, dy: Integer;
   x1, x2, x3: integer;
   RowDest, RowSource, RowSourceStart: NativeInt;
-  iRatio: Integer;
+  iRatio: Cardinal;
   Ratio: Single;
-  iRed, iGrn, iBlu: Integer;
+  iRed, iGrn, iBlu: Cardinal;
   pt: PRGB24;
   iSrc, iDst: NativeInt;
   lutW, lutH: array of Integer;
@@ -434,9 +434,9 @@ begin
       end;
       iRatio := $00FFFFFF div (dx * dy);
       pt := PRGB24(RowDest + x3);
-      pt.R := (iRed * iRatio) shr 24;
-      pt.G := (iGrn * iRatio) shr 24;
-      pt.B := (iBlu * iRatio) shr 24;
+      pt.R := Byte((iRed * iRatio) shr 24);
+      pt.G := Byte((iGrn * iRatio) shr 24);
+      pt.B := Byte((iBlu * iRatio) shr 24);
       x1 := x1 + 3 * dx;
       inc(x3, 3);
     end;
