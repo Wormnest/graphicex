@@ -9,7 +9,7 @@
       <PathDelim Value="\"/>
       <SearchPaths>
         <OtherUnitFiles Value="..\graphicex\examples\ImageView"/>
-        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Files Count="2">
