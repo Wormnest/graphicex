@@ -838,7 +838,10 @@ begin
       try
         ThumbBmp := ConvertImageToThumb(FName, Thumb);
       except
-        FExceptionMessage := 'Error loading image: ' + FName;
+        on e:Exception do
+          FExceptionMessage := 'Error loading image: ' + FName + #13#10 + e.Message;
+        else // unknown exception class
+          FExceptionMessage := 'Error loading image: ' + FName;
         fail := True;
       end;
     end;
