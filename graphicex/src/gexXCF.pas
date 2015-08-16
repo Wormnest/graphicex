@@ -902,16 +902,20 @@ begin
 
     // We need to create palettes for grayscale and indexed, however since
     // RGB(A) is by far the most common we skip that first
-    if not (FImageProperties.ColorScheme in [csRGB, csRGBA]) then
-      if FImageProperties.ColorScheme in [csG, csGA] then
+    // But take into account that source color schemes csG(A) and csINDEXED(A)
+    // wil be converted to csBGRA
+    if not (ColorManager.SourceColorScheme in [csRGB, csRGBA]) then
+      if ColorManager.SourceColorScheme in [csG, csGA] then
         // Gray scale image data.
         Palette := ColorManager.CreateGrayscalePalette(False)
-      else if FImageProperties.ColorScheme in [csIndexed, csIndexedA] then begin
+      else if ColorManager.SourceColorScheme in [csIndexed, csIndexedA] then begin
         // Indexed image
-        if FXcfInfo.ColorMapColorCount > 0 then
+        if FXcfInfo.ColorMapColorCount > 0 then begin
           // Color palette data present
           Palette := ColorManager.CreateColorPalette([FXcfInfo.ColorMap],
-            pfInterlaced8Triple, FXcfInfo.ColorMapColorCount, False)
+            pfInterlaced8Triple, FXcfInfo.ColorMapColorCount, False);
+          ColorManager.SetSourcePalette([FXcfInfo.ColorMap], pfInterlaced8Triple);
+        end
         else begin
           // No colormap present? Must be an error.
           WarningMessage('XCF: No colormap found in indexed image, substituted grayscale palette!');
@@ -1025,24 +1029,26 @@ begin
         Ord(GIMP_GRAYA_IMAGE):    // Gray with alpha
           begin
             ColorManager.SourceColorScheme := csGA;
-            ColorManager.TargetColorScheme := csG;
-            ColorManager.TargetSamplesPerPixel := 1; // Because we're ignoring alpha here for now
+            ColorManager.TargetColorScheme := csBGRA;
+            ColorManager.TargetSamplesPerPixel := 4;
           end;
         Ord(GIMP_GRAY_IMAGE):     // Grayscale without alpha
           begin
             ColorManager.SourceColorScheme := csGA;
-            ColorManager.TargetColorScheme := csG;
+            ColorManager.TargetColorScheme := csBGRA;
+            ColorManager.TargetSamplesPerPixel := 4;
           end;
         Ord(GIMP_INDEXEDA_IMAGE): // Indexed with alpha
           begin
             ColorManager.SourceColorScheme := csIndexedA;
-            ColorManager.TargetColorScheme := csIndexed;
-            ColorManager.TargetSamplesPerPixel := 1; // Because we're ignoring alpha here for now
+            ColorManager.TargetColorScheme := csBGRA;
+            ColorManager.TargetSamplesPerPixel := 4;
           end;
         Ord(GIMP_INDEXED_IMAGE):  // Indexed without alpha
           begin
             ColorManager.SourceColorScheme := csIndexedA;
-            ColorManager.TargetColorScheme := csIndexed;
+            ColorManager.TargetColorScheme := csBGRA;
+            ColorManager.TargetSamplesPerPixel := 4;
           end;
       else
         WarningMessage(ResXcfError_UnknownColorScheme);
