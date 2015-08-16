@@ -682,7 +682,11 @@ begin
   if not vsbVisible then
     Exit;
   // Only scroll if mouse is inside our view.
+  {$IFNDEF FPC}
   if not PtInRect(BoundsRect, ScreenToClient(Point(Msg.XPos, Msg.YPos))) then begin
+  {$ELSE} // Fpc sends mousewheel in client coordinates to be consistent with other widgetsets
+  if not PtInRect(ClientRect, Point(Msg.XPos, Msg.YPos)) then begin
+  {$ENDIF}
     inherited; // Give other components a chance to handle scrollwheel event.
     Exit;
   end;
