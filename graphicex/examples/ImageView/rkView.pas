@@ -652,11 +652,11 @@ end;
 procedure TrkCustomView.CMCtl3DChanged(var Message: TMessage);
 begin
   if NewStyleControls and (FBorderStyle = bsSingle) then
-  {$IFNDEF FPC}
-  RecreateWnd;
-  {$ELSE}
-  RecreateWnd(Self);
-  {$ENDIF}
+    {$IFNDEF FPC}
+    RecreateWnd;
+    {$ELSE}
+    RecreateWnd(Self);
+    {$ENDIF}
   inherited;
 end;
 
