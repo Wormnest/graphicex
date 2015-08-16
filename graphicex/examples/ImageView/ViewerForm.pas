@@ -599,7 +599,14 @@ begin
         Buffer.Canvas.Lock;
         try
           FillBackground(ClientRect, Buffer.Canvas);
-          gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+          // Note: I can't get bmPerPixelAlpha to work in 64 bits mode for Fpc thus
+          // we use bmConstantAlpha. Since (currently) the background canvas is opaque
+          // it doesn't matter anyway. We would only need it if we wanted to blend
+          // two semi transparent images.
+          // Note that even if 32 bits mode I have my doubts whether the Fpc
+          // version works correct.
+          //gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+          gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmConstantAlpha, 255, 0);
         finally
           Buffer.Canvas.Unlock;
         end;
