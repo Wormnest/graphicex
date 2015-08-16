@@ -79,6 +79,9 @@ const
     );
 
 type
+
+  { TfrmViewer }
+
   TfrmViewer = class(TgexBaseForm)
     ShellTV1: TShellTreeView;
     pnlMiddle: TPanel;
@@ -112,6 +115,7 @@ type
     Splitter3: TSplitter;
     pnlFolderView: TPanel;
     pnlImageProperties: TPanel;
+    cbBackground: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -148,6 +152,9 @@ type
       Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
     procedure sgImgPropertiesMouseWheelUp(Sender: TObject;
       Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
+    procedure cbBackgroundChange(Sender: TObject);
+    procedure cbStretchChange(Sender: TObject);
+    procedure cbStretchFilterChange(Sender: TObject);
   private
     { Private declarations }
     FThumbFrame,
@@ -222,7 +229,7 @@ type
     procedure UpdateLoadingStatus;
     procedure UpdatePageButtons;
     procedure LoadImage(Thumb: PgexThumbData);
-    procedure ImageGotoPage(PageNo: Integer);
+    procedure ImageGotoPage(PageNo: Integer; ForceReload: Boolean = False);
     procedure HandleStretch;
     procedure UpdatePaintBoxSize;
     procedure ShowErrors;
@@ -1198,11 +1205,11 @@ begin
   ImgComment := AGraphic.ImageProperties.Comment;
 end;
 
-procedure TfrmViewer.ImageGotoPage(PageNo: Integer);
+procedure TfrmViewer.ImageGotoPage(PageNo: Integer; ForceReload: Boolean = False);
 var
   AGraphic: TGraphic;
 begin
-  if (PageNo <> ImgPage) and (PageNo >= 0) and (PageNo < ImgPageCount) then begin
+  if ((PageNo <> ImgPage) or ForceReload) and (PageNo >= 0) and (PageNo < ImgPageCount) then begin
     FBlendTick := 0;
     FLoadTick := GetAccurateTick; // Starting time for loading
     ImgPage := PageNo;
@@ -1967,6 +1974,45 @@ procedure TfrmViewer.sgImgPropertiesMouseWheelUp(Sender: TObject;
   Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
 begin
   Handled := True;
+end;
+
+procedure TfrmViewer.cbBackgroundChange(Sender: TObject);
+begin
+  if cbBackground.ItemIndex = 1 then begin
+    FCheckerboardColor1 := Light_bgColor1;
+    FCheckerboardColor2 := Light_bgColor2;
+  end
+  else begin
+    FCheckerboardColor1 := Dark_bgColor1;
+    FCheckerboardColor2 := Dark_bgColor2;
+  end;
+  UpdateDefaultBackground;
+  HandleStretch;
+  pb2.Invalidate;
+  UpdateLoadingStatus;
+end;
+
+procedure TfrmViewer.cbStretchChange(Sender: TObject);
+begin
+  if cbStretch.Checked then begin
+    HandleStretch;
+    pb2.Invalidate;
+    UpdateLoadingStatus;
+  end
+  else begin
+    // Since stretching is done on the actual image we will have to reload
+    // the image if we uncheck the stretch checkbox
+    ImageGotoPage(ImgPage, True);
+  end;
+end;
+
+procedure TfrmViewer.cbStretchFilterChange(Sender: TObject);
+begin
+  if not cbStretch.Checked then
+    Exit;
+  // Since stretching is done on the actual image we will have to reload
+  // the image if we uncheck the stretch checkbox
+  ImageGotoPage(ImgPage, True);
 end;
 
 initialization

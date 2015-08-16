@@ -18,7 +18,7 @@ object frmViewer: TfrmViewer
   OnResize = FormResize
   OnShow = FormShow
   ShowHint = True
-  LCLVersion = '1.4.0.1'
+  LCLVersion = '1.5'
   object Splitter1: TSplitter
     Left = 185
     Height = 694
@@ -276,7 +276,7 @@ object frmViewer: TfrmViewer
           OnClick = spbtnClick
         end
         object lblLoadTime: TLabel
-          Left = 396
+          Left = 504
           Height = 20
           Top = 40
           Width = 91
@@ -297,6 +297,7 @@ object frmViewer: TfrmViewer
           Font.Color = 9461808
           Font.Height = -15
           Font.Name = 'Segoe UI'
+          OnChange = cbStretchChange
           ParentFont = False
           TabOrder = 0
         end
@@ -329,10 +330,33 @@ object frmViewer: TfrmViewer
             'Lanczos3'
             'Mitchell'
           )
+          OnChange = cbStretchFilterChange
           ParentFont = False
           Style = csDropDownList
           TabOrder = 2
           Text = 'Box'
+        end
+        object cbBackground: TComboBox
+          Left = 400
+          Height = 23
+          Hint = 'Background theme'
+          Top = 40
+          Width = 97
+          Font.CharSet = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          ItemHeight = 15
+          ItemIndex = 0
+          Items.Strings = (
+            'Dark'
+            'Light'
+          )
+          OnChange = cbBackgroundChange
+          ParentFont = False
+          Style = csDropDownList
+          TabOrder = 3
+          Text = 'Dark'
         end
       end
       object pnlImageContainer: TPanel
