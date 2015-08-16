@@ -466,8 +466,8 @@ var
   Vertexs: array [ 0 .. 1 ] of TRIVERTEX; // was TTriVertex;
   GRect: TGradientRect;
 begin
-  Vertexs[ 0 ].x := ARect.Left;
-  Vertexs[ 0 ].y := ARect.Top;
+  Vertexs[ 0 ].x := DWORD(ARect.Left);
+  Vertexs[ 0 ].y := DWORD(ARect.Top);
   Vertexs[ 0 ].Red := ( AColor1 and $000000FF ) shl 8;
   Vertexs[ 0 ].Green := ( AColor1 and $0000FF00 );
   Vertexs[ 0 ].Blue := ( AColor1 and $00FF0000 ) shr 8;
