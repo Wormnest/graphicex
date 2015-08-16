@@ -161,7 +161,7 @@ type
 
     FLoadTick,
     FStretchTick,
-    FBlendTick: Cardinal;
+    FBlendTick: UInt64;
 
     CanView: Boolean;
 
