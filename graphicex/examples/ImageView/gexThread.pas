@@ -57,7 +57,7 @@ type
     ThumbHeight: Word;
     Size: Int64;
     Modified: TDateTime;
-    IWidth, IHeight: Word;
+    IWidth, IHeight: Integer;
     GotThumb: Boolean;
     Image: TObject;
     ImageFormat: TImageFileFormat;  // The image file format
