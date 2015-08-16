@@ -991,6 +991,11 @@ begin
   end;
 end;
 
+{$IFDEF FPC}
+  {$PUSH} // Save flags
+  {$RANGECHECKS OFF} // No range checking
+  {$OVERFLOW OFF}    // No overflow checking
+{$ENDIF}
 procedure TgexBaseForm.BiResample(Src, Dest: TBitmap; Sharpen: Boolean);
 // Fast bilinear resampling procedure found at Swiss Delphi Center + my mods...
 type
@@ -1051,9 +1056,10 @@ begin
       w1 := iz2 - w2;
       w4 := (z * z2) shr 15;
       w3 := z2 - w4;
-      C.R := (C1.R * w1 + Src1[x2].R * w2 + C2.R * w3 + Src2[x2].R * w4) shr 15;
-      C.G := (C1.G * w1 + Src1[x2].G * w2 + C2.G * w3 + Src2[x2].G * w4) shr 15;
-      C.B := (C1.B * w1 + Src2[x2].B * w2 + C2.B * w3 + Src2[x2].B * w4) shr 15;
+      C.R := Byte((C1.R * w1 + Src1[x2].R * w2 + C2.R * w3 + Src2[x2].R * w4) shr 15);
+      C.G := Byte((C1.G * w1 + Src1[x2].G * w2 + C2.G * w3 + Src2[x2].G * w4) shr 15);
+      C.B := Byte((C1.B * w1 + Src2[x2].B * w2 + C2.B * w3 + Src2[x2].B * w4) shr 15);
+
       // Set destination pixel
       PRGBArray(sDst)[x] := C;
       inc(px, Ratio);
@@ -1105,6 +1111,9 @@ begin
     inc(y3, sDstOff);
   end;
 end;
+{$IFDEF FPC}
+  {$POP} // Restore flags
+{$ENDIF}
 
 {$IFDEF FPC}
 function Rect( ATop, ALeft, ABottom, ARight: Integer): TRect; inline;
