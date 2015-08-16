@@ -1,6 +1,7 @@
 { gexBlend Blending functions extracted from GraphicEx View demo by Mike Lischke.
+           64 bit versions added from the Lazarus version of VirtualTreeView.
   License: MPL 1.1.
-  Portions Copyright Jacob Boerema 2013.
+  Portions Copyright Jacob Boerema 2013-2015.
 }
 unit gexBlend;
 
@@ -8,9 +9,12 @@ interface
 
 {$IFDEF FPC}
   {$mode delphi}
+  {$ASMMODE INTEL} // bug in Fpc XMM registers in (64 bit only?) assembler not
+                   // recognized without adding this even though mode delphi
+                   // is supposed to set this.
 {$ENDIF}
 
-uses Windows;
+uses SysUtils, Windows;
 
 type
   // Describes the mode how to blend pixels.
@@ -41,27 +45,27 @@ procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: T
 
 implementation
 
-uses gexTypes;
+uses
+  gexTypes;
 
 type
   // Exception when trying to perform a blend operation.
   EGexBlendException = class(EBaseGraphicExException);
 
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure AlphaBlendLineConstant(Source, Destination: Pointer; Count: Integer; ConstantAlpha, Bias: Integer);
+//------------------------------------------------------------------------------
 
 // Blends a line of Count pixels from Source to Destination using a constant alpha value.
 // The layout of a pixel must be BGRA where A is ignored (but is calculated as the other components).
 // ConstantAlpha must be in the range 0..255 where 0 means totally transparent (destination pixel only)
 // and 255 totally opaque (source pixel only).
 // Bias is an additional value which gets added to every component and must be in the range -128..127
-//
+procedure AlphaBlendLineConstant(Source, Destination: Pointer; Count: Integer; ConstantAlpha, Bias: Integer);
+
+{$IFNDEF CPU64}
 // EAX contains Source
 // EDX contains Destination
 // ECX contains Count
 // ConstantAlpha and Bias are on the stack
-
 asm
         PUSH    ESI                    // save used registers
         PUSH    EDI
@@ -120,20 +124,78 @@ asm
         POP     EDI
         POP     ESI
 end;
+{$ELSE}
+// RCX contains Source
+// RDX contains Destination
+// R8D contains Count
+// R9D contains ConstantAlpha
+// Bias is on the stack
+asm
+        //.NOFRAME
+
+        // Load XMM3 with the constant alpha value (replicate it for every component).
+        // Expand it to word size.
+        MOVD        XMM3, R9D  // ConstantAlpha
+        PUNPCKLWD   XMM3, XMM3
+        PUNPCKLDQ   XMM3, XMM3
+
+        // Load XMM5 with the bias value.
+        MOVD        XMM5, [Bias]
+        PUNPCKLWD   XMM5, XMM5
+        PUNPCKLDQ   XMM5, XMM5
+
+        // Load XMM4 with 128 to allow for saturated biasing.
+        MOV         R10D, 128
+        MOVD        XMM4, R10D
+        PUNPCKLWD   XMM4, XMM4
+        PUNPCKLDQ   XMM4, XMM4
+
+@1:     // The pixel loop calculates an entire pixel in one run.
+        // Note: The pixel byte values are expanded into the higher bytes of a word due
+        //       to the way unpacking works. We compensate for this with an extra shift.
+        MOVD        XMM1, DWORD PTR [RCX]   // data is unaligned
+        MOVD        XMM2, DWORD PTR [RDX]   // data is unaligned
+        PXOR        XMM0, XMM0    // clear source pixel register for unpacking
+        PUNPCKLBW   XMM0, XMM1{[RCX]}    // unpack source pixel byte values into words
+        PSRLW       XMM0, 8       // move higher bytes to lower bytes
+        PXOR        XMM1, XMM1    // clear target pixel register for unpacking
+        PUNPCKLBW   XMM1, XMM2{[RDX]}    // unpack target pixel byte values into words
+        MOVQ        XMM2, XMM1    // make a copy of the shifted values, we need them again
+        PSRLW       XMM1, 8       // move higher bytes to lower bytes
+
+        // calculation is: target = (alpha * (source - target) + 256 * target) / 256
+        PSUBW       XMM0, XMM1    // source - target
+        PMULLW      XMM0, XMM3    // alpha * (source - target)
+        PADDW       XMM0, XMM2    // add target (in shifted form)
+        PSRLW       XMM0, 8       // divide by 256
+
+        // Bias is accounted for by conversion of range 0..255 to -128..127,
+        // doing a saturated add and convert back to 0..255.
+        PSUBW     XMM0, XMM4
+        PADDSW    XMM0, XMM5
+        PADDW     XMM0, XMM4
+        PACKUSWB  XMM0, XMM0      // convert words to bytes with saturation
+        MOVD      DWORD PTR [RDX], XMM0     // store the result
+@3:
+        ADD       RCX, 4
+        ADD       RDX, 4
+        DEC       R8D
+        JNZ       @1
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
-
-procedure AlphaBlendLinePerPixel(Source, Destination: Pointer; Count, Bias: Integer);
 
 // Blends a line of Count pixels from Source to Destination using the alpha value of the source pixels.
 // The layout of a pixel must be BGRA.
 // Bias is an additional value which gets added to every component and must be in the range -128..127
-//
+procedure AlphaBlendLinePerPixel(Source, Destination: Pointer; Count, Bias: Integer);
+
+{$IFNDEF CPU64}
 // EAX contains Source
 // EDX contains Destination
 // ECX contains Count
 // Bias is on the stack
-
 asm
         PUSH    ESI                    // save used registers
         PUSH    EDI
@@ -191,21 +253,79 @@ asm
         POP     EDI
         POP     ESI
 end;
+{$ELSE} // Does not seem to work (correctly) at least in Fpc
+asm
+// RCX contains Source
+// RDX contains Destination
+// R8D contains Count
+// R9D contains Bias
+
+        //.NOFRAME
+
+        // Load XMM5 with the bias value.
+        MOVD        XMM5, R9D   // Bias
+        PUNPCKLWD   XMM5, XMM5
+        PUNPCKLDQ   XMM5, XMM5
+
+        // Load XMM4 with 128 to allow for saturated biasing.
+        MOV         R10D, 128
+        MOVD        XMM4, R10D
+        PUNPCKLWD   XMM4, XMM4
+        PUNPCKLDQ   XMM4, XMM4
+
+@1:     // The pixel loop calculates an entire pixel in one run.
+        // Note: The pixel byte values are expanded into the higher bytes of a word due
+        //       to the way unpacking works. We compensate for this with an extra shift.
+        MOVD        XMM1, DWORD PTR [RCX]   // data is unaligned
+        MOVD        XMM2, DWORD PTR [RDX]   // data is unaligned
+        PXOR        XMM0, XMM0    // clear source pixel register for unpacking
+        PUNPCKLBW   XMM0, XMM1{[RCX]}    // unpack source pixel byte values into words
+        PSRLW       XMM0, 8       // move higher bytes to lower bytes
+        PXOR        XMM1, XMM1    // clear target pixel register for unpacking
+        PUNPCKLBW   XMM1, XMM2{[RDX]}    // unpack target pixel byte values into words
+        MOVQ        XMM2, XMM1    // make a copy of the shifted values, we need them again
+        PSRLW       XMM1, 8       // move higher bytes to lower bytes
+
+        // Load XMM3 with the source alpha value (replicate it for every component).
+        // Expand it to word size.
+        MOVQ        XMM3, XMM0
+        PUNPCKHWD   XMM3, XMM3
+        PUNPCKHDQ   XMM3, XMM3
+
+        // calculation is: target = (alpha * (source - target) + 256 * target) / 256
+        PSUBW       XMM0, XMM1    // source - target
+        PMULLW      XMM0, XMM3    // alpha * (source - target)
+        PADDW       XMM0, XMM2    // add target (in shifted form)
+        PSRLW       XMM0, 8       // divide by 256
+
+        // Bias is accounted for by conversion of range 0..255 to -128..127,
+        // doing a saturated add and convert back to 0..255.
+        PSUBW       XMM0, XMM4
+        PADDSW      XMM0, XMM5
+        PADDW       XMM0, XMM4
+        PACKUSWB    XMM0, XMM0    // convert words to bytes with saturation
+        MOVD        DWORD PTR [RDX], XMM0   // store the result
+@3:
+        ADD         RCX, 4
+        ADD         RDX, 4
+        DEC         R8D
+        JNZ         @1
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
-
-procedure AlphaBlendLineMaster(Source, Destination: Pointer; Count: Integer; ConstantAlpha, Bias: Integer);
 
 // Blends a line of Count pixels from Source to Destination using the source pixel and a constant alpha value.
 // The layout of a pixel must be BGRA.
 // ConstantAlpha must be in the range 0..255.
 // Bias is an additional value which gets added to every component and must be in the range -128..127
-//
+procedure AlphaBlendLineMaster(Source, Destination: Pointer; Count: Integer; ConstantAlpha, Bias: Integer);
+
+{$IFNDEF CPU64}
 // EAX contains Source
 // EDX contains Destination
 // ECX contains Count
 // ConstantAlpha and Bias are on the stack
-
 asm
         PUSH    ESI                    // save used registers
         PUSH    EDI
@@ -272,20 +392,106 @@ asm
         POP     EDI
         POP     ESI
 end;
+{$ELSE}
+{$IFDEF FPC}
+// jb We need an Fpc equivalent for .SAVENV XMM6 in Delphi
+// We follow the example from here: https://github.com/mikerabat/mrmath/blob/master/ASMMatrixMeanOperationsx64.pas
+// Note it seems we can also do it by specifying the registers to be saved
+// after the final end, e.g. end ['XMM6'], see: http://www.freepascal.org/docs-html/prog/progse12.html#x150-1510003.4
+var dXMM6 : array[0..1] of double;
+begin
+{$ENDIF}
+asm
+// RCX contains Source
+// RDX contains Destination
+// R8D contains Count
+// R9D contains ConstantAlpha
+// Bias is on the stack
+
+        {$IFNDEF FPC}
+        .SAVENV XMM6
+        {$ELSE}
+        movupd      dXMM6, xmm6
+        {$ENDIF}
+
+        // Load XMM3 with the constant alpha value (replicate it for every component).
+        // Expand it to word size.
+        MOVD        XMM3, R9D    // ConstantAlpha
+        PUNPCKLWD   XMM3, XMM3
+        PUNPCKLDQ   XMM3, XMM3
+
+        // Load XMM5 with the bias value.
+        MOV         R10D, [Bias]
+        MOVD        XMM5, R10D
+        PUNPCKLWD   XMM5, XMM5
+        PUNPCKLDQ   XMM5, XMM5
+
+        // Load XMM4 with 128 to allow for saturated biasing.
+        MOV         R10D, 128
+        MOVD        XMM4, R10D
+        PUNPCKLWD   XMM4, XMM4
+        PUNPCKLDQ   XMM4, XMM4
+
+@1:     // The pixel loop calculates an entire pixel in one run.
+        // Note: The pixel byte values are expanded into the higher bytes of a word due
+        //       to the way unpacking works. We compensate for this with an extra shift.
+        MOVD        XMM1, DWORD PTR [RCX]   // data is unaligned
+        MOVD        XMM2, DWORD PTR [RDX]   // data is unaligned
+        PXOR        XMM0, XMM0    // clear source pixel register for unpacking
+        PUNPCKLBW   XMM0, XMM1{[RCX]}     // unpack source pixel byte values into words
+        PSRLW       XMM0, 8       // move higher bytes to lower bytes
+        PXOR        XMM1, XMM1    // clear target pixel register for unpacking
+        PUNPCKLBW   XMM1, XMM2{[RCX]}     // unpack target pixel byte values into words
+        MOVQ        XMM2, XMM1    // make a copy of the shifted values, we need them again
+        PSRLW       XMM1, 8       // move higher bytes to lower bytes
+
+        // Load XMM6 with the source alpha value (replicate it for every component).
+        // Expand it to word size.
+        MOVQ        XMM6, XMM0
+        PUNPCKHWD   XMM6, XMM6
+        PUNPCKHDQ   XMM6, XMM6
+        PMULLW      XMM6, XMM3    // source alpha * master alpha
+        PSRLW       XMM6, 8       // divide by 256
+
+        // calculation is: target = (alpha * master alpha * (source - target) + 256 * target) / 256
+        PSUBW       XMM0, XMM1    // source - target
+        PMULLW      XMM0, XMM6    // alpha * (source - target)
+        PADDW       XMM0, XMM2    // add target (in shifted form)
+        PSRLW       XMM0, 8       // divide by 256
+
+        // Bias is accounted for by conversion of range 0..255 to -128..127,
+        // doing a saturated add and convert back to 0..255.
+        PSUBW       XMM0, XMM4
+        PADDSW      XMM0, XMM5
+        PADDW       XMM0, XMM4
+        PACKUSWB    XMM0, XMM0    // convert words to bytes with saturation
+        MOVD        DWORD PTR [RDX], XMM0   // store the result
+@3:
+        ADD         RCX, 4
+        ADD         RDX, 4
+        DEC         R8D
+        JNZ         @1
+
+{$IFDEF FPC}
+        // epilog
+        movupd   xmm6, dXMM6
+end;
+{$ENDIF}
+end;
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
-
-procedure AlphaBlendLineMasterAndColor(Destination: Pointer; Count: Integer; ConstantAlpha, Color: Integer);
 
 // Blends a line of Count pixels in Destination against the given color using a constant alpha value.
 // The layout of a pixel must be BGRA and Color must be rrggbb00 (as stored by a COLORREF).
 // ConstantAlpha must be in the range 0..255.
-//
+procedure AlphaBlendLineMasterAndColor(Destination: Pointer; Count: Integer; ConstantAlpha, Color: Integer);
+
+{$IFNDEF CPU64}
 // EAX contains Destination
 // EDX contains Count
 // ECX contains ConstantAlpha
 // Color is passed on the stack
-
 asm
         // The used formula is: target = (alpha * color + (256 - alpha) * target) / 256.
         // alpha * color (factor 1) and 256 - alpha (factor 2) are constant values which can be calculated in advance.
@@ -328,29 +534,79 @@ asm
         DEC     EDX
         JNZ     @1
 end;
+{$ELSE}
+asm
+// RCX contains Destination
+// EDX contains Count
+// R8D contains ConstantAlpha
+// R9D contains Color
+        //.NOFRAME
 
-//----------------------------------------------------------------------------------------------------------------------
+        // The used formula is: target = (alpha * color + (256 - alpha) * target) / 256.
+        // alpha * color (factor 1) and 256 - alpha (factor 2) are constant values which can be calculated in advance.
+        // The remaining calculation is therefore: target = (F1 + F2 * target) / 256
 
-procedure EMMS;
+        // Load XMM3 with the constant alpha value (replicate it for every component).
+        // Expand it to word size. (Every calculation here works on word sized operands.)
+        MOVD        XMM3, R8D   // ConstantAlpha
+        PUNPCKLWD   XMM3, XMM3
+        PUNPCKLDQ   XMM3, XMM3
+
+        // Calculate factor 2.
+        MOV         R10D, $100
+        MOVD        XMM2, R10D
+        PUNPCKLWD   XMM2, XMM2
+        PUNPCKLDQ   XMM2, XMM2
+        PSUBW       XMM2, XMM3             // XMM2 contains now: 255 - alpha = F2
+
+        // Now calculate factor 1. Alpha is still in XMM3, but the r and b components of Color must be swapped.
+        BSWAP       R9D  // Color
+        ROR         R9D, 8
+        MOVD        XMM1, R9D              // Load the color and convert to word sized values.
+        PXOR        XMM4, XMM4
+        PUNPCKLBW   XMM1, XMM4
+        PMULLW      XMM1, XMM3             // XMM1 contains now: color * alpha = F1
+
+@1:     // The pixel loop calculates an entire pixel in one run.
+        MOVD        XMM0, DWORD PTR [RCX]
+        PUNPCKLBW   XMM0, XMM4
+
+        PMULLW      XMM0, XMM2             // calculate F1 + F2 * target
+        PADDW       XMM0, XMM1
+        PSRLW       XMM0, 8                // divide by 256
+
+        PACKUSWB    XMM0, XMM0             // convert words to bytes with saturation
+        MOVD        DWORD PTR [RCX], XMM0            // store the result
+
+        ADD         RCX, 4
+        DEC         EDX
+        JNZ         @1
+end;
+{$ENDIF}
+
+//------------------------------------------------------------------------------
 
 // Reset MMX state to use the FPU for other tasks again.
-
+procedure EMMS;
+{$IFNDEF CPU64}
 asm
         DB      $0F, $77               /// EMMS
 end;
+{$ELSE}
+inline;
+begin
+end;
+{$ENDIF}
 
-//----------------------------------------------------------------------------------------------------------------------
-
-function GetBitmapBitsFromDeviceContext(DC: HDC; var Width, Height: Integer): Pointer;
+//------------------------------------------------------------------------------
 
 // Helper function used to retrieve the bitmap selected into the given device context. If there is a bitmap then
 // the function will return a pointer to its bits otherwise nil is returned.
-// Additionally the dimensions of the bitmap are returned. 
-
+// Additionally the dimensions of the bitmap are returned.
+function GetBitmapBitsFromDeviceContext(DC: HDC; out Width, Height: Integer): Pointer;
 var
   Bitmap: HBITMAP;
   DIB: TDIBSection;
-
 begin
   Result := nil;
   Width := 0;
@@ -372,12 +628,10 @@ begin
     raise EGexBlendException.Create('Alpha blending error: no bitmap available in DC.');
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
-
-function CalculateScanline(Bits: Pointer; Width, Height, Row: Integer): Pointer;
+//------------------------------------------------------------------------------
 
 // Helper function to calculate the start address for the given row.
-
+function CalculateScanline(Bits: Pointer; Width, Height, Row: Integer): Pointer;
 begin
 //  {$IFNDEF FPC}
   if Height > 0 then  // bottom-up DIB
@@ -387,12 +641,11 @@ begin
   // else we may need to re evaluate this
 //  {$ENDIF}
   // Return DWORD aligned address of the requested scanline.
-  Integer(Result) := Integer(Bits) + Row * ((Width * 32 + 31) and not 31) div 8;
+//  NativeUInt(Result) := NativeUInt(Bits) + NativeUInt(Row) * ((NativeUInt(Width) * 32 + 31) and not 31) div 8;
+  Result := PAnsiChar(Bits) + Row * ((Width * 32 + 31) and not 31) div 8;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: TBlendMode; ConstantAlpha, Bias: Integer);
+//------------------------------------------------------------------------------
 
 // Optimized alpha blend procedure using MMX instructions to perform as quick as possible.
 // For this procedure to work properly it is important that both source and target bitmap use the 32 bit color format.
@@ -407,7 +660,7 @@ procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: T
 // Blending of a color into target only (bmConstantAlphaAndColor) ignores Source (the DC) and Target (the position).
 // CAUTION: This procedure does not check whether MMX instructions are actually available! Call it only if MMX is really
 //          usable.
-
+procedure AlphaBlend(Source, Destination: HDC; R: TRect; Target: TPoint; Mode: TBlendMode; ConstantAlpha, Bias: Integer);
 var
   Y: Integer;
   SourceRun,
@@ -423,7 +676,7 @@ var
 begin
   if not IsRectEmpty(R) then
   begin
-    // Note: it is tempting to optimize the special cases for constant alpha 0 and 255 by just ignoring soure
+    // Note: it is tempting to optimize the special cases for constant alpha 0 and 255 by just ignoring source
     //       (alpha = 0) or simply do a blit (alpha = 255). But this does not take the bias into account.
     case Mode of
       bmConstantAlpha:
@@ -607,13 +860,13 @@ begin
 end;
 **)
 // Nice! BTW, your code works with the regular gdi function declaration, i.e. windows.AlphaBlend(),
-// no need to declare the constants, the record and the function.. –  Sertac Akyuz
+// no need to declare the constants, the record and the function.. â€“  Sertac Akyuz
 //
 // @Sertac: I am very well aware of that, but I am not sure if AlphaBlend is declared in the
 // Windows.pas that ships with the old Delphi 7, the Delphi version of the OP. In addition,
 // the declaration of AlphaBlend in Windows.pas in Delphi 2009 (my Delphi version) is very 'ugly':
 // function AlphaBlend(DC: HDC; p2, p3, p4, p5: Integer; DC6: HDC; p7, p8, p9, p10: Integer; p11: TBlendFunction): BOOL; stdcall;
-// But I guess I should have written a footnote about this. –  Andreas Rejbrand
+// But I guess I should have written a footnote about this. â€“  Andreas Rejbrand
 
 
 // http://stackoverflow.com/questions/12700165/why-does-alphablend-always-return-false-drawing-on-canvas
