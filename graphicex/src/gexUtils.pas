@@ -66,10 +66,10 @@ function ReadUtf8StringBigEndianLength(var Run: PByte): WideString;
 
 
 // Swap/Reverse high and low byte of an array of 16 bit values
-procedure SwapArrayEndian(P: PWord; Count: Cardinal); overload;
+procedure SwapWordArrayEndian(P: PWord; Count: Cardinal);
 
 // Reverse bytes (endianness) of an array of 32 bit values
-procedure SwapArrayEndian(P: PCardinal; Count: Cardinal); overload;
+procedure SwapCardinalArrayEndian(P: PCardinal; Count: Cardinal);
 
 {$IFNDEF FPC}
 // Reverse bytes of the given 16 bit value. Same as normal Swap for 16 bit values.
@@ -97,7 +97,7 @@ implementation
 //----------------- support functions for image loading ----------------------------------------------------------------
 
 {$IFNDEF FPC}
-function SwapEndian(W: Word): Word;
+function SwapEndian(Value: Word): Word;
 asm
    {$IFDEF CPU64}
    mov rax, rcx
@@ -107,7 +107,7 @@ end;
 {$ENDIF}
 
 // Swap/Reverse high and low byte of an array of 16 bit values
-procedure SwapArrayEndian(P: PWord; Count: Cardinal);
+procedure SwapWordArrayEndian(P: PWord; Count: Cardinal);
 {$IFNDEF CPU64}
 // EAX contains P, EDX contains Count
 asm
@@ -136,7 +136,7 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 // Reverse bytes (endianness) of an array of 32 bit values
-procedure SwapArrayEndian(P: PCardinal; Count: Cardinal); overload;
+procedure SwapCardinalArrayEndian(P: PCardinal; Count: Cardinal);
 {$IFNDEF CPU64}
 // EAX contains P, EDX contains Count
 asm
@@ -170,7 +170,7 @@ end;
 
 {$IFNDEF FPC}
 // Reverses bytes of the given 32 bit value.
-function SwapEndian(Value: Cardinal): Cardinal; overload;
+function SwapEndian(Value: Cardinal): Cardinal; //overload;
 asm
 {$IFDEF CPU64}
         mov     rax, rcx
@@ -185,8 +185,8 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-// Swaps high and low bytes of the given 32 bit value.
-function Swap(Value: Integer): Integer; overload;
+// Reverses bytes of the given 32 bit value.
+function SwapEndian(Value: Integer): Integer; overload;
 asm
 {$IFDEF CPU64}
         mov     rax, rcx
@@ -201,7 +201,7 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 // Reverses the order of the 8 bytes.
-function Swap(Value: Int64): Int64; overload;
+function SwapEndian(Value: Int64): Int64; overload;
 begin
   Result := SwapLong(Cardinal(Value shr 32)) + Int64(SwapLong(Cardinal(Value))) shl 32;
 end;
@@ -297,7 +297,7 @@ function ReadBigEndianString(var Run: PByte; Len: Cardinal): WideString; overloa
 begin
   SetString(Result, PWideChar(Run), Len);
   Inc(PWideChar(Run), Len);
-  SwapArrayEndian(PWord(Result), Len);
+  SwapWordArrayEndian(PWord(Result), Len);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
