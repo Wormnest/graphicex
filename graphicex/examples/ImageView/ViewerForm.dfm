@@ -278,7 +278,7 @@ object frmViewer: TfrmViewer
           OnClick = spbtnClick
         end
         object lblLoadTime: TLabel
-          Left = 396
+          Left = 508
           Top = 40
           Width = 91
           Height = 20
@@ -303,6 +303,7 @@ object frmViewer: TfrmViewer
           Font.Style = []
           ParentFont = False
           TabOrder = 0
+          OnClick = cbStretchChange
         end
         object pbProgress: TProgressBar
           Left = 8
@@ -331,6 +332,7 @@ object frmViewer: TfrmViewer
           ParentFont = False
           TabOrder = 2
           Text = 'Box'
+          OnChange = cbStretchFilterChange
           Items.Strings = (
             'Box'
             'Triangle'
@@ -339,6 +341,28 @@ object frmViewer: TfrmViewer
             'Spline'
             'Lanczos3'
             'Mitchell')
+        end
+        object cbBackground: TComboBox
+          Left = 400
+          Top = 40
+          Width = 97
+          Height = 23
+          Hint = 'Stretch filters'
+          Style = csDropDownList
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = 'Segoe UI'
+          Font.Style = []
+          ItemHeight = 15
+          ItemIndex = 0
+          ParentFont = False
+          TabOrder = 3
+          Text = 'Dark'
+          OnChange = cbBackgroundChange
+          Items.Strings = (
+            'Dark'
+            'Light')
         end
       end
       object pnlImageContainer: TPanel
