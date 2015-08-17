@@ -40,6 +40,14 @@ type
   TLine24 = array[0..0] of TRGB24;
   PLine24 = ^TLine24;
 
+  // Older Delphi compatibility
+  {$IF NOT Declared(NativeInt)}
+  NativeInt = Integer;
+  {$IFEND}
+  {$IF NOT Declared(NativeUInt)}
+  NativeUInt = Cardinal;
+  {$IFEND}
+
   {$IFNDEF FPC}
   // Don't use this version for (64-bits) Fpc since it's incorrect for 64-bits (also for Delphi!)
   {$IFNDEF CPU64}
