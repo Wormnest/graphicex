@@ -309,6 +309,7 @@ implementation
 
 uses
   Math,
+  gexTypes,
   GraphicEx,
   GraphicStrings,
   GraphicColor;
@@ -316,18 +317,15 @@ uses
 const // LZW encoding and decoding support
   NoLZWCode = 4096;
 
-type
-  EGraphicCompression = class(Exception);
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-procedure CompressionError(ErrorString: String); overload;
-
+procedure CompressionError(ErrorString: String);
 begin
   {$IFNDEF FPC}
-  raise EGraphicCompression.Create(ErrorString) at ReturnAddr;
+  raise EgexGraphicCompressionError.Create(ErrorString) at ReturnAddress;
   {$ELSE}
-  raise EGraphicCompression.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  raise EgexGraphicCompressionError.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
   {$ENDIF}
 end;
 
