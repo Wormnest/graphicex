@@ -50,7 +50,7 @@ uses
 
 type
   // Exception when trying to perform a blend operation.
-  EGexBlendException = class(EBaseGraphicExException);
+  EGexBlendException = class(EgexBaseException);
 
 //------------------------------------------------------------------------------
 
