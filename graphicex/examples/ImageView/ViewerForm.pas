@@ -624,8 +624,13 @@ begin
           // two semi transparent images.
           // Note that even if 32 bits mode I have my doubts whether the Fpc
           // version works correct.
-          //gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+          // New note: It seems that Delphi only works (blends) when using bmPerPixelAlpha
+          // so we will use that for Delphi and bmConstantAlpha for Lazarus.
+          {$IFNDEF FPC}
+          gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+          {$ELSE}
           gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmConstantAlpha, 255, 0);
+          {$ENDIF}
         finally
           Buffer.Canvas.Unlock;
         end;
