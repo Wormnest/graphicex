@@ -74,6 +74,7 @@ procedure SwapCardinalArrayEndian(P: PCardinal; Count: Cardinal);
 {$IFNDEF FPC}
 // Reverse bytes of the given 16 bit value. Same as normal Swap for 16 bit values.
 function SwapEndian(Value: Word): Word; overload;
+function SwapEndian(Value: SmallInt): SmallInt; overload;
 
 // Reverse bytes of the given 32 bit value.
 function SwapEndian(Value: Cardinal): Cardinal; overload;
@@ -104,6 +105,15 @@ asm
    {$ENDIF}
    xchg   al, ah
 end;
+
+function SwapEndian(Value: SmallInt): SmallInt; overload;
+asm
+   {$IFDEF CPU64}
+   mov rax, rcx
+   {$ENDIF}
+   xchg   al, ah
+end;
+
 {$ENDIF}
 
 // Swap/Reverse high and low byte of an array of 16 bit values
@@ -180,7 +190,7 @@ end;
 
 function SwapLong(Value: Cardinal): Cardinal; overload; // deprecated version
 begin
-  Result := Swap(Value);
+  Result := SwapEndian(Value);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -196,19 +206,19 @@ end;
 
 function SwapLong(Value: Integer): Integer; overload; // deprecated version
 begin
-  Result := Swap(Value);
+  Result := SwapEndian(Value);
 end;
 //----------------------------------------------------------------------------------------------------------------------
 
 // Reverses the order of the 8 bytes.
 function SwapEndian(Value: Int64): Int64; overload;
 begin
-  Result := SwapLong(Cardinal(Value shr 32)) + Int64(SwapLong(Cardinal(Value))) shl 32;
+  Result := SwapEndian(Cardinal(Value shr 32)) + Int64(SwapEndian(Cardinal(Value))) shl 32;
 end;
 
 function SwapLong64(Value: Int64): Int64; overload; // deprecated version
 begin
-  Result := Swap(Value);
+  Result := SwapEndian(Value);
 end;
 {$ENDIF}
 
@@ -223,7 +233,7 @@ var
 begin
   {$IFNDEF FPC}
   I := Int64(Source);
-  Int64(Target) := SwapLong(Cardinal(I shr 32)) + Int64(SwapLong(Cardinal(I))) shl 32;
+  Int64(Target) := SwapEndian(Cardinal(I shr 32)) + Int64(SwapEndian(Cardinal(I))) shl 32;
   {$ELSE}
   Int64(Target) := SwapEndian(Int64(Source));
   {$ENDIF}
@@ -235,7 +245,7 @@ end;
 // cardinal number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianCardinal(var Run: PByte): Cardinal;
 begin
-  Result := {$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PCardinal(Run)^);
+  Result := SwapEndian(PCardinal(Run)^);
   Inc(PCardinal(Run));
 end;
 
@@ -245,7 +255,7 @@ end;
 // cardinal number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianInteger(var Run: PByte): Integer;
 begin
-  Result := {$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PInteger(Run)^);
+  Result := SwapEndian(PInteger(Run)^);
   Inc(PInteger(Run));
 end;
 
@@ -271,7 +281,7 @@ type TSingleCardinal = record
      end;
 begin
   TSingleCardinal(Result).SingleValue :=
-    TSingleCardinal({$IFNDEF FPC} SwapLong {$ELSE} SwapEndian {$ENDIF}(PCardinal(Run)^)).SingleValue;
+    TSingleCardinal(SwapEndian(PCardinal(Run)^)).SingleValue;
   Inc(PCardinal(Run));
 end;
 
