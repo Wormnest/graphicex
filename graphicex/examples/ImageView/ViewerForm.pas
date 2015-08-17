@@ -48,7 +48,7 @@ uses
   {$ENDIF}
   gexBmpWrapper,
   gexJpegWrapper,
-  GraphicEx, rkView, gexThread, Buttons, Grids;
+  gexTypes, GraphicEx, rkView, gexThread, Buttons, Grids;
 
 const
   // Additional image format consts...
@@ -1612,12 +1612,12 @@ begin
       // for exceptions that we recognize.
       // When using GraphicEx for other purposes than an Image Viewer you should
       // usually be more conservative with eating all exceptions.
-      on e:EInvalidGraphic do begin
+      on e:EgexInvalidGraphic do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Error loading image: ' + FileName +#13#10 +
           e.Message;
       end;
-      on e:EColorConversionError do begin
+      on e:EgexColorConversionError do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Color conversion error loading image: ' + FileName +
           #13#10 + e.Message;
