@@ -865,13 +865,15 @@ function ReadImageProperties(const FileName: string; var Properties: TImagePrope
 
 var
   FileFormatList: TFileFormatList;
-  
+
 //----------------------------------------------------------------------------------------------------------------------
 
 implementation
 
 uses
-  gexVersion, gexUtils, {$IFNDEF FPC}Consts,{$ENDIF} Math, ZLibDelphi; //GXZLib
+  {$IFNDEF FPC}Consts,{$ENDIF}
+  Math, ZLibDelphi,
+  gexTypes, gexVersion, gexUtils;
 
 type
   {$ifndef COMPILER_6_UP}
@@ -900,33 +902,31 @@ end;
 {$ENDIF}
 {$endif}
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-// For "at ReturnAddr" syntax see: http://stackoverflow.com/questions/8950513/what-does-at-returnaddress-mean-in-delphi
-// Apparently Fpc doesn't have ReturnAddr, see: http://www.freepascal.org/docs-html/ref/refse101.html
+// For "at ReturnAddress" syntax see: http://stackoverflow.com/questions/8950513/what-does-at-returnaddress-mean-in-delphi
+// Apparently Fpc doesn't have ReturnAddress, see: http://www.freepascal.org/docs-html/ref/refse101.html
 procedure GraphicExError(ErrorString: string); overload;
-
 begin
   {$IFNDEF FPC}
-  raise EInvalidGraphic.Create(ErrorString) at ReturnAddr;
+  raise EgexInvalidGraphic.Create(ErrorString) at ReturnAddress;
   {$ELSE}
-  raise EInvalidGraphic.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  raise EgexInvalidGraphic.Create(ErrorString) at get_caller_addr(get_frame), get_caller_frame(get_frame);
   {$ENDIF}
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure GraphicExError(ErrorString: string; Args: array of const); overload;
-
 begin
   {$IFNDEF FPC}
-  raise EInvalidGraphic.CreateFmt(ErrorString, Args) at ReturnAddr;
+  raise EgexInvalidGraphic.CreateFmt(ErrorString, Args) at ReturnAddress;
   {$ELSE}
-  raise EInvalidGraphic.CreateFmt(ErrorString, Args) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  raise EgexInvalidGraphic.CreateFmt(ErrorString, Args) at get_caller_addr(get_frame), get_caller_frame(get_frame);
   {$ENDIF}
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 procedure Upsample(Width, Height, ScaledWidth: Cardinal; Pixels: PAnsiChar);
 
