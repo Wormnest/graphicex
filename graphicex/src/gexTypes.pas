@@ -26,9 +26,45 @@ uses SysUtils;
 
 type
   // Define a new base exception from which we can derive our exceptions.
-  EBaseGraphicExException = class(Exception);
+  EgexBaseException = class(Exception);
+  EgexInvalidGraphic = class(EgexBaseException);
+  EgexColorConversionError = class(EgexBaseException);
+  EgexGraphicCompressionError = class(EgexBaseException);
+  EgexStretchException = class(EgexBaseException);
+
+  // Compatibility layer
+  {$IF NOT Declared(UInt64)}
+  UInt64 = Int64;
+  {$IFEND}
+  {$IF NOT Declared(PUInt64)}
+  PUInt64 = ^UInt64; // Separate from declaring UInt64 since Fpc doesn't define puint64.
+  {$IFEND}
+  {$IF NOT Declared(NativeInt)}
+  NativeInt = Integer;
+  {$IFEND}
+  {$IF NOT Declared(NativeUInt)}
+  NativeUInt = Cardinal;
+  {$IFEND}
+
+
+// ReturnAddress is used in our Error functions to show a better error location:
+// In case of an exception it shows the address of the function that called
+// our error function instead of the address of the error function itself.
+{$IFNDEF FPC} {$IFNDEF CPUX64} {$IF NOT Declared(ReturnAddress)}
+{$DEFINE DEFINE_RETURNADDRESS}
+// Delphi 6 doesn't have ReturnAddress
+function ReturnAddress: Pointer; assembler;
+{$IFEND} {$ENDIF} {$ENDIF}
 
 implementation
+
+{$IFDEF DEFINE_RETURNADDRESS}
+// Delphi 6 doesn't have ReturnAddress
+function ReturnAddress: Pointer; assembler;
+asm
+        MOV     EAX,[EBP+4]
+end;
+{$ENDIF}
 
 end.
  
