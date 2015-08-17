@@ -16,7 +16,7 @@ unit GraphicColor;
 //
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
-// Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+// Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
 // All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
@@ -86,14 +86,6 @@ const
   DefaultDisplayGamma = 2.2;
 
 type
-  // Define UInt64 as Int64 for Delphi versions not having UInt64
-  {$IF NOT Declared(UInt64)}
-  UInt64 = Int64;
-  {$IFEND}
-  {$IF NOT Declared(PUInt64)}
-  PUint64 = ^UInt64;
-  {$IFEND}
-
   // Color layout records
   // ------------------------- CMYK -------------------------
   PCMYK = ^TCMYK;
@@ -478,10 +470,6 @@ function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal
 
 //------------------------------------------------------------------------------
 
-// Moved to interface so that we can check in try except on this exception and handle error reporting ourselves
-type
-  EColorConversionError = class(Exception);
-
 {$IFDEF FPC}
   // Missing in fpc/lazarus
 var
@@ -491,7 +479,7 @@ var
 implementation
 
 uses
-  Math;
+  Math, gexTypes, gexUtils;
 
 
 //----------------- Helper functions -------------------------------------------
@@ -500,9 +488,9 @@ procedure ShowError(const Msg: String);
 
 begin
   {$IFNDEF FPC}
-  raise EColorConversionError.Create(Msg) at ReturnAddr;
+  raise EgexColorConversionError.Create(Msg) at ReturnAddress;
   {$ELSE}
-  raise EColorConversionError.Create(Msg) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+  raise EgexColorConversionError.Create(Msg) at get_caller_addr(get_frame), get_caller_frame(get_frame);
   {$ENDIF}
 end;
 
