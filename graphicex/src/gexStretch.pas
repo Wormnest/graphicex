@@ -46,9 +46,6 @@ procedure Stretch(NewWidth, NewHeight: Cardinal; Filter: TResamplingFilter;
 procedure Stretch(NewWidth, NewHeight: Cardinal; Filter: TResamplingFilter;
     Radius: Single; Source: TBitmap); overload;
 
-type
-  EGraphicExStretchException = class(EBaseGraphicExException);
-
 
 implementation
 
@@ -658,7 +655,7 @@ procedure Stretch(NewWidth, NewHeight: Cardinal; Filter: TResamplingFilter; Radi
 
 begin
   if Source.PixelFormat in [pfDevice, pf8Bit, pf16Bit] then
-    raise EGraphicExStretchException.Create(ResStretchInvalidPixelFormat);
+    raise EgexStretchException.Create(ResStretchInvalidPixelFormat);
 
   if Radius = 0 then
     Radius := DefaultFilterRadius[Filter];
@@ -678,7 +675,7 @@ var
 
 begin
   if Source.PixelFormat in [pfDevice, pf8Bit, pf16Bit] then
-    raise EGraphicExStretchException.Create(ResStretchInvalidPixelFormat);
+    raise EgexStretchException.Create(ResStretchInvalidPixelFormat);
 
   if Radius = 0 then
     Radius := DefaultFilterRadius[Filter];
