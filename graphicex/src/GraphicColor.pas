@@ -79,7 +79,7 @@ interface
 {$ENDIF}
 
 uses
-  Windows, Graphics, GraphicStrings, SysUtils;
+  Windows, SysUtils, Graphics, gexTypes, GraphicStrings;
 
 const
   // This is the value for average CRT monitors, adjust it if your monitor differs.
@@ -479,7 +479,7 @@ var
 implementation
 
 uses
-  Math, gexTypes, gexUtils;
+  Math, gexUtils;
 
 
 //----------------- Helper functions -------------------------------------------

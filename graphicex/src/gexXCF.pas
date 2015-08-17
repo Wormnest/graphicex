@@ -137,7 +137,7 @@ type
 
 implementation
 
-uses Windows, GraphicStrings, GraphicCompression, gexUtils;
+uses Windows, gexTypes, GraphicStrings, GraphicCompression, gexUtils;
 
 const gimp_base_id = 'gimp xcf ';
       gimp_id2     = 'file';
