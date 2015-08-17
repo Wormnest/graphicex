@@ -11,6 +11,7 @@ interface
 {$ENDIF}
 
 uses
+     gexTypes,
      GraphicColor,
      {$IFNDEF FPC}
      TestFramework;

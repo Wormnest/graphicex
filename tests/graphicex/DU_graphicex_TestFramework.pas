@@ -51,7 +51,7 @@ type
 implementation
 
 uses SysUtils, Classes, Graphics,
-     GraphicStrings, graphicex;
+     gexTypes, GraphicStrings, GraphicEx;
 
 
 procedure TTestFileFormatList.SetUp;
@@ -227,14 +227,14 @@ end;
 procedure TRegisterFileFormatExceptionTests.CheckNoExtensionException;
 begin
   // Setting empty extension should fail
-  CheckException({$IFDEF FPC}@{$ENDIF}DoNoExtensionException, EInvalidGraphic,
+  CheckException({$IFDEF FPC}@{$ENDIF}DoNoExtensionException, EgexInvalidGraphic,
     'Setting empty extension should fail!');
 end;
 
 procedure TRegisterFileFormatExceptionTests.CheckInvalidExtensionException;
 begin
   // Setting extension starting with a '.' should fail
-  CheckException({$IFDEF FPC}@{$ENDIF}DoInvalidExtensionException, EInvalidGraphic,
+  CheckException({$IFDEF FPC}@{$ENDIF}DoInvalidExtensionException, EgexInvalidGraphic,
     'Setting extension starting with a ''.''should fail!');
 
 {
@@ -260,14 +260,14 @@ end;
 procedure TRegisterFileFormatExceptionTests.CheckTwiceReplaceFalseException;
 begin
   // Setting bmp extension twice should fail when Replace is False
-  CheckException({$IFDEF FPC}@{$ENDIF}DoTwiceReplaceFalseException, EInvalidGraphic,
+  CheckException({$IFDEF FPC}@{$ENDIF}DoTwiceReplaceFalseException, EgexInvalidGraphic,
     'Setting bmp extension twice should fail when Replace is False!');
 end;
 
 procedure TRegisterFileFormatExceptionTests.CheckGraphicClassNilException;
 begin
   // Registering file format with GraphicClass nil should fail
-  CheckException({$IFDEF FPC}@{$ENDIF}DoGraphicClassNilException, EInvalidGraphic,
+  CheckException({$IFDEF FPC}@{$ENDIF}DoGraphicClassNilException, EgexInvalidGraphic,
     'Registering file format with GraphicClass nil should fail!');
 end;
 
