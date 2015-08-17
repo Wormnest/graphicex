@@ -1838,9 +1838,9 @@ begin
         SetLength(FRowSize, Count);
         // Convert line starts and sizes.
         Move(Run^, Pointer(FRowStart)^, Count * SizeOf(Cardinal));
-        SwapArrayEndian(PCardinal(FRowStart), Count);
+        SwapCardinalArrayEndian(PCardinal(FRowStart), Count);
         Move(Run^, Pointer(FRowSize)^, Count * SizeOf(Cardinal));
-        SwapArrayEndian(PCardinal(FRowSize), Count);
+        SwapCardinalArrayEndian(PCardinal(FRowSize), Count);
         Decoder := TSGIRLEDecoder.Create(BitsPerSample);
       end
       else
@@ -5790,7 +5790,7 @@ begin
       Inc(Run, SizeOf(TRLAHeader)); // Offsets are located right after the header
       Move(Run^, Offsets[0], Height * SizeOf(Cardinal));
       Inc(Run, Height * SizeOf(Cardinal));
-      SwapArrayEndian(PCardinal(Offsets), Height);
+      SwapCardinalArrayEndian(PCardinal(Offsets), Height);
 
       // Setup intermediate storage.
       Decoder := TRLADecoder.Create;
@@ -5968,8 +5968,8 @@ procedure TRLAGraphic.SwapHeader(var Header);
 begin
   with TRLAHeader(Header) do
   begin
-    SwapArrayEndian(PWord(@Window), 4);
-    SwapArrayEndian(PWord(@Active_window), 4);
+    SwapWordArrayEndian(@Window, 4);
+    SwapWordArrayEndian(@Active_window, 4);
     Frame := SwapEndian(Frame);
     Storage_type := SwapEndian(Storage_type);
     Num_chan := SwapEndian(Num_chan);
@@ -6754,7 +6754,7 @@ begin
               SetLength(RLELength, AHeight);
               Count := 2 * AHeight;
               Move(Run^, Pointer(RLELength)^, Count); // RLE lengths are word values.
-              SwapArrayEndian(PWord(RLELength), AHeight);
+              SwapWordArrayEndian(Pointer(RLELength), AHeight);
               Dec(RemainingSize, Count);
               // Advance the running pointer to after the RLE lenghts.
               Inc(Run, Count);
@@ -7053,7 +7053,7 @@ begin
         // Hence we have to make a copy of the RLE lengths.
         SetLength(RLELength, Count);
         Move(Source^, Pointer(RLELength)^, 2 * Count);
-        SwapArrayEndian(PWord(RLELength), Count);
+        SwapWordArrayEndian(Pointer(RLELength), Count);
         // Advance the running pointer to after the RLE lenghts.
         Inc(Source, 2 * Count);
       end;
@@ -9010,7 +9010,7 @@ begin
         // read IHDR chunk
         ReadDataAndCheckCRC(Run);
         Move(FRawBuffer^, Description, SizeOf(Description));
-        SwapArrayEndian(PCardinal(@Description), 2);
+        SwapCardinalArrayEndian(PCardinal(@Description), 2);
 
         // currently only one compression type is supported by PNG (LZ77)
         if Compression = ctLZ77 then
@@ -9142,7 +9142,7 @@ begin
           // read IHDR chunk
           ReadDataAndCheckCRC(Run);
           Move(FRawBuffer^, Description, SizeOf(Description));
-          SwapArrayEndian(PCardinal(@Description), 2);
+          SwapCardinalArrayEndian(PCardinal(@Description), 2);
 
           if (Description.Width = 0) or (Description.Height = 0) then
             Exit;
