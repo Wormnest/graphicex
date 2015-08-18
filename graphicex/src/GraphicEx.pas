@@ -2505,6 +2505,16 @@ begin
       // Initialize sub section for image preparation. We give it a (guessed) value of 1%.
       StartProgressSection(1, gesPreparing);
 
+      // First some checks to see if we are able to handle the image
+      // Do this after InitProgress since in finally we will finalize the progress
+      // and if it hasn't been initialized first it will crash.
+      if Compression = ctUnknown then
+        GraphicExError(gesUnsupportedCompression, ['TIFF']);
+      if ColorScheme = csUnknown then
+        GraphicExError(gesColorScheme, ['TIFF']);
+      if (Width <= 0) or (Height <= 0) then
+        GraphicExError(gesInvalidDimensions, ['TIFF', Width, Height]);
+
       FMemory := Memory;
       FCurrentPointer := Memory;
       FSize := Size;

@@ -87,10 +87,13 @@ resourcestring
   gesInvalidCRC = 'Cannot load image. CRC error found in %s file.';
   gesCompression = 'Cannot load image. Compression error found in %s file.';
   gesExtraCompressedData = 'Cannot load image. Extra compressed data found in %s file.';
+  gesUnsupportedCompression = 'Cannot load %s image. Unsupported compression scheme.';
+  gesColorScheme = 'Cannot load %s image. Color scheme missing or not supported.';
   gesInvalidPalette = 'Cannot load image. Palette in %s file is invalid.';
   gesUnknownCriticalChunk = 'Cannot load PNG image. Unexpected but critical chunk detected.';
   gesInvalidPSDLayerData = 'Image is invalid. Layer data is corrupt.';
   gesInvalidPSDResourceData = 'Image is invalid. Resource data is corrupt.';
+  gesInvalidDimensions = 'Cannot load %s image. Invalid or unsupported dimensions %d x %d.';
 
   // features (usually used together with unsupported feature string)
   gesCompressionScheme = 'The compression scheme is';
