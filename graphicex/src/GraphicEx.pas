@@ -9139,79 +9139,87 @@ begin
         if IsChunk(IHDR) then
         begin
           Include(Options, ioBigEndian);
-          // read IHDR chunk
-          ReadDataAndCheckCRC(Run);
-          Move(FRawBuffer^, Description, SizeOf(Description));
-          SwapCardinalArrayEndian(PCardinal(@Description), 2);
+          // Since ReadDataAndCheckCRC is going to allocate FRawBuffer we
+          // need to add a try finally before it in case we get an exception
+          // which would otherwise cause a memory leak. Note that the crash
+          // could already occur inside ReadDataAndCheckCRC so we have to put
+          // the try before that (in case of a failed CRC check)
+          try
+            // read IHDR chunk
+            ReadDataAndCheckCRC(Run);
+            Move(FRawBuffer^, Description, SizeOf(Description));
+            SwapCardinalArrayEndian(PCardinal(@Description), 2);
 
-          if (Description.Width = 0) or (Description.Height = 0) then
-            Exit;
+            if (Description.Width = 0) or (Description.Height = 0) then
+              Exit;
 
-          Width := Description.Width;
-          Height := Description.Height;
+            Width := Description.Width;
+            Height := Description.Height;
 
-          if Description.Compression = 0 then
-            Compression := ctLZ77
-          else
-            Compression := ctUnknown;
-
-          BitsPerSample := Description.BitDepth;
-          SamplesPerPixel := 1;
-          case Description.ColorType of
-            0:
-              ColorScheme := csG;
-            2:
-              begin
-                ColorScheme := csRGB;
-                SamplesPerPixel := 3;
-              end;
-            3:
-              ColorScheme := csIndexed;
-            4:
-              ColorScheme := csGA;
-            6:
-              begin
-                ColorScheme := csRGBA;
-                SamplesPerPixel := 4;
-              end;
-          else
-            ColorScheme := csUnknown;
-          end;
-
-          BitsPerPixel := SamplesPerPixel * BitsPerSample;
-          FilterMode := Description.Filter;
-          Interlaced := Description.Interlaced <> 0;
-          HasAlpha := ColorScheme in [csGA, csRGBA, csBGRA];
-
-          // Find gamma and comment.
-          repeat
-            FCurrentCRC := LoadAndSwapHeader(Run);
-            if IsChunk(gAMA) then
-            begin
-              ReadDataAndCheckCRC(Run);
-              // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-              FileGamma := SwapEndian(PCardinal(FRawBuffer)^) / 100000;
-              Include(Options, ioUseGamma);
-              Continue;
-            end
+            if Description.Compression = 0 then
+              Compression := ctLZ77
             else
-              if IsChunk(tEXt) then
+              Compression := ctUnknown;
+
+            BitsPerSample := Description.BitDepth;
+            SamplesPerPixel := 1;
+            case Description.ColorType of
+              0:
+                ColorScheme := csG;
+              2:
+                begin
+                  ColorScheme := csRGB;
+                  SamplesPerPixel := 3;
+                end;
+              3:
+                ColorScheme := csIndexed;
+              4:
+                ColorScheme := csGA;
+              6:
+                begin
+                  ColorScheme := csRGBA;
+                  SamplesPerPixel := 4;
+                end;
+            else
+              ColorScheme := csUnknown;
+            end;
+
+            BitsPerPixel := SamplesPerPixel * BitsPerSample;
+            FilterMode := Description.Filter;
+            Interlaced := Description.Interlaced <> 0;
+            HasAlpha := ColorScheme in [csGA, csRGBA, csBGRA];
+
+            // Find gamma and comment.
+            repeat
+              FCurrentCRC := LoadAndSwapHeader(Run);
+              if IsChunk(gAMA) then
               begin
-                LoadText(Run);
+                ReadDataAndCheckCRC(Run);
+                // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
+                FileGamma := SwapEndian(PCardinal(FRawBuffer)^) / 100000;
+                Include(Options, ioUseGamma);
                 Continue;
-              end;
+              end
+              else
+                if IsChunk(tEXt) then
+                begin
+                  LoadText(Run);
+                  Continue;
+                end;
 
-            Inc(Run, FHeader.Length + 4);
-            if IsChunk(IEND) then
-              Break;
-            // Length = 0 should not happen but I have seen a broken png that has
-            // no IEND chunk but does have length = 0
-            // Also make sure a broken png doesn't set Run to illegal offset
-            if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
-              Break;
-          until False;
-
-          Freemem(FRawBuffer);
+              Inc(Run, FHeader.Length + 4);
+              if IsChunk(IEND) then
+                Break;
+              // Length = 0 should not happen but I have seen a broken png that has
+              // no IEND chunk but does have length = 0
+              // Also make sure a broken png doesn't set Run to illegal offset
+              if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
+                Break;
+            until False;
+          finally
+            if Assigned(FRawBuffer) then
+              Freemem(FRawBuffer);
+          end;
           Result := True;
         end;
       end
