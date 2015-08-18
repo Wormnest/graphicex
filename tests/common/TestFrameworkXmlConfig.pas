@@ -43,8 +43,18 @@ const
   TesterAll       = 'All';
   {$IFDEF FPC}
   CurrentTester   = 'Lazarus';
+  {$IFDEF CPU64}
+  CurrentTesterExact = 'Lazarus64';
+  {$ELSE}
+  CurrentTesterExact = 'Lazarus32';
+  {$ENDIF}
   {$ELSE}
   CurrentTester   = 'Delphi';
+  {$IFDEF CPU64}
+  CurrentTesterExact = 'Delphi64';
+  {$ELSE}
+  CurrentTesterExact = 'Delphi32';
+  {$ENDIF}
   {$ENDIF}
 
 type
@@ -366,7 +376,8 @@ begin
           end
           else if SameText(FileData.Name, CExpectedResult) then begin
             TempStr := GetPropValue(FileData, CTester);
-            if SameText(TempStr, CurrentTester) or SameText(TempStr, TesterAll) then begin
+            if SameText(TempStr, CurrentTesterExact) or SameText(TempStr, CurrentTester) or
+               SameText(TempStr, TesterAll) then begin
               TempStr := GetPropValue(FileData, CVersion);
               if (TempStr = '') or SameText(TempStr, CVersionDefault) then begin
                 TempStr := GetPropValue(FileData, CUnrecognized);
