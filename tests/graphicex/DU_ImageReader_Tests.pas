@@ -32,6 +32,7 @@ type
 
     function DetermineImageFormat(AImage: string): TGraphicExGraphicClass;
     procedure ExpectExceptionReadingImage;
+    procedure DoTestReadImage;
   published
     procedure TestReadImage;
   end;
@@ -39,14 +40,21 @@ type
 implementation
 
 uses SysUtils,
+  {$IFDEF HEAPTRC_LOG}
+  heaptrc,
+  {$ENDIF}
   GraphicStrings;
 
 const
   ImagesBasePath = 'E:\Delphi\Projects\Transcript\test-images\';
   XmlConfig_FileName = 'unit-tests.xml';
 
+var
+  BrushesLoaded: Boolean = False;
+
 procedure TImageReadingTests.SetUp;
 var gc: TGraphicClass;
+  i: TBitmap;
 begin
   // The FileFormat tests may have left the FileFormat list without our bmp wrapper class.
   // Thus make sure it gets initialized to our bmp wrapper class.
@@ -55,6 +63,38 @@ begin
      (gc <> TgexBmpGraphic) then begin
     FileFormatList.UnregisterFileFormat('bmp', Graphics.TBitmap);
     FileFormatList.RegisterFileFormat('bmp', gesBitmaps, '', [ftRaster], False, TgexBmpGraphic);
+  end;
+
+  if not BrushesLoaded and (LowerCase(ExtractFileExt(TestFileName)) = '.png') then
+  begin
+    // Try to remove false positives by selecting brushes that the PNG loading
+    // later on may use too thereby causing them to be already loaded in cache.
+    i := TBitmap.Create;
+    i.Width := 1; i.Height := 1;
+    try
+      // TODO: Is there a better (faster) way than FillRect to make sure that
+      // the brush gets loaded into cache?
+      i.Canvas.Brush.Color := TColor($000000); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($ffffff); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($fefefe); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($00ffff); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($0000ff); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($00a0ff); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($00ff00); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($ff0000); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($80e0e0); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($999999); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($0000aa); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($00000a); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($0000f5); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($0000ad); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($0000c2); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($00001f); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($000013); i.Canvas.FillRect(0, 0, 1, 1);
+      BrushesLoaded := True;
+    finally
+      i.Free;
+    end;
   end;
 end;
 
@@ -96,12 +136,9 @@ begin
   TGraphicExGraphic(Graphic).LoadFromFileByIndex(TestFileName, TestPage);
 end;
 
-procedure TImageReadingTests.TestReadImage;
+procedure TImageReadingTests.DoTestReadImage;
 var GraphicClass: TGraphicExGraphicClass;
 begin
-  {$IFNDEF FPC}
-//  FailsOnMemoryLeak := True;
-  {$ENDIF}
   // Determine type of image
   GraphicClass := DetermineImageFormat(TestFileName);
   if not Unrecognized then
@@ -131,6 +168,40 @@ begin
 
   Graphic.Free;
   Graphic := nil;
+end;
+
+procedure TImageReadingTests.TestReadImage;
+{$IFDEF FPC}
+var
+  fpcHeapStatus : TFPCHeapStatus;
+  FpcUsedHeap: PtrUInt;
+{$ENDIF}
+begin
+  {$IFDEF FPC}
+  // Get initial heap state
+  fpcHeapStatus := GetFPCHeapStatus();
+  FpcUsedHeap := fpcHeapStatus.CurrHeapUsed;
+  {$ELSE}
+  //  FailsOnMemoryLeak := True; // Disabled: too many false positives
+  {$ENDIF}
+
+  DoTestReadImage;
+
+  {$IFDEF FPC}
+  // Get heap state after tests are done
+  fpcHeapStatus := GetFPCHeapStatus();
+  {$IFDEF HEAPTRC_LOG}
+  if FpcUsedHeap <> fpcHeapStatus.CurrHeapUsed then
+    DumpHeap;
+  {$ENDIF}
+  // Check if there was a memory leak
+  // Note that we currently have some known false positives
+  // In Fpc:
+  // When reading PNG images a canvas may be used. When a new type of brush is
+  // used that brush is cached causing allocation of memory that will not be
+  // freed at this point. It will be freed when we close our program.
+  Check(FpcUsedHeap = fpcHeapStatus.CurrHeapUsed, Format('Memory leak detected: %u bytes',[fpcHeapStatus.CurrHeapUsed - FpcUsedHeap]));
+  {$ENDIF}
 end;
 
 {$IFNDEF FPC}

@@ -220,8 +220,8 @@
           </Linking>
           <Other>
             <CustomOptions Value="-dIGNORE_EMPTY_TEST
--dLIBTIFF4
--dHEAPTRC"/>
+-dHEAPTRC_LOG
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item6>

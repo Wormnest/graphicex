@@ -15,5 +15,7 @@ initialization
   if FileExists('heaptrc.log') then
     DeleteFile('heaptrc.log');
   SetHeapTraceOutput('heaptrc.log');
+  printleakedblock := True;
+  printfaultyblock := True;
 end.
 
