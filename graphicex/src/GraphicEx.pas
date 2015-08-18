@@ -9038,8 +9038,11 @@ begin
               if (FHeader.Length mod 3) <> 0 then
                 GraphicExError(gesInvalidPalette, ['PNG']);
               ReadDataAndCheckCRC(Run);
-              // load palette only if the image is indexed colors
-              if Description.ColorType = 3 then
+              // load palette only if the image is indexed colors and we
+              // haven't loaded a palette yet. Duplicate palettes isn't
+              // allowed but broken images might still contain one.
+              // Not checking this might cause a memory leak.
+              if (Description.ColorType = 3) and not Assigned(PaletteBuf) then
               begin
                 // first setup pixel format before actually creating a palette
                 FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
