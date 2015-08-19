@@ -3,6 +3,7 @@ unit DU_ImageReader_Tests;
 interface
 
 uses
+  Windows,
   GraphicEx,
   gexBmpWrapper,
   gexJpegWrapper,
@@ -39,9 +40,13 @@ type
 
 implementation
 
-uses SysUtils, Classes,
+uses SysUtils, Classes, Forms,
   {$IFDEF HEAPTRC_LOG}
   heaptrc,
+  {$ENDIF}
+  {$IFNDEF FPC}
+  FastMM4,  // Get memory used
+  gexTypes, // NativeUInt
   {$ENDIF}
   GraphicStrings;
 
@@ -170,19 +175,39 @@ begin
   Graphic := nil;
 end;
 
-procedure TImageReadingTests.TestReadImage;
-{$IFDEF FPC}
+{$IFNDEF FPC}
+// Adapted from: http://stackoverflow.com/questions/437683/how-to-get-the-memory-used-by-a-delphi-program
+function MemoryUsed: NativeUInt;
 var
+    st: TMemoryManagerState;
+    sb: TSmallBlockTypeState;
+    i: Integer;
+begin
+    GetMemoryManagerState(st);
+    result := st.TotalAllocatedMediumBlockSize + st.TotalAllocatedLargeBlockSize;
+    for i := 0 to NumSmallBlockTypes - 1 do begin
+      sb := st.SmallBlockTypeStates[i];
+      result := result + sb.UseableBlockSize * sb.AllocatedBlockCount;
+    end;
+end;
+{$ENDIF}
+
+procedure TImageReadingTests.TestReadImage;
+var
+{$IFDEF FPC}
   fpcHeapStatus : TFPCHeapStatus;
-  FpcUsedHeap: PtrUInt;
+  UsedHeap, FinalUsedHeap: PtrUInt;
+{$ELSE}
+  UsedHeap, FinalUsedHeap: NativeUInt;
 {$ENDIF}
 begin
   {$IFDEF FPC}
   // Get initial heap state
   fpcHeapStatus := GetFPCHeapStatus();
-  FpcUsedHeap := fpcHeapStatus.CurrHeapUsed;
+  UsedHeap := fpcHeapStatus.CurrHeapUsed;
   {$ELSE}
-  //  FailsOnMemoryLeak := True; // Disabled: too many false positives
+  //FailsOnMemoryLeak := True; // Disabled: too many false positives
+  UsedHeap := MemoryUsed();
   {$ENDIF}
 
   DoTestReadImage;
@@ -190,18 +215,30 @@ begin
   {$IFDEF FPC}
   // Get heap state after tests are done
   fpcHeapStatus := GetFPCHeapStatus();
+  FinalUsedHeap := fpcHeapStatus.CurrHeapUsed;
   {$IFDEF HEAPTRC_LOG}
-  if FpcUsedHeap <> fpcHeapStatus.CurrHeapUsed then
+  if UsedHeap <> FinalUsedHeap then
     DumpHeap;
   {$ENDIF}
+  {$ELSE}
+  FinalUsedHeap := MemoryUsed();
+  {$ENDIF}
+
   // Check if there was a memory leak
   // Note that we currently have some known false positives
   // In Fpc:
   // When reading PNG images a canvas may be used. When a new type of brush is
   // used that brush is cached causing allocation of memory that will not be
   // freed at this point. It will be freed when we close our program.
-  Check(FpcUsedHeap = fpcHeapStatus.CurrHeapUsed, Format('Memory leak detected: %u bytes',[fpcHeapStatus.CurrHeapUsed - FpcUsedHeap]));
-  {$ENDIF}
+  // Delphi: many leaks which we assume to be (at least) mostly false positives.
+  // Needs more research to find the cause, so for now it's best to disable.
+  // Doing a test again manually often removes the leak.
+
+  {.$DEFINE ENABLE_LEAKCHECK}
+
+  {$IF Defined(FPC) OR Defined(ENABLE_LEAKCHECK)}
+  Check(UsedHeap = FinalUsedHeap, Format('Memory leak detected: %u bytes',[FinalUsedHeap - UsedHeap]));
+  {$IFEND}
 end;
 
 {$IFNDEF FPC}
@@ -218,6 +255,11 @@ var
   ImageReadingTestsClass: TImageReadingTestsClass;
 
 initialization
+  if not DirectoryExists(ImagesBasePath) then
+    MessageBox(0, 'Path to test images does not exist!'#13#10+
+      'Please set ImagesBasePath to a correct location with test images.'#13#10+
+      'Beware that you also need to initialize the unit-tests.xml files in each image folder!',
+      'ImageReader Tests', mb_iconhand + mb_ok);
   ImageReadingTestsClass := TImageReadingTests;
   AddImageReaderTests('Test Loading Image Formats', ImagesBasePath,
     XmlConfig_FileName, ImageReadingTestsClass);
