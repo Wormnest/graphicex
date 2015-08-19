@@ -101,7 +101,7 @@ Please report bugs in the issuetracker using the link below. Bugs concerning
 problems loading a certain image should add the problematic image.
 Without an example image it will be most likely impossible to find
 what's wrong.    
-Link: [issuetracker](https://bitbucket.org/jacobb/jgb-thirdparty/issues?status=new&status=open)
+Link: [issuetracker](https://bitbucket.org/jacobb/graphicex/issues?status=new&status=open)
 
 Current implementation
 ----------------------
@@ -127,6 +127,12 @@ Additions March/April 2015
 * Added a few more DUnit tests and made the tests compatible with FpcUnit.
 * Improvements to the ImageViewer example and made it compatible with Lazarus.
 
+Additions July/August 2015
+--------------------------
+* Support for LibTiff 4.x.
+* Lazarus Win64 compatibility.
+* Added image reader tests.
+
 Todo
 ----
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
@@ -146,7 +152,7 @@ Folder structure
 \packages = Contains the Lazarus packages.
 
 Note that the .obj files needed for Delphi are not available in the hg repository itself.
-They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/jgb-thirdparty/downloads/obj_libtiff_397.zip)
+They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_397.zip)
 
 The .a lib files needed for Fpc/Lazarus you will have to make yourself although
 libz and libcrtdll can be copied/used from your MingW installation.
