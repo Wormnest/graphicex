@@ -39,7 +39,7 @@ type
 
 implementation
 
-uses SysUtils,
+uses SysUtils, Classes,
   {$IFDEF HEAPTRC_LOG}
   heaptrc,
   {$ENDIF}
@@ -74,23 +74,23 @@ begin
     try
       // TODO: Is there a better (faster) way than FillRect to make sure that
       // the brush gets loaded into cache?
-      i.Canvas.Brush.Color := TColor($000000); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($ffffff); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($fefefe); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($00ffff); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($0000ff); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($00a0ff); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($00ff00); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($ff0000); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($80e0e0); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($999999); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($0000aa); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($00000a); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($0000f5); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($0000ad); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($0000c2); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($00001f); i.Canvas.FillRect(0, 0, 1, 1);
-      i.Canvas.Brush.Color := TColor($000013); i.Canvas.FillRect(0, 0, 1, 1);
+      i.Canvas.Brush.Color := TColor($000000); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($ffffff); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($fefefe); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($00ffff); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($0000ff); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($00a0ff); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($00ff00); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($ff0000); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($80e0e0); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($999999); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($0000aa); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($00000a); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($0000f5); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($0000ad); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($0000c2); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($00001f); i.Canvas.FillRect(Rect(0, 0, 1, 1));
+      i.Canvas.Brush.Color := TColor($000013); i.Canvas.FillRect(Rect(0, 0, 1, 1));
       BrushesLoaded := True;
     finally
       i.Free;
