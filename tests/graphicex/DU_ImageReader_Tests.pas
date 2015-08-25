@@ -31,6 +31,12 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
 
+    {$IFNDEF FPC}
+    function CompareImages(TestBitmap: TBitmap; ReferenceBitmap: TBitmap): Boolean;
+    {$ELSE}
+    function CompareImages(TestBitmap: TFPImageBitmap; ReferenceBitmap: TFPImageBitmap): Boolean;
+    {$ENDIF}
+    procedure CheckImagePixels;
     function DetermineImageFormat(AImage: string): TGraphicExGraphicClass;
     procedure ExpectExceptionReadingImage;
     procedure DoTestReadImage;
@@ -41,12 +47,13 @@ type
 implementation
 
 uses SysUtils, Classes, Forms,
-  {$IFDEF HEAPTRC_LOG}
-  heaptrc,
-  {$ENDIF}
   {$IFNDEF FPC}
   FastMM4,  // Get memory used
+  pngimage, // PNG loading
   gexTypes, // NativeUInt
+  {$ENDIF}
+  {$IFDEF HEAPTRC_LOG}
+  heaptrc,
   {$ENDIF}
   GraphicStrings;
 
@@ -56,6 +63,155 @@ const
 
 var
   BrushesLoaded: Boolean = False;
+
+{$IFNDEF FPC}
+function TImageReadingTests.CompareImages(TestBitmap: TBitmap; ReferenceBitmap: TBitmap): Boolean;
+{$ELSE}
+function TImageReadingTests.CompareImages(TestBitmap: TFPImageBitmap; ReferenceBitmap: TFPImageBitmap): Boolean;
+{$ENDIF}
+var
+ i, j        : Integer;
+ ScanBytes   : Integer;
+ CompareResult:Integer;
+ Testspp,
+ Refspp: Integer;
+
+ function HexBytes(Memory: PAnsiChar; Ofs: Integer; Count: Integer; spp: Byte; Skip: Byte = 0; SkipCount: Byte = 0): string;
+ var i: Integer;
+ begin
+   Result := '';
+   Memory := Memory + Ofs;
+   if (Skip = 0) or (SkipCount = 0) then
+     for i := 0 to Count-1 do begin
+       if i mod spp = 0 then
+         Result := Result + '(';
+       Result := Result + IntToHex(PByte(Memory)^, 2) + ' ';
+       if i mod spp = spp-1 then
+         Result := Result + ') ';
+       Inc(Memory);
+     end
+   else begin // Skip > 0
+     i := 0; j := 0;
+     while i < Count do begin
+       if (j <> Skip) then begin
+         if j mod spp = 0 then
+           Result := Result + '(';
+         Result := Result + IntToHex(PByte(Memory)^, 2) + ' ';
+         if j mod spp = spp-1 then
+           Result := Result + ') ';
+         Inc(Memory);
+         Inc(i);
+         Inc(j);
+       end
+       else begin
+         Inc(Memory, SkipCount+1);
+         j := 0;
+       end;
+     end
+   end;
+ end;
+ function ComparePixels(ATest, ARef: PByte; BytesPerPixelTest, BytesPerPixelRef, Count: Integer): Integer;
+ var CurPos: Integer;
+     SkipBytes: Integer;
+ begin
+   Result := 0;
+   CurPos := 0;
+   SkipBytes := BytesPerPixelRef - BytesPerPixelTest;
+   while CurPos < Count do begin
+     if ATest^ <> ARef^ then begin
+       Result := CurPos;
+       break;
+     end;
+     Inc(CurPos);
+     Inc(ATest);
+     Inc(ARef);
+     if CurPos mod BytesPerPixelTest = 0 then
+       Inc(ARef, SkipBytes);
+   end;
+ end;
+
+begin
+  Check(TestBitmap <> nil, 'TestBitmap is nil!');
+  Result := (TestBitmap <> nil) and (ReferenceBitmap <> nil);
+  if not Result then exit;
+
+  Check(TestBitmap.Width = ReferenceBitmap.Width,
+    Format('TestBitmap width: %d, expected: %d',
+    [TestBitmap.Width, ReferenceBitmap.Width]));
+  Check(TestBitmap.Height = ReferenceBitmap.Height,
+    Format('TestBitmap height: %d, expected: %d',
+    [TestBitmap.Height, ReferenceBitmap.Height]));
+  Check(TestBitmap.PixelFormat = ReferenceBitmap.PixelFormat,
+    'TestBitmap pixelformat not the same as reference image!');
+
+  Result := (TestBitmap.Width = ReferenceBitmap.Width) and
+            (TestBitmap.Height = ReferenceBitmap.Height) and
+            (TestBitmap.PixelFormat = ReferenceBitmap.PixelFormat);
+
+  if not Result then exit;
+
+  {$IFDEF FPC}
+  Refspp := 4;
+  {$ENDIF}
+  case TestBitmap.PixelFormat of
+    pf32Bit: Testspp := 4;
+    pf24Bit: Testspp := 3;
+  else
+    Testspp := 1;
+    {$IFDEF FPC}
+    Refspp := 1;
+    {$ENDIF}
+  end;
+  {$IFNDEF FPC}
+  Refspp := Testspp;
+  {$ENDIF}
+
+  {$IFDEF FPC}
+  TestBitmap.BeginUpdate(False);
+  ReferenceBitmap.BeginUpdate(False);
+  {$ENDIF}
+  try
+    ScanBytes := TestBitmap.Width * TestSpp;
+    for i := 0 to TestBitmap.Height-1 do
+    Begin
+      CompareResult := ComparePixels(TestBitmap.ScanLine[i], ReferenceBitmap.ScanLine[i], Testspp, Refspp, ScanBytes);
+      Check(CompareResult = 0,
+        Format('TestBitmap (%d x %d) not the same as reference image at scanline %d. Difference at pixel %d.' +
+               ' Test Image: %s, Reference: %s' ,
+               [TestBitmap.Width, TestBitmap.Height, i, Abs(CompareResult) div Testspp,
+               HexBytes(TestBitmap.Scanline[i], Abs(CompareResult) div Testspp * TestSpp, 5*Testspp, Testspp),
+               HexBytes(ReferenceBitmap.Scanline[i], Abs(CompareResult) div TestSpp * Refspp, 5*Testspp, Testspp, TestSpp, RefSpp-TestSpp)]));
+      if not Result then
+        exit;
+    End;
+  finally
+    {$IFDEF FPC}
+    TestBitmap.EndUpdate(False);
+    ReferenceBitmap.EndUpdate(False);
+    {$ENDIF}
+  end;
+end;
+
+procedure TImageReadingTests.CheckImagePixels;
+var
+  {$IFDEF FPC}
+  refimg: TPortableNetworkGraphic;
+  {$ELSE}
+  refimg: TPngObject;
+  {$ENDIF}
+  th: THANDLE;
+begin
+  // First load our reference image
+  refimg := TPortableNetworkGraphic.Create;
+  try
+    refimg.LoadFromFile(CompareFileName);
+
+    // Our test image can be found in Graphic
+    CompareImages({$IFDEF FPC}TFPImageBitmap{$ELSE}TBitmap{$ENDIF}(Graphic), refimg);
+  finally
+    refimg.Free;
+  end;
+end;
 
 procedure TImageReadingTests.SetUp;
 var gc: TGraphicClass;
@@ -166,6 +322,8 @@ begin
       Check(Graphic.Empty = False, Format('Failed to load image %s!', [TestFileName]))
     else
       Check(Graphic.Empty = True, Format('%s is unexpectedly not empty!', [TestFileName]));
+    if Comparison then
+      CheckImagePixels;
   end
   else
     AssertException('We didn''t get the exception we expected!', ExceptionType,
