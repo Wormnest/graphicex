@@ -2538,15 +2538,14 @@ begin
           if ioSeparatePlanes in Options then
             ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
 
-          // Split loading image data depending on pixel depth.
-          // ReadRGBA only handles 1, 2, 4, 8 and 16 bits per sample, however
-          // 1, 2 and 4 bits apparently only for Indexed/Grayscale
-          if ((SamplesPerPixel in [3, 4]) and (BitsPerSample in [8, 16]) and
-             (SampleFormat in [SAMPLEFORMAT_UINT, SAMPLEFORMAT_INT, SAMPLEFORMAT_VOID])
-             and not (ioSeparatePlanes in Options) and
-             not (ColorScheme in [csCMYK, csCMYKA, csCIELAB, csUnknown])) or
-             ((SamplesPerPixel in [1, 2]) and not ((ColorScheme in [csG, csGA,
-             csIndexed, csIndexedA, csCIELAB, csUnknown]))) then begin
+          {$DEFINE YCBCR} // Use this as long as we haven't finished handling YCbCr ourselves
+          // Generic RGBA image loading. Only needed when we can't handle the
+          // image format ourselves. Currently that seems to be the case
+          // with the LOGLUV and YCbCr formats.
+          // Since we can't read these formats anyway there's no need to test
+          // for additional limits (BitsPerSample, SamplesPerPixel, ...) to
+          // see whether TIFFReadRGBAImage can handle it.
+          if (ColorScheme in [csCIELog2L, csCIELog2Luv{$IFDEF YCBCR}, csYCbCr{$ENDIF}]) then begin
              // Generic RGBA reading interface
             if (Height > 0) and (Width > 0) then
             begin
