@@ -2552,7 +2552,10 @@ begin
             begin
               // 3 or more samples per pixel are used for RGB(A), CMYK, L*a*b*, YCbCr etc.
               // All of these will be converted to RGBA.
-              PixelFormat := pf32Bit;
+              if HasAlpha then
+                PixelFormat := pf32Bit
+              else
+                PixelFormat := pf24Bit;
               Self.Width := Width;
               Self.Height := Height;
 
@@ -2568,7 +2571,10 @@ begin
                 // We need to convert from rgba that tifflib gives us to bgra that Windows needs
                 // Note that if we ever want to interface directly with Graphics32
                 // we should skip this step since it uses rgba!
-                RGBAToBGRA(Scanline[Height - 1], Width, Height);
+                if HasAlpha then
+                  RGBAToBGRA(Scanline[Height - 1], Width, Height)
+                else
+                  RGBAToBGR(Scanline[Height - 1], Width, Height);
                 FinishProgressSection(True);
               end
               else
@@ -2586,9 +2592,12 @@ begin
                     for I := Height - 1 downto 0 do
                     begin
                       Line := Scanline[I];
-                      // Change RGBA to BGRA, 1 line at a time
-                      RGBAToBGRA(Run, Width, 1);
-                      Move(Run^, Line^, Width * 4);
+                      if HasAlpha then
+                        // Change RGBA to BGRA, 1 line at a time
+                        RGBAToBGRA(Run, Width, 1)
+                      else
+                        RGBAToBGR(Run, Width, 1);
+                      Move(Run^, Line^, Width * (3+Ord(HasAlpha)));
                       Inc(Run, Width * 4);
                       AdvanceProgress(100 / Height, 0, 1, True);
                     end;
