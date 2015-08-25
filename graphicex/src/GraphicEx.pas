@@ -295,6 +295,13 @@ type
 
   {$ifdef TIFFGraphic}
   // *.tif, *.tiff images
+  // YCbCr luma handling helper
+  TLuma = record
+    LumaRed,
+    LumaGreen,
+    LumaBlue: Single;
+  end;
+  PLuma = ^TLuma;
   TTIFFGraphic = class(TGraphicExGraphic)
   private
     FMemory: PByte;
@@ -302,6 +309,12 @@ type
     FSize: Int64;
     FMinFloatSample,
     FMaxFloatSample: Double; // min/max values when floating point sample format is used.
+    // YCbCr values
+    FHorSubSampling,
+    FVertSubSampling: Byte;
+    FYcbCrPositioning: Byte;
+    FLuma: TLuma;
+
   protected
     procedure ReadContiguous(tif: PTIFF);
     procedure ReadTiled(tif: PTIFF);
@@ -2196,6 +2209,8 @@ var
   nStripSize: Integer;
   PtrArray: array of pointer;
   BufPtr: Pointer;
+  // YCbCr handling
+  RowSubCount: Integer;
 
 begin
   nStripSize := TIFFStripSize(tif);
@@ -2228,7 +2243,7 @@ begin
     else
       RowInc := -1;
 
-    Row := 0;
+    Row := 0; RowSubCount := 0;
     while Row < Height do
     begin
       RowsToRead := RowsPerStrip - Row mod RowsPerStrip;
@@ -2236,6 +2251,11 @@ begin
         RowCount := Height - Row
       else
         RowCount := RowsToRead;
+
+      // Extra handling needed for YCbCr
+      RowSubCount := RowCount;
+      if RowSubCount mod FVertSubSampling <> 0 then
+        Inc(RowSubCount, FVertSubSampling - RowSubCount mod FVertSubSampling);
 
       Pos := (Row mod RowsPerStrip) * LineSize;
 
@@ -2252,7 +2272,7 @@ begin
       end
       else begin
         TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, 0), Buffer,
-          (Row mod RowsPerStrip + RowCount) * LineSize);
+          (Row mod RowsPerStrip + RowSubCount{RowCount}) * LineSize);
         PtrArray[0] := PAnsiChar(Buffer) + Pos;
         LineOffset := Ceil(BitsPerPixel * (Width + FromSkew) / 8);
       end;
@@ -2490,9 +2510,12 @@ var
   GreenMap,
   BlueMap: PWord;
   GotPalette: Integer;
+  Luma: PLuma;
 
 begin
   inherited;
+  FVertSubSampling := 1;
+  FHorSubSampling := 1;
 
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
@@ -2681,6 +2704,20 @@ begin
                 ColorManager.TargetColorScheme := csBGR;
 
               case ColorScheme of
+                csYCbCr:
+                  begin
+                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRSUBSAMPLING, @FHorSubSampling, @FVertSubSampling);
+                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRPOSITIONING, @FYcbCrPositioning);
+                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRCOEFFICIENTS, @Luma);
+                    // Copy luma
+                    Move(Luma^,FLuma,SizeOf(TLuma));
+                    ColorManager.SetYCbCrParameters([FLuma.LumaRed, FLuma.LumaGreen, FLuma.LumaBlue], FHorSubSampling, FVertSubSampling);
+                    if (Compression = ctJPEG) and not (ioTiled in Options) then begin
+                      // Let the Jpeg Lib do the conversion from YCbCr to RGB for us
+                      TIFFSetField(TIFFImage, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
+                      ColorManager.SourceColorScheme := csRGB;
+                    end;
+                  end;
                 csCIELab:
                   begin
                     if SamplesPerPixel >= 3 then begin
