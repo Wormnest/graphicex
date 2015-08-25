@@ -421,6 +421,8 @@ function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
 
 // Convert RGBA (e.g. TIFF sources) to Windows BGRA
 procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal);
+// Convert RGBA TO BGR (no alpha)
+procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal);
 
 // Alpha channel functions
 // Converts PBGRA Array of length Count into premultiplied BGRA
@@ -1287,6 +1289,24 @@ begin
           ((o and $00FF0000) shr 16) or    {B}
           ((o and $000000FF) shl 16);      {R}
     Inc(m);
+  end;
+end;
+
+procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal);
+var
+  m: PRGBA;
+  Dest: PBGR;
+  n: Cardinal;
+begin
+  m := Memory;
+  Dest := Memory;
+  for n :=0 to Width * Height - 1 do
+  begin
+    Dest.B := m.B;
+    Dest.G := m.G;
+    Dest.R := m.R;
+    Inc(m);
+    Inc(Dest);
   end;
 end;
 
