@@ -369,6 +369,7 @@ begin
             ImgPage := GetPropValue(FileData, FPage);
             TestData.TestFileName := Path + ImgFile;
             TestData.TestPage := StrToIntDef(ImgPage, 0);
+            TestData.Comparison := GetPropValue(FileData, FComparison) = '1';
           end
           else if SameText(FileData.Name, FCompareWith) then begin
             CompareFile := GetPropValue(FileData, FName);
@@ -454,6 +455,8 @@ begin
     Result := Result + ' (Empty image or image with content we can''t read yet)'
   else if not Readable and (ExceptionType <> '') then
     Result := Result + ' (Expecting exception ' + ExceptionType + ')';
+  if Comparison then
+    Result := Result + ' [comparison with reference image]';
 end;
 
 // StripChars strips any char below space, except tab which is replaced by one space
