@@ -104,7 +104,7 @@ var
          Inc(j);
        end
        else begin
-         Inc(Memory, SkipCount+1);
+         Inc(Memory, SkipCount);
          j := 0;
        end;
      end
