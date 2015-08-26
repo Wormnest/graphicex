@@ -2580,54 +2580,34 @@ begin
                 PixelFormat := pf24Bit;
               Self.Width := Width;
               Self.Height := Height;
-
-              // We can improve speed a bit by directly loading the image data to the scan lines
-              // for bottom-up images (which is usually the case).
-              // jgb 2012-04-13 but take into account the case where there is only
-              // 1 scanline (height=1)
-              if (Height = 1) or (NativeInt(Scanline[0]) - NativeInt(Scanline[1]) > 0) then
-              begin
-                StartProgressSection(0, gesLoadingData);
-                TIFFReadRGBAImageOriented(TIFFImage, Width, Height, Scanline[Height - 1],
-                  ORIENTATION_BOTLEFT, TIFF_STOP_ON_ERROR_TRUE);
-                // We need to convert from rgba that tifflib gives us to bgra that Windows needs
-                // Note that if we ever want to interface directly with Graphics32
-                // we should skip this step since it uses rgba!
-                if HasAlpha then
-                  RGBAToBGRA(Scanline[Height - 1], Width, Height)
-                else
-                  RGBAToBGR(Scanline[Height - 1], Width, Height);
-                FinishProgressSection(True);
-              end
-              else
-              begin
-                Count := Width * Height;
-                GetMem(Pixels, Count * SizeOf(Cardinal));
-                try
-                  StartProgressSection(70, gesLoadingData);
-                  if TIFFReadRGBAImage(TIFFImage, Width, Height, Pixels, TIFF_STOP_ON_ERROR_TRUE) = 1 then
-                  begin
-                    FinishProgressSection(False);
-
-                    StartProgressSection(30, gesTransfering);
-                    Run := Pointer(Pixels);
-                    for I := Height - 1 downto 0 do
-                    begin
-                      Line := Scanline[I];
-                      if HasAlpha then
-                        // Change RGBA to BGRA, 1 line at a time
-                        RGBAToBGRA(Run, Width, 1)
-                      else
-                        RGBAToBGR(Run, Width, 1);
-                      Move(Run^, Line^, Width * (3+Ord(HasAlpha)));
-                      Inc(Run, Width * 4);
-                      AdvanceProgress(100 / Height, 0, 1, True);
-                    end;
-                  end;
+              // We will always receive RGBA thus we need to reserve space for
+              // Width * Height * SizeOf(RGBA)
+              Count := Width * Height;
+              GetMem(Pixels, Count * SizeOf(TRGBA));
+              try
+                StartProgressSection(70, gesLoadingData);
+                if TIFFReadRGBAImage(TIFFImage, Width, Height, Pixels, TIFF_STOP_ON_ERROR_TRUE) = 1 then
+                begin
                   FinishProgressSection(False);
-                finally
-                  FreeMem(Pixels);
+
+                  StartProgressSection(30, gesTransfering);
+                  Run := Pointer(Pixels);
+                  for I := Height - 1 downto 0 do
+                  begin
+                    Line := Scanline[I];
+                    if HasAlpha then
+                      // Change RGBA to BGRA, 1 line at a time
+                      RGBAToBGRA(Run, Width, 1)
+                    else
+                      RGBAToBGR(Run, Width, 1);
+                    Move(Run^, Line^, Width * (3+Ord(HasAlpha)));
+                    Inc(Run, Width * 4);
+                    AdvanceProgress(100 / Height, 0, 1, True);
+                  end;
                 end;
+                FinishProgressSection(False);
+              finally
+                FreeMem(Pixels);
               end;
             end;
           end
