@@ -76,12 +76,12 @@ var
  Testspp,
  Refspp: Integer;
 
- function HexBytes(Memory: PAnsiChar; Ofs: Integer; Count: Integer; spp: Byte; Skip: Byte = 0; SkipCount: Byte = 0): string;
+ function HexBytes(Memory: PAnsiChar; Ofs: Integer; Count: Integer; spp: Byte; SkipCount: Byte = 0): string;
  var i: Integer;
  begin
    Result := '';
    Memory := Memory + Ofs;
-   if (Skip = 0) or (SkipCount = 0) then
+   if (SkipCount = 0) then
      for i := 0 to Count-1 do begin
        if i mod spp = 0 then
          Result := Result + '(';
@@ -90,10 +90,10 @@ var
          Result := Result + ') ';
        Inc(Memory);
      end
-   else begin // Skip > 0
+   else begin // Skipcount > 0
      i := 0; j := 0;
      while i < Count do begin
-       if (j <> Skip) then begin
+       if (j <> spp) then begin
          if j mod spp = 0 then
            Result := Result + '(';
          Result := Result + IntToHex(PByte(Memory)^, 2) + ' ';
@@ -104,6 +104,8 @@ var
          Inc(j);
        end
        else begin
+         // Skip some bytes. Needed for Lazarus where the actual PixelFormat of
+         // a ScanLine isn't always the same as what we expect from PixelFormat.
          Inc(Memory, SkipCount);
          j := 0;
        end;
@@ -150,6 +152,8 @@ begin
   if not Result then exit;
 
   {$IFDEF FPC}
+  // In Lazarus the actual PixelFormat of a ScanLine after loading a PNG
+  // seems to be pf32Bit even if the PixelFormat returns pf24Bit.
   Refspp := 4;
   {$ENDIF}
   case TestBitmap.PixelFormat of
@@ -179,7 +183,7 @@ begin
                ' Test Image: %s, Reference: %s' ,
                [TestBitmap.Width, TestBitmap.Height, i, Abs(CompareResult) div Testspp,
                HexBytes(TestBitmap.Scanline[i], Abs(CompareResult) div Testspp * TestSpp, 5*Testspp, Testspp),
-               HexBytes(ReferenceBitmap.Scanline[i], Abs(CompareResult) div TestSpp * Refspp, 5*Testspp, Testspp, TestSpp, RefSpp-TestSpp)]));
+               HexBytes(ReferenceBitmap.Scanline[i], Abs(CompareResult) div TestSpp * Refspp, 5*Testspp, Testspp, RefSpp-TestSpp)]));
       if not Result then
         exit;
     End;
