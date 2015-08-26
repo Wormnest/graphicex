@@ -11,6 +11,7 @@ uses
   Graphics,
   {$IFNDEF FPC}
   TestFramework,
+  pngimage, // PNG loading
   {$ELSE}
   fpcunit,
   {$ENDIF}
@@ -49,7 +50,6 @@ implementation
 uses SysUtils, Classes, Forms,
   {$IFNDEF FPC}
   FastMM4,  // Get memory used
-  pngimage, // PNG loading
   gexTypes, // NativeUInt
   {$ENDIF}
   {$IFDEF HEAPTRC_LOG}
@@ -143,7 +143,6 @@ begin
     [TestBitmap.Height, ReferenceBitmap.Height]));
   Check(TestBitmap.PixelFormat = ReferenceBitmap.PixelFormat,
     'TestBitmap pixelformat not the same as reference image!');
-
   Result := (TestBitmap.Width = ReferenceBitmap.Width) and
             (TestBitmap.Height = ReferenceBitmap.Height) and
             (TestBitmap.PixelFormat = ReferenceBitmap.PixelFormat);
@@ -197,18 +196,31 @@ var
   {$IFDEF FPC}
   refimg: TPortableNetworkGraphic;
   {$ELSE}
-  refimg: TPngObject;
+  refpng: TPngObject;
+  refimg: TBitmap;
   {$ENDIF}
-  th: THANDLE;
 begin
   // First load our reference image
+  {$IFDEF FPC}
   refimg := TPortableNetworkGraphic.Create;
+  {$ELSE}
+  refpng := TPngObject.Create;
+  refimg := TBitmap.Create;
+  {$ENDIF}
   try
+  {$IFDEF FPC}
     refimg.LoadFromFile(CompareFileName);
+  {$ELSE}
+    refpng.LoadFromFile(CompareFileName);
+    refpng.AssignTo(refimg);
+  {$ENDIF}
 
     // Our test image can be found in Graphic
     CompareImages({$IFDEF FPC}TFPImageBitmap{$ELSE}TBitmap{$ENDIF}(Graphic), refimg);
   finally
+  {$IFNDEF FPC}
+    refpng.Free;
+  {$ENDIF}
     refimg.Free;
   end;
 end;
