@@ -3135,10 +3135,58 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TColorManager.RowConvertCMYK2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+// Conversion functions from CMYK to BGR/RGB
+// Note: these functions should not use 256/65536 instead of 255/65535
+type
+  TCMYKComponentConverter8To8 = function(const AComponent, KComponent: Byte): Byte;
+  TCMYKComponentConverter8To16 = function(const AComponent, KComponent: Byte): Word;
+  TCMYKComponentConverter16To8 = function(const AComponent, KComponent: Word): Byte;
+  TCMYKComponentConverter16To16 = function(const AComponent, KComponent: Word): Word;
+
+// TODO: These should be inline
+
+function ConvertFromCMYK8(const AComponent, KComponent: Byte): Byte;
+begin
+  Result := ClampByte(255 - (AComponent - MulDiv16(AComponent, KComponent, 255) + KComponent));
+end;
+
+function ConvertFromInvertedCMYK8(const AComponent, KComponent: Byte): Byte;
+begin
+  Result := ClampByte(MulDiv16(AComponent, KComponent, 255));
+end;
+
+function ConvertFromCMYK8To16(const AComponent, KComponent: Byte): Word;
+begin
+  Result := ClampByte(255 - (AComponent - MulDiv16(AComponent, KComponent, 255) + KComponent)) shr 8;
+end;
+
+function ConvertFromInvertedCMYK8To16(const AComponent, KComponent: Byte): Word;
+begin
+  Result := ClampByte(MulDiv16(AComponent, KComponent, 255)) shr 8;
+end;
+
+function ConvertFromCMYK16To8(const AComponent, KComponent: Word): Byte;
+begin
+  Result := ClampByte(255 - MulDiv16((AComponent - MulDiv16(AComponent, KComponent, 65535) + KComponent), 255, 65535));
+end;
+
+function ConvertFromInvertedCMYK16To8(const AComponent, KComponent: Word): Byte;
+begin
+  Result := ClampByte(Muldiv16(MulDiv16(AComponent, KComponent, 65535), 255, 65535));
+end;
+
+function ConvertFromCMYK16To16(const AComponent, KComponent: Word): Word;
+begin
+  Result := 65535 - MulDiv16((AComponent - MulDiv16(AComponent, KComponent, 65535) + KComponent), 255, 65535);
+end;
+
+function ConvertFromInvertedCMYK16To16(const AComponent, KComponent: Word): Word;
+begin
+  Result := Muldiv16(MulDiv16(AComponent, KComponent, 65535), 255, 65535);
+end;
 
 // Converts a stream of Count CMYK values to BGR
-
+procedure TColorManager.RowConvertCMYK2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   C8, M8, Y8, K8, A8: PByte;
   C16, M16, Y16, K16, A16: PWord;
@@ -3147,7 +3195,10 @@ var
   Increment: Integer;
   AlphaSkip: Integer;
   BitRun: Byte;
-
+  ConvertFromCMYK: TCMYKComponentConverter8To8;
+  ConvertFromCMYK8_16: TCMYKComponentConverter8To16;
+  ConvertFromCMYK16_8: TCMYKComponentConverter16To8;
+  ConvertFromCMYK16_16: TCMYKComponentConverter16To16;
 begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
@@ -3195,19 +3246,24 @@ begin
         case FTargetBPS of
           8: // 888 to 888
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK := @ConvertFromInvertedCMYK8
+              else
+                ConvertFromCMYK := @ConvertFromCMYK8;
+
               Target8 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // blue
-                  Target8^ := ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(Y8^, K8^);
                   Inc(Target8);
                   // green
-                  Target8^ := ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(M8^, K8^);
                   Inc(Target8);
                   // red
-                  Target8^ := ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(C8^, K8^);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
@@ -3235,19 +3291,24 @@ begin
             end;
           16: // 888 to 161616
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK8_16 := @ConvertFromInvertedCMYK8To16
+              else
+                ConvertFromCMYK8_16 := @ConvertFromCMYK8To16;
+
               Target16 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // blue
-                  Target16^ := MulDiv16(ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(Y8^, K8^);
                   Inc(Target16);
                   // green
-                  Target16^ := MulDiv16(ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(M8^, K8^);
                   Inc(Target16);
                   // red
-                  Target16^ := MulDiv16(ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(C8^, K8^);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
@@ -3307,19 +3368,24 @@ begin
         case FTargetBPS of
           8: // 161616 to 888
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK16_8 := @ConvertFromInvertedCMYK16To8
+              else
+                ConvertFromCMYK16_8 := @ConvertFromCMYK16To8;
+
               Target8 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // blue
-                  Target8^ := ClampByte(255 - MulDiv16((Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(Y16^, K16^);
                   Inc(Target8);
                   // green
-                  Target8^ := ClampByte(255 - MulDiv16((M16^ - MulDiv16(M16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(M16^, K16^);
                   Inc(Target8);
                   // red
-                  Target8^ := ClampByte(255 - MulDiv16((C16^ - MulDiv16(C16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(C16^, K16^);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
@@ -3347,19 +3413,24 @@ begin
             end;
           16: // 161616 to 161616
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK16_16 := @ConvertFromInvertedCMYK16To16
+              else
+                ConvertFromCMYK16_16 := @ConvertFromCMYK16To16;
+
               Target16 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // blue
-                  Target16^ := 65535 - (Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(Y16^, K16^);
                   Inc(Target16);
                   // green
-                  Target16^ := 65535 - (M16^ - MulDiv16(M16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(M16^, K16^);
                   Inc(Target16);
                   // blue
-                  Target16^ := 65535 - (C16^ - MulDiv16(C16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(C16^, K16^);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
@@ -3392,10 +3463,8 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TColorManager.RowConvertCMYK2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
-
 // Converts a stream of Count CMYK values to RGB,
-
+procedure TColorManager.RowConvertCMYK2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 var
   C8, M8, Y8, K8, A8: PByte;
   C16, M16, Y16, K16, A16: PWord;
@@ -3404,7 +3473,10 @@ var
   Increment: Integer;
   AlphaSkip: Integer;
   BitRun: Byte;
-
+  ConvertFromCMYK: TCMYKComponentConverter8To8;
+  ConvertFromCMYK8_16: TCMYKComponentConverter8To16;
+  ConvertFromCMYK16_8: TCMYKComponentConverter16To8;
+  ConvertFromCMYK16_16: TCMYKComponentConverter16To16;
 begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
@@ -3452,19 +3524,24 @@ begin
         case FTargetBPS of
           8: // 888 to 888
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK := @ConvertFromInvertedCMYK8
+              else
+                ConvertFromCMYK := @ConvertFromCMYK8;
+
               Target8 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // red
-                  Target8^ := ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(C8^, K8^);
                   Inc(Target8);
                   // green
-                  Target8^ := ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(M8^, K8^);
                   Inc(Target8);
                   // blue
-                  Target8^ := ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^));
+                  Target8^ := ConvertFromCMYK(Y8^, K8^);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
@@ -3492,19 +3569,24 @@ begin
             end;
           16: // 888 to 161616
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK8_16 := @ConvertFromInvertedCMYK8To16
+              else
+                ConvertFromCMYK8_16 := @ConvertFromCMYK8To16;
+
               Target16 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // red
-                  Target16^ := MulDiv16(ClampByte(255 - (C8^ - MulDiv16(C8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(C8^, K8^);
                   Inc(Target16);
                   // green
-                  Target16^ := MulDiv16(ClampByte(255 - (M8^ - MulDiv16(M8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(M8^, K8^);
                   Inc(Target16);
                   // blue
-                  Target16^ := MulDiv16(ClampByte(255 - (Y8^ - MulDiv16(Y8^, K8^, 255) + K8^)), 65535, 255);
+                  Target16^ := ConvertFromCMYK8_16(Y8^, K8^);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
@@ -3564,19 +3646,24 @@ begin
         case FTargetBPS of
           8: // 161616 to 888
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK16_8 := @ConvertFromInvertedCMYK16To8
+              else
+                ConvertFromCMYK16_8 := @ConvertFromCMYK16To8;
+
               Target8 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // red
-                  Target8^ := ClampByte(255 - MulDiv16((C16^ - MulDiv16(C16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(C16^, K16^);
                   Inc(Target8);
                   // green
-                  Target8^ := ClampByte(255 - MulDiv16((M16^ - MulDiv16(M16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(M16^, K16^);
                   Inc(Target8);
                   // blue
-                  Target8^ := ClampByte(255 - MulDiv16((Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^), 255, 65535));
+                  Target8^ := ConvertFromCMYK16_8(Y16^, K16^);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
@@ -3604,19 +3691,24 @@ begin
             end;
           16: // 161616 to 161616
             begin
+              if coInvertedCMYK in FSourceOptions then
+                ConvertFromCMYK16_16 := @ConvertFromInvertedCMYK16To16
+              else
+                ConvertFromCMYK16_16 := @ConvertFromCMYK16To16;
+
               Target16 := Target;
               while Count > 0 do
               begin
                 if Boolean(Mask and BitRun) then
                 begin
                   // red
-                  Target16^ := 65535 - (C16^ - MulDiv16(C16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(C16^, K16^);
                   Inc(Target16);
                   // green
-                  Target16^ := 65535 - (M16^ - MulDiv16(M16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(M16^, K16^);
                   Inc(Target16);
                   // blue
-                  Target16^ := 65535 - (Y16^ - MulDiv16(Y16^, K16^, 65535) + K16^);
+                  Target16^ := ConvertFromCMYK16_16(Y16^, K16^);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
