@@ -207,7 +207,8 @@ type
     csCIELog2L,   // CIE Log2(L)
     csCIELog2Luv, // CIE Log2(L) (u', v')
     csYCbCr,      // Another format using luminance and chromaticities.
-    csPhotoYCC    // A modified YCbCr version used for photo CDs.
+    csPhotoYCC,   // A modified YCbCr version used for photo CDs.
+    csYCCK        // A variant on YCbCr used by PhotoShop to store CMYK in JPEG
   );
 
   // Color Manager conversion settings
