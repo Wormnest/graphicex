@@ -1656,14 +1656,30 @@ begin
     end;
 
     // Setup bitmap properties.
+    {$IFNDEF FPC}
     PixelFormat := pf8Bit;
     Palette := CreatePalette(PLogPalette(@LogPalette)^);
+    {$ELSE}
+    PixelFormat := pf24Bit;
+    Palette := CreatePalette(PLogPalette(@LogPalette)^);
+    ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+    ColorManager.SourceBitsPerSample := 8;
+    ColorManager.SourceSamplesPerPixel := 1;
+    ColorManager.SourceColorScheme := csIndexed;
+    ColorManager.TargetBitsPerSample := 8;
+    ColorManager.TargetSamplesPerPixel := 3;
+    ColorManager.TargetColorScheme := csBGR;
+    {$ENDIF}
     Width := FImageProperties.Width;
     Height := FImageProperties.Height;
     // Finally read image data.
     for I := 0 to Height - 1 do
     begin
+      {$IFNDEF FPC}
       Move(Run^, Scanline[I]^, Width);
+      {$ELSE}
+      ColorManager.ConvertRow([Run], Scanline[I], Width, $ff);
+      {$ENDIF}
       Inc(Run, Width);
 
       Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
