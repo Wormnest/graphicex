@@ -425,6 +425,8 @@ function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
 procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal);
 // Convert RGBA TO BGR (no alpha)
 procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal);
+// Convert RGB TO BGR
+procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal);
 
 // Alpha channel functions
 // Converts PBGRA Array of length Count into premultiplied BGRA
@@ -1308,6 +1310,30 @@ begin
     Dest.G := m.G;
     Dest.R := m.R;
     Inc(m);
+    Inc(Dest);
+  end;
+end;
+
+// Convert RGB TO BGR
+procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal);
+var
+  m: PByte;
+  Red: Byte;
+  Dest: PBGR;
+  n: Cardinal;
+begin
+  m := Memory;
+  Dest := Memory;
+  // Beware that Source and Dest are the same!
+  for n := 0 to Width * Height - 1 do
+  begin
+    Red := m^; Inc(m);
+    // Source and Dest are the same no need to replace G since it doesn't change place
+    // Dest.G := m^;
+    Inc(m);
+    Dest.B := m^; Inc(m);
+    // Replace Red last since it replace the Blue byte in the line above
+    Dest.R := Red;
     Inc(Dest);
   end;
 end;
