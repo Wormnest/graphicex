@@ -41,6 +41,10 @@ type
   {$IFEND}
   Psize_t = ^size_t;
 
+  float = Single;
+  pfloat = ^float;
+
+
 
 implementation
 

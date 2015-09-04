@@ -21,7 +21,7 @@ unit LibTiffDelphi;
 interface
 
 uses
-  Windows, SysUtils, Classes;
+  Windows, SysUtils, Classes, C_Types;
 
 const
   CPrecompiled    = #13#10'Pre-compiled LibTiff for ';
@@ -75,21 +75,6 @@ type
   uint32 = LongWord;
   //int64 - Already defined
 
-  // jb Following types added here to make our life easier
-  {$IF NOT Declared(UInt64)}
-  uint64 = int64;
-  {$IFEND}
-  {$IF NOT Declared(PUInt64)}
-  puint64 = ^uint64; // Separate from declaring UInt64 since Fpc doesn't define puint64.
-  {$IFEND}
-  {$IF NOT Declared(NativeInt)}
-  NativeInt = Integer;
-  {$IFEND}
-  {$IF NOT Declared(NativeUInt)}
-  NativeUInt = Cardinal;
-  {$IFEND}
-  float = Single;
-  pfloat = ^float;
   puint8 = ^uint8;
   puint16 = ^uint16;
   pint32 = ^int32;
