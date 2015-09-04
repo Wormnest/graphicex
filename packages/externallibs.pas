@@ -7,7 +7,8 @@ unit ExternalLibs;
 interface
 
 uses
-  LibDelphi, ZLibDelphi, LibJpegDelphi, LibTiffDelphi, LibTiffDelphiHelper;
+  C_Types, LibDelphi, ZLibDelphi, LibJpegDelphi, LibTiffDelphi, 
+  LibTiffDelphiHelper;
 
 implementation
 
