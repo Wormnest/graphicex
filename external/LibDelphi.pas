@@ -7,7 +7,7 @@ interface
 {$ENDIF}
 
 uses
-  Windows, SysUtils;
+  Windows, SysUtils, C_Types;
 
 procedure _exit(code: Integer); cdecl;
 {$IFDEF FPC} public name 'exit';{$ENDIF}
@@ -18,13 +18,19 @@ function  snprintf(buffer: Pointer; bufsize: Integer; format: Pointer; arguments
 function  fputs(s: Pointer; stream: Pointer): Integer; cdecl;
 function  fputc(c: Integer; stream: Pointer): Integer; cdecl;
 function  isprint(c: Integer): Integer; cdecl;
-procedure memset(a: Pointer; b: Integer; c: Cardinal); cdecl;
-function  memcpy(dest: Pointer; const src: Pointer; count: Cardinal): Pointer; cdecl;
+procedure memset(a: Pointer; b: Integer; c: NativeUInt); cdecl;
+//{$IFDEF FPC} public name '_memset';{$ENDIF}
+function  memcpy(dest: Pointer; const src: Pointer; count: NativeUInt): Pointer; cdecl;
+//{$IFDEF FPC} public name '_memcpy';{$ENDIF}
+{$IFNDEF FPC}
 {$IFNDEF CPU64}
 function  _ftol: Integer; cdecl;
 {$ENDIF}
-function  malloc(s: Longint): Pointer; cdecl;
+{$ENDIF}
+function  malloc(s: NativeUInt): Pointer; cdecl;
+//{$IFDEF FPC} public name '_malloc';{$ENDIF}
 procedure free(p: Pointer); cdecl;
+//{$IFDEF FPC} public name '_free';{$ENDIF}
 function  _ltolower(ch: Integer): Integer; cdecl;
 function  _ltoupper(ch: Integer): Integer; cdecl;
 function  _ltowlower(ch: Integer): Integer; cdecl;
@@ -39,30 +45,11 @@ var
   __turboFloat: LongBool = False;
   _streams: Integer;
 
-type ELibDelphiError = class(Exception);
+type
+  ELibDelphiError = class(Exception);
 
 implementation
 
-  {$IF NOT Declared(UInt64)}
-type
-  UInt64 = Int64;
-  {$IFEND}
-  {$IF NOT Declared(PUInt64)}
-  // Fpc has UInt64 but not PUint64 so handle this separately from UInt64
-type
-  PUint64 = ^Uint64;
-  {$IFEND}
-  {$IF NOT Declared(NativeInt)}
-type
-  NativeInt = Integer;
-  {$IFEND}
-  {$IF NOT Declared(NativeUInt)}
-type
-  NativeUInt = Cardinal;
-  {$IFEND}
-
-
-{PODD}
 
 // Needed for 64 bits version of LibTiff etc since we can't figure out the
 // order yet that we need to link the libs for exit to be found in msvcrt.a
@@ -470,11 +457,12 @@ begin
   FreeMem(p);
 end;
 
-function malloc(s: Longint): Pointer; cdecl;
+function malloc(s: NativeUInt): Pointer; cdecl;
 begin
   Result := AllocMem(s);
 end;
 
+{$IFNDEF FPC}
 {$IFNDEF CPU64}
 function _ftol: Integer; cdecl;
 var
@@ -487,14 +475,15 @@ begin
   Result := Trunc(f);
 end;
 {$ENDIF}
+{$ENDIF}
 
-function memcpy(dest: Pointer; const src: Pointer; count: Cardinal): Pointer; cdecl;
+function memcpy(dest: Pointer; const src: Pointer; count: NativeUInt): Pointer; cdecl;
 begin
   CopyMemory(dest,src,count);
   Result:=dest;
 end;
 
-procedure memset(a: Pointer; b: Integer; c: Cardinal); cdecl;
+procedure memset(a: Pointer; b: Integer; c: NativeUInt); cdecl;
 begin
   FillMemory(a,c,b);
 end;

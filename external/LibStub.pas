@@ -57,7 +57,7 @@ interface
 {.$DEFINE USE_EXIT}  // jb Disabled because it overrides the default Exit which can lead to unexpected results.
 
 uses
-  Windows, Classes;
+  Windows, Classes, C_Types;
 
 var
   __turboFloat: LongBool = False;
@@ -90,9 +90,6 @@ type
 
   Ptime_t = ^time_t;
   time_t = Integer;
-
-  Psize_t = ^size_t;
-  size_t = Cardinal;
 
 procedure Abort;
 procedure _assert(__cond, __file: PAnsiChar; __line: Integer); cdecl;
@@ -150,11 +147,11 @@ function localtime(clock: PInteger): ptm; cdecl;
 function log(Value: Double): Double; cdecl;
 procedure longjmp(const __jmpb, __retval: Integer); cdecl;
 function _ltoupper(c: Integer): Integer; cdecl;
-function malloc(size: Integer): Pointer; cdecl;
-function memcmp(s1, s2: Pointer; n: Integer): Integer; cdecl;
+function malloc(size: NativeUInt): Pointer; cdecl;
+function memcmp(s1, s2: Pointer; n: NativeUInt): Integer; cdecl;
 procedure memcpy(dest, source: Pointer; count: Integer); cdecl;
 function memmove(dest, src: Pointer; n: Cardinal): Pointer; cdecl;
-procedure memset(P: Pointer; B: Integer; count: Integer); cdecl;
+procedure memset(P: Pointer; B: Integer; count: NativeUInt); cdecl;
 function pow(x, y: Double): Double; cdecl;
 function rand: Integer; cdecl;
 procedure qsort(base: Pointer; nelem, width: Cardinal; fcmp: cmp_callback); cdecl;
@@ -914,7 +911,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function malloc(size: Integer): Pointer;
+function malloc(size: NativeUInt): Pointer;
 
 begin
   GetMem(Result, size);
@@ -922,7 +919,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function memcmp(s1, s2: Pointer; n: Integer): Integer;
+function memcmp(s1, s2: Pointer; n: NativeUInt): Integer;
 
 begin
   Result := StrLComp(s1, s2, n);
@@ -947,7 +944,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure memset(P: Pointer; B: Integer; count: Integer);
+procedure memset(P: Pointer; B: Integer; count: NativeUInt);
 
 begin
   FillChar(P^, count, B);
