@@ -41,9 +41,25 @@ type
   {$IFEND}
   Psize_t = ^size_t;
 
-  float = Single;
+  float  = Single;
   pfloat = ^float;
 
+  short  = SmallInt;         ushort = Word;
+  int8   = ShortInt;         uint8  = Byte;
+  int16  = SmallInt;         uint16 = Word;
+  int32  = Integer;          uint32 = Cardinal;
+  int    = Integer;          uint   = Cardinal;
+  pint   = ^int;             puint  = ^uint;
+
+  {$IFDEF Windows}
+  long   = LongInt;          ulong  = LongWord;
+  {$ELSE}
+  {$IFDEF CPU64}
+  long   = Int64;            ulong  = UInt64;
+  {$ELSE}
+  {$ENDIF}
+  long   = LongInt;          ulong  = LongWord;
+  {$ENDIF}
 
 
 implementation
