@@ -28,8 +28,8 @@
         <UnitName Value="ZLibDelphi"/>
       </Item3>
       <Item4>
-        <Filename Value="..\external\LibJpegDelphi.pas"/>
-        <UnitName Value="LibJpegDelphi"/>
+        <Filename Value="..\external\libjpeg.pas"/>
+        <UnitName Value="LibJpeg"/>
       </Item4>
       <Item5>
         <Filename Value="..\external\LibTiffDelphi.pas"/>
