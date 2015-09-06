@@ -778,7 +778,7 @@ type
 
    // Data destination object for compression
    jpeg_destination_mgr = record
-     next_output_Byte: JOCTET_ptr;     // => next Byte to write in buffer
+     next_output_byte: JOCTET_ptr;     // => next Byte to write in buffer
      free_in_buffer: size_t;           // # of Byte spaces remaining in buffer
 
      init_destination: procedure (cinfo: j_compress_ptr); cdecl;
@@ -788,7 +788,7 @@ type
 
    // Data source object for decompression
    jpeg_source_mgr = record
-     next_input_Byte: JOCTET_ptr;      // => next Byte to read from buffer
+     next_input_byte: JOCTET_ptr;      // => next Byte to read from buffer
      bytes_in_buffer: size_t;          // # of Bytes remaining in buffer
 
      init_source: procedure (cinfo: j_decompress_ptr); cdecl;
