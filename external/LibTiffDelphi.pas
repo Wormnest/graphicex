@@ -2157,6 +2157,7 @@ function  TIFFInitOJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; externa
 
 // -----  LibTiffDelphi --------------------------------------------------------
 
+{$IFDEF WINDOWS} // TODO: Change to crossplatform implementation
 function  TIFFFileReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
 function  TIFFFileWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
 function  TIFFFileSizeProc(Fd: thandle_t): toff_t; cdecl; forward;
@@ -2358,7 +2359,7 @@ begin
   if Result <> nil then
     TIFFSetFileno(Result,Cardinal(Stream));
 end;
-
+{$ENDIF}
 
 initialization
   {$IFNDEF FPC}
