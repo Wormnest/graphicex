@@ -896,8 +896,8 @@ function  TIFFFieldWriteCount(const Fip: PTIFFField): Integer; cdecl; external;
 {$ENDIF ~LIBTIFF4}
 
 type
-  TIFFVSetMethod = function(Handle: PTIFF; Tag: uint32; args: va_list): Integer; cdecl;
-  TIFFVGetMethod = function(Handle: PTIFF; Tag: uint32; args: va_list): Integer; cdecl;
+  TIFFVSetMethod = function(Handle: PTIFF; Tag: uint32; args: Pointer): Integer; cdecl;
+  TIFFVGetMethod = function(Handle: PTIFF; Tag: uint32; args: Pointer): Integer; cdecl;
   TIFFPrintMethod = procedure(Handle: PTIFF; FileHandle: Pointer; Value: LongWord); cdecl;
 
   PTIFFTagMethods = ^TIFFTagMethods;
