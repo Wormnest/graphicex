@@ -6,12 +6,28 @@ interface
   {$mode delphi}
 {$ENDIF}
 
+{$A8} // align on 8 bytes  (64 bits needs to be 8 aligned, 32 bits can also use A4)
+{$Z4} // enum size = dword
+
 uses
-  Windows, SysUtils;
+  Windows, SysUtils, C_Types;
 
 const
 
+  JPEG_SUSPENDED          = 0; // Suspended due to lack of input data
+  JPEG_HEADER_OK          = 1; // Found valid image datastream
+  JPEG_HEADER_TABLES_ONLY = 2; // Found valid table-specs-only datastream
+  // If you pass require_image = TRUE (normal case), you need not check for
+  // a TABLES_ONLY return code; an abbreviated file will cause an error exit.
+  // JPEG_SUSPENDED is only possible if you use a data source module that can
+  // give a suspension return (the stdio source module doesn't).
+
   JPEG_LIB_VERSION    = 62;  { Version 6b }
+
+  JPEG_RST0 = $D0; // RST0 marker code
+  JPEG_EOI  = $D9; // EOI marker code
+  JPEG_APP0 = $E0; // APP0 marker code
+  JPEG_COM  = $FE; // COM marker code
 
   JMSG_STR_PARM_MAX   = 80;
   JMSG_LENGTH_MAX     = 200; { recommended size of format_message buffer }
@@ -23,17 +39,59 @@ const
   D_MAX_BLOCKS_IN_MCU = 10;  { decompressor's limit on blocks per MCU }
   DCTSIZE2 = 64;
 
-  JCS_UNKNOWN         = 0;   { error/unspecified }
-  JCS_GRAYSCALE       = 1;   { monochrome }
-  JCS_RGB             = 2;   { red/green/blue }
-  JCS_YCbCr           = 3;   { Y/Cb/Cr (also known as YUV) }
-  JCS_CMYK            = 4;   { C/M/Y/K }
-  JCS_YCCK            = 5;   { Y/Cb/Cr/K }
+  JFIF_DENSITY_UNIT_UNKNOWN = 0; // unknown, but valid to use for aspect ratio
+  JFIF_DENSITY_UNIT_DPI     = 1; // Dots per inch
+  JFIF_DENSITY_UNIT_DPCM    = 2; // Dots per cm
+
+  JPOOL_PERMANENT = 0; // lasts until master record is destroyed
+  JPOOL_IMAGE	  = 1; // lasts until done with image/datastream
+  JPOOL_NUMPOOLS  = 2;
 
 type
+  // Known color spaces.
+  J_COLOR_SPACE = (
+    JCS_UNKNOWN,   // error/unspecified
+    JCS_GRAYSCALE, // monochrome
+    JCS_RGB,       // red/green/blue
+    JCS_YCbCr,     // Y/Cb/Cr (also known as YUV)
+    JCS_CMYK,      // C/M/Y/K
+    JCS_YCCK       // Y/Cb/Cr/K
+  );
+
+  JSAMPLE = Byte;
+  JDIMENSION = Cardinal;
+  JSAMPLE_ptr = ^JSAMPLE;
+  JSAMPROW_ptr = ^JSAMPROW;
+
+  jTSample = 0..(MaxInt div SIZEOF(JSAMPLE)) - 1;
+  JSAMPLE_array = array[jTSample] of JSAMPLE;
+  JSAMPROW = ^JSAMPLE_array;    // ptr to one image row of pixel samples.
+
+  jTRow = 0..(MaxInt div SIZEOF(JSAMPROW)) - 1;
+  JSAMPROW_array = array[jTRow] of JSAMPROW;
+  JSAMParray = ^JSAMPROW_array; // ptr to some rows (a 2-D sample array)
+
+  j_common_ptr = ^RJpegCommonStruct;
+  // JPEG library memory manger routines
+  jpeg_memory_mgr_ptr = ^jpeg_memory_mgr;
+  jpeg_memory_mgr = record
+    // Method Pointers
+    alloc_small: function (cinfo: j_common_ptr; pool_id: Integer; sizeofobject: size_t): Pointer; cdecl;
+    alloc_large: function (cinfo: j_common_ptr; pool_id: Integer; sizeofobject: size_t): Pointer; cdecl;
+    alloc_sarray: function (cinfo: j_common_ptr; pool_id: Integer; samplesperrow: JDIMENSION; numrows: JDIMENSION): JSAMParray; cdecl;
+    alloc_barray: Pointer;
+    request_virt_sarray: Pointer;
+    request_virt_barray: Pointer;
+    realize_virt_arrays: Pointer;
+    access_virt_sarray: Pointer;
+    access_virt_barray: Pointer;
+    free_pool: Pointer;
+    self_destruct: Pointer;
+    max_memory_to_use: Longint;
+  end;
 
   PRJpegErrorMgr = ^RJpegErrorMgr;
-  PRJpegMemoryMgr = Pointer;
+  PRJpegMemoryMgr = jpeg_memory_mgr_ptr; //Pointer;
   PRJpegProgressMgr = Pointer;
   PRJpegDestinationMgr = ^RJpegDestinationMgr;
   PRJpegSourceMgr = ^RJpegSourceMgr;
@@ -112,7 +170,7 @@ type
 
   RJpegDestinationMgr = record
     NextOutputByte: Pointer;       { => next byte to write in buffer }
-    FreeInBuffer: Cardinal;        { # of byte spaces remaining in buffer }
+    FreeInBuffer: size_t;          { # of byte spaces remaining in buffer }
     InitDestination: TJpegInitDestination;
     EmptyOutputBuffer: TJpegEmptyOutputBuffer;
     TermDestination: TJpegTermDestination;
@@ -126,7 +184,7 @@ type
 
   RJpegSourceMgr = record
     NextInputByte: Pointer;
-    BytesInBuffer: Cardinal;
+    BytesInBuffer: size_t;
     InitSource: TJpegInitSource;
     FillInputBuffer: TJpegFillInputBuffer;
     SkipInputData: TJpegSkipInputData;
@@ -167,7 +225,7 @@ type
     DownsampledHeight: Cardinal;   { actual height in samples }
     { This flag is used only for decompression.  In cases where some of the components will be ignored (eg grayscale output from YCbCr
       image), we can skip most computations for the unused components. }
-    ComponentNeeded: Boolean;      { do we need the value of this component? }
+    ComponentNeeded: LongBool;     { do we need the value of this component? }
     { These values are computed before starting a scan of the component. }
     { The decompressor output side may not use these variables. }
     McuWidth: Integer;             { number of blocks per MCU, horizontally }
@@ -188,7 +246,7 @@ type
     Mem: PRJpegMemoryMgr;          { Memory manager module }
     Progress: PRJpegProgressMgr;   { Progress monitor, or NULL if none }
     ClientData: Pointer;           { Available for use by application }
-    IsDecompressor: Boolean;       { So common code can tell which is which }
+    IsDecompressor: LongBool;      { So common code can tell which is which }
     GlobalState: Integer;          { For checking call sequence validity }
   end;
 
@@ -197,7 +255,7 @@ type
     Mem: PRJpegMemoryMgr;          { Memory manager module }
     Progress: PRJpegProgressMgr;   { Progress monitor, or NULL if none }
     ClientData: Pointer;           { Available for use by application }
-    IsDecompressor: Boolean;       { So common code can tell which is which }
+    IsDecompressor: LongBool;      { So common code can tell which is which }
     GlobalState: Integer;          { For checking call sequence validity }
     { Destination for compressed data }
     Dest: PRJpegDestinationMgr;
@@ -206,7 +264,7 @@ type
     ImageWidth: Cardinal;          { input image width }
     ImageHeight: Cardinal;         { input image height }
     InputComponents: Integer;      { # of color components in input image }
-    InColorSpace: Integer;         { colorspace of input image }
+    InColorSpace: J_COLOR_SPACE;   { colorspace of input image }
     InputGamme: Double;            { image gamma of input image }
     { Compression parameters --- these fields must be set before calling jpeg_start_compress().  We recommend calling
       jpeg_set_defaults() to initialize everything to reasonable defaults, then changing anything the application specifically wants
@@ -214,7 +272,7 @@ type
       simplify changing parameters. }
     DataPrecision: Integer;        { bits of precision in image data }
     NumComponents: Integer;        { # of color components in JPEG image }
-    JpegColorSpace: Integer;       { colorspace of JPEG image }
+    JpegColorSpace: J_COLOR_SPACE; { colorspace of JPEG image }
     CompInfo: PRJpegComponentInfo; { comp_info[i] describes component that appears i'th in SOF }
     QuantTblPtrs: array[0..NUM_QUANT_TBLS-1] of PRJpegQuantTbl;   {ptrs to coefficient quantization tables, or NULL if not defined }
     DcHuffTblPtrs: array[0..NUM_HUFF_TBLS-1] of PRJpegHuffTbl;    {ptrs to Huffman coding tables, or NULL if not defined }
@@ -226,10 +284,10 @@ type
     ScanInfo: PRJpegScanInfo;      { script for multi-scan file, or NULL }
     { The default value of scan_info is NULL, which causes a single-scan sequential JPEG file to be emitted.  To create a multi-scan
       file, set num_scans and scan_info to point to an array of scan definitions. }
-    RawDataIn: Boolean;            { TRUE=caller supplies downsampled data }
-    ArithCode: Boolean;            { TRUE=arithmetic coding, FALSE=Huffman }
-    OptimizeCoding: Boolean;       { TRUE=optimize entropy encoding parms }
-    CCIR601Sampling: Boolean;      { TRUE=first samples are cosited }
+    RawDataIn: LongBool;            { TRUE=caller supplies downsampled data }
+    ArithCode: LongBool;            { TRUE=arithmetic coding, FALSE=Huffman }
+    OptimizeCoding: LongBool;       { TRUE=optimize entropy encoding parms }
+    CCIR601Sampling: LongBool;      { TRUE=first samples are cosited }
     SmoothingFactor: Integer;      { 1..100, or 0 for no input smoothing }
     DctMethod: Integer;            { DCT algorithm selector }
     { The restart interval can be specified in absolute MCUs by setting restart_interval, or in MCU rows by setting restart_in_rows
@@ -237,7 +295,7 @@ type
     RestartInterval: Cardinal;     { MCUs per restart, or 0 for no restart }
     RestartInRows: Integer;        { if > 0, MCU rows per restart interval }
     { Parameters controlling emission of special markers. }
-    WriteJfifHeader: Boolean;      { should a JFIF marker be written? }
+    WriteJfifHeader: LongBool;      { should a JFIF marker be written? }
     JfifMajorVersion: Byte;        { What to write for the JFIF version number }
     JFifMinorVersion: Byte;
     { These three values are not used by the JPEG code, merely copied  into the JFIF APP0 marker.  density_unit can be 0 for unknown,
@@ -245,13 +303,13 @@ type
     DensityUnit: Byte;             { JFIF code for pixel size units }
     XDensity: Word;                { Horizontal pixel density }
     YDensity: WOrd;                { Vertical pixel density }
-    WriteAdobeMarker: Boolean;     { should an Adobe marker be written? }
+    WriteAdobeMarker: LongBool;     { should an Adobe marker be written? }
     { State variable: index of next scanline to be written to jpeg_write_scanlines().  Application may use this to control its
       processing loop, e.g., "while (next_scanline < image_height)". }
     NextScanline: Cardinal;        { 0 .. image_height-1  }
     { Remaining fields are known throughout compressor, but generally should not be touched by a surrounding application. }
     { These fields are computed during compression startup }
-    ProgressiveMode: Boolean;      { TRUE if scan script uses progressive mode }
+    ProgressiveMode: LongBool;      { TRUE if scan script uses progressive mode }
     MaxHSampFactor: Integer;       { largest h_samp_factor }
     MaxVSampFactor: Integer;       { largest v_samp_factor }
     TotalIMCURows: Cardinal;       { # of iMCU rows to be input to coef ctlr }
@@ -287,7 +345,7 @@ type
     Mem: PRJpegMemoryMgr;          { Memory manager module }
     Progress: PRJpegProgressMgr;   { Progress monitor, or NULL if none }
     ClientData: Pointer;           { Available for use by application }
-    IsDecompressor: Boolean;       { So common code can tell which is which }
+    IsDecompressor: LongBool;       { So common code can tell which is which }
     GlobalState: Integer;          { For checking call sequence validity }
     { Source of compressed data }
     Src: PRJpegSourceMgr;
@@ -296,26 +354,26 @@ type
     ImageWidth: Cardinal;          { nominal image width (from SOF marker) }
     ImageHeight: Cardinal;         { nominal image height }
     NumComponents: Integer;        { # of color components in JPEG image }
-    JpegColorSpace: Integer;       { colorspace of JPEG image }
+    JpegColorSpace: J_COLOR_SPACE; { colorspace of JPEG image }
     { Decompression processing parameters --- these fields must be set before calling jpeg_start_decompress().  Note that
       jpeg_read_header() initializes them to default values. }
-    OutColorSpace: Integer;        { colorspace for output }
+    OutColorSpace: J_COLOR_SPACE;  { colorspace for output }
     ScaleNum,ScaleDenom: Cardinal; { fraction by which to scale image }
     OutputGamma: Double;           { image gamma wanted in output }
-    BufferedImage: Boolean;        { TRUE=multiple output passes }
-    RawDataOut: Boolean;           { TRUE=downsampled data wanted }
+    BufferedImage: LongBool;        { TRUE=multiple output passes }
+    RawDataOut: LongBool;           { TRUE=downsampled data wanted }
     DctMethod: Integer;            { IDCT algorithm selector }
-    DoFancyUpsampling: Boolean;    { TRUE=apply fancy upsampling }
-    DoBlockSmoothing: Boolean;     { TRUE=apply interblock smoothing }
-    QuantizeColors: Boolean;       { TRUE=colormapped output wanted }
+    DoFancyUpsampling: LongBool;    { TRUE=apply fancy upsampling }
+    DoBlockSmoothing: LongBool;     { TRUE=apply interblock smoothing }
+    QuantizeColors: LongBool;       { TRUE=colormapped output wanted }
     { the following are ignored if not quantize_colors: }
     DitherMode: Integer;           { type of color dithering to use }
-    TwoPassQuantize: Boolean;      { TRUE=use two-pass color quantization }
+    TwoPassQuantize: LongBool;      { TRUE=use two-pass color quantization }
     DesiredNumberOfColors: Integer;{ max # colors to use in created colormap }
     { these are significant only in buffered-image mode: }
-    Enable1PassQuant: Boolean;     { enable future use of 1-pass quantizer }
-    EnableExternalQuant: Boolean;  { enable future use of external colormap }
-    Enable2PassQuant: Boolean;     { enable future use of 2-pass quantizer }
+    Enable1PassQuant: LongBool;     { enable future use of 1-pass quantizer }
+    EnableExternalQuant: LongBool;  { enable future use of external colormap }
+    Enable2PassQuant: LongBool;     { enable future use of 2-pass quantizer }
     { Description of actual output image that will be returned to application. These fields are computed by jpeg_start_decompress().
       You can also use jpeg_calc_output_dimensions() to determine these values in advance of calling jpeg_start_decompress(). }
     OutputWidth: Cardinal;         { scaled image width }
@@ -358,22 +416,23 @@ type
     { These parameters are never carried across datastreams, since they are given in SOF/SOS markers or defined to be reset by SOI. }
     DataPrecision: Integer;        { bits of precision in image data }
     CompInfo: PRJpegComponentInfo; { comp_info[i] describes component that appears i'th in SOF }
-    ProgressiveMode: Boolean;      { TRUE if SOFn specifies progressive mode }
-    ArithCode: Boolean;            { TRUE=arithmetic coding, FALSE=Huffman }
+    ProgressiveMode: LongBool;      { TRUE if SOFn specifies progressive mode }
+    ArithCode: LongBool;            { TRUE=arithmetic coding, FALSE=Huffman }
     ArithDcL: array[0..NUM_ARITH_TBLS-1] of Byte;       { L values for DC arith-coding tables }
     ArithDcY: array[0..NUM_ARITH_TBLS-1] of Byte;       { U values for DC arith-coding tables }
     ArithAcK: array[0..NUM_ARITH_TBLS-1] of Byte;       { Kx values for AC arith-coding tables }
     RestartInterval: Cardinal;     { MCUs per restart interval, or 0 for no restart }
     { These fields record data obtained from optional markers recognized by the JPEG library. }
-    SawJfifMarker: Boolean;        { TRUE iff a JFIF APP0 marker was found }
+    SawJfifMarker: LongBool;        { TRUE iff a JFIF APP0 marker was found }
     { Data copied from JFIF marker; only valid if saw_JFIF_marker is TRUE: }
     JfifMajorVersion: Byte;        { JFIF version number }
     JfifMinorVersion: Byte;        { JFIF code for pixel size units }
+    density_unit: Byte;            // JFIF code for pixel size units
     XDensity: Word;                { Horizontal pixel density }
     YDensity: Word;                { Vertical pixel density }
-    SawAdobeMarker: Boolean;       { TRUE iff an Adobe APP14 marker was found }
+    SawAdobeMarker: LongBool;       { TRUE iff an Adobe APP14 marker was found }
     AdobeTransform: Byte;          { Color transform code from Adobe marker }
-    Ccir601Sampling: Boolean;      { TRUE=first samples are cosited }
+    Ccir601Sampling: LongBool;      { TRUE=first samples are cosited }
     { Aside from the specific data retained from APPn markers known to the library, the uninterpreted contents of any or all APPn and
       COM markers can be saved in a list for examination by the application. }
     MarkerList: PRJpegSavedMarker; { Head of list of saved markers }
@@ -417,12 +476,12 @@ type
   end;
 
 procedure jpeg_create_compress(cinfo: PRJpegCompressStruct); cdecl;
-procedure jpeg_CreateCompress(cinfo: PRJpegCompressStruct; version: Integer; structsize: Cardinal); cdecl; external;
+procedure jpeg_CreateCompress(cinfo: PRJpegCompressStruct; version: Integer; structsize: size_t); cdecl; external;
 procedure jpeg_create_decompress(cinfo: PRJpegDecompressStruct); cdecl;
-procedure jpeg_CreateDecompress(cinfo: PRJpegDecompressStruct; version: Integer; structsize: Cardinal); cdecl; external;
+procedure jpeg_CreateDecompress(cinfo: PRJpegDecompressStruct; version: Integer; structsize: size_t); cdecl; external;
 procedure jpeg_abort(cinfo: PRJpegCommonStruct); cdecl; external;
 procedure jpeg_set_defaults(cinfo: PRJpegCompressStruct); cdecl; external;
-procedure jpeg_set_colorspace(cinfo: PRJpegCompressStruct; colorspace: Integer); cdecl; external;
+procedure jpeg_set_colorspace(cinfo: PRJpegCompressStruct; colorspace: J_COLOR_SPACE); cdecl; external;
 procedure jpeg_set_quality(cinfo: PRJpegCompressStruct; quality: Integer; force_baseline: Byte); cdecl; external;
 procedure jpeg_suppress_tables(cinfo: PRJpegCompressStruct; suppress: Byte); cdecl; external;
 procedure jpeg_start_compress(cinfo: PRJpegCompressStruct; write_all_tables: Byte); cdecl; external;
@@ -431,17 +490,46 @@ function  jpeg_write_raw_data(cinfo: PRJpegCompressStruct; data: Pointer; num_li
 procedure jpeg_finish_compress(cinfo: PRJpegCompressStruct); cdecl; external;
 procedure jpeg_write_tables(cinfo: PRJpegCompressStruct); cdecl; external;
 function  jpeg_read_header(cinfo: PRJpegDecompressStruct; require_image: Boolean): Integer; cdecl; external;
-function  jpeg_start_decompress(cinfo: PRJpegDecompressStruct): Byte; cdecl; external;
+function  jpeg_start_decompress(cinfo: PRJpegDecompressStruct): Boolean; cdecl; external;
 function  jpeg_read_scanlines(cinfo: PRJpegDecompressStruct; scanlines: Pointer; max_lines: Cardinal): Cardinal; cdecl; external;
 function  jpeg_read_raw_data(cinfo: PRJpegDecompressStruct; data: Pointer; max_lines: Cardinal): Cardinal; cdecl; external;
-function  jpeg_finish_decompress(cinfo: PRJpegDecompressStruct): Byte; cdecl; external;
+function  jpeg_finish_decompress(cinfo: PRJpegDecompressStruct): Boolean; cdecl; external;
 procedure jpeg_destroy(cinfo: PRJpegCommonStruct); cdecl; external;
 function  jpeg_std_error(err: PRJpegErrorMgr): Pointer; cdecl; external;
 function  jpeg_resync_to_restart(cinfo: PRJpegDecompressStruct; desired: Integer): Byte; cdecl; external;
 
+{* Destruction of JPEG compression objects *}
+procedure jpeg_destroy_compress(cinfo: PRJpegDecompressStruct); cdecl; external;
+procedure jpeg_destroy_decompress(cinfo: PRJpegDecompressStruct); cdecl; external;
+
 
 type
   ELibJpegError = class(Exception);
+
+  // Forward declarations of default error routines.
+  procedure JpegError(cinfo: PRJpegCommonStruct); cdecl;
+  procedure EmitMessage(cinfo: PRJpegCommonStruct; msg_level: Integer); cdecl;
+  procedure OutputMessage(cinfo: PRJpegCommonStruct); cdecl;
+  procedure FormatMessage(cinfo: PRJpegCommonStruct; buffer: Pointer); cdecl;
+  procedure ResetErrorMgr(cinfo: PRJpegCommonStruct); cdecl;
+  // Our error string formatting routine:
+  function GetMessage(cinfo: PRJpegCommonStruct): string;
+
+type
+  // A way to intercept emitted messages and fatal error messages
+  TMessageInterceptor = procedure(const AMessage: string; const AMessageLevel: Integer);
+
+// Returns previous handler or nil
+function SetMessageInterceptor(AMessageInterceptor: TMessageInterceptor): TMessageInterceptor;
+
+const
+  DefaultErrorManager: RJpegErrorMgr = (
+    ErrorExit: JpegError;
+    EmitMessage: EmitMessage;
+    OutputMessage: OutputMessage;
+    FormatMessage: FormatMessage;
+    ResetErrorMgr: ResetErrorMgr;
+  );
 
 implementation
 
@@ -449,6 +537,16 @@ implementation
 uses
   LibStub;
 {$ENDIF}
+
+var
+  MessageInterceptor: TMessageInterceptor = nil;
+
+// Returns previous handler or nil
+function SetMessageInterceptor(AMessageInterceptor: TMessageInterceptor): TMessageInterceptor;
+begin
+  Result := @MessageInterceptor;
+  MessageInterceptor := @AMessageInterceptor;
+end;
 
 { jb I prefer the method used by both Mike Lischke's JPG.pas and Delphi's own jpeg unit
   for handling jpeg's error exit over LibJpegDelphi's because the latter needs
@@ -462,64 +560,54 @@ uses
   message strings from jpeg that would be even better.
 }
 
-procedure jpeg_error_exit_raise; cdecl;
+procedure jpeg_error_exit_raise(cinfo: PRJpegCommonStruct); cdecl;
 {$IFDEF FPC} public name '_jpeg_error_exit_raise'; {$ENDIF}
 begin
-  raise ELibJpegError.Create('LibJpeg: unrecoverable error');
+  raise ELibJpegError.CreateFmt('LibJpeg: unrecoverable error %d', [cinfo.Err.MsgCode]);
 end;
 
-// Todo: We should set the default error handlers in initialization.
-(***** From GraphicEx JPG.pas
-// Forward declarations of default error routines.
-procedure JpegError(cinfo: PRJpegCommonStruct); cdecl; forward;
-procedure EmitMessage(cinfo: PRJpegCommonStruct; msg_level: Integer); cdecl; forward;
-procedure OutputMessage(cinfo: PRJpegCommonStruct); cdecl; forward;
-procedure FormatMessage(cinfo: PRJpegCommonStruct; buffer: Pointer); cdecl; forward;
-procedure ResetErrorMgr(cinfo: PRJpegCommonStruct); cdecl; forward;
-
-const
-  DefaultErrorManager: RJpegErrorMgr = (
-    ErrorExit: JpegError;
-    EmitMessage: EmitMessage;
-    OutputMessage: OutputMessage;
-    FormatMessage: FormatMessage;
-    ResetErrorMgr: ResetErrorMgr;
-  );
-
-procedure JpegError(cinfo: PRJpegCommonStruct); cdecl;
+function GetMessage(cinfo: PRJpegCommonStruct): string;
 var
   Template: string;
 begin
-  Template := JPGMessages[cinfo.err.msg_code];
-  // The error can either be a string or up to 8 integers.
-  // Search the message template for %s (the string formatter) to decide, which one we have to use.
-  if Pos('%s', Template) > 0 then
-    raise EJPGError.CreateFmt(Template, [cinfo.err.msg_parm.s])
-  else
-    with cinfo.err.msg_parm do
-      raise EJPGError.CreateFmt(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
+  if (cinfo.err.MsgCode >= 0) and (cinfo.err.MsgCode <= cinfo.err.LastJpegMessage) then begin
+    Template := cinfo.Err.JpegMessageTable[cinfo.err.MsgCode];
+    if Pos('%s', Template) > 0 then
+      Result := Format(Template, [cinfo.err.MsgParm.MsgParmS])
+    else
+      with cinfo.err.MsgParm do
+        Result := Format(Template, [MsgParmI[0], MsgParmI[1], MsgParmI[2], MsgParmI[3], MsgParmI[4], MsgParmI[5], MsgParmI[6], MsgParmI[7]]);
+  end
+  else begin
+    Result := Format('JpegLib: Unknown error code %d', [cinfo.err.MsgCode]);
+  end;
+end;
+
+procedure JpegError(cinfo: PRJpegCommonStruct); cdecl;
+var
+  ErrMsg: string;
+begin
+  ErrMsg := GetMessage(cinfo);
+  if Assigned(@MessageInterceptor) then
+    MessageInterceptor(ErrMsg, -2);
+  raise ELibJpegError.Create(ErrMsg);
 end;
 
 procedure EmitMessage(cinfo: PRJpegCommonStruct; msg_level: Integer); cdecl;
-// For debugging only.
-{$ifopt D+}
-  var
-    Template: string;
-    Message: string;
-  begin
-    Template := JPGMessages[cinfo.err.msg_code];
-    // The message can either be a string or up to 8 integers.
-    // Search the message template for %s (the string formatter) to decide, which one we have to use.
-    if Pos('%s', Template) > 0 then
-      Message := Format(Template, [cinfo.err.msg_parm.s])
-    else
-      with cinfo.err.msg_parm do
-        Message := Format(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
-    OutputDebugString(PChar(Message));
-  end;
+{$ifopt D+} // For debugging only.
+var
+  ErrMsg: string;
+begin
+  ErrMsg := GetMessage(cinfo);
+  if Assigned(@MessageInterceptor) then
+    MessageInterceptor(ErrMsg, msg_level);
+  OutputDebugString(PChar(ErrMsg));
+end;
 {$else}
-  begin
-  end;
+begin
+  if Assigned(@MessageInterceptor) then
+    MessageInterceptor(GetMessage(cinfo), msg_level);
+end;
 {$endif D+}
 
 procedure OutputMessage(cinfo: PRJpegCommonStruct); cdecl;
@@ -529,7 +617,14 @@ end;
 procedure FormatMessage(cinfo: PRJpegCommonStruct; buffer: Pointer); cdecl;
 begin
 end;
-*****)
+
+procedure ResetErrorMgr(cinfo: PRJpegCommonStruct); cdecl;
+begin
+  cinfo^.err^.NumWarnings := 0;
+  cinfo^.err^.MsgCode := 0;
+end;
+
+(*****)
 
 procedure jpeg_create_compress(cinfo: PRJpegCompressStruct); cdecl;
 begin
@@ -540,7 +635,7 @@ procedure jpeg_create_decompress(cinfo: PRJpegDecompressStruct); cdecl;
 begin
   jpeg_CreateDecompress(cinfo, JPEG_LIB_VERSION, SizeOf(RJpegDecompressStruct));
 end;
-
+{
 function  jpeg_get_small(cinfo: PRJpegCommonStruct; sizeofobject: Cardinal): Pointer; cdecl; external;
 function  jpeg_get_large(cinfo: PRJpegCommonStruct; sizeofobject: Cardinal): Pointer; cdecl; external;
 function  jpeg_mem_available(cinfo: PRJpegCommonStruct; min_bytes_needed: Integer; max_bytes_needed: Integer; already_allocated: Integer): Integer; cdecl; external;
@@ -557,7 +652,7 @@ procedure jcopy_sample_rows(input_array: Pointer; source_row: Integer; output_ar
                num_cols: Cardinal); cdecl; external;
 function  jround_up(a: Integer; b: Integer): Integer; cdecl; external;
 procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: Cardinal); cdecl; external;
-
+}
 {$IFNDEF FPC}
 {$L jmemnobs.obj}
 {$L jmemmgr.obj}
@@ -605,7 +700,9 @@ procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: C
   // fpc
   {$IFDEF MSWINDOWS}
     {$IFNDEF CPU64}
-      {$LINKLIB libcrtdll} // _malloc and _free
+      {.$LINKLIB libcrtdll} // _malloc and _free
+      {$LINKLIB libmsvcrt.a}
+      {.$LINKLIB libkernel32.a}
     {$ELSE}
       {$LINKLIB libmsvcrt.a}
       {$LINKLIB libkernel32.a}
