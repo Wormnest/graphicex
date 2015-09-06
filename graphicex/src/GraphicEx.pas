@@ -5768,7 +5768,8 @@ begin
   Result := Size > SizeOf(TRLAHeader);
   if Result then
     with PRLAHeader(Memory)^ do
-      Result := (Word(Revision) = $FEFF) and ((StrLIComp(Chan, 'rgb', 3) = 0) or (StrLIComp(Chan, 'xyz', 3) = 0));
+      Result := ((Word(Revision) = $FEFF) or (Word(Revision) = $FDFF)) and
+        ((StrLIComp(Chan, 'rgb', 3) = 0) or (StrLIComp(Chan, 'xyz', 3) = 0));
 end;
 
 //------------------------------------------------------------------------------
