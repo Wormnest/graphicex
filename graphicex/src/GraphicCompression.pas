@@ -68,7 +68,7 @@ interface
 
 uses                                                
   Windows, Classes, SysUtils, Graphics,
-  LibJpegDelphi, //JPG,   // JPEG compression support
+  //LibJpeg,    // JPEG compression support
   ZLibDelphi; //GXzLib;  // general inflate/deflate and LZ77 compression support
      
 type
