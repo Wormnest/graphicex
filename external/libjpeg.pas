@@ -987,6 +987,12 @@ const
   JPEG_APP0 = $E0; // APP0 marker code
   JPEG_COM  = $FE; // COM marker code
 
+
+// These should be considered private. However they are needed by libtiff
+// so they can't be moved to implementation.
+procedure jpeg_CreateCompress(cinfo: j_compress_ptr; version: Integer; structsize: size_t); cdecl;
+procedure jpeg_CreateDecompress(cinfo: j_decompress_ptr; version: Integer; structsize: size_t); cdecl;
+
 // End of jpeglib.h
 
 // ---------- jversion.h ----------
