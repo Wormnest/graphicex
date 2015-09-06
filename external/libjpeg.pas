@@ -1108,6 +1108,14 @@ type
 {$ENDIF}
 
 
+const
+  // These constants are not part of libjpeg. I have defined them for ease of use.
+  JFIF_DENSITY_UNIT_UNKNOWN = 0; // unknown, but valid to use for aspect ratio
+  JFIF_DENSITY_UNIT_DPI     = 1; // Dots per inch
+  JFIF_DENSITY_UNIT_DPCM    = 2; // Dots per cm
+
+
+
 // Forward declarations of default error routines.
 procedure JpegError(cinfo: j_common_ptr); cdecl;
 procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); cdecl;
