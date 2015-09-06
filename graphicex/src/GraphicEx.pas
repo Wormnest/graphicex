@@ -5809,16 +5809,21 @@ begin
         SourceSamplesPerPixel := SamplesPerPixel;
         TargetSamplesPerPixel := SamplesPerPixel;
 
+        if SampleFormat = 3 then // Floating point
+          ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
+
         SourceBitsPerSample := BitsPerSample;
         if BitsPerSample > 8 then
           TargetBitsPerSample := 8
         else
           TargetBitsPerSample := BitsPerSample;
         SourceColorScheme := ColorScheme;
-        if ColorScheme = csRGBA then
-          TargetColorScheme := csBGRA
+        case ColorScheme of
+          csRGBA, csGA: TargetColorScheme := csBGRA;
+          csRGB, csXYZ: TargetColorScheme := csBGR;
+          csG: TargetColorScheme := csBGR;
         else
-          TargetColorScheme := csBGR;
+        end;
 
         PixelFormat := TargetPixelFormat;
 
@@ -5965,6 +5970,8 @@ begin
       SwapHeader(Header);
       Options := [ioBigEndian];
 
+      SampleFormat := Header.Storage_type;
+
       SamplesPerPixel := Header.num_chan;
       if Header.num_matte = 1 then
         Inc(SamplesPerPixel);
@@ -5973,27 +5980,33 @@ begin
 
       if LowerCase(AnsiString(Header.Chan)) = 'rgb' then
       begin
-        if Header.num_matte > 0 then
-          ColorScheme := csRGBA
-        else
-          ColorScheme := csRGB;
+        if Header.num_chan = 3 then begin
+          if Header.num_matte > 0 then
+            ColorScheme := csRGBA
+          else
+            ColorScheme := csRGB;
+        end
+        else if Header.num_chan = 1 then begin
+          if Header.num_matte > 0 then
+            ColorScheme := csGA
+          else
+            ColorScheme := csG;
+        end
       end
+      else if LowerCase(AnsiString(Header.Chan)) = 'xyz' then
+        ColorScheme := csXYZ
       else
-        // if LowerCase(Header.Chan) = 'xyz' then
         ColorScheme := csUnknown;
 
-      // The only RLA sample image I have seems to use the screen default gamma
-      // of 2.2. We need to convert that value to an expected default value of 1.
-      // A value of 0.0 means no gamma set according to fileformat.info
       // The description of fileformat.info about gamma says:
       // Gamma contains an ASCII floating-point number representing the gamma
       // correction factor applied to the image before it was stored. A value of
       // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
-      // This seems to imply that we do not have to apply the gamma since it
-      // was already applied. This looks to be correct based on the 1 example I have.
-      FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
-      if Abs(FileGamma) >= 0.01 then
-        Include(Options, ioUseGamma);
+      if Header.Gamma[0] <> #0 then begin
+        FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
+        if Abs(FileGamma) >= 0.01 then
+          Include(Options, ioUseGamma);
+      end;
 
       Compression := ctRLE;
 
