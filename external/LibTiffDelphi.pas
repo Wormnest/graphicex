@@ -1220,7 +1220,7 @@ procedure _TIFFmemset(p: Pointer; v: Integer; c: tmsize_t); cdecl;
 procedure _TIFFmemset(p: Pointer; v: Integer; c: tmsize_t); cdecl; public name '__TIFFmemset';
 {$ENDIF}
 begin
-  FillMemory(p, c, v);
+  FillChar(p^, c, v);
 end;
 
 {$IFNDEF FPC}
@@ -1229,7 +1229,7 @@ procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: tmsize_t); cdecl;
 procedure _TIFFmemcpy(d: Pointer; s: Pointer; c: tmsize_t); cdecl; public name '__TIFFmemcpy';
 {$ENDIF}
 begin
-  CopyMemory(d, s, c);
+  Move(s^, d^, c);
 end;
 
 {$IFNDEF FPC}
