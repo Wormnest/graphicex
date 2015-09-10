@@ -14,7 +14,7 @@
         <CustomOptions Value="-dLIBTIFF4"/>
       </Other>
     </CompilerOptions>
-    <Files Count="17">
+    <Files Count="18">
       <Item1>
         <Filename Value="..\graphicex\src\GraphicStrings.pas"/>
         <UnitName Value="GraphicStrings"/>
@@ -83,6 +83,10 @@
         <Filename Value="..\graphicex\src\gexBlendModes.pas"/>
         <UnitName Value="gexBlendModes"/>
       </Item17>
+      <Item18>
+        <Filename Value="..\graphicex\src\gexJpeg.pas"/>
+        <UnitName Value="gexJpeg"/>
+      </Item18>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>
