@@ -3170,7 +3170,9 @@ end;
 
 function ConvertFromInvertedCMYK8(const AComponent, KComponent: Byte): Byte;
 begin
-  Result := ClampByte(MulDiv16(AComponent, KComponent, 255));
+  // No need for ClampByte here: result will always be between 0-255
+  // Inline is faster than calling functions, certainly for 64 bits
+  Result := Word(AComponent) * Word(KComponent) div 255;
 end;
 
 function ConvertFromCMYK8To16(const AComponent, KComponent: Byte): Word;
