@@ -868,8 +868,10 @@ procedure jpeg_destroy_decompress(cinfo: j_decompress_ptr); cdecl;
 
 // Standard data source and destination managers: stdio streams.
 // Caller is responsible for opening the file before and closing after.
+{$IFNDEF CPU64}
 procedure jpeg_stdio_dest(cinfo: j_compress_ptr; output_file: TStream); cdecl;
 procedure jpeg_stdio_src(cinfo: j_decompress_ptr; input_file: TStream); cdecl;
+{$ENDIF}
 
 
 // Default parameter setup for compression
@@ -1133,8 +1135,13 @@ const
     reset_error_mgr: {$IFDEF FPC}@{$ENDIF}ResetErrorMgr;
   );
 
+{$IFNDEF CPU64}
+// Currently not working in Win 64 due to unresolved references to fread, fflush and ferror
+// when calling jpeg_stdio_src even though they are available in linklib msvcrt.a.
+// Todo: rework this to use our own io functions.
 procedure GetJPEGInfo(FileName: string; var Width, Height: Cardinal); overload;
 procedure GetJPEGInfo(Stream: TStream; var Width, Height: Cardinal); overload;
+{$ENDIF}
 
 
 {$IFDEF LIBJPEG_INTERNAL}
@@ -1446,8 +1453,10 @@ procedure jpeg_CreateDecompress(cinfo: j_decompress_ptr; version: Integer; struc
 procedure jpeg_destroy_compress (cinfo: j_compress_ptr); cdecl; external;
 procedure jpeg_destroy_decompress (cinfo: j_decompress_ptr); cdecl; external;
 
+{$IFNDEF CPU64}
 procedure jpeg_stdio_dest(cinfo: j_compress_ptr; output_file: TStream); cdecl; external;
 procedure jpeg_stdio_src(cinfo: j_decompress_ptr; input_file: TStream); cdecl; external;
+{$ENDIF}
 
 procedure jpeg_set_defaults(cinfo: j_compress_ptr); cdecl; external;
 procedure jpeg_set_colorspace(cinfo: j_compress_ptr; colorspace: J_COLOR_SPACE); cdecl; external;
@@ -1649,6 +1658,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFNDEF CPU64}
 procedure GetJPEGInfo(Stream: TStream; var Width, Height: Cardinal);
 var
   Context: jpeg_decompress_struct;
@@ -1679,6 +1689,7 @@ begin
     Stream.Free;
   end;
 end;
+{$ENDIF}
 
 //------------------------------------------------------------------------------
 
