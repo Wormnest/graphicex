@@ -1,9 +1,9 @@
 { gexXCF A Gimp XCF image format loader.
   Dual License: MPL 1.1 or LGPL 2.1 with linking exception (the "FPC modified LGPL License")
-  Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+  Portions Created by Jacob Boerema are Copyright (C) 2013-2105 Jacob Boerema.
   All Rights Reserved.
   Based in part on xcftools.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 
   TODO:
   - Hue: small differences: maybe caused by using integer conversion instead of floats?

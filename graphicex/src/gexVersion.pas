@@ -7,8 +7,8 @@
 // specific language governing rights and limitations under the License.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2013 Jacob Boerema. All Rights Reserved.
-// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+// Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // GraphicEx Version constants
 

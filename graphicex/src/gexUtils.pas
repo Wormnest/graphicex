@@ -16,7 +16,7 @@
 // Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 // Portions created by Jacob Boerema are
 // Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
-// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // gexUtils Utility functions for GraphicEx.
 

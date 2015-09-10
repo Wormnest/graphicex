@@ -1,8 +1,8 @@
 { gexBmpWrapper A GraphicEx Wrapper around the bmp loading class.
   Dual License: MPL 1.1 or LGPL 2.1 with linking exception (the "FPC modified LGPL License")
-  Portions Created by Jacob Boerema are Copyright (C) 2014 Jacob Boerema.
+  Portions Created by Jacob Boerema are Copyright (C) 2014-2015 Jacob Boerema.
   All Rights Reserved.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 }
 
 unit gexBmpWrapper;

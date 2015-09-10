@@ -39,7 +39,7 @@
   needing any extra tables initialized.
   Also removes the class object to call the blend procedures and adds calling
   the blend functions line by line instead of pixel by pixel.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 
   Jacob Boerema
 }

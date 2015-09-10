@@ -2,7 +2,7 @@
   gexGR32 This unit defines some types and functions from GR32.pas that are needed
           by gex(Basic)BlendModes.pas when the define USE_GR32 is NOT defined.
   License: same as Graphics32.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 }
 
 unit gexGR32Replacement;

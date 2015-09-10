@@ -17,11 +17,11 @@ unit GraphicCompression;
 // Portions created by Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
 // Portions created by Jacob Boerema are
-// Copyright (C) 2012, 2013 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2012-2015 Jacob Boerema. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
-// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // GraphicCompression contains various encoder/decoder classes used to handle compressed
 // data in the various image classes.

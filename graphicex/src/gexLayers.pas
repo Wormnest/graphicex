@@ -3,9 +3,9 @@
   License: MPL 1.1
   Portions created by Mike Lischke are
   Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
-  Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+  Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
   All Rights Reserved.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 }
 
 unit gexLayers;

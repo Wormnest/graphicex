@@ -18,7 +18,7 @@ unit GraphicEx;
 // Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2012, 2013 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2012-2015 Jacob Boerema. All Rights Reserved.
 //
 // Credits:
 //   Haukur K. Bragason, Ingo Neumann, Craig Peterson
@@ -27,7 +27,7 @@ unit GraphicEx;
 // See help file for a description of supported image formats.
 //
 // Version: see gexVersion.
-// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // Note: This library can be compiled with Delphi 5 or newer versions.
 //

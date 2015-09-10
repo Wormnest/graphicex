@@ -1,9 +1,9 @@
 { gexXCF Type definitions for XCF image format.
   Dual License: MPL 1.1 or LGPL 2.1 with linking exception (the "FPC modified LGPL License")
-  Portions Created by Jacob Boerema are Copyright (C) 2013 Jacob Boerema.
+  Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
   All Rights Reserved.
   Based on xcftools and gimp sources.
-  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/jgb-thirdparty
+  This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 }
 unit gexXCFTypes;
 

@@ -10,11 +10,17 @@ unit GraphicStrings;
 //
 // The original code is GraphicStrings.pas, released November 1, 1999.
 //
-// The initial developer of the original code is Dipl. Ing. Mike Lischke (Pleiﬂa, Germany, www.delphi-gems.com),
+// The initial developer of the original code is Dipl. Ing. Mike Lischke (Plei√üa, Germany, www.delphi-gems.com),
 //
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
+//
+// Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
+// All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
+//
+// This file is part of the image library GraphicEx.
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // GraphicStrings contains the English version of the strings used in GraphicEx, which can be localized.
 // Translation done by Mike Lischke (public@delphi-gems.com).
