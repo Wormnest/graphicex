@@ -76,6 +76,7 @@ interface
 {$ELSE}
    // fpc
   {$mode Delphi}
+  {$ASMMODE INTEL} // Needed for 64 bit assembler
 {$ENDIF}
 
 uses
@@ -548,10 +549,26 @@ asm
          DIV CX
 end;
 {$ELSE}
+{$IFDEF ASM64}
+// Number in RCX
+// Numerator in RDX
+// Denominator in R8
+// Result in RAX
+assembler; nostackframe;
+asm     // Note: this seems to be slower than the pure pascal version below!!!
+        MOV EAX, ECX
+        // Since both Number and Numerator can't be more than 65535 the result
+        // of mul will never be more than can fit in eax so edx will always be 0
+        // (normal result of mul edx will be in edx:eax)
+        MUL EDX
+        DIV R8     // Divide RAX by R8, we ignore overflow
+end;
+{$ELSE}
 begin
   Result := LongWord(Number) * Numerator div Denominator;
 end;
-{$ENDIF}
+{$ENDIF ASM64}
+{$ENDIF ~CPU64}
 
 
 {$IFNDEF FPC} // Fpc has these already available in unit System
