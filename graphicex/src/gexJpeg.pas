@@ -236,11 +236,9 @@ begin
 
   // The 5 functions are first in the record so we need to copy
   // 5 * SizeOf(Pointer)
-  //Move(DefaultErrorManager, FJpegInfo.err^, 5*SizeOf(Pointer));
-
-  // Since we are currently only using 2 of the functions we only initialize those:
-  Result.error_exit := @JpegError;
-  Result.emit_message := @EmitMessage;
+  // Although by default we only really need error_exit and emit_message we
+  // copy all 5 functions to make it possible to change these functions
+  Move(DefaultErrorManager, Result^, 5*SizeOf(Pointer));
 end;
 
 function TgexJpegImage.InitJpegSourceManager(var SrcManager: jpeg_source_mgr_ptr;

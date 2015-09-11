@@ -1126,7 +1126,7 @@ procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar); cdecl;
 procedure ResetErrorMgr(cinfo: j_common_ptr); cdecl;
 function GetMessage(cinfo: j_common_ptr): string;
 
-const
+var
   DefaultErrorManager: jpeg_error_mgr = (
     error_exit: {$IFDEF FPC}@{$ENDIF}JpegError;
     emit_message: {$IFDEF FPC}@{$ENDIF}EmitMessage;
