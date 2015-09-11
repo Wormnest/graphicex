@@ -1608,7 +1608,7 @@ begin
         Result := Format(Template, [I[0], I[1], I[2], I[3], I[4], I[5], I[6], I[7]]);
   end
   else begin
-    Result := Format('JpegLib: Unknown error code %d', [cinfo.err.msg_code]);
+    Result := Format('LibJpeg: Unknown error code %d', [cinfo.err.msg_code]);
   end;
 end;
 
