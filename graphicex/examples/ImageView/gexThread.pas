@@ -70,11 +70,21 @@ type
     procedure SetExceptionMessage(AMessage: string);
     function GetIgnoreException: Boolean;
     procedure SetIgnoreException(AValue: Boolean);
+    function GetSilentThumbLoadingException: Boolean;
+    procedure SetSilentThumbLoadingException(AValue: Boolean);
+    function GetSilentThreadException: Boolean;
+    procedure SetSilentThreadException(AValue: Boolean);
 
     procedure ThumbsGetThumbnail(Sender: TObject; Thumb: PgexThumbData);
 
     property ExceptionMessage: string read GetExceptionMessage write SetExceptionMessage;
+    // Temporary ignore the current exception. Will be set to false after exception occurred.
     property IgnoreException: Boolean read GetIgnoreException write SetIgnoreException;
+
+    property SilentThumbLoadingException: Boolean read GetSilentThumbLoadingException
+      write SetSilentThumbLoadingException;
+    property SilentThreadException: Boolean read GetSilentThreadException
+      write SetSilentThreadException;
   end;
 
   // Thumbnail creation thread class
@@ -106,10 +116,16 @@ type
     FProgressCount,
     FProgressCurrent: Integer;
     FIgnoreException: Boolean;
+    FSilentThumbLoadingException: Boolean;
+    FSilentThreadException: Boolean;
     function GetExceptionMessage: string;
     procedure SetExceptionMessage(AMessage: string);
     function GetIgnoreException: Boolean;
     procedure SetIgnoreException(AValue: Boolean);
+    function GetSilentThumbLoadingException: Boolean;
+    procedure SetSilentThumbLoadingException(AValue: Boolean);
+    function GetSilentThreadException: Boolean;
+    procedure SetSilentThreadException(AValue: Boolean);
   protected
     CellJpeg: TJpegImage;
     CellScale: Integer;
@@ -141,6 +157,10 @@ type
     procedure CMUpdateProgress(var message: TMessage); message CM_UpdateProgress;
     property ExceptionMessage: string read GetExceptionMessage write SetExceptionMessage;
     property IgnoreException: Boolean read GetIgnoreException write SetIgnoreException;
+    property SilentThumbLoadingException: Boolean read GetSilentThumbLoadingException
+      write SetSilentThumbLoadingException;
+    property SilentThreadException: Boolean read GetSilentThreadException
+      write SetSilentThreadException;
   public
     // Colors
     cGSelectedStart,
@@ -488,6 +508,13 @@ end;
 //                           TgexBaseForm
 // -----------------------------------------------------------------------------
 
+function CreateThumbJpeg: TJpegImage;
+begin
+  Result := TJpegImage.Create;
+  Result.CompressionQuality := 80;
+  Result.Performance := jpBestSpeed;
+end;
+
 constructor TgexBaseForm.Create(AOwner : TComponent);
 begin
   inherited Create(AOwner);
@@ -497,9 +524,7 @@ begin
   PoolSize := 0;
   MaxPool := Round(((Screen.Width * Screen.Height) * 3) * 1.5);
   ThumbsPool := TList.Create;
-  FThumbJpeg := TJpegImage.Create;
-  FThumbJpeg.CompressionQuality := 80;
-  FThumbJpeg.Performance := jpBestSpeed;
+  FThumbJpeg := CreateThumbJpeg;
   FMaxThumbSizeW := 256;
   FMaxThumbSizeH := 256;
   CellJpeg := TJpegImage.Create;
@@ -550,6 +575,26 @@ end;
 procedure TgexBaseForm.SetIgnoreException(AValue: Boolean);
 begin
   FIgnoreException := AValue;
+end;
+
+function TgexBaseForm.GetSilentThumbLoadingException: Boolean;
+begin
+  Result := FSilentThumbLoadingException;
+end;
+
+procedure TgexBaseForm.SetSilentThumbLoadingException(AValue: Boolean);
+begin
+  FSilentThumbLoadingException := AValue;
+end;
+
+function TgexBaseForm.GetSilentThreadException: Boolean;
+begin
+  Result := FSilentThreadException;
+end;
+
+procedure TgexBaseForm.SetSilentThreadException(AValue: Boolean);
+begin
+  FSilentThreadException := AValue;
 end;
 
 function TgexBaseForm.IsThreadRunning: Boolean;
@@ -808,6 +853,11 @@ begin
       except
         ExceptionMessage := 'Error loading jpeg: ' + FName;
         fail := True;
+        // Because of the exception when loading a jpeg the FThumbJpeg state might
+        // be incorrect for further usage. (Experienced in the Fpc Jpeg loader.)
+        // Thus we destroy it and create a new one.
+        FThumbJpeg.Free;
+        FThumbJpeg := CreateThumbJpeg;
       end;
       // This draws the full image to a Bitmap and then makes a
       // thumbnail image in the required size for it
@@ -1400,7 +1450,8 @@ begin
           FIThumbnail.ThumbsGetThumbnail(XPView, PThumb);
           if FIThumbnail.ExceptionMessage <> '' then
           begin
-            Synchronize (ShowExceptionMessage);
+            if not FIThumbNail.SilentThumbLoadingException then
+              Synchronize (ShowExceptionMessage);
             FIThumbnail.ExceptionMessage := '';
           end;
           InView := XPView.ViewIdx + (XPView.ViewColumns * (XPView.ViewRows));
@@ -1417,7 +1468,7 @@ begin
   except
     on E:exception do
     begin
-      if not FIThumbnail.IgnoreException then begin
+      if not FIThumbnail.IgnoreException and not FIThumbNail.SilentThreadException then begin
         FThreadExceptionMsg := E.Message;
         Synchronize (ShowThreadException);
       end
