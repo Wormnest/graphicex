@@ -1616,31 +1616,45 @@ end;
 procedure JpegError(cinfo: j_common_ptr); cdecl;
 var
   ErrMsg: string;
+  DummyContinue: Boolean;
 begin
   ErrMsg := GetMessage(cinfo);
-  if Assigned(@MessageInterceptor) then
-    MessageInterceptor(ErrMsg, -2);
-  raise ELibJpegError.Create(ErrMsg);
+  if Assigned(@MessageInterceptor) then begin
+    DummyContinue := False; // Dummy since we will never continue here!
+    MessageInterceptor(ErrMsg, -2, DummyContinue);
+  end;
+  jpeg_destroy(cinfo);
+  raise ELibJpegError.Create('LibJpeg: ' + ErrMsg);
 end;
 
 procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); cdecl;
-{$ifopt D+} // For debugging only.
 var
+  ShouldWeContinue: Boolean;
+{$ifopt D+} // For debugging only.
   ErrMsg: string;
+{$endif D+}
 begin
+  if msg_level < 0 then
+    Inc(cinfo^.err^.num_warnings);
+  // By default we continue for everything non fatal including warnings
+  ShouldWeContinue := True;
+
+{$ifopt D+} // For debugging only.
   ErrMsg := GetMessage(cinfo);
   if Assigned(@MessageInterceptor) then
-    MessageInterceptor(ErrMsg, msg_level);
+    MessageInterceptor(ErrMsg, msg_level, ShouldWeContinue);
   {$IFDEF WINDOWS}
   OutputDebugString(PChar(ErrMsg));
   {$ENDIF}
-end;
-{$else}
-begin
+{$else D+}
   if Assigned(@MessageInterceptor) then
-    MessageInterceptor(GetMessage(cinfo), msg_level);
-end;
+    MessageInterceptor(GetMessage(cinfo), msg_level, ShouldWeContinue);
 {$endif D+}
+  if not ShouldWeContinue then begin
+    jpeg_destroy(cinfo);
+    raise ELibJpegError.Create('LibJpeg: ' + ErrMsg);
+  end;
+end;
 {$ENDIF}
 
 procedure OutputMessage(cinfo: j_common_ptr); cdecl;
