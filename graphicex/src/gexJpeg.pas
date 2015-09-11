@@ -413,6 +413,8 @@ begin
         PixelFormat := pf24Bit; // Assume 24 bit
       end;
 
+      // Set buffer to nil so in case of an error we will know whether it's assigned or not
+      buffer[0] := nil;
       try
         // Set scaling factor as defined by the user
         case FScale of
