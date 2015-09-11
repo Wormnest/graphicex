@@ -1163,7 +1163,8 @@ type
   ELibJpegError = class(Exception);
 
   // A way to intercept emitted messages and fatal error messages
-  TMessageInterceptor = procedure(const AMessage: string; const AMessageLevel: Integer);
+  TMessageInterceptor = procedure(const AMessage: string; const AMessageLevel: Integer;
+    var AContinue: Boolean);
 
 // Returns previous handler or nil
 function SetMessageInterceptor(AMessageInterceptor: TMessageInterceptor): TMessageInterceptor;
