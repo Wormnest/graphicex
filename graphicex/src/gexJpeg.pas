@@ -322,17 +322,11 @@ begin
 end;
 
 function TgexJpegImage.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
-var
-  DestroyJpeg: Boolean;
 begin
-  try
-    Result := InternalReadImageProperties(Memory, Size, ImageIndex);
-    DestroyJpeg := Result;
-  except
-    DestroyJpeg := True;
-    Result := False;
-  end;
-  if DestroyJpeg then
+  Result := InternalReadImageProperties(Memory, Size, ImageIndex);
+  // No need for a try block since in case of an exception the error handler
+  // will call jpeg_destroy.
+  if Result then
     jpeg_destroy(j_common_ptr(FJpegInfo));
 end;
 
@@ -348,13 +342,8 @@ var
 begin
   inherited;
 
-  try
-    // True: We need an image too not only the image heade
-    PropertiesOK := InternalReadImageProperties(Memory, Size, ImageIndex, True);
-  except
-    PropertiesOK := False;
-    jpeg_destroy(j_common_ptr(FJpegInfo));
-  end;
+  // True: We need an image too, not only the image header
+  PropertiesOK := InternalReadImageProperties(Memory, Size, ImageIndex, True);
 
   if PropertiesOK then begin
     // Initialize outermost progress display.
