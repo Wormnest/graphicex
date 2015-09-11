@@ -18,7 +18,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="87"/>
+      <BuildNr Value="88"/>
       <Attributes pvaDebug="True" pvaPrivateBuild="True"/>
       <StringTable ProductVersion=""/>
     </VersionInfo>

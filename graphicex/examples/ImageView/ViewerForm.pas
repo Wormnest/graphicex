@@ -73,8 +73,8 @@ const
     ( 'Unknown file type',
       'bmp image',  'jpeg image', 'png image', 'gif image',
       'tiff image', 'tga image', 'pcd image', 'psd image','psp image',
-      'pnm image',  'pcx image',  'rla image', 'sgi image', 'Autodesk cel/pic image',
-      'DrHalo cut image', 'Arts and Letters ged image', 'EPS image',
+      'pnm image',  'pcx image',  'rla image', 'sgi image', 'Autodesk Animator cel/pic image',
+      'DrHalo cut image', 'Arts & Letters ged image', 'EPS image',
       'Gimp xcf image'
     );
 
@@ -714,7 +714,9 @@ const
     'CIE Log2(L)',   // CIE Log2(L)
     'CIE Log2(L) (u''v'')', // CIE Log2(L) (u', v')
     'YCbCr',         // Another format using luminance and chromaticities.
-    'PhotoYCC'       // A modified YCbCr version used for photo CDs.
+    'PhotoYCC',      // A modified YCbCr version used for photo CDs.
+    'YCCK (CMYK)',   // CMYK stored in JPEG by PhotoShop
+    'CIE XYZ'        // CIE XYZ
   );
   CCompression: array [TCompressionType] of string = (
     'Unknown',          // Compression type is unknown.
