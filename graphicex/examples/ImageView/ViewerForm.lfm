@@ -1,7 +1,7 @@
 object frmViewer: TfrmViewer
-  Left = 263
+  Left = 260
   Height = 694
-  Top = 124
+  Top = 140
   Width = 1616
   Caption = 'frmViewer'
   ClientHeight = 694

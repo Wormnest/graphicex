@@ -48,6 +48,10 @@ uses
   {$ENDIF}
   gexBmpWrapper,
   gexJpegWrapper,
+  {$DEFINE USE_LIBJPEG}
+  {$IFDEF USE_LIBJPEG}
+  gexJpeg
+  {$ENDIF}
   gexTypes, GraphicEx, rkView, gexThread, Buttons, Grids;
 
 const
@@ -260,7 +264,9 @@ implementation
 {$R *.lfm}
 {$ENDIF}
 
-uses Math, GraphicColor, {$IFNDEF FPC} jpeg, {$ENDIF} LibTiffDelphi,
+uses Math, GraphicColor,
+  {$IFNDEF FPC} jpeg, {$ENDIF}
+  LibTiffDelphi, LibJpeg,
   gexBlend, gexStretch;
 
 
@@ -286,12 +292,32 @@ const
 
 var TiffError: array[0..1000] of Char;
   CollectErrors: Boolean;
+
+  // List of Errors/Warnings/Info when loading images
+  // A code is stored in the object to specify the type of message
+  // -2 = error, -1 = warning, >= 0 = info
+  // -3 = exception during loading of image
   ErrorList: TStringList;
 
 procedure gexIgnoreTIFFError(const a, b: AnsiString);
 begin
-  ErrorList.Add(a + ':  ' + b);
+  //ErrorList.Add(a + ':  ' + b);
+  ErrorList.AddObject(a + ':  ' + b, TObject(-2));
   StrPCopy(TiffError,a + ':  ' + b);
+end;
+
+procedure gexTIFFWarning(const a, b: AnsiString);
+begin
+  ErrorList.AddObject(a + ':  ' + b, TObject(-1));
+end;
+
+// JpegLib error/warning/info message interception
+procedure JpegMessageInterceptor(const AMessage: string; const AMessageLevel: Integer;
+  var AContinue: Boolean);
+begin
+  ErrorList.AddObject(Format('LibJpeg message level %d. %s',[AMessageLevel, AMessage]), TObject(AMessageLevel));
+  // Continue for warnings and informational messages
+  AContinue := AMessageLevel >= -1;
 end;
 
 // Add a disabled state bitmap to SpeedButtons (and BitBtns)
@@ -391,6 +417,10 @@ begin
   // on every image with problems.
   // For now we can only set TIFF reading to not show exceptions, for other formats this is TODO!
   LibTiffDelphiSetErrorHandler({$IFDEF FPC}@{$ENDIF}gexIgnoreTIFFError);
+  // Also add a handler for TIFF warnings
+  LibTiffDelphiSetWarningHandler({$IFDEF FPC}@{$ENDIF}gexTIFFWarning);
+  // And set a handler for LibJpeg
+  SetMessageInterceptor({$IFDEF FPC}@{$ENDIF}JpegMessageInterceptor);
   TiffError := '';
 
   // Add disabled state bitmaps to our page SpeedButtons
@@ -416,6 +446,10 @@ begin
   SelRect.Right := 1;
   SelRect.Bottom := 0;
   sgImgProperties.Selection := SelRect;
+
+  // We don't want exception messages to popup during loading of images etc....
+  SilentThumbLoadingException := True;
+  SilentThreadException := True;
 end;
 
 procedure TfrmViewer.FormDestroy(Sender: TObject);
@@ -1294,131 +1328,173 @@ begin
 
   FLoadTick := GetAccurateTick; // Starting time for loading
   FBlendTick := 0;
+  try
 
-  ClearGrid; // Clear grid with image info
+    ClearGrid; // Clear grid with image info
 
-  CollectErrors := True;
-  // To be able to handle situations where the file extension differs from
-  // the actual file format (e.g. jpeg with tiff extension, or bmp without extension)
-  // We cannot use Picture.LoadFromFile because that uses extensions to
-  // determine which image type to load.
-  case Thumb.ImageFormat of
-    CgexBitmap:
-      begin
-        // To be able to load Bitmap files without extension or with another extension
-        // than .bmp we will explicitly load a bitmap and then assign it to FPicture.
-        {bmpImg := TBitmap.Create;
+    CollectErrors := True;
+    // To be able to handle situations where the file extension differs from
+    // the actual file format (e.g. jpeg with tiff extension, or bmp without extension)
+    // We cannot use Picture.LoadFromFile because that uses extensions to
+    // determine which image type to load.
+    case Thumb.ImageFormat of
+      CgexBitmap:
+        begin
+          // To be able to load Bitmap files without extension or with another extension
+          // than .bmp we will explicitly load a bitmap and then assign it to FPicture.
+          {bmpImg := TBitmap.Create;
+          try
+            bmpImg.LoadFromFile(ImgFile);
+            CopyBasicImageInfo(bmpImg);
+            FPicture.Assign(bmpImg);
+            if (FPicture.Bitmap.PixelFormat = pf32Bit) then
+              // TODO: We should also test if there are any (partially) transparent
+              // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
+              // The alpha component can be set to 0 making the image invisible, change this to all opaque
+              BitmapSetAlpha255(FPicture.Bitmap);
+          finally
+            bmpImg.Free;
+          end;}
+
+          // Now using our GraphicEx Bmp wrapper.
+          AGraphic := TgexBmpGraphic.Create;
+          try
+            // Now load the first page of our image
+            TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
+            // Get some basic image info
+            // TODO: Enhance our bmp wrapper to get all bmp image properties from
+            // ReadImageProperties, but for now:
+            CopyBasicImageInfo(TBitmap(AGraphic));
+            ImgGraphicClass := TgexBmpGraphic;
+            FPicture.Assign(AGraphic);
+            // ShowImageInfo needs to be called AFTER assigning bitmap to FPicture.
+            ShowImageInfo;
+            if (FPicture.Bitmap.PixelFormat = pf32Bit) then
+              // TODO: We should also test if there are any (partially) transparent
+              // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
+              // The alpha component can be set to 0 making the image invisible, change this to all opaque
+              BitmapSetAlpha255(FPicture.Bitmap);
+          finally
+            AGraphic.Free;
+          end;
+
+        end;
+      CgexJpeg:
+        begin
+  {
+          // Since certain jpegs (e.g. CMYK colorspace) need extra handling we
+          // don't use FPicture.LoadFromFile.
+          // Although this version is not used anymore here, we leave it in as an example.
+          jpgImg := TJpegImage.Create();
+          try
+            jpgImg.Scale := jsFullSize;
+            jpgImg.Performance := jpBestQuality;
+            jpgImg.LoadFromFile(ImgFile);
+            FPicture.Bitmap.Assign(jpgImg);
+            // For CMYK jpeg's (as implemented by Gabriel Corneanu, http://cc.embarcadero.com/Item/19723)
+            // we apparently need to explicitly set PixelFormat to pf24Bit.
+            FPicture.Bitmap.PixelFormat := pf24Bit;
+            CopyBasicImageInfo(FPicture);
+          finally
+            jpgImg.Free;
+          end;
+  }
+          {$IFDEF USE_LIBJPEG}
+          // Use our GraphicEx LibJpeg imple
+          AGraphic := TgexJpegImage.Create;
+          try
+            // Get a scaled down version of a very large image
+            TgexJpegImage(AGraphic).AutoScaleLargeImage := True;
+            // Now load the first page of our image
+            TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
+            {$IFDEF JPEG_MEASURE_SPEED}
+            // testing speed of jpeg reading
+            lblStatus.Caption := Format('LibJpeg: %d, ColorConversion %d',
+              [TgexJpegImage(AGraphic).LibJpegTicks, TgexJpegImage(AGraphic).ConversionTicks]);
+            {$ENDIF}
+            ImgGraphicClass := TgexJpegImage;
+//          FPicture.Assign(AGraphic);
+          finally
+            // Assign jpeg even in case of an error: we may be able to show
+            // a partial image.
+            // Note: we only do this because we are an image viewer. Normal usage
+            // would be to assign it only if there was no exception/error.
+            if (AGraphic <> nil) and (AGraphic.Width > 0) and (AGraphic.Height > 0) then
+              FPicture.Assign(AGraphic);
+            // Get some basic image info
+            GetImageInfo(TGraphicExGraphic(AGraphic));
+            CopyImageInfo(TGraphicExGraphic(AGraphic));
+            AGraphic.Free;
+          end;
+          {$ELSE}
+          // Now using our GraphicEx Jpeg wrapper.
+          AGraphic := TgexJpegGraphic.Create;
+          try
+            // Now load the first page of our image
+            TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
+            ImgGraphicClass := TgexJpegGraphic;
+            // Get some basic image info
+            GetImageInfo(TGraphicExGraphic(AGraphic));
+            CopyImageInfo(TGraphicExGraphic(AGraphic));
+            FPicture.Assign(AGraphic);
+          finally
+            AGraphic.Free;
+          end;
+          {$ENDIF}
+
+        end;
+    else
+      if Thumb.ImageData <> nil then begin
+        // ImageFormat could even be CgexUnknown if it's an image format we know
+        // but we don't have explicitly determined
+        GraphicClass := Thumb.ImageData;
+        AGraphic := GraphicClass.Create;
+        AGraphic.OnProgress := ImageLoadProgress;
         try
-          bmpImg.LoadFromFile(ImgFile);
-          CopyBasicImageInfo(bmpImg);
-          FPicture.Assign(bmpImg);
-          if (FPicture.Bitmap.PixelFormat = pf32Bit) then
-            // TODO: We should also test if there are any (partially) transparent
-            // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
-            // The alpha component can be set to 0 making the image invisible, change this to all opaque
-            BitmapSetAlpha255(FPicture.Bitmap);
-        finally
-          bmpImg.Free;
-        end;}
+          if Thumb.ImageFormat = CgexPcd then
+            // Set starting page for PCD to 3
+            ImgPage := 2; // 0 based third page
 
-        // Now using our GraphicEx Bmp wrapper.
-        AGraphic := TgexBmpGraphic.Create;
-        try
           // Now load the first page of our image
           TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
-          // Get some basic image info
-          // TODO: Enhance our bmp wrapper to get all bmp image properties from
-          // ReadImageProperties, but for now:
-          CopyBasicImageInfo(TBitmap(AGraphic));
-          ImgGraphicClass := TgexBmpGraphic;
-          FPicture.Assign(AGraphic);
-          // ShowImageInfo needs to be called AFTER assigning bitmap to FPicture.
-          ShowImageInfo;
-          if (FPicture.Bitmap.PixelFormat = pf32Bit) then
-            // TODO: We should also test if there are any (partially) transparent
-            // pixels in the bitmap. Only set Alpha to 255 if there are no transparent pixels!
-            // The alpha component can be set to 0 making the image invisible, change this to all opaque
-            BitmapSetAlpha255(FPicture.Bitmap);
+          ImgGraphicClass := GraphicClass;
+//        FPicture.Assign(AGraphic);
         finally
-          AGraphic.Free;
-        end;
-
-      end;
-    CgexJpeg:
-      begin
-{
-        // Since certain jpegs (e.g. CMYK colorspace) need extra handling we
-        // don't use FPicture.LoadFromFile.
-        // Although this version is not used anymore here, we leave it in as an example.
-        jpgImg := TJpegImage.Create();
-        try
-          jpgImg.Scale := jsFullSize;
-          jpgImg.Performance := jpBestQuality;
-          jpgImg.LoadFromFile(ImgFile);
-          FPicture.Bitmap.Assign(jpgImg);
-          // For CMYK jpeg's (as implemented by Gabriel Corneanu, http://cc.embarcadero.com/Item/19723)
-          // we apparently need to explicitly set PixelFormat to pf24Bit.
-          FPicture.Bitmap.PixelFormat := pf24Bit;
-          CopyBasicImageInfo(FPicture);
-        finally
-          jpgImg.Free;
-        end;
-}
-        // Now using our GraphicEx Jpeg wrapper.
-        AGraphic := TgexJpegGraphic.Create;
-        try
-          // Now load the first page of our image
-          TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
-          ImgGraphicClass := TgexJpegGraphic;
+          // Assign image even in case of an error: we may be able to show
+          // a partial image.
+          // Note: we only do this because we are an image viewer. Normal usage
+          // would be to assign it only if there was no exception/error.
+          if (AGraphic <> nil) and (AGraphic.Width > 0) and (AGraphic.Height > 0) then
+            FPicture.Assign(AGraphic);
           // Get some basic image info
+          // Do this in the finally, that way we can even show some image info
+          // when the image is corrupt.
           GetImageInfo(TGraphicExGraphic(AGraphic));
           CopyImageInfo(TGraphicExGraphic(AGraphic));
-          FPicture.Assign(AGraphic);
-        finally
           AGraphic.Free;
         end;
-
+      end
+      else if Thumb.ImageFormat <> CgexUnknown then begin
+        // Try to load image using Picture.LoadFromFile as a last resort.
+        FPicture.LoadFromFile(ImgFile);
+      end
+      else begin
+        FPicture.Graphic := nil;
+        ImgPageCount := 0;
+        pb2.Invalidate;
       end;
-  else
-    if Thumb.ImageData <> nil then begin
-      // ImageFormat could even be CgexUnknown if it's an image format we know
-      // but we don't have explicitly determined
-      GraphicClass := Thumb.ImageData;
-      AGraphic := GraphicClass.Create;
-      AGraphic.OnProgress := ImageLoadProgress;
-      try
-        if Thumb.ImageFormat = CgexPcd then
-          // Set starting page for PCD to 3
-          ImgPage := 2; // 0 based third page
-
-        // Now load the first page of our image
-        TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
-        ImgGraphicClass := GraphicClass;
-        FPicture.Assign(AGraphic);
-      finally
-        // Get some basic image info
-        // Do this in the finally, that way we can even show some image info
-        // when the image is corrupt.
-        GetImageInfo(TGraphicExGraphic(AGraphic));
-        CopyImageInfo(TGraphicExGraphic(AGraphic));
-        AGraphic.Free;
-      end;
-    end
-    else if Thumb.ImageFormat <> CgexUnknown then begin
-      // Try to load image using Picture.LoadFromFile as a last resort.
-      FPicture.LoadFromFile(ImgFile);
-    end
-    else begin
-      FPicture.Graphic := nil;
-      ImgPageCount := 0;
-      pb2.Invalidate;
     end;
+    CollectErrors := False;
+  finally
+    // Update info and errors even if we got an exception reading the image
+    FLoadTick := GetAccurateTick - FLoadTick;
+    UpdateImageStatus;
+    UpdatePageButtons;
+    ShowErrors;
+    // Even images with errors may be able to show some partial result
+    if CollectErrors then
+      pb2.Invalidate;
   end;
-  CollectErrors := False;
-  FLoadTick := GetAccurateTick - FLoadTick;
-  UpdateImageStatus;
-  UpdatePageButtons;
-  ShowErrors;
 
   if ImgPageCount = 0 then  // Testing for img.Picture = nil doesn't work!
     Exit; // Can't stretch if there is no image
@@ -1623,26 +1699,32 @@ begin
         LoadingFailed := True;
         lblStatus.Caption := 'Error loading image: ' + FileName +#13#10 +
           e.Message;
+          ErrorList.AddObject(lblStatus.Caption, TObject(-3));
       end;
       on e:EgexColorConversionError do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Color conversion error loading image: ' + FileName +
           #13#10 + e.Message;
+        ErrorList.AddObject(lblStatus.Caption, TObject(-3));
       end;
       on e:EOutOfMemory do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Not enough free memory to load image: ' + FileName;
+        ErrorList.AddObject(lblStatus.Caption, TObject(-3));
       end;
       on e:EOutOfResources do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Not enough free resources to load image: ' + FileName;
+        ErrorList.AddObject(lblStatus.Caption, TObject(-3));
       end;
       on e:EDivByZero do begin
         LoadingFailed := True;
         lblStatus.Caption := 'Division by Zero during loading of image: ' + FileName;
+        ErrorList.AddObject(lblStatus.Caption, TObject(-3));
       end;
       else begin
         ExceptionMessage := 'Unknown error loading image: ' + FileName;
+        ErrorList.AddObject(lblStatus.Caption, TObject(-3));
         raise;
       end;
     end;
@@ -1948,7 +2030,13 @@ begin
     // 1 empty row between image info and image loading errors
     IncInfoRow;
     for i := 0 to ErrorList.Count-1 do begin
-      sgImgProperties.Cells[0,InfoRow] := 'Image loading error:';
+      case NativeInt(ErrorList.Objects[i]) of
+        -2: sgImgProperties.Cells[0,InfoRow] := 'Image loading error:';
+        -1: sgImgProperties.Cells[0,InfoRow] := 'Image loading warning:';
+        -3: sgImgProperties.Cells[0,InfoRow] := 'Exception during image loading:';
+      else
+        {0..7:} sgImgProperties.Cells[0,InfoRow] := 'Image info:';
+      end;
       sgImgProperties.Cells[1,InfoRow] := ErrorList.Strings[i];
       IncInfoRow;
     end;
@@ -2025,6 +2113,7 @@ end;
 initialization
   CollectErrors := False;
   ErrorList := TStringList.Create;
+  ErrorList.Capacity := 64;
 finalization
   ErrorList.Free;
 end.
