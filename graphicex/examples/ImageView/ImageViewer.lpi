@@ -18,7 +18,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="66"/>
+      <BuildNr Value="87"/>
       <Attributes pvaDebug="True" pvaPrivateBuild="True"/>
       <StringTable ProductVersion=""/>
     </VersionInfo>
@@ -52,6 +52,7 @@
           <Linking>
             <Debugging>
               <DebugInfoType Value="dsDwarf2Set"/>
+              <UseHeaptrc Value="True"/>
               <UseExternalDbgSyms Value="True"/>
             </Debugging>
             <Options>
@@ -132,7 +133,6 @@
           </CodeGeneration>
           <Linking>
             <Debugging>
-              <GenerateDebugInfo Value="False"/>
               <DebugInfoType Value="dsDwarf2Set"/>
               <UseExternalDbgSyms Value="True"/>
             </Debugging>
@@ -183,7 +183,10 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-dLIBTIFF4"/>
+            <CustomOptions Value="-CfSSE3
+-CpCOREI
+-OpCOREI
+-dLIBTIFF4"/>
           </Other>
         </CompilerOptions>
       </Item5>
@@ -238,7 +241,7 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="3">
+    <Exceptions Count="8">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -248,6 +251,21 @@
       <Item3>
         <Name Value="EFOpenError"/>
       </Item3>
+      <Item4>
+        <Name Value="Exception"/>
+      </Item4>
+      <Item5>
+        <Name Value="EgexColorConversionError"/>
+      </Item5>
+      <Item6>
+        <Name Value="EgexInvalidGraphic"/>
+      </Item6>
+      <Item7>
+        <Name Value="RunError(203)"/>
+      </Item7>
+      <Item8>
+        <Name Value="EOutOfMemory"/>
+      </Item8>
     </Exceptions>
   </Debugging>
 </CONFIG>

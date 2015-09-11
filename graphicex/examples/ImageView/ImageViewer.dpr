@@ -8,6 +8,9 @@
 program ImageViewer;
 
 uses
+  {$IFDEF HEAPTRACE}
+  heaptrc, SysUtils,
+  {$ENDIF}
   {$IFNDEF FPC}
   FastMM4,
   {$ENDIF}
@@ -28,6 +31,12 @@ uses
 {$ENDIF}
 
 begin
+  {$IFDEF HEAPTRACE}
+  if FileExists('heaptrc.log') then
+      DeleteFile('heaptrc.log');
+    SetHeapTraceOutput('heaptrc.log');
+  {$ENDIF}
+
 {$IFDEF VER140}
   // It is Delphi 6 and FASTMM so register its known memory leaks
   RegisterExpectedMemoryLeak(36, 1); // TWinHelpViewer x 1
