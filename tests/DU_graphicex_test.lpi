@@ -395,7 +395,7 @@ if TargetOS='Win64' then
         <PackageName Value="LCL"/>
       </Item5>
     </RequiredPackages>
-    <Units Count="2">
+    <Units Count="3">
       <Unit0>
         <Filename Value="DU_graphicex_test.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -405,6 +405,11 @@ if TargetOS='Win64' then
         <IsPartOfProject Value="True"/>
         <UnitName Value="HeaptrcLog"/>
       </Unit1>
+      <Unit2>
+        <Filename Value="graphicex\du_jpegtests.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DU_JpegTests"/>
+      </Unit2>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -6,7 +6,8 @@ uses
   Windows,
   GraphicEx,
   gexBmpWrapper,
-  gexJpegWrapper,
+  //gexJpegWrapper,
+  gexJpeg,
   gexXCF,
   Graphics,
   {$IFNDEF FPC}

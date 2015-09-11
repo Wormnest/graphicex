@@ -27,7 +27,8 @@ uses
   GUITestRunner,
   DU_graphicex_TestFramework,          // Test unit GraphicEx
   DU_GraphicColor_Tests,               // Test unit GraphicColor
-  DU_ImageReader_Tests;
+  DU_ImageReader_Tests,
+  DU_JpegTests;
 
 {$R *.RES}
 
