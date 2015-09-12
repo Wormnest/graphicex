@@ -1676,11 +1676,21 @@ end;
 {$ELSE}
 
 function GetMessage(cinfo: j_common_ptr): string;
+{$IFNDEF FPC}
+type
+  TArrayOfPChar = array [0..999] of PAnsiChar;
+  PArrayOfPChar = ^TArrayOfPChar;
+{$ENDIF}
 var
   Template: string;
 begin
   if (cinfo.err.msg_code >= 0) and (cinfo.err.msg_code <= cinfo.err.last_jpeg_message) then begin
+    {$IFDEF FPC}
     Template := cinfo.err.jpeg_message_table[cinfo.err.msg_code];
+    {$ELSE}
+    // Our Delphi can't interpret PPChar as an array of PChar
+    Template := PArrayOfPChar(cinfo.err.jpeg_message_table)^[cinfo.err.msg_code];
+    {$ENDIF}
     if Pos('%s', Template) > 0 then
       Result := Format(Template, [cinfo.err.msg_parm.s])
     else
