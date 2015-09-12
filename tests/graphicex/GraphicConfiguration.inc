@@ -38,8 +38,6 @@
 //
 //----------------------------------------------------------------------------------------------------------------------
 
-{$IFNDEF GraphicExConfigured}
-
 // Pick your preferred image formats here or leave them all enabled. By disabling
 // certain formats which are not of interest you can save some memory.
 {$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images are supported
@@ -61,11 +59,4 @@
 
 // adjust dependent definitions
 {$ifndef TIFFGraphic} {$undef EPSGraphic} {$endif}
-
-// Set status to configured
-{$DEFINE GraphicExConfigured}
-
-{$ELSE}
-  Warning: another GraphicEx configuration is already loaded!
-{$ENDIF ~GraphicExConfigured}
 
