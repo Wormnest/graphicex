@@ -1020,12 +1020,14 @@ function  TIFFRGBAImageBegin(Img: PTIFFRGBAImage; Handle: PTIFF; Stop: Integer; 
 function  TIFFRGBAImageGet(Img: PTIFFRGBAImage; Raster: puint32; W, H: uint32): Integer; cdecl; external;
 procedure TIFFRGBAImageEnd(Img: PTIFFRGBAImage); cdecl; external;
 
+{$IFDEF MSWINDOWS}
 function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
 {$IFNDEF LIBTIFF4}
 // TODO implement Wide version of open
 //function  TIFFOpenW(const Name: WideString; const Mode: AnsiString): PTIFF;
 {$ENDIF ~LIBTIFF4}
 function  TIFFOpenStream(const Stream: TStream; const Mode: AnsiString): PTIFF;
+{$ENDIF}
 
 function  TIFFClientOpen(const Name: PAnsiChar; const Mode: PAnsiChar; ClientData: thandle_t;
   ReadProc: TIFFReadWriteProc; WriteProc: TIFFReadWriteProc; SeekProc: TIFFSeekProc;
@@ -2157,7 +2159,7 @@ function  TIFFInitOJPEG(Handle: PTIFF; scheme: Integer): Integer; cdecl; externa
 
 // -----  LibTiffDelphi --------------------------------------------------------
 
-{$IFDEF WINDOWS} // TODO: Change to crossplatform implementation
+{$IFDEF MSWINDOWS} // TODO: Change to crossplatform implementation
 function  TIFFFileReadProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
 function  TIFFFileWriteProc(Fd: thandle_t; Buffer: Pointer; Size: tmsize_t): tmsize_t; cdecl; forward;
 function  TIFFFileSizeProc(Fd: thandle_t): toff_t; cdecl; forward;
