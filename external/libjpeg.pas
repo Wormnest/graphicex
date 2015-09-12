@@ -1037,6 +1037,11 @@ const
 
 
 // Some internal libjpeg stuff that we are going to ignore for now
+// But our Delphi seems to need the extern definitions
+{$IFNDEF FPC}
+  {$DEFINE LIBJPEG_INTERNAL}
+{$ENDIF}
+
 {$IFDEF LIBJPEG_INTERNAL}
   HUFF_LOOKAHEAD  = 8; // # of bits of lookahead.
 
@@ -1545,6 +1550,71 @@ function jpeg_huff_decode(state: bitread_working_state_ptr; get_buffer: bit_buf_
 
 //------------------------------------------------------------------------------
 
+{$IFNDEF FPC}
+// For Delphi it is required to load these before we use them below
+{$L jcapimin.obj}
+{$L jcapistd.obj}
+{$L jctrans.obj}
+{$L jcparam.obj}
+{$L jdatadst.obj}
+{$L jcinit.obj}
+{$L jcmaster.obj}
+{$L jcmarker.obj}
+{$L jcmainct.obj}
+{$L jcprepct.obj}
+{$L jccoefct.obj}
+{$L jccolor.obj}
+{$L jcsample.obj}
+{$L jchuff.obj}
+{$L jcphuff.obj}
+{$L jcdctmgr.obj}
+{$L jfdctfst.obj}
+{$L jfdctflt.obj}
+{$L jfdctint.obj}
+{$L jdapimin.obj}
+{$L jdapistd.obj}
+{$L jdtrans.obj}
+{$L jdatasrc.obj}
+{$L jdmaster.obj}
+{$L jdinput.obj}
+{$L jdmarker.obj}
+{$L jdhuff.obj}
+{$L jdphuff.obj}
+{$L jdmainct.obj}
+{$L jdcoefct.obj}
+{$L jdpostct.obj}
+{$L jddctmgr.obj}
+{$L jidctfst.obj}
+{$L jidctflt.obj}
+{$L jidctint.obj}
+{$L jidctred.obj}
+{$L jdsample.obj}
+{$L jdcolor.obj}
+{$L jquant1.obj}
+{$L jquant2.obj}
+{$L jdmerge.obj}
+{$L jcomapi.obj}
+{$L jutils.obj}
+{$L jerror.obj}
+{$L jmemmgr.obj}
+{$L jmemnobs.obj}
+{$ELSE}
+  // fpc
+  {$IFDEF MSWINDOWS}
+    {$IFNDEF CPU64}
+      {$LINKLIB libmsvcrt.a}
+    {$ELSE}
+      {$LINKLIB libmsvcrt.a}
+      {$LINKLIB libkernel32.a}
+    {$ENDIF}
+  {$ENDIF}
+  {$IFDEF UNIX}
+    Todo...
+  {$ENDIF}
+  {$LINKLIB libjpeg.a}
+{$ENDIF}
+
+
 procedure jpeg_create_compress(cinfo: j_compress_ptr);
 begin
   jpeg_CreateCompress(cinfo, JPEG_LIB_VERSION, SizeOf(jpeg_compress_struct));
@@ -1716,69 +1786,5 @@ end;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-
-{$IFNDEF FPC}
-{$L jcapimin.obj}
-{$L jcapistd.obj}
-{$L jctrans.obj}
-{$L jcparam.obj}
-{$L jdatadst.obj}
-{$L jcinit.obj}
-{$L jcmaster.obj}
-{$L jcmarker.obj}
-{$L jcmainct.obj}
-{$L jcprepct.obj}
-{$L jccoefct.obj}
-{$L jccolor.obj}
-{$L jcsample.obj}
-{$L jchuff.obj}
-{$L jcphuff.obj}
-{$L jcdctmgr.obj}
-{$L jfdctfst.obj}
-{$L jfdctflt.obj}
-{$L jfdctint.obj}
-{$L jdapimin.obj}
-{$L jdapistd.obj}
-{$L jdtrans.obj}
-{$L jdatasrc.obj}
-{$L jdmaster.obj}
-{$L jdinput.obj}
-{$L jdmarker.obj}
-{$L jdhuff.obj}
-{$L jdphuff.obj}
-{$L jdmainct.obj}
-{$L jdcoefct.obj}
-{$L jdpostct.obj}
-{$L jddctmgr.obj}
-{$L jidctfst.obj}
-{$L jidctflt.obj}
-{$L jidctint.obj}
-{$L jidctred.obj}
-{$L jdsample.obj}
-{$L jdcolor.obj}
-{$L jquant1.obj}
-{$L jquant2.obj}
-{$L jdmerge.obj}
-{$L jcomapi.obj}
-{$L jutils.obj}
-{$L jerror.obj}
-{$L jmemmgr.obj}
-{$L jmemnobs.obj}
-{$ELSE}
-  // fpc
-  {$IFDEF MSWINDOWS}
-    {$IFNDEF CPU64}
-      {$LINKLIB libmsvcrt.a}
-    {$ELSE}
-      {$LINKLIB libmsvcrt.a}
-      {$LINKLIB libkernel32.a}
-    {$ENDIF}
-  {$ENDIF}
-  {$IFDEF UNIX}
-    Todo...
-  {$ENDIF}
-  {$LINKLIB libjpeg.a}
-{$ENDIF}
-
 
 end.
