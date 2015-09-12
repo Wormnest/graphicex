@@ -14,15 +14,13 @@
 // Copyright (C) 1999-2005 Mike Lischke. All Rights Reserved.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2013-2013 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
+// This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
 // In this configuration file you can determine which parts of the library are to be compiled.
-// This is in particular important for LZW compression code for which Unisys owns a patent.
-// If you want to use LZW decoding then you have to make a deal with Unisys. Don't make me
-// responsible for using the code.
 // Other configuration options include to limit the number of available image formats to
 // save memory, if necessary.
 //
