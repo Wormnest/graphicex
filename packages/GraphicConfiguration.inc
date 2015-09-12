@@ -15,7 +15,7 @@
 //
 // Portions created by Jacob Boerema are
 // Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
 // This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
@@ -34,29 +34,114 @@
 // multiple includes.
 // IMPORTANT: a change in this include file always requires a REBUILD of your project!
 //
-// 2013-06-22 jb Add JpegGraphic define in preparation for better jpeg support.
-//
-//----------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-// Pick your preferred image formats here or leave them all enabled. By disabling
-// certain formats which are not of interest you can save some memory.
-{$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images are supported
-{$define AutodeskGraphic}        // *.cel, *.pic images
-{$define TIFFGraphic}            // *.tif, *.tiff images
-{$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
-{$define PCXGraphic}             // *.pcx, *.pcc, *.scr images
-{$define PCDGraphic}             // *.pcd images
-{$define PortableMapGraphic}     // *.ppm, *.pgm, *.pbm images
-{$define CUTGraphic}             // *.cut (+ *.pal) images
+// Enable the image formats that you need below. They are ordered in several
+// categories from most important to least important. Within a category they
+// are ordered alphabetically on the name of the define.
+// By disabling certain image formats you may be able to reduce your filesize.
+
+////////////////////////////////////////////////////////////////////////////////
+//      Common general purpose image formats
+////////////////////////////////////////////////////////////////////////////////
+
 {$define GIFGraphic}             // *.gif images
-{$define RLAGraphic}             // *.rla, *.rpf images
-{$define PhotoshopGraphic}       // *.psd, *.pdd images
-{$define PaintshopProGraphic}    // *.psp images
-{$define PortableNetworkGraphic} // *.png images
-{$define EPSGraphic}             // *.eps images
-{$define ArtsAndLettersGraphic}  // *.ged images
+
 {$define JpegGraphic}            // *.jpg, *.jpeg, *.jpe, *.jfif
 
-// adjust dependent definitions
+{$IFDEF JpegGraphic}
+  // When using JpegGraphic you have several choices:
+
+  // 1. Use the standard TJpegImage supplied by Delphi/Fpc.
+  {.$DEFINE USE_TJPEGIMAGE}
+
+  // 2. Use our JpegWrapper around the standard TJpegImage
+  {.$DEFINE USE_JPEGWRAPPER}
+  {$IFDEF USE_JPEGWRAPPER}
+    {$UNDEF USE_TJPEGIMAGE}
+  {$ENDIF}
+
+  // 3. Use our TJpegImage replacement gexJpeg.
+  //    Note: currently only supports reading of Jpegs.
+  {$DEFINE USE_GEXJPEG}
+
+  {$IFDEF USE_GEXJPEG}
+    // If you also need saving support either use one of the above defines, or
+    // add the below define which will also pull in TJpegImage.
+    {$DEFINE NEED_TJPEGIMAGE_SAVING}
+
+    {$UNDEF USE_TJPEGIMAGE}
+    {$UNDEF USE_JPEGWRAPPER}
+  {$ENDIF}
+
+{$ENDIF}
+
+{$define PortableMapGraphic}     // *.ppm, *.pgm, *.pbm images
+
+{$define PortableNetworkGraphic} // *.png images
+
+{$define TIFFGraphic}            // *.tif, *.tiff images
+
+
+////////////////////////////////////////////////////////////////////////////////
+//      Special purpose image formats
+////////////////////////////////////////////////////////////////////////////////
+
+// The format used by PhotoShop image editor.
+{$define PhotoshopGraphic}       // *.psd, *.pdd images
+
+// The format used by PaintShopPro image editor.
+{$define PaintshopProGraphic}    // *.psp images
+
+// Image format used in 3D or image design.
+{$define TargaGraphic}           // *.tga, *.vst, *.icb, *.vda, *.win images
+
+// XCF. The image format used by GIMP image editor.
+// This format can not be set by using a define.
+// To enable it include unit gexXCF in your uses.
+
+////////////////////////////////////////////////////////////////////////////////
+//      Uncommon image formats that you may encounter once in a while.
+////////////////////////////////////////////////////////////////////////////////
+
+// We can read only certain kinds of EPS images that have a TIFF image inside.
+{$define EPSGraphic}             // *.eps images
+
+// Photo CD images, a format designed by KODAK. Not much used anymore.
+{$define PCDGraphic}             // *.pcd images
+
+// In the past a very often encountered image format, nowadays rarely used.
+{$define PCXGraphic}             // *.pcx, *.pcc, *.scr images
+
+// These two image formats are sometimes seen in 3D design.
+{$define RLAGraphic}             // *.rla, *.rpf images
+
+{$define SGIGraphic}             // *.bw, *.rgb, *.rgba, *.sgi images
+
+
+////////////////////////////////////////////////////////////////////////////////
+//      The image formats below are very old and hardly ever encountered.
+//      Consider them deprecated and only use them if you really need them.
+////////////////////////////////////////////////////////////////////////////////
+
+// Arts & Letters Draw images, supposedly version 4 and possibly newer.
+// I haven't been able to find any samples thus no way to test if it still works.
+// Consider it very deprecated.
+{.$define ArtsAndLettersGraphic}  // *.ged images
+
+// The old (first) Autodesk Animator image format.
+// Does not work with the slightly newer Autodesk Animator Pro images.
+{.$define AutodeskGraphic}        // *.cel, *.pic images
+
+// Dr Halo images. Not used anymore and very rarely seen.
+{.$define CUTGraphic}             // *.cut (+ *.pal) images
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//      Adjust definitions that depend on other definitions.
+////////////////////////////////////////////////////////////////////////////////
+
+// EPSGraphic depends on TIFFGraphic so undefine it if the latter is not defined.
 {$ifndef TIFFGraphic} {$undef EPSGraphic} {$endif}
 
