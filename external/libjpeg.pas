@@ -55,6 +55,17 @@ uses
   SysUtils, Classes,
   C_Types;
 
+// Our Delphi compiled libjpeg currently uses a 1 byte Boolean while our
+// Fpc version uses a 4 byte LongBool.
+// TODO: See if we can get the Delphi version to use 4 bytes too in the future.
+// For now we use an ifdef to define the type of boolean to use.
+type
+{$IFDEF FPC}
+  JPEG_BOOLEAN = LongBool;
+{$ELSE}
+  JPEG_BOOLEAN = Boolean;
+{$ENDIF}
+
 // ---------- jmorecfg.h ----------
 
 const
@@ -210,7 +221,7 @@ type
     // the table is created, and set TRUE when it's been output to the file.
     // You could suppress output of a table by setting this to TRUE.
     // (See jpeg_suppress_tables for an example.)
-    sent_table: LongBool; // TRUE when table has been output
+    sent_table: JPEG_BOOLEAN; // TRUE when table has been output
   end;
 
   // Huffman coding tables.
@@ -223,7 +234,7 @@ type
     // the table is created, and set TRUE when it's been output to the file.
     // You could suppress output of a table by setting this to TRUE.
     // (See jpeg_suppress_tables for an example.)
-    sent_table: LongBool;           // TRUE when table has been output.
+    sent_table: JPEG_BOOLEAN;           // TRUE when table has been output.
   end;
 
 
@@ -270,7 +281,7 @@ type
     // This flag is used only for decompression.  In cases where some of the
     // components will be ignored (eg grayscale output from YCbCr image),
     // we can skip most computations for the unused components.
-    component_needed: LongBool;     // do we need the value of this component?
+    component_needed: JPEG_BOOLEAN;     // do we need the value of this component?
 
     // These values are computed before starting a scan of the component.
     // The decompressor output side may not use these variables.
@@ -351,7 +362,7 @@ type
     mem: jpeg_memory_mgr_ptr;        // Memory manager module
     progress: jpeg_progress_mgr_ptr; // Progress monitor, or NIL if none
     client_data: Pointer;            // Available for use by application
-    is_decompressor: LongBool;       // so common code can tell which is which
+    is_decompressor: JPEG_BOOLEAN;       // so common code can tell which is which
     global_state: Integer;           // for checking call sequence validity
   end;
 
@@ -372,7 +383,7 @@ type
     mem: jpeg_memory_mgr_ptr;        // Memory manager module
     progress: jpeg_progress_mgr_ptr; // Progress monitor, or NIL if none
     client_data: Pointer;            // Available for use by application
-    is_decompressor: LongBool;       // so common code can tell which is which
+    is_decompressor: JPEG_BOOLEAN;       // so common code can tell which is which
     global_state: Integer;           // for checking call sequence validity
     // End of shared fields
 
@@ -418,10 +429,10 @@ type
      * set num_scans and scan_info to point to an array of scan definitions.
      *}
 
-    raw_data_in: LongBool;           // TRUE=caller supplies downsampled data
-    arith_code: LongBool;            // TRUE=arithmetic coding, FALSE=Huffman
-    optimize_coding: LongBool;       // TRUE=optimize entropy encoding parms
-    CCIR601_sampling: LongBool;      // TRUE=first samples are cosited
+    raw_data_in: JPEG_BOOLEAN;           // TRUE=caller supplies downsampled data
+    arith_code: JPEG_BOOLEAN;            // TRUE=arithmetic coding, FALSE=Huffman
+    optimize_coding: JPEG_BOOLEAN;       // TRUE=optimize entropy encoding parms
+    CCIR601_sampling: JPEG_BOOLEAN;      // TRUE=first samples are cosited
     smoothing_factor: Integer;       // 1..100, or 0 for no input smoothing
     dct_method: J_DCT_METHOD;        // DCT algorithm selector
 
@@ -434,7 +445,7 @@ type
     restart_in_rows: Integer;        // if > 0, MCU rows per restart interval
 
     // Parameters controlling emission of special markers.
-    write_JFIF_header: LongBool;     // should a JFIF marker be written?
+    write_JFIF_header: JPEG_BOOLEAN;     // should a JFIF marker be written?
     JFIF_major_version: Byte;	       // What to write for the JFIF version number
     JFIF_minor_version: Byte;
 
@@ -445,7 +456,7 @@ type
     density_unit: Byte;              // JFIF code for pixel size units
     X_density: Word;                 // Horizontal pixel density
     Y_density: Word;                 // Vertical pixel density
-    write_Adobe_marker: LongBool;    // should an Adobe marker be written?
+    write_Adobe_marker: JPEG_BOOLEAN;    // should an Adobe marker be written?
 
     // State variable: index of next scanline to be written to
     // jpeg_write_scanlines().  Application may use this to control its
@@ -456,7 +467,7 @@ type
     // should not be touched by a surrounding application.
 
     //These fields are computed during compression startup
-    progressive_mode: LongBool;      // TRUE if scan script uses progressive mode
+    progressive_mode: JPEG_BOOLEAN;      // TRUE if scan script uses progressive mode
     max_h_samp_factor: Integer;      // largest h_samp_factor
     max_v_samp_factor: Integer;      // largest v_samp_factor
 
@@ -508,7 +519,7 @@ type
     mem: jpeg_memory_mgr_ptr;          // Memory manager module
     progress: jpeg_progress_mgr_ptr;   // Progress monitor, or NIL if none
     client_data: Pointer;              // Available for use by application
-    is_decompressor: LongBool;         // so common code can tell which is which
+    is_decompressor: JPEG_BOOLEAN;         // so common code can tell which is which
     global_state: Integer;             // for checking call sequence validity
     // End of shared fields
 
@@ -533,22 +544,22 @@ type
 
     output_gamma: Double;	             // image gamma wanted in output
 
-    buffered_image: LongBool;          // TRUE=multiple output passes
-    raw_data_out: LongBool;            // TRUE=downsampled data wanted
+    buffered_image: JPEG_BOOLEAN;          // TRUE=multiple output passes
+    raw_data_out: JPEG_BOOLEAN;            // TRUE=downsampled data wanted
 
     dct_method: J_DCT_METHOD;          // IDCT algorithm selector
-    do_fancy_upsampling: LongBool;     // TRUE = apply fancy upsampling
-    do_block_smoothing: LongBool;      // TRUE = apply interblock smoothing
+    do_fancy_upsampling: JPEG_BOOLEAN;     // TRUE = apply fancy upsampling
+    do_block_smoothing: JPEG_BOOLEAN;      // TRUE = apply interblock smoothing
 
-    quantize_colors: LongBool;         // TRUE=colormapped output wanted
+    quantize_colors: JPEG_BOOLEAN;         // TRUE=colormapped output wanted
     // the following are ignored if not quantize_colors:
     dither_mode: J_DITHER_MODE;        // type of color dithering to use
-    two_pass_quantize: LongBool;       // TRUE = use two-pass color quantization
+    two_pass_quantize: JPEG_BOOLEAN;       // TRUE = use two-pass color quantization
     desired_number_of_colors: Integer; // max # colors to use in created colormap
     // these are significant only in buffered-image mode:
-    enable_1pass_quant: LongBool;      // enable future use of 1-pass quantizer
-    enable_external_quant: LongBool;   // enable future use of external colormap
-    enable_2pass_quant: LongBool;      // enable future use of 2-pass quantizer
+    enable_1pass_quant: JPEG_BOOLEAN;      // enable future use of 1-pass quantizer
+    enable_external_quant: JPEG_BOOLEAN;   // enable future use of external colormap
+    enable_2pass_quant: JPEG_BOOLEAN;      // enable future use of 2-pass quantizer
 
     // Description of actual output image that will be returned to application.
     // These fields are computed by _jpeg_start_decompress().
@@ -621,8 +632,8 @@ type
     data_precision: Integer;           // bits of precision in image data
     comp_info: jpeg_component_info_ptr;// comp_info[i] describes component that appears i'th in SOF
 
-    progressive_mode: LongBool;        // TRUE if SOFn specifies progressive mode
-    arith_code: LongBool;              // TRUE = arithmetic coding, FALSE=Huffman
+    progressive_mode: JPEG_BOOLEAN;        // TRUE if SOFn specifies progressive mode
+    arith_code: JPEG_BOOLEAN;              // TRUE = arithmetic coding, FALSE=Huffman
 
     arith_dc_L: array [0..NUM_ARITH_TBLS - 1] of Byte; // L values for DC arith-coding tables
     arith_dc_U: array [0..NUM_ARITH_TBLS - 1] of Byte; // U values for DC arith-coding tables
@@ -631,17 +642,17 @@ type
     restart_interval: Cardinal;        // MCUs per restart interval, or 0 for no restart
 
     // These fields record data obtained from optional markers recognized by the JPEG library.
-    saw_JFIF_marker: LongBool;          // TRUE iff a JFIF APP0 marker was found
+    saw_JFIF_marker: JPEG_BOOLEAN;          // TRUE iff a JFIF APP0 marker was found
     // Data copied from JFIF marker; only valid if saw_JFIF_marker is TRUE:
     JFIF_major_version: Byte;          // JFIF version number
     JFIF_minor_version: Byte;
     density_unit: Byte;                // JFIF code for pixel size units
     X_density: Word;                   // Horizontal pixel density
     Y_density: Word;                   // Vertical pixel density
-    saw_Adobe_marker: LongBool;        // TRUE iff an Adobe APP14 marker was found
+    saw_Adobe_marker: JPEG_BOOLEAN;        // TRUE iff an Adobe APP14 marker was found
     Adobe_transform: Byte;             // Color transform code from Adobe marker
 
-    CCIR601_sampling: LongBool;         // TRUE = first samples are cosited
+    CCIR601_sampling: JPEG_BOOLEAN;         // TRUE = first samples are cosited
 
     // Aside from the specific data retained from APPn markers known to the
     // library, the uninterpreted contents of any or all APPn and COM markers
@@ -782,7 +793,7 @@ type
      free_in_buffer: size_t;           // # of Byte spaces remaining in buffer
 
      init_destination: procedure (cinfo: j_compress_ptr); cdecl;
-     empty_output_buffer: function (cinfo: j_compress_ptr): LongBool; cdecl;
+     empty_output_buffer: function (cinfo: j_compress_ptr): JPEG_BOOLEAN; cdecl;
      term_destination: procedure (cinfo: j_compress_ptr); cdecl;
    end;
 
@@ -792,9 +803,9 @@ type
      bytes_in_buffer: size_t;          // # of Bytes remaining in buffer
 
      init_source: procedure (cinfo: j_decompress_ptr); cdecl;
-     fill_input_buffer: function (cinfo: j_decompress_ptr): LongBool; cdecl;
+     fill_input_buffer: function (cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
      skip_input_data: procedure (cinfo: j_decompress_ptr; num_bytes: long); cdecl;
-     resync_to_restart: function (cinfo: j_decompress_ptr; desired: Integer): LongBool; cdecl;
+     resync_to_restart: function (cinfo: j_decompress_ptr; desired: Integer): JPEG_BOOLEAN; cdecl;
      term_source: procedure (cinfo: j_decompress_ptr); cdecl;
    end;
 
@@ -819,15 +830,15 @@ type
      alloc_large: function (cinfo: j_common_ptr; pool_id: Integer; sizeofobject: size_t): Pointer; cdecl;
      alloc_sarray: function (cinfo: j_common_ptr; pool_id: Integer; samplesperrow: JDIMENSION; numrows: JDIMENSION): JSAMPARRAY; cdecl;
      alloc_barray: function (cinfo: j_common_ptr; pool_id: Integer; blocksperrow: JDIMENSION; numrows: JDIMENSION): JBLOCKARRAY; cdecl;
-     request_virt_sarray: function (cinfo: j_common_ptr; pool_id: Integer; pre_zero: LongBool;
+     request_virt_sarray: function (cinfo: j_common_ptr; pool_id: Integer; pre_zero: JPEG_BOOLEAN;
        samplesperrow: JDIMENSION; numrows: JDIMENSION; maxaccess: JDIMENSION): jvirt_sarray_ptr; cdecl;
-     request_virt_barray: function (cinfo: j_common_ptr; pool_id: Integer; pre_zero: LongBool;
+     request_virt_barray: function (cinfo: j_common_ptr; pool_id: Integer; pre_zero: JPEG_BOOLEAN;
        blocksperrow: JDIMENSION; numrows: JDIMENSION; maxaccess: JDIMENSION): jvirt_barray_ptr; cdecl;
      realize_virt_arrays: procedure (cinfo: j_common_ptr); cdecl;
      access_virt_sarray: function (cinfo: j_common_ptr; ptr: jvirt_sarray_ptr; start_row: JDIMENSION;
-       num_rows: JDIMENSION; writable: LongBool): JSAMPARRAY; cdecl;
+       num_rows: JDIMENSION; writable: JPEG_BOOLEAN): JSAMPARRAY; cdecl;
      access_virt_barray: function (cinfo: j_common_ptr; ptr: jvirt_barray_ptr; start_row: JDIMENSION;
-       num_rows: JDIMENSION; writable: LongBool): JBLOCKARRAY; cdecl;
+       num_rows: JDIMENSION; writable: JPEG_BOOLEAN): JBLOCKARRAY; cdecl;
      free_pool: procedure (cinfo: j_common_ptr; pool_id: Integer); cdecl;
      self_destruct: procedure (cinfo: j_common_ptr); cdecl;
 
@@ -845,7 +856,7 @@ type
 
    // Routine signature for application-supplied marker processing methods.
    // Need not pass marker code since it is stored in cinfo^.unread_marker.
-   jpeg_marker_parser_method = function(cinfo: j_decompress_ptr): LongBool; cdecl;
+   jpeg_marker_parser_method = function(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
 
 
 
@@ -879,19 +890,19 @@ procedure jpeg_set_defaults(cinfo: j_compress_ptr); cdecl;
 // Compression parameter setup aids
 procedure jpeg_set_colorspace(cinfo: j_compress_ptr; colorspace: J_COLOR_SPACE); cdecl;
 procedure jpeg_default_colorspace(cinfo: j_compress_ptr); cdecl;
-procedure jpeg_set_quality(cinfo: j_compress_ptr; quality: Integer; force_baseline: Longbool); cdecl;
-procedure jpeg_set_linear_quality(cinfo: j_compress_ptr; scale_factor: Integer; force_baseline: Longbool); cdecl;
+procedure jpeg_set_quality(cinfo: j_compress_ptr; quality: Integer; force_baseline: JPEG_BOOLEAN); cdecl;
+procedure jpeg_set_linear_quality(cinfo: j_compress_ptr; scale_factor: Integer; force_baseline: JPEG_BOOLEAN); cdecl;
 procedure jpeg_add_quant_table(cinfo: j_compress_ptr; which_tbl: Integer; const basic_table: PCardinal;
-  scale_factor: Integer; force_baseline: Longbool); cdecl;
+  scale_factor: Integer; force_baseline: JPEG_BOOLEAN); cdecl;
 procedure jpeg_quality_scaling(quality: Integer); cdecl;
 procedure jpeg_simple_progression(cinfo: j_compress_ptr); cdecl;
-procedure jpeg_suppress_tables(cinfo: j_compress_ptr; suppress: LongBool); cdecl;
+procedure jpeg_suppress_tables(cinfo: j_compress_ptr; suppress: JPEG_BOOLEAN); cdecl;
 function jpeg_alloc_quant_table(cinfo: j_common_ptr): JQUANT_TBL_ptr; cdecl;
 function jpeg_alloc_huff_table(cinfo: j_common_ptr): JHUFF_TBL_ptr; cdecl;
 
 
 // Main entry points for compression
-procedure jpeg_start_compress(cinfo: j_compress_ptr; write_all_tables: LongBool); cdecl;
+procedure jpeg_start_compress(cinfo: j_compress_ptr; write_all_tables: JPEG_BOOLEAN); cdecl;
 function jpeg_write_scanlines(cinfo: j_compress_ptr; scanlines: JSAMPARRAY; num_lines: JDIMENSION): JDIMENSION; cdecl;
 procedure jpeg_finish_compress(cinfo: j_compress_ptr); cdecl;
 
@@ -909,7 +920,7 @@ procedure jpeg_write_tables(cinfo: j_compress_ptr); cdecl;
 
 
 // Decompression startup: read start of JPEG datastream to see what's there
-function jpeg_read_header(cinfo: j_decompress_ptr; require_image: LongBool): Integer; cdecl;
+function jpeg_read_header(cinfo: j_decompress_ptr; require_image: JPEG_BOOLEAN): Integer; cdecl;
 
 // Return value is one of:
 const
@@ -923,18 +934,18 @@ const
 
 
 // Main entry points for decompression
-function jpeg_start_decompress(cinfo: j_decompress_ptr): Longbool; cdecl;
+function jpeg_start_decompress(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
 function jpeg_read_scanlines(cinfo: j_decompress_ptr; scanlines: JSAMPARRAY; max_lines: JDIMENSION): JDIMENSION; cdecl;
-function jpeg_finish_decompress(cinfo: j_decompress_ptr): Longbool; cdecl;
+function jpeg_finish_decompress(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
 
 // Replaces jpeg_read_scanlines when reading raw downsampled data.
 function jpeg_read_raw_data(cinfo: j_decompress_ptr; data: JSAMPIMAGE; max_lines: JDIMENSION): JDIMENSION; cdecl;
 
 // Additional entry points for buffered-image mode.
-function jpeg_has_multiple_scans(cinfo: j_decompress_ptr): Longbool; cdecl;
-function jpeg_start_output(cinfo: j_decompress_ptr; scan_number: Integer): Longbool; cdecl;
-function jpeg_finish_output(cinfo: j_decompress_ptr): LongBool; cdecl;
-function jpeg_input_complete(cinfo: j_decompress_ptr): LongBool; cdecl;
+function jpeg_has_multiple_scans(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
+function jpeg_start_output(cinfo: j_decompress_ptr; scan_number: Integer): JPEG_BOOLEAN; cdecl;
+function jpeg_finish_output(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
+function jpeg_input_complete(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
 procedure jpeg_new_colormap(cinfo: j_decompress_ptr); cdecl;
 function jpeg_consume_input(cinfo: j_decompress_ptr): Integer; cdecl;
 // Return value is one of:
@@ -979,7 +990,7 @@ procedure jpeg_abort(cinfo: j_common_ptr); cdecl;
 procedure jpeg_destroy(cinfo: j_common_ptr); cdecl;
 
 // Default restart-marker-resync procedure for use by data source modules
-function jpeg_resync_to_restart(cinfo: j_decompress_ptr; desired: Integer): LongBool; cdecl;
+function jpeg_resync_to_restart(cinfo: j_decompress_ptr; desired: Integer): JPEG_BOOLEAN; cdecl;
 
 const
   // These marker codes are exported since applications and data source modules
@@ -1055,8 +1066,8 @@ type
 
     // State of marker reader --- nominally internal, but applications
     // supplying COM or APPn handlers might like to know the state. 
-    saw_SOI: LongBool;            // found SOI?
-    saw_SOF: LongBool;            // found SOF? 
+    saw_SOI: JPEG_BOOLEAN;            // found SOI?
+    saw_SOF: JPEG_BOOLEAN;            // found SOF? 
     next_restart_num: Integer;    // next restart number expected (0-7) 
     discarded_Bytes: Cardinal;    // # of Bytes skipped looking for a marker 
   end;
@@ -1145,15 +1156,15 @@ procedure GetJPEGInfo(Stream: TStream; var Width, Height: Cardinal); overload;
 
 
 {$IFDEF LIBJPEG_INTERNAL}
-procedure jpeg_make_c_derived_tbl(cinfo: j_compress_ptr; isDC: BOOL; tblno: Integer; var pdtbl: c_derived_tbl_ptr); cdecl;
+procedure jpeg_make_c_derived_tbl(cinfo: j_compress_ptr; isDC: JPEG_BOOLEAN; tblno: Integer; var pdtbl: c_derived_tbl_ptr); cdecl;
 procedure jpeg_gen_optimal_table(cinfo: j_compress_ptr; htbl: JHUFF_TBL_ptr; freq: TFrequencyarray); cdecl;
-procedure jpeg_make_d_derived_tbl(cinfo: j_decompress_ptr; isDC: BOOL; tblno: Integer; var pdtbl: d_derived_tbl_ptr); cdecl;
-function jpeg_fill_bit_buffer(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left, nbits: Integer): BOOL; cdecl;
+procedure jpeg_make_d_derived_tbl(cinfo: j_decompress_ptr; isDC: JPEG_BOOLEAN; tblno: Integer; var pdtbl: d_derived_tbl_ptr); cdecl;
+function jpeg_fill_bit_buffer(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left, nbits: Integer): JPEG_BOOLEAN; cdecl;
 function jpeg_huff_decode(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left: Integer; htbl: d_derived_tbl_ptr;
   min_bits: Integer): Integer; cdecl;
 
 // Make some special routines accessible by other libraries (e.g. TIF).
-procedure jpeg_reset_huff_decode(cinfo: j_decompress_ptr; Data: PSingle); cdecl;
+//procedure jpeg_reset_huff_decode(cinfo: j_decompress_ptr; Data: PSingle); cdecl;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
@@ -1462,19 +1473,19 @@ procedure jpeg_stdio_src(cinfo: j_decompress_ptr; input_file: TStream); cdecl; e
 procedure jpeg_set_defaults(cinfo: j_compress_ptr); cdecl; external;
 procedure jpeg_set_colorspace(cinfo: j_compress_ptr; colorspace: J_COLOR_SPACE); cdecl; external;
 procedure jpeg_default_colorspace(cinfo: j_compress_ptr); cdecl; external;
-procedure jpeg_set_quality(cinfo: j_compress_ptr; quality: Integer; force_baseline: Longbool); cdecl; external;
-procedure jpeg_set_linear_quality(cinfo: j_compress_ptr; scale_factor: Integer; force_baseline: Longbool); cdecl; external;
+procedure jpeg_set_quality(cinfo: j_compress_ptr; quality: Integer; force_baseline: JPEG_BOOLEAN); cdecl; external;
+procedure jpeg_set_linear_quality(cinfo: j_compress_ptr; scale_factor: Integer; force_baseline: JPEG_BOOLEAN); cdecl; external;
 procedure jpeg_add_quant_table(cinfo: j_compress_ptr; which_tbl: Integer; const basic_table: PCardinal;
-  scale_factor: Integer; force_baseline: Longbool); cdecl; external;
+  scale_factor: Integer; force_baseline: JPEG_BOOLEAN); cdecl; external;
 procedure jpeg_quality_scaling(quality: Integer); cdecl; external;
 procedure jpeg_simple_progression(cinfo: j_compress_ptr); cdecl; external;
-procedure jpeg_suppress_tables (cinfo: j_compress_ptr; suppress: LongBool); cdecl; external;
+procedure jpeg_suppress_tables (cinfo: j_compress_ptr; suppress: JPEG_BOOLEAN); cdecl; external;
 
 function jpeg_alloc_quant_table(cinfo: j_common_ptr): JQUANT_TBL_ptr; cdecl; external;
 function jpeg_alloc_huff_table(cinfo: j_common_ptr): JHUFF_TBL_ptr; cdecl; external;
 
 
-procedure jpeg_start_compress(cinfo: j_compress_ptr; write_all_tables: LongBool); cdecl; external;
+procedure jpeg_start_compress(cinfo: j_compress_ptr; write_all_tables: JPEG_BOOLEAN); cdecl; external;
 function jpeg_write_scanlines(cinfo: j_compress_ptr; scanlines: JSAMParray; num_lines: JDIMENSION): JDIMENSION; cdecl; external;
 procedure jpeg_finish_compress(cinfo: j_compress_ptr); cdecl; external;
 
@@ -1487,18 +1498,18 @@ procedure jpeg_write_m_byte(cinfo: j_compress_ptr; val: Integer); cdecl; externa
 procedure jpeg_write_tables(cinfo: j_compress_ptr); cdecl; external;
 
 
-function jpeg_read_header(cinfo: j_decompress_ptr; require_image: LongBool): Integer; cdecl; external;
+function jpeg_read_header(cinfo: j_decompress_ptr; require_image: JPEG_BOOLEAN): Integer; cdecl; external;
 
-function jpeg_start_decompress(cinfo: j_decompress_ptr): Longbool; cdecl; external;
+function jpeg_start_decompress(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl; external;
 function jpeg_read_scanlines(cinfo: j_decompress_ptr; scanlines: JSAMPARRAY; max_lines: JDIMENSION): JDIMENSION; cdecl; external;
-function jpeg_finish_decompress(cinfo: j_decompress_ptr): Longbool; cdecl; external;
+function jpeg_finish_decompress(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl; external;
 
 function jpeg_read_raw_data(cinfo: j_decompress_ptr; data: JSAMPIMAGE; max_lines: JDIMENSION): JDIMENSION; cdecl; external;
 
-function jpeg_has_multiple_scans(cinfo: j_decompress_ptr): Longbool; cdecl; external;
-function jpeg_start_output(cinfo: j_decompress_ptr; scan_number: Integer): Longbool; cdecl; external;
-function jpeg_finish_output(cinfo: j_decompress_ptr): LongBool; cdecl; external;
-function jpeg_input_complete(cinfo: j_decompress_ptr): LongBool; cdecl; external;
+function jpeg_has_multiple_scans(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl; external;
+function jpeg_start_output(cinfo: j_decompress_ptr; scan_number: Integer): JPEG_BOOLEAN; cdecl; external;
+function jpeg_finish_output(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl; external;
+function jpeg_input_complete(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl; external;
 procedure jpeg_new_colormap(cinfo: j_decompress_ptr); cdecl; external;
 function jpeg_consume_input(cinfo: j_decompress_ptr): Integer; cdecl; external;
 
@@ -1518,20 +1529,18 @@ procedure jpeg_abort_decompress(cinfo: j_decompress_ptr); cdecl; external;
 procedure jpeg_abort(cinfo: j_common_ptr); cdecl; external;
 procedure jpeg_destroy(cinfo: j_common_ptr); cdecl; external;
 
-function jpeg_resync_to_restart(cinfo: j_decompress_ptr; desired: Integer): LongBool; cdecl; external;
+function jpeg_resync_to_restart(cinfo: j_decompress_ptr; desired: Integer): JPEG_BOOLEAN; cdecl; external;
 
 // end of jpeglib.h
 
 
 {$IFDEF LIBJPEG_INTERNAL}
-procedure jpeg_make_c_derived_tbl(cinfo: j_compress_ptr; isDC: BOOL; tblno: Integer; var pdtbl: c_derived_tbl_ptr); cdecl; external;
+procedure jpeg_make_c_derived_tbl(cinfo: j_compress_ptr; isDC: JPEG_BOOLEAN; tblno: Integer; var pdtbl: c_derived_tbl_ptr); cdecl; external;
 procedure jpeg_gen_optimal_table(cinfo: j_compress_ptr; htbl: JHUFF_TBL_ptr; freq: TFrequencyarray); cdecl; external;
-procedure jpeg_make_d_derived_tbl(cinfo: j_decompress_ptr; isDC: BOOL; tblno: Integer; var pdtbl: d_derived_tbl_ptr); cdecl; external;
-function jpeg_fill_bit_buffer(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left, nbits: Integer): BOOL; cdecl; external;
+procedure jpeg_make_d_derived_tbl(cinfo: j_decompress_ptr; isDC: JPEG_BOOLEAN; tblno: Integer; var pdtbl: d_derived_tbl_ptr); cdecl; external;
+function jpeg_fill_bit_buffer(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left, nbits: Integer): JPEG_BOOLEAN; cdecl; external;
 function jpeg_huff_decode(state: bitread_working_state_ptr; get_buffer: bit_buf_type; bits_left: Integer; htbl: d_derived_tbl_ptr;
   min_bits: Integer): Integer; cdecl; external;
-
-procedure jpeg_reset_huff_decode(cinfo: j_decompress_ptr; Data: PSingle); cdecl; external;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
