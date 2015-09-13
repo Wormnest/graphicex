@@ -81,6 +81,14 @@ procedure InitgexJpeg;
 implementation
 
 uses Graphics,
+     {$IFNDEF FPC}
+     {$IFDEF NEED_TJPEGIMAGE_SAVING}
+     // For being able to unregister TJpegImage. However this is bad because it
+     // unnecessarily links in their libjpeg objects. Only use if you need it
+     // anyway for saving since we don't support that yet ourselves.
+     jpeg,
+     {$ENDIF NEED_TJPEGIMAGE_SAVING}
+     {$ENDIF}
      GraphicStrings, GraphicColor;
 
 const
@@ -539,10 +547,12 @@ end;
 procedure InitgexJpeg;
 begin
   // Unregister TJpegImage first (both will just ignore it if TJpegImage isn't registered)
+  {$IFDEF NEED_TJPEGIMAGE_SAVING}
   TPicture.UnregisterGraphicClass(TJpegImage);
   if FileFormatList = nil then
     Exit;
   FileFormatList.UnregisterFileFormat('', TJpegImage);
+  {$ENDIF NEED_TJPEGIMAGE_SAVING}
   // Register Jpeg with our class
   if FileFormatList.GraphicFromExtension('jpg') <> nil then
     Exit; // Something else has already registered jpg
