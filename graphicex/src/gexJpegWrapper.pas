@@ -218,8 +218,12 @@ end;
 initialization
   // Unregister TJpegImage first (both will just ignore it if TJpegImage isn't registered)
   TPicture.UnregisterGraphicClass(TJpegImage);
+  if FileFormatList = nil then
+    Exit;
   FileFormatList.UnregisterFileFormat('', {$IFDEF FPC}Graphics.{$ENDIF}TJpegImage);
   // Register Jpeg with our class
+  if FileFormatList.GraphicFromExtension('jpg') <> nil then
+    Exit; // Something else has already registered jpg
   FileFormatList.RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TgexJpegGraphic);
   FileFormatList.RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TgexJpegGraphic);
   FileFormatList.RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TgexJpegGraphic);

@@ -538,6 +538,8 @@ procedure InitgexJpeg;
 begin
   // Unregister TJpegImage first (both will just ignore it if TJpegImage isn't registered)
   TPicture.UnregisterGraphicClass(TJpegImage);
+  if FileFormatList = nil then
+    Exit;
   FileFormatList.UnregisterFileFormat('', TJpegImage);
   // Register Jpeg with our class
   if FileFormatList.GraphicFromExtension('jpg') <> nil then
