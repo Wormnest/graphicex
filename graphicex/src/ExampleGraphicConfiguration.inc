@@ -56,12 +56,14 @@
   {.$DEFINE USE_TJPEGIMAGE}
 
   // 2. Use our JpegWrapper around the standard TJpegImage
+  //    Note: Currently you will still have to add unit gexJpegWrapper to your uses!
   {.$DEFINE USE_JPEGWRAPPER}
   {$IFDEF USE_JPEGWRAPPER}
     {$UNDEF USE_TJPEGIMAGE}
   {$ENDIF}
 
   // 3. Use our TJpegImage replacement gexJpeg.
+  //    Note: Currently you will still have to add unit gexJpeg to your uses!
   //    Note: currently only supports reading of Jpegs.
   {$DEFINE USE_GEXJPEG}
 
