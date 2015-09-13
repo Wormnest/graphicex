@@ -30,10 +30,12 @@ interface
   {$mode delphi}
 {$ENDIF}
 
+{$I GraphicConfiguration.inc}
+
 {$MINENUMSIZE 4}  // C compatible enums
 
 uses SysUtils, Classes, GraphicEx, GraphicColor,
-  gexLayers, gexXCFTypes, gexXCFBlendModes;   
+  gexLayers, gexXCFTypes, gexXCFBlendModes;
 
 resourcestring
   gesXCF = 'Gimp XCF images';

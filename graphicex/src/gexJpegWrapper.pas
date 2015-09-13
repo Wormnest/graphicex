@@ -13,6 +13,8 @@ interface
   {$mode delphi}
 {$ENDIF}
 
+{$I GraphicConfiguration.inc}
+
 uses Classes,
      {$IFNDEF FPC}
      jpeg,
