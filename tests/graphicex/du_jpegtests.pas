@@ -1,12 +1,19 @@
 unit DU_JpegTests;
 
-{$mode objfpc}{$H+}
+{$IFDEF FPC}
+  {$mode objfpc}{$H+}
+{$ENDIF}
 
 interface
 
 uses
   Windows, Classes, SysUtils, Graphics,
-  fpcunit, testregistry;
+  {$IFNDEF FPC}
+  TestFramework
+  {$ELSE}
+  fpcunit, testregistry
+  {$ENDIF}
+  ;
 
 type
 
@@ -108,6 +115,6 @@ if not FileExists(Test1) or not FileExists(Test2) or not FileExists(Test3) then
   MessageBox(0, 'At least one of the test images does not exist!'#13#10+
     'Please change the hardcoded test files to something valid for your system.',
     'Jpeg Tests', mb_iconhand + mb_ok);
-  RegisterTest(TgexJpegImageTests);
+  RegisterTest(TgexJpegImageTests{$IFNDEF FPC}.Suite{$ENDIF});
 end.
 
