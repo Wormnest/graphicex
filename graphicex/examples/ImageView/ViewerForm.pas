@@ -50,7 +50,7 @@ uses
   gexJpegWrapper,
   {$DEFINE USE_LIBJPEG}
   {$IFDEF USE_LIBJPEG}
-  gexJpeg
+  gexJpeg,
   {$ENDIF}
   gexTypes, GraphicEx, rkView, gexThread, Buttons, Grids;
 
