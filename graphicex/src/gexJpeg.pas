@@ -17,6 +17,7 @@ interface
 
 uses SysUtils, Classes,
      LibJpeg,
+     {$IFNDEF FPC}C_Types,{$ENDIF} // Needed when UInt64 is not defined
      GraphicEx;
 
 type
@@ -136,7 +137,7 @@ begin
 
   if BufBytes > 0 then begin
     // Point to start of input buffer
-    cinfo.Src.next_input_byte := JpegData.jpeg_memory + JpegData.jpeg_pos;
+    cinfo.Src.next_input_byte := Pointer(PAnsiChar(JpegData.jpeg_memory) + JpegData.jpeg_pos);
     // Update position of input buffer
     Inc(JpegData.jpeg_pos, BufBytes);
     // Set available bytes in buffer
@@ -372,6 +373,7 @@ begin
           {$IFNDEF FPC}
           ConvertScanline := Jpeg_Copy;
           PixelFormat := pf8Bit;
+          Palette := ColorManager.CreateGrayScalePalette(False);
           {$ELSE}
           ConvertScanline := Jpeg_ConvertRow;
           ColorManager.SourceColorScheme := csG;
@@ -438,7 +440,7 @@ begin
         row_stride := FJpegInfo.output_width * Cardinal(FJpegInfo.output_components);
         // Make a one-row-high sample array that will go away when done with image
         //buffer[0] := PByte(FJpegInfo.Mem.alloc_sarray(j_common_ptr(FJpegInfo), JPOOL_IMAGE, row_stride, 1));
-        buffer[0] := GetMem(row_stride * 1);
+        GetMem(buffer[0], row_stride * 1);
 
         {$IFDEF FPC}
         BeginUpdate(False);
