@@ -61,6 +61,15 @@ unit GraphicEx;
 interface
 
 {$I GraphicConfiguration.inc}
+
+{$IFDEF JpegGraphic}
+  {$IF NOT Defined(USE_TJPEGIMAGE) AND NOT Defined(USE_JPEGWRAPPER) AND NOT Defined(USE_GEXJPEG)}
+  The configuration for using jpeg images has changed. Please check
+  ExampleGraphicConfiguration.inc on how to change your configuration file.
+  {$IFEND}
+{$ENDIF}
+
+
 {$IFNDEF FPC}
 {$I Compilers.inc}
 
@@ -82,9 +91,9 @@ uses
   LibTiffDelphi,
   {$endif}
   {$ifdef JpegGraphic}
-  {$IFNDEF FPC}
-  jpeg,
-  {$ENDIF}
+    {$IF Defined(USE_TJPEGIMAGE) OR Defined(NEED_TJPEGIMAGE_SAVING)}
+    {$IFNDEF FPC}jpeg,{$ENDIF}    // This will pull in the C object files.
+    {$IFEND}
   {$endif ~JpegGraphic}
   {$IFDEF FPC}
   FPImage, // Progress stage defines
@@ -267,7 +276,7 @@ type
   end;
 
   TGraphicExGraphicClass = class of TGraphicExGraphic;
-   
+
   {$ifdef AutodeskGraphic}
   // *.cel, *.pic images
   TAutodeskGraphic = class(TGraphicExGraphic)
@@ -637,7 +646,7 @@ type
     WarpDescriptor: TPSDDescriptor;
     WarpRectangle: TDoubleRect;
   end;
-  
+
   TPSDGraphic = class;
 
   TPhotoshopLayer = class
@@ -10560,14 +10569,14 @@ initialization
     RegisterFileFormat('emf', gesMetaFiles, gesEnhancedMetaFiles, [ftVector], False, TMetafile);
     {$ENDIF}
 
-    // 2013-06-22 in preparation for better jpeg handling use a define
-    // around jpeg specific stuff
     {$ifdef JpegGraphic}
-      TPicture.UnregisterGraphicClass(TJPEGImage);
-      RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
-      RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
-      RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
-      RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
+    {$IFDEF USE_TJPEGIMAGE}
+    TPicture.UnregisterGraphicClass(TJPEGImage);
+    RegisterFileFormat('jfif', gesJPGImages, gesJFIFImages, [ftRaster], False, TJPEGImage);
+    RegisterFileFormat('jpg', '', gesJPGImages, [ftRaster], False, TJPEGImage);
+    RegisterFileFormat('jpe', '', gesJPEImages, [ftRaster], False, TJPEGImage);
+    RegisterFileFormat('jpeg', '', gesJPEGImages, [ftRaster], False, TJPEGImage);
+    {$ENDIF}
     {$endif ~JpegGraphic}
 
     // register our own formats
