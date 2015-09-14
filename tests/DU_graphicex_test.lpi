@@ -364,10 +364,13 @@ if TargetOS='Win64' then
           </Other>
         </CompilerOptions>
       </Item9>
-      <SharedMatrixOptions Count="3">
-        <Item1 ID="707623224695" Value="-dEnableUTF8RTL"/>
-        <Item2 ID="868206001400" Modes="Debug with Tracetool,Debug64 with Tracetool" Value="-dENABLE_TRACETOOL"/>
-        <Item3 ID="018455230448" Modes="Debug64,Debug,Release,Debug with Heaptrc,Debug64 with Heaptrc,Debug UTF8,Debug64 with Tracetool,Debug with Tracetool" Value="-dLIBTIFF4"/>
+      <SharedMatrixOptions Count="6">
+        <Item1 ID="018455230448" Modes="Debug64,Debug,Release,Debug with Heaptrc,Debug64 with Heaptrc,Debug UTF8,Debug64 with Tracetool,Debug with Tracetool,Default" Value="-dLIBTIFF4"/>
+        <Item2 ID="348958825692" Modes="Debug,Debug with Tracetool,Debug64 with Tracetool,Debug UTF8,Debug64 with Heaptrc,Debug with Heaptrc,Debug64,Release,Default" Value="-dCUTGraphic"/>
+        <Item3 ID="694038094843" Modes="Debug,Default,Release,Debug64,Debug with Heaptrc,Debug64 with Heaptrc,Debug UTF8,Debug64 with Tracetool,Debug with Tracetool" Value="-dAutodeskGraphic"/>
+        <Item4 ID="500791307088" Modes="Debug,Debug with Tracetool,Debug64 with Tracetool,Debug UTF8,Debug64 with Heaptrc,Debug with Heaptrc,Debug64,Release,Default" Value="-dArtsAndLettersGraphic"/>
+        <Item5 ID="707623224695" Value="-dEnableUTF8RTL"/>
+        <Item6 ID="868206001400" Modes="Debug with Tracetool,Debug64 with Tracetool" Value="-dENABLE_TRACETOOL"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
