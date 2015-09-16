@@ -2696,9 +2696,11 @@ var
   LRun8,
   aRun8,
   bRun8: PByte;
+  AlphaRun8: PByte;
   LRun16,
   aRun16,
   bRun16: PWord;
+  AlphaRun16: PWord;
   L, a, b,
   X, Y, Z: Extended; // Color values in float format
   Target8: PByte;
@@ -2720,6 +2722,7 @@ begin
           LRun8 := Source[0];
           aRun8 := LRun8; Inc(aRun8);
           bRun8 := aRun8; Inc(bRun8);
+          AlphaRun8 := bRun8; Inc(AlphaRun8);
           Increment := SourceSamplesPerPixel;
         end
         else
@@ -2727,6 +2730,10 @@ begin
           LRun8 := Source[0];
           aRun8 := Source[1];
           bRun8 := Source[2];
+          if Length(Source) > 3 then
+            AlphaRun8 := Source[3]
+          else
+            AlphaRun8 := nil;
           Increment := 1;
         end;
 
@@ -2763,10 +2770,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToBGR(X, Y, Z, PBGR(Target8));
-                  Inc(Target8, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target8, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA(Target8)^.A := AlphaRun8^
+                  else
+                    PBGRA(Target8)^.A := $ff;
+                  Inc(AlphaRun8, Increment);
+                end;
+                Inc(Target8, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -2803,10 +2815,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToBGR16(X, Y, Z, PBGR16(Target16));
-                  Inc(Target16, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target16, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA16(Target8)^.A := AlphaRun8^ shl 8
+                  else
+                    PBGRA16(Target8)^.A := 65535;
+                  Inc(AlphaRun8, Increment);
+                end;
+                Inc(Target16, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end
@@ -2820,6 +2837,7 @@ begin
           LRun16 := Source[0];
           aRun16 := LRun16; Inc(aRun16);
           bRun16 := aRun16; Inc(bRun16);
+          AlphaRun16 := bRun16; Inc(AlphaRun16);
           Increment := SourceSamplesPerPixel;
         end
         else
@@ -2827,6 +2845,10 @@ begin
           LRun16 := Source[0];
           aRun16 := Source[1];
           bRun16 := Source[2];
+          if Length(Source) > 3 then
+            AlphaRun16 := Source[3]
+          else
+            AlphaRun16 := nil;
           Increment := 1;
         end;
 
@@ -2865,10 +2887,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToBGR(X, Y, Z, PBGR(Target8));
-                  Inc(Target8, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target8, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA(Target8)^.A := AlphaRun16^ shr 8
+                  else
+                    PBGRA(Target8)^.A := $ff;
+                  Inc(AlphaRun16, Increment);
+                end;
+                Inc(Target8, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -2906,10 +2933,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToBGR16(X, Y, Z, PBGR16(Target16));
-                  Inc(Target16, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target16, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA16(Target16)^.A := AlphaRun16^
+                  else
+                    PBGRA16(Target16)^.A := 65535;
+                  Inc(AlphaRun16, Increment);
+                end;
+                Inc(Target16, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -2929,9 +2961,11 @@ var
   LRun8,
   aRun8,
   bRun8: PByte;
+  AlphaRun8: PByte;
   LRun16,
   aRun16,
   bRun16: PWord;
+  AlphaRun16: PWord;
   L, a, b,
   X, Y, Z: Extended; // Color values in float format
   Target8: PByte;
@@ -2952,6 +2986,7 @@ begin
           LRun8 := Source[0];
           aRun8 := LRun8; Inc(aRun8);
           bRun8 := aRun8; Inc(bRun8);
+          AlphaRun8 := bRun8; Inc(AlphaRun8);
           Increment := SourceSamplesPerPixel;
         end
         else
@@ -2959,6 +2994,10 @@ begin
           LRun8 := Source[0];
           aRun8 := Source[1];
           bRun8 := Source[2];
+          if Length(Source) > 3 then
+            AlphaRun8 := Source[3]
+          else
+            AlphaRun8 := nil;
           Increment := 1;
         end;
 
@@ -2995,10 +3034,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToRGB(X, Y, Z, PRGB(Target8));
-                  Inc(Target8, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target8, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA(Target8)^.A := AlphaRun8^
+                  else
+                    PBGRA(Target8)^.A := $ff;
+                  Inc(AlphaRun8, Increment);
+                end;
+                Inc(Target8, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -3035,10 +3079,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToRGB16(X, Y, Z, PRGB16(Target16));
-                  Inc(Target16, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target16, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA16(Target8)^.A := AlphaRun8^ shl 8
+                  else
+                    PBGRA16(Target8)^.A := 65535;
+                  Inc(AlphaRun8, Increment);
+                end;
+                Inc(Target16, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end
@@ -3052,6 +3101,7 @@ begin
           LRun16 := Source[0];
           aRun16 := LRun16; Inc(aRun16);
           bRun16 := aRun16; Inc(bRun16);
+          AlphaRun16 := bRun16; Inc(AlphaRun16);
           Increment := SourceSamplesPerPixel;
         end
         else
@@ -3059,6 +3109,10 @@ begin
           LRun16 := Source[0];
           aRun16 := Source[1];
           bRun16 := Source[2];
+          if Length(Source) > 3 then
+            AlphaRun16 := Source[3]
+          else
+            AlphaRun16 := nil;
           Increment := 1;
         end;
 
@@ -3097,10 +3151,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToRGB(X, Y, Z, PRGB(Target8));
-                  Inc(Target8, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target8, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA(Target8)^.A := AlphaRun16^ shr 8
+                  else
+                    PBGRA(Target8)^.A := $ff;
+                  Inc(AlphaRun16, Increment);
+                end;
+                Inc(Target8, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -3138,10 +3197,15 @@ begin
 
                   // Once we have CIE XYZ it is easy (yet quite expensive) to calculate RGB values from this
                   XYZToRGB16(X, Y, Z, PRGB16(Target16));
-                  Inc(Target16, 3 + AlphaSkip);
-                end
-                else
-                  Inc(Target16, 3 + AlphaSkip);
+                end;
+                if coAlpha in FTargetOptions then begin
+                  if coAlpha in FSourceOptions then
+                    PBGRA16(Target16)^.A := AlphaRun16^
+                  else
+                    PBGRA16(Target16)^.A := 65535;
+                  Inc(AlphaRun16, Increment);
+                end;
+                Inc(Target16, 3 + AlphaSkip);
                 BitRun := RorByte(BitRun);
                 Dec(Count);
               end;
@@ -7976,7 +8040,9 @@ begin
     ShowError(gesIndexedNotSupported);
 
   // Set up special conversion options
-  if FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA, csCMYKA] then
+  if (FSourceScheme in [csGA, csIndexedA, csRGBA, csBGRA, csCMYKA]) or
+     ((FSourceScheme in [csCIELab, csITULab]) and (TargetSamplesPerPixel > 3))
+  then
     Include(FSourceOptions, coAlpha)
   else
     Exclude(FSourceOptions, coAlpha);
@@ -8120,7 +8186,8 @@ begin
         csCIELab: ;
         csYCbCr: ;
       end;
-    csCIELab:
+    csCIELab,
+    csITULab:
       case FTargetScheme of
         csRGB,
         csRGBA: FRowConversion := RowConvertCIELab2RGB;
