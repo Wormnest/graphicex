@@ -7100,6 +7100,8 @@ var
   Run3,
   Run4,
   Run5: PByte;
+  PtrArray: array of pointer; // Array of channel buffers
+  iChannel: Word;
 
   W, H: Integer;       // Width and height of the layer or composite image.
 
@@ -7216,114 +7218,28 @@ begin
               Inc(Source, Channels * ChannelSize);
             end;
 
+            if FImageProperties.ColorScheme in [csCMYK, csCMYKA] then
+              ColorManager.SourceOptions := ColorManager.SourceOptions + [coInvertedCMYK];
+
             Increment := BPS * W;
+
             // second run: put data into image (convert color space if necessary)
-            case FImageProperties.ColorScheme of
-              csRGB:
-                begin
-                  Run1 := Buffer;
-                  Run2 := Run1; Inc(Run2, ChannelSize);
-                  Run3 := Run2; Inc(Run3, ChannelSize);
-                  for Y := 0 to H - 1 do
-                  begin
-                    ColorManager.ConvertRow([Run1, Run2, Run3], ScanLine[Y], W, $FF);
-                    Inc(Run1, Increment);
-                    Inc(Run2, Increment);
-                    Inc(Run3, Increment);
+            Run1 := Buffer;
+            // Since we can have a variable number of channels we use a
+            // dynamic array for the channel pointers.
+            SetLength(PtrArray, Channels);
+            for iChannel := 0 to Channels-1 do begin
+              PtrArray[iChannel] := Run1;
+              Inc(Run1, ChannelSize);
+            end;
+            for Y := 0 to H - 1 do
+            begin
+              ColorManager.ConvertRow(PtrArray, ScanLine[Y], W, $FF);
+              for iChannel := 0 to Channels-1 do begin
+                Inc(PtrArray[iChannel], Increment);
+              end;
 
-                    AdvanceProgress(100 / H, 0, 1, True);
-                  end;
-                end;
-              csRGBA:
-                begin
-                  Run1 := Buffer;
-                  Run2 := Run1; Inc(Run2, ChannelSize);
-                  Run3 := Run2; Inc(Run3, ChannelSize);
-                  Run4 := Run3; Inc(Run4, ChannelSize);
-                  for Y := 0 to H - 1 do
-                  begin
-                    ColorManager.ConvertRow([Run1, Run2, Run3, Run4], ScanLine[Y], W, $FF);
-                    Inc(Run1, Increment);
-                    Inc(Run2, Increment);
-                    Inc(Run3, Increment);
-                    Inc(Run4, Increment);
-
-                    AdvanceProgress(100 / H, 0, 1, True);
-                  end;
-                end;
-              csGA,
-              csIndexedA:
-                begin
-                  Run1 := Buffer;
-                  Run2 := Run1; Inc(Run2, ChannelSize);
-                  for Y := 0 to H - 1 do
-                  begin
-                    ColorManager.ConvertRow([Run1, Run2], ScanLine[Y], W, $FF);
-                    Inc(Run1, Increment);
-                    Inc(Run2, Increment);
-
-                    AdvanceProgress(100 / H, 0, 1, True);
-                  end;
-                end;
-              csCMYK,
-              csCMYKA:
-                begin
-                  // Photoshop CMYK values are given with 0 for maximum values, but the
-                  // (general) CMYK conversion works with 255 as maxium value. Hence we must reverse
-                  // all entries in the buffer.
-                  Run1 := Buffer;
-                  for Y := 1 to 4 * ChannelSize do
-                  begin
-                    Run1^ := 255 - Run1^;
-                    Inc(Run1);
-                  end;
-
-                  Run1 := Buffer;
-                  Run2 := Run1; Inc(Run2, ChannelSize);
-                  Run3 := Run2; Inc(Run3, ChannelSize);
-                  Run4 := Run3; Inc(Run4, ChannelSize);
-                  if FImageProperties.ColorScheme = csCMYK then begin
-                    for Y := 0 to H - 1 do
-                    begin
-                      ColorManager.ConvertRow([Run1, Run2, Run3, Run4], ScanLine[Y], W, $FF);
-                      Inc(Run1, Increment);
-                      Inc(Run2, Increment);
-                      Inc(Run3, Increment);
-                      Inc(Run4, Increment);
-
-                      AdvanceProgress(100 / H, 0, 1, True);
-                    end;
-                  end
-                  else begin // CMYKA
-                    Run5 := Run4; Inc(Run5, ChannelSize);
-                    for Y := 0 to H - 1 do
-                    begin
-                      ColorManager.ConvertRow([Run1, Run2, Run3, Run4, Run5], ScanLine[Y], W, $FF);
-                      Inc(Run1, Increment);
-                      Inc(Run2, Increment);
-                      Inc(Run3, Increment);
-                      Inc(Run4, Increment);
-                      Inc(Run5, Increment);
-
-                      AdvanceProgress(100 / H, 0, 1, True);
-                    end;
-                  end;
-                end;
-              csCIELab:
-                begin
-                  Run1 := Buffer;
-                  Run2 := Run1; Inc(Run2, ChannelSize);
-                  Run3 := Run2; Inc(Run3, ChannelSize);
-                  for Y := 0 to H - 1 do
-                  begin
-                    ColorManager.ConvertRow([Run1, Run2, Run3], ScanLine[Y], W, $FF);
-                    Inc(Run1, Increment);
-                    Inc(Run2, Increment);
-                    Inc(Run3, Increment);
-
-                    AdvanceProgress(100 / H, 0, 1, True);
-                  end;
-                end;
+              AdvanceProgress(100 / H, 0, 1, True);
             end;
           finally
             if Assigned(Buffer) then
