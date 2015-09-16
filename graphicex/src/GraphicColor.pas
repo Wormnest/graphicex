@@ -2720,7 +2720,7 @@ begin
           LRun8 := Source[0];
           aRun8 := LRun8; Inc(aRun8);
           bRun8 := aRun8; Inc(bRun8);
-          Increment := 3;
+          Increment := SourceSamplesPerPixel;
         end
         else
         begin
@@ -2820,7 +2820,7 @@ begin
           LRun16 := Source[0];
           aRun16 := LRun16; Inc(aRun16);
           bRun16 := aRun16; Inc(bRun16);
-          Increment := 3;
+          Increment := SourceSamplesPerPixel;
         end
         else
         begin
@@ -2952,7 +2952,7 @@ begin
           LRun8 := Source[0];
           aRun8 := LRun8; Inc(aRun8);
           bRun8 := aRun8; Inc(bRun8);
-          Increment := 3;
+          Increment := SourceSamplesPerPixel;
         end
         else
         begin
@@ -3052,7 +3052,7 @@ begin
           LRun16 := Source[0];
           aRun16 := LRun16; Inc(aRun16);
           bRun16 := aRun16; Inc(bRun16);
-          Increment := 3;
+          Increment := SourceSamplesPerPixel;
         end
         else
         begin

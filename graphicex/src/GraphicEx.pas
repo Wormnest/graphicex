@@ -2723,12 +2723,14 @@ begin
                       ColorManager.SourceColorScheme := csRGB;
                     end;
                   end;
-                csCIELab:
+                csCIELab,
+                csITULab:
                   begin
                     if SamplesPerPixel >= 3 then begin
-                      ColorManager.TargetSamplesPerPixel := 3;
-                      ColorManager.SourceOptions := ColorManager.SourceOptions +
-                        [coLabByteRange];
+                      ColorManager.TargetSamplesPerPixel := 3 + Ord(HasAlpha);
+                      if ColorScheme = csCIELab then // Not sure about this.
+                        ColorManager.SourceOptions := ColorManager.SourceOptions +
+                          [coLabByteRange];
                     end
                     else begin
                       {$IFNDEF FPC}
