@@ -3274,6 +3274,7 @@ procedure TColorManager.RowConvertCMYK2BGR(Source: array of Pointer; Target: Poi
 var
   C8, M8, Y8, K8, A8: PByte;
   C16, M16, Y16, K16, A16: PWord;
+  K16_Converted: Word;
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -3283,6 +3284,7 @@ var
   ConvertFromCMYK8_16: TCMYKComponentConverter8To16;
   ConvertFromCMYK16_8: TCMYKComponentConverter16To8;
   ConvertFromCMYK16_16: TCMYKComponentConverter16To16;
+  Convert16_16: function(Value: Word): Word of object;
 begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
@@ -3449,6 +3451,11 @@ begin
           end;
         end;
 
+        if coNeedByteSwap in FSourceOptions then
+          Convert16_16 := ComponentSwapConvert
+        else
+          Convert16_16 := ComponentNoConvert16;
+
         case FTargetBPS of
           8: // 161616 to 888
             begin
@@ -3462,19 +3469,20 @@ begin
               begin
                 if Boolean(Mask and BitRun) then
                 begin
+                  K16_Converted := Convert16_16(K16^);
                   // blue
-                  Target8^ := ConvertFromCMYK16_8(Y16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(Y16^), K16_Converted);
                   Inc(Target8);
                   // green
-                  Target8^ := ConvertFromCMYK16_8(M16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(M16^), K16_Converted);
                   Inc(Target8);
                   // red
-                  Target8^ := ConvertFromCMYK16_8(C16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(C16^), K16_Converted);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target8^ := A16^ shl 8; // From max 65535 to max 255
+                      Target8^ := Convert16_16(A16^) shl 8; // From max 65535 to max 255
                       Inc(A16, Increment);
                     end
                     else begin
@@ -3507,19 +3515,20 @@ begin
               begin
                 if Boolean(Mask and BitRun) then
                 begin
+                  K16_Converted := Convert16_16(K16^);
                   // blue
-                  Target16^ := ConvertFromCMYK16_16(Y16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(Y16^), K16_Converted);
                   Inc(Target16);
                   // green
-                  Target16^ := ConvertFromCMYK16_16(M16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(M16^), K16_Converted);
                   Inc(Target16);
                   // blue
-                  Target16^ := ConvertFromCMYK16_16(C16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(C16^), K16_Converted);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target16^ := A16^;
+                      Target16^ := Convert16_16(A16^);
                       Inc(A16, Increment);
                     end
                     else begin
@@ -3552,6 +3561,7 @@ procedure TColorManager.RowConvertCMYK2RGB(Source: array of Pointer; Target: Poi
 var
   C8, M8, Y8, K8, A8: PByte;
   C16, M16, Y16, K16, A16: PWord;
+  K16_Converted: Word;
   Target8: PByte;
   Target16: PWord;
   Increment: Integer;
@@ -3561,6 +3571,7 @@ var
   ConvertFromCMYK8_16: TCMYKComponentConverter8To16;
   ConvertFromCMYK16_8: TCMYKComponentConverter16To8;
   ConvertFromCMYK16_16: TCMYKComponentConverter16To16;
+  Convert16_16: function(Value: Word): Word of object;
 begin
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
@@ -3727,6 +3738,11 @@ begin
           end;
         end;
 
+        if coNeedByteSwap in FSourceOptions then
+          Convert16_16 := ComponentSwapConvert
+        else
+          Convert16_16 := ComponentNoConvert16;
+
         case FTargetBPS of
           8: // 161616 to 888
             begin
@@ -3740,19 +3756,20 @@ begin
               begin
                 if Boolean(Mask and BitRun) then
                 begin
+                  K16_Converted := Convert16_16(K16^);
                   // red
-                  Target8^ := ConvertFromCMYK16_8(C16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(C16^), K16_Converted);
                   Inc(Target8);
                   // green
-                  Target8^ := ConvertFromCMYK16_8(M16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(M16^), K16_Converted);
                   Inc(Target8);
                   // blue
-                  Target8^ := ConvertFromCMYK16_8(Y16^, K16^);
+                  Target8^ := ConvertFromCMYK16_8(Convert16_16(Y16^), K16_Converted);
                   Inc(Target8);
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target8^ := A16^ shl 8; // From max 65535 to max 255
+                      Target8^ := Convert16_16(A16^) shl 8; // From max 65535 to max 255
                       Inc(A16, Increment);
                     end
                     else begin
@@ -3785,19 +3802,20 @@ begin
               begin
                 if Boolean(Mask and BitRun) then
                 begin
+                  K16_Converted := Convert16_16(K16^);
                   // red
-                  Target16^ := ConvertFromCMYK16_16(C16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(C16^), K16_Converted);
                   Inc(Target16);
                   // green
-                  Target16^ := ConvertFromCMYK16_16(M16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(M16^), K16_Converted);
                   Inc(Target16);
                   // blue
-                  Target16^ := ConvertFromCMYK16_16(Y16^, K16^);
+                  Target16^ := ConvertFromCMYK16_16(Convert16_16(Y16^), K16_Converted);
                   Inc(Target16);
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target16^ := A16^;
+                      Target16^ := Convert16_16(A16^);
                       Inc(A16, Increment);
                     end
                     else begin
