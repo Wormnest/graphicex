@@ -8000,7 +8000,8 @@ begin
   end;
 
   case FSourceScheme of
-    csG:
+    csG,
+    csGA:
       case FTargetScheme of
         csBGR,
         csBGRA,
@@ -8016,18 +8017,6 @@ begin
           // Source 1bps CSG --> Target 1bps CSG
           // Todo: move this to RowConvertGray too
           FRowConversion := RowConvertIndexed8;
-      end;
-    csGA:
-      case FTargetScheme of
-        csBGR,
-        csBGRA,
-        csRGB,
-        csRGBA:
-          if (FTargetBPS = 8) and (FSourceBPS <= 16) then
-            FRowConversion := RowConvertGray2BGR;
-      else
-        if (FSourceBPS in [5..16]) and (FTargetBPS in [8, 16]) then
-          FRowConversion := RowConvertGray;
       end;
     csIndexed:
       begin
