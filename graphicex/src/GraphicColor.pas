@@ -254,6 +254,11 @@ type
     sdfComplexFloat      // Complex IEEE Floating Point
   );
 
+  // White point to be used in certain color space conversions
+  TWhitePoint = record
+    X, Y, Z: Single;
+  end;
+
   // TConversionMethod describes the general parameter list to which each implemented conversion method conforms.
   // Note: Source is defined as open array parameter to allow plane and interlaced source data.
   TConversionMethod = procedure(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte) of object;
@@ -279,6 +284,7 @@ type
     FCbToBlueTable,
     FCrToGreenTable,
     FCbToGreenTable: array of Integer;
+    FWhitePoint: TWhitePoint;          // Reference white point for certain color space conversions
 
     FSourcePaletteFormat: TRawPaletteFormat; // Format of palette data
     FSourcePaletteData: array of Pointer;    // Pointer(s) to palette data
@@ -366,6 +372,7 @@ type
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
     procedure SetGamma(MainGamma: Single; DisplayGamma: Single = DefaultDisplayGamma);
     procedure SetYCbCrParameters(Values: array of Single; HSubSampling, VSubSampling: Byte);
+    procedure SetWhitePoint(const AWhitePoint_X, AWhitePoint_Y, AWhitePoint_Z: Single);
     procedure SetSourcePalette( Data: array of Pointer; PaletteFormat: TRawPaletteFormat; RGB: Boolean = True);
     procedure SetSourceAlphaPalette(AAlphaPalette: PByteArray);
     procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
@@ -1432,6 +1439,16 @@ end;
 
 //----------------- TColorManager ----------------------------------------------
 
+const
+  // From LibTiff tif_aux.c:
+  // TIFF 6.0 specification tells that it is no default value for the WhitePoint,
+  // but AdobePhotoshop TIFF Technical Note tells that it should be CIE D50.
+
+  // Observer= 2Â°, Illuminant= D50
+  ref_X =  96.422;
+  ref_Y = 100.000;
+  ref_Z =  82.521;
+
 constructor TColorManager.Create;
 
 // Set some default values
@@ -1454,6 +1471,11 @@ begin
   FYCbCrCoefficients[0] := 0.299;
   FYCbCrCoefficients[1] := 0.587;
   FYCbCrCoefficients[2] := 0.114;
+
+  // Default whitepoint for TIFF/PSD is D50
+  FWhitePoint.X := ref_X;
+  FWhitePoint.Y := ref_Y;
+  FWhitePoint.Z := ref_Z;
 
   FHSubSampling := 1;
   FVSubSampling := 1;
@@ -2506,15 +2528,6 @@ end;
 //------------------------------------------------------------------------------
 
 const
-  // From LibTiff tif_aux.c:
-  // TIFF 6.0 specification tells that it is no default value for the WhitePoint,
-  // but AdobePhotoshop TIFF Technical Note tells that it should be CIE D50.
-
-  // Observer= 2Â°, Illuminant= D50
-  ref_X =  96.422;
-  ref_Y = 100.000;
-  ref_Z =  82.521;
-
   // Use a const for 16 / 116 to improve speed.
   _16_116 = 16.0 / 116.0;
 
@@ -2861,6 +2874,8 @@ begin
             AlphaRun16 := nil;
           Increment := 1;
         end;
+
+        // TODO: SUPPORT FOR BYTESWAP!!!
 
         case FTargetBPS of
           8: // 161616 to 888
@@ -8797,6 +8812,15 @@ begin
     ShowError(gesVerticalSubSamplingError);
   FHSubSampling := HSubSampling;
   FVSubSampling := VSubSampling;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TColorManager.SetWhitePoint(const AWhitePoint_X, AWhitePoint_Y, AWhitePoint_Z: Single);
+begin
+  FWhitePoint.X := AWhitePoint_X;
+  FWhitePoint.Y := AWhitePoint_Y;
+  FWhitePoint.Z := AWhitePoint_Z;
 end;
 
 //------------------------------------------------------------------------------
