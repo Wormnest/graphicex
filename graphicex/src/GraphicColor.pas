@@ -3424,7 +3424,7 @@ begin
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target16^ := A8^ shr 8; // From max 255 to max 65535
+                      Target16^ := A8^ shl 8; // From max 255 to max 65535
                       Inc(A8, Increment);
                     end
                     else begin
@@ -3507,7 +3507,7 @@ begin
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target8^ := Convert16_16(A16^) shl 8; // From max 65535 to max 255
+                      Target8^ := Convert16_16(A16^) shr 8; // From max 65535 to max 255
                       Inc(A16, Increment);
                     end
                     else begin
@@ -3711,7 +3711,7 @@ begin
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target16^ := A8^ shr 8; // From max 255 to max 65535
+                      Target16^ := A8^ shl 8; // From max 255 to max 65535
                       Inc(A8, Increment);
                     end
                     else begin
@@ -3794,7 +3794,7 @@ begin
 
                   if coAlpha in FTargetOptions then begin
                     if coAlpha in FSourceOptions then begin
-                      Target8^ := Convert16_16(A16^) shl 8; // From max 65535 to max 255
+                      Target8^ := Convert16_16(A16^) shr 8; // From max 65535 to max 255
                       Inc(A16, Increment);
                     end
                     else begin
