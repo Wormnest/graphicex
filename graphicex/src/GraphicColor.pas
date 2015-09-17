@@ -2573,9 +2573,19 @@ begin
   X := X / 100;
   Y := Y / 100;
   Z := Z / 100;
-  vr := X *  3.2406 + Y * -1.5372 + Z * -0.4986;
+
+  // Conversion matrix for D65
+  {vr := X *  3.2406 + Y * -1.5372 + Z * -0.4986;
   vg := X * -0.9689 + Y *  1.8758 + Z *  0.0415;
-  vb := X *  0.0557 + Y * -0.2040 + Z *  1.0570;
+  vb := X *  0.0557 + Y * -0.2040 + Z *  1.0570;}
+
+  // Since TIFF/PSD seem to default to D50 whitepoint instead of D65 that we
+  // see in most computations we have to adapt the conversion matrix.
+  // See: http://www.brucelindbloom.com/Eqn_RGB_XYZ_Matrix.html (sRGB, D50)
+  // TODO: Change so that the matrix to use can be changed (see tif_color.c)
+  vr := X *  3.1338561 + Y * -1.6168667 + Z * -0.4906146;
+  vg := X * -0.9787684 + Y *  1.9161415 + Z *  0.0334540;
+  vb := X *  0.0719453 + Y * -0.2289914 + Z *  1.4052427;
 
   if vr > 0.0031308 then
     r := 1.055 * Power(vr, 1/2.4) - 0.055
