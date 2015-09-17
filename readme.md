@@ -13,7 +13,7 @@ Besides that many changes and enhancements to the code have been made,
 especially in PSP and TIFF loading.
 
 I have also added support for loading Gimp XCF files, jpeg images, an ImageViewer example, some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
-For more details see the [graphicex](https://bitbucket.org/jacobb/graphicex/src/e80c43068c0bdbae3ae06c046ad0021fd8eb5450/graphicex/?at=default) folder.
+For more details see the [graphicex](/graphicex/readme.md) folder.
 
 2. external
 -----------
