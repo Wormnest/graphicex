@@ -14,9 +14,9 @@ Supported image formats
 
 * **TIFF images (.tif; .tiff)**
     + 1..64 bits per sample, including 16, 24, 32 and 64 bits floating point
-    + indexed(A), grayscale(A), RGB(A), CMYK(A), L*a*b*, ...
+    + indexed(A), grayscale(A), RGB(A), CMYK(A), L*a*b*(A), ...
     + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
-    + uses libtiff version 3.9.7
+    + uses libtiff version 4.0.4 or 3.9.7
 * **Photoshop images (.psd, .pdd)**
     + 1, 8, 16 bits per sample
     + indexed, RGB, CMYK, CIE L*a*b*
@@ -29,6 +29,9 @@ Supported image formats
     + 1, 8 bits per sample
     + indexed(A), grayscale(A), RGB(A)
     + uncompressed, RLE
+* **Jpeg images (.jpeg, .jpg, .jpe, .jfif)**
+	+ 8 bits per sample
+    + grayscale, RGB, CMYK
 * **Portable network graphic images (.png)**
     + 1, 2, 4, 8, 16 bits per sample
     + indexed(A), grayscale(A), RGB(A)
@@ -67,9 +70,7 @@ Supported image formats
     + 8 bits per sample
 	+ indexed
 	+ RLE compressed
-* **Autodesk images files (.cel; .pic)**, old style only    
-    _Should be considered deprecated since we don't have any sample images to
-    test with nor any documentation of this format._
+* **Autodesk Animator images files (.cel; .pic)**, old style only    
     + 8 bits per sample
 	+ indexed
 	+ uncompressed
@@ -116,7 +117,7 @@ extra functionality added by myself.
 * I added a Gimp XCF image loader.
 * Unicode aware fixes have been added, however it needs testing by someone
 that has a Unicode version of Delphi.
-* LibTiff updated to version 3.9.7, libjpeg 6b, zlib 1.2.8. The C source code
+* LibTiff updated to version 4.0.4, libjpeg 6b, zlib 1.2.8. The C source code
 and necessary MQ patches have also been added to the repository.
 
 Additions March/April 2015
@@ -133,10 +134,13 @@ Additions July/August 2015
 * Lazarus Win64 compatibility.
 * Added image reader tests.
 
+Additions September 2015
+------------------------
+* Jpeg reader class using LibJpeg or LibJpeg-Turbo.
+
 Todo
 ----
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
-* Integrate jpeg handling more into graphicex.
 * Add more unit tests.
 * Move all code for setting target options from GraphicEx to the ColorManager and
   make that part overrideable. This will make it easier to override how we want
@@ -152,7 +156,11 @@ Folder structure
 \packages = Contains the Lazarus packages.
 
 Note that the .obj files needed for Delphi are not available in the hg repository itself.
-They need to be downloaded from [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_397.zip)
+Currently there are two versions. The first includes zlib, libjpeg and libtiff 3.9.7;
+and the second includes zlib, libjpeg and libtiff 4.0.4.
+Downloads:
+* Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_397.zip)    
+* Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_404.zip)    
 
 The .a lib files needed for Fpc/Lazarus you will have to make yourself although
 libz and libcrtdll can be copied/used from your MingW installation.
