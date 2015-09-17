@@ -2876,7 +2876,9 @@ end;
 function TTIFFGraphic.ReadImageProperties(const Memory: Pointer; Size:Int64; ImageIndex: Cardinal): Boolean;
 
 // Reads all relevant TIF properties of the image of index ImageIndex (zero based).
-
+type
+  TFloatArray = array [0..1] of Single;
+  PFloatArray = ^TFloatArray;
 var
   TIFFImage: PTIFF;
   PhotometricInterpretation: Word;
@@ -2887,6 +2889,8 @@ var
   ResUnit: Word;
   FillOrder: Word;
   TiffStringValue: array [0..0] of PAnsiChar;
+  TiffRationals: PFloatArray;
+  RefWhiteX: Single;
 
   {$ifndef DELPHI_6_UP}
     // Structure used to build a va_list array.
@@ -3082,6 +3086,14 @@ begin
             ColorScheme := csCIELog2Luv;
         else
           ColorScheme := csUnknown;
+        end;
+
+        if ColorScheme in [csCIELAB, csITULAB] then begin
+          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_WHITEPOINT, @TiffRationals);
+          RefWhiteX := TiffRationals^[0]/TiffRationals^[1] * 100.0;
+          ColorManager.SetWhitePoint(
+            RefWhiteX, 100.0,
+            (1.0 - TiffRationals^[0] - TiffRationals^[1]) / TiffRationals^[1] * RefWhiteX );
         end;
 
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_XRESOLUTION, @XResolution);
