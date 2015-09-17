@@ -11,9 +11,9 @@ This is my fork of the latest version of graphicex that I could find
 online applied and a lot of others fixed by me.
 Besides that many changes and enhancements to the code have been made,
 especially in PSP and TIFF loading.
-I have also added support for loading Gimp XCF files, an ImageViewer example,
-some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
-For more details see the [graphicex folder] (https://bitbucket.org/jacobb/graphicex/src/e80c43068c0bdbae3ae06c046ad0021fd8eb5450/graphicex/?at=default).
+
+I have also added support for loading Gimp XCF files, jpeg images, an ImageViewer example, some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
+For more details see the [graphicex](https://bitbucket.org/jacobb/graphicex/src/e80c43068c0bdbae3ae06c046ad0021fd8eb5450/graphicex/?at=default) folder.
 
 2. external
 -----------
@@ -22,10 +22,10 @@ functions. Used by grapicex but can also be used separately.
 Currently available here are zlib, libtiff and libjpeg.    
 
 The .obj files needed by Delphi for zlib, JPG and TIFF support are available
-as a separate download since versioning them in hg doesn't work well.
+as a separate download since versioning them in hg doesn't work well.    
 Downloads:    
-https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_397.zip    
-https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_404.zip    
+https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip    
+https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip    
 
 GraphicEx is now also working with Fpc/Lazarus Win32 and Win64. However, you
 will have to compile the libraries yourself for now.

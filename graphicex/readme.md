@@ -137,6 +137,9 @@ Additions July/August 2015
 Additions September 2015
 ------------------------
 * Jpeg reader class using LibJpeg or LibJpeg-Turbo.
+* Fix TIFF and PSD CIELab with alpha images.
+* Fix PSD 16 bit CMYK images.
+* Minor improvements to RLA/RPF, CEL/PIC.
 
 Todo
 ----
@@ -157,10 +160,12 @@ Folder structure
 
 Note that the .obj files needed for Delphi are not available in the hg repository itself.
 Currently there are two versions. The first includes zlib, libjpeg and libtiff 3.9.7;
-and the second includes zlib, libjpeg and libtiff 4.0.4.
-Downloads:
-* Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_397.zip)    
-* Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj_libtiff_404.zip)    
+and the second includes zlib, libjpeg and libtiff 4.0.4.    
+
+Downloads:    
+
+* Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip)    
+* Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip)    
 
 The .a lib files needed for Fpc/Lazarus you will have to make yourself although
 libz and libcrtdll can be copied/used from your MingW installation.
