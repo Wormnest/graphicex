@@ -168,32 +168,32 @@ const
     COMPRESSION_CCITTRLE                = 2;       { CCITT modified Huffman RLE }
     COMPRESSION_CCITTFAX3               = 3;       { CCITT Group 3 fax encoding }
     COMPRESSION_CCITT_T4                = 3;       { CCITT T.4 (TIFF 6 name) }
-    COMPRESSION_CCITTFAX4	        = 4;	   { CCITT Group 4 fax encoding }
+    COMPRESSION_CCITTFAX4               = 4;       { CCITT Group 4 fax encoding }
     COMPRESSION_CCITT_T6                = 4;       { CCITT T.6 (TIFF 6 name) }
-    COMPRESSION_LZW		        = 5;       { Lempel-Ziv  & Welch }
-    COMPRESSION_OJPEG		        = 6;	   { !6.0 JPEG }
-    COMPRESSION_JPEG		        = 7;	   { %JPEG DCT compression }
-    COMPRESSION_T85			= 9;	   { !TIFF/FX T.85 JBIG compression }
-    COMPRESSION_T43			= 10;	   { !TIFF/FX T.43 colour by layered JBIG compression }
-    COMPRESSION_NEXT		        = 32766;   { NeXT 2-bit RLE }
-    COMPRESSION_CCITTRLEW	        = 32771;   { #1 w/ word alignment }
-    COMPRESSION_PACKBITS	        = 32773;   { Macintosh RLE }
-    COMPRESSION_THUNDERSCAN	        = 32809;   { ThunderScan RLE }
+    COMPRESSION_LZW                     = 5;       { Lempel-Ziv  & Welch }
+    COMPRESSION_OJPEG                   = 6;       { !6.0 JPEG }
+    COMPRESSION_JPEG                    = 7;       { %JPEG DCT compression }
+    COMPRESSION_T85                     = 9;       { !TIFF/FX T.85 JBIG compression }
+    COMPRESSION_T43                     = 10;      { !TIFF/FX T.43 colour by layered JBIG compression }
+    COMPRESSION_NEXT                    = 32766;   { NeXT 2-bit RLE }
+    COMPRESSION_CCITTRLEW               = 32771;   { #1 w/ word alignment }
+    COMPRESSION_PACKBITS                = 32773;   { Macintosh RLE }
+    COMPRESSION_THUNDERSCAN             = 32809;   { ThunderScan RLE }
     { codes 32895-32898 are reserved for ANSI IT8 TIFF/IT <dkelly@apago.com) }
-    COMPRESSION_IT8CTPAD	        = 32895;   { IT8 CT w/padding }
-    COMPRESSION_IT8LW		        = 32896;   { IT8 Linework RLE }
-    COMPRESSION_IT8MP		        = 32897;   { IT8 Monochrome picture }
-    COMPRESSION_IT8BL		        = 32898;   { IT8 Binary line art }
+    COMPRESSION_IT8CTPAD                = 32895;   { IT8 CT w/padding }
+    COMPRESSION_IT8LW                   = 32896;   { IT8 Linework RLE }
+    COMPRESSION_IT8MP                   = 32897;   { IT8 Monochrome picture }
+    COMPRESSION_IT8BL                   = 32898;   { IT8 Binary line art }
     { compression codes 32908-32911 are reserved for Pixar }
-    COMPRESSION_PIXARFILM	        = 32908;   { Pixar companded 10bit LZW }
-    COMPRESSION_PIXARLOG	        = 32909;   { Pixar companded 11bit ZIP }
-    COMPRESSION_DEFLATE		        = 32946;   { Deflate compression }
+    COMPRESSION_PIXARFILM               = 32908;   { Pixar companded 10bit LZW }
+    COMPRESSION_PIXARLOG                = 32909;   { Pixar companded 11bit ZIP }
+    COMPRESSION_DEFLATE                 = 32946;   { Deflate compression }
     COMPRESSION_ADOBE_DEFLATE           = 8;       { Deflate compression, as recognized by Adobe }
     { compression code 32947 is reserved for Oceana Matrix <dev@oceana.com> }
     COMPRESSION_DCS                     = 32947;   { Kodak DCS encoding }
-    COMPRESSION_JBIG		        = 34661;   { ISO JBIG }
-    COMPRESSION_SGILOG		        = 34676;   { SGI Log Luminance RLE }
-    COMPRESSION_SGILOG24	        = 34677;   { SGI Log 24-bit packed }
+    COMPRESSION_JBIG                    = 34661;   { ISO JBIG }
+    COMPRESSION_SGILOG                  = 34676;   { SGI Log Luminance RLE }
+    COMPRESSION_SGILOG24                = 34677;   { SGI Log 24-bit packed }
 
     // jb Not documented in tiff.h but encountered compression scheme(s):
     // jb Note that Lead Tools apparently has more proprietary TIFF formats for
@@ -201,7 +201,7 @@ const
     COMPRESSION_LEADTOOLS_CMP           = 34709;    { LeadTools Proprietary "FILE_TIF_CMP".}
 
     COMPRESSION_JP2000                  = 34712;   { Leadtools JPEG2000 }
-    COMPRESSION_LZMA		        = 34925;   { LZMA2 }
+    COMPRESSION_LZMA                    = 34925;   { LZMA2 }
   TIFFTAG_PHOTOMETRIC                   = 262;     { photometric interpretation }
     PHOTOMETRIC_MINISWHITE              = 0;       { min value is white }
     PHOTOMETRIC_MINISBLACK              = 1;       { min value is black }
@@ -286,9 +286,9 @@ const
   TIFFTAG_ARTIST                        = 315;     { creator of image }
   TIFFTAG_HOSTCOMPUTER                  = 316;     { machine where created }
   TIFFTAG_PREDICTOR                     = 317;     { prediction scheme w/ LZW }
-    PREDICTOR_NONE		        = 1;	   { no prediction scheme used }
-    PREDICTOR_HORIZONTAL	        = 2;	   { horizontal differencing }
-    PREDICTOR_FLOATINGPOINT	        = 3;	   { floating point predictor }
+    PREDICTOR_NONE                      = 1;       { no prediction scheme used }
+    PREDICTOR_HORIZONTAL                = 2;       { horizontal differencing }
+    PREDICTOR_FLOATINGPOINT             = 3;       { floating point predictor }
   TIFFTAG_WHITEPOINT                    = 318;     { image white point }
   TIFFTAG_PRIMARYCHROMATICITIES         = 319;     { !primary chromaticities }
   TIFFTAG_COLORMAP                      = 320;     { RGB map for pallette image }
@@ -331,29 +331,29 @@ const
   TIFFTAG_JPEGTABLES                    = 347;     { %JPEG table stream }
   TIFFTAG_OPIPROXY                      = 351;     { %OPI Proxy [Adobe TIFF technote] }
   // Tags 400-435 are from the TIFF/FX spec.
-  TIFFTAG_GLOBALPARAMETERSIFD	        = 400;	   { ! }
-  TIFFTAG_PROFILETYPE			= 401;	   { ! }
-    PROFILETYPE_UNSPECIFIED	        = 0;	   { ! }
-    PROFILETYPE_G3_FAX		        = 1;	   { ! }
-  TIFFTAG_FAXPROFILE			= 402;	   { ! }
-    FAXPROFILE_S			= 1;	   { !TIFF/FX FAX profile S }
-    FAXPROFILE_F			= 2;	   { !TIFF/FX FAX profile F }
-    FAXPROFILE_J			= 3;	   { !TIFF/FX FAX profile J }
-    FAXPROFILE_C			= 4;	   { !TIFF/FX FAX profile C }
-    FAXPROFILE_L			= 5;	   { !TIFF/FX FAX profile L }
-    FAXPROFILE_M			= 6;	   { !TIFF/FX FAX profile LM }
-  TIFFTAG_CODINGMETHODS		        = 403;	   { !TIFF/FX coding methods }
-    CODINGMETHODS_T4_1D		        = (1 shl 1); { !T.4 1D }
-    CODINGMETHODS_T4_2D		        = (1 shl 2); { !T.4 2D }
-    CODINGMETHODS_T6		        = (1 shl 3); { !T.6 }
-    CODINGMETHODS_T85 		        = (1 shl 4); { !T.85 JBIG }
-    CODINGMETHODS_T42 		        = (1 shl 5); { !T.42 JPEG }
-    CODINGMETHODS_T43		        = (1 shl 6); { !T.43 colour by layered JBIG }
-  TIFFTAG_VERSIONYEAR			= 404;	   { !TIFF/FX version year }
-  TIFFTAG_MODENUMBER			= 405;	   { !TIFF/FX mode number }
-  TIFFTAG_DECODE			= 433;	   { !TIFF/FX decode }
-  TIFFTAG_IMAGEBASECOLOR		= 434;	   { !TIFF/FX image base colour }
-  TIFFTAG_T82OPTIONS			= 435;	   { !TIFF/FX T.82 options }
+  TIFFTAG_GLOBALPARAMETERSIFD           = 400;     { ! }
+  TIFFTAG_PROFILETYPE                   = 401;     { ! }
+    PROFILETYPE_UNSPECIFIED             = 0;       { ! }
+    PROFILETYPE_G3_FAX                  = 1;       { ! }
+  TIFFTAG_FAXPROFILE                    = 402;     { ! }
+    FAXPROFILE_S                        = 1;       { !TIFF/FX FAX profile S }
+    FAXPROFILE_F                        = 2;       { !TIFF/FX FAX profile F }
+    FAXPROFILE_J                        = 3;       { !TIFF/FX FAX profile J }
+    FAXPROFILE_C                        = 4;       { !TIFF/FX FAX profile C }
+    FAXPROFILE_L                        = 5;       { !TIFF/FX FAX profile L }
+    FAXPROFILE_M                        = 6;       { !TIFF/FX FAX profile LM }
+  TIFFTAG_CODINGMETHODS                 = 403;     { !TIFF/FX coding methods }
+    CODINGMETHODS_T4_1D                 = (1 shl 1); { !T.4 1D }
+    CODINGMETHODS_T4_2D                 = (1 shl 2); { !T.4 2D }
+    CODINGMETHODS_T6                    = (1 shl 3); { !T.6 }
+    CODINGMETHODS_T85                   = (1 shl 4); { !T.85 JBIG }
+    CODINGMETHODS_T42                   = (1 shl 5); { !T.42 JPEG }
+    CODINGMETHODS_T43                   = (1 shl 6); { !T.43 colour by layered JBIG }
+  TIFFTAG_VERSIONYEAR                   = 404;     { !TIFF/FX version year }
+  TIFFTAG_MODENUMBER                    = 405;     { !TIFF/FX mode number }
+  TIFFTAG_DECODE                        = 433;     { !TIFF/FX decode }
+  TIFFTAG_IMAGEBASECOLOR                = 434;     { !TIFF/FX image base colour }
+  TIFFTAG_T82OPTIONS                    = 435;     { !TIFF/FX T.82 options }
   { Tags 512-521 are obsoleted by Technical Note #2
     which specifies a revised JPEG-in-TIFF scheme. }
   TIFFTAG_JPEGPROC                      = 512;     { !JPEG processing algorithm }
@@ -373,7 +373,7 @@ const
     YCBCRPOSITION_CENTERED              = 1;       { !as in PostScript Level 2 }
     YCBCRPOSITION_COSITED               = 2;       { !as in CCIR 601-1 }
   TIFFTAG_REFERENCEBLACKWHITE           = 532;     { !colorimetry info }
-  TIFFTAG_STRIPROWCOUNTS		= 559;     { !TIFF/FX strip row counts }
+  TIFFTAG_STRIPROWCOUNTS                = 559;     { !TIFF/FX strip row counts }
   TIFFTAG_XMLPACKET                     = 700;     { %XML packet [Adobe XMP technote 9-14-02] (dkelly@apago.com) }
   TIFFTAG_OPIIMAGEID                    = 32781;   { %OPI ImageID [Adobe TIFF technote] }
   { tags 32952-32956 are private tags registered to Island Graphics }
@@ -402,8 +402,8 @@ const
   TIFFTAG_PIXAR_MATRIX_WORLDTOCAMERA    = 33306;
   { tag 33405 is a private tag registered to Eastman Kodak }
   TIFFTAG_WRITERSERIALNUMBER            = 33405;   { device serial number }
-  TIFFTAG_CFAREPEATPATTERNDIM	        = 33421;   { dimensions of CFA pattern }
-  TIFFTAG_CFAPATTERN		        = 33422;   { color filter array pattern }
+  TIFFTAG_CFAREPEATPATTERNDIM           = 33421;   { dimensions of CFA pattern }
+  TIFFTAG_CFAPATTERN                    = 33422;   { color filter array pattern }
   { tag 33432 is listed in the 6.0 spec w/ unknown ownership }
   TIFFTAG_COPYRIGHT                     = 33432;   { copyright string }
   { IPTC TAG from RichTIFF specifications }
@@ -431,76 +431,76 @@ const
   { tag 34377 is private tag registered to Adobe for PhotoShop }
   TIFFTAG_PHOTOSHOP                     = 34377;
   { tags 34665, 34853 and 40965 are documented in EXIF specification }
-  TIFFTAG_EXIFIFD			= 34665;   { Pointer to EXIF private directory }
+  TIFFTAG_EXIFIFD                       = 34665;   { Pointer to EXIF private directory }
   { tag 34750 is a private tag registered to Adobe? }
   TIFFTAG_ICCPROFILE                    = 34675;   { ICC profile data }
   // jb Next one from 4.0.3
-  TIFFTAG_IMAGELAYER		        = 34732;   { !TIFF/FX image layer information }
+  TIFFTAG_IMAGELAYER                    = 34732;   { !TIFF/FX image layer information }
   { tag 34750 is a private tag registered to Pixel Magic }
   TIFFTAG_JBIGOPTIONS                   = 34750;   { JBIG options }
-  TIFFTAG_GPSIFD			= 34853;   { Pointer to GPS private directory }
+  TIFFTAG_GPSIFD                        = 34853;   { Pointer to GPS private directory }
   { tags 34908-34914 are private tags registered to SGI }
   TIFFTAG_FAXRECVPARAMS                 = 34908;   { encoded Class 2 ses. parms }
   TIFFTAG_FAXSUBADDRESS                 = 34909;   { received SubAddr string }
   TIFFTAG_FAXRECVTIME                   = 34910;   { receive time (secs) }
-  TIFFTAG_FAXDCS			= 34911;   { encoded fax ses. params, Table 2/T.30 }
+  TIFFTAG_FAXDCS                        = 34911;   { encoded fax ses. params, Table 2/T.30 }
   { tags 37439-37443 are registered to SGI <gregl@sgi.com> }
   TIFFTAG_STONITS                       = 37439;   { Sample value to Nits }
   { tag 34929 is a private tag registered to FedEx }
   TIFFTAG_FEDEX_EDR                     = 34929;   { unknown use }
-  TIFFTAG_INTEROPERABILITYIFD	        = 40965;   { Pointer to Interoperability private directory }
+  TIFFTAG_INTEROPERABILITYIFD           = 40965;   { Pointer to Interoperability private directory }
   { Adobe Digital Negative (DNG) format tags }
-  TIFFTAG_DNGVERSION		        = 50706;   { &DNG version number }
-  TIFFTAG_DNGBACKWARDVERSION	        = 50707;   { &DNG compatibility version }
-  TIFFTAG_UNIQUECAMERAMODEL	        = 50708;   { &name for the camera model }
-  TIFFTAG_LOCALIZEDCAMERAMODEL	        = 50709;   { &localized camera model name }
-  TIFFTAG_CFAPLANECOLOR		        = 50710;   { &CFAPattern->LinearRaw space mapping }
-  TIFFTAG_CFALAYOUT		        = 50711;   { &spatial layout of the CFA }
-  TIFFTAG_LINEARIZATIONTABLE	        = 50712;   { &lookup table description }
-  TIFFTAG_BLACKLEVELREPEATDIM	        = 50713;   { &repeat pattern size for the BlackLevel tag }
-  TIFFTAG_BLACKLEVEL		        = 50714;   { &zero light encoding level }
-  TIFFTAG_BLACKLEVELDELTAH	        = 50715;   { &zero light encoding level differences (columns) }
-  TIFFTAG_BLACKLEVELDELTAV	        = 50716;   { &zero light encoding level differences (rows) }
-  TIFFTAG_WHITELEVEL		        = 50717;   { &fully saturated encoding level }
-  TIFFTAG_DEFAULTSCALE		        = 50718;   { &default scale factors }
-  TIFFTAG_DEFAULTCROPORIGIN	        = 50719;   { &origin of the final image area }
-  TIFFTAG_DEFAULTCROPSIZE	        = 50720;   { &size of the final image area }
-  TIFFTAG_COLORMATRIX1		        = 50721;   { &XYZ->reference color space transformation matrix 1 }
-  TIFFTAG_COLORMATRIX2		        = 50722;   { &XYZ->reference color space transformation matrix 2 }
-  TIFFTAG_CAMERACALIBRATION1	        = 50723;   { &calibration matrix 1 }
-  TIFFTAG_CAMERACALIBRATION2	        = 50724;   { &calibration matrix 2 }
-  TIFFTAG_REDUCTIONMATRIX1	        = 50725;   { &dimensionality reduction matrix 1 }
-  TIFFTAG_REDUCTIONMATRIX2	        = 50726;   { &dimensionality reduction matrix 2 }
-  TIFFTAG_ANALOGBALANCE		        = 50727;   { &gain applied the stored raw values}
-  TIFFTAG_ASSHOTNEUTRAL		        = 50728;   { &selected white balance in linear reference space }
-  TIFFTAG_ASSHOTWHITEXY		        = 50729;   { &selected white balance in x-y chromaticity coordinates }
-  TIFFTAG_BASELINEEXPOSURE	        = 50730;   { &how much to move the zero point }
-  TIFFTAG_BASELINENOISE		        = 50731;   { &relative noise level }
-  TIFFTAG_BASELINESHARPNESS	        = 50732;   { &relative amount of sharpening }
-  TIFFTAG_BAYERGREENSPLIT	        = 50733;   { &how closely the values of the green pixels in the
+  TIFFTAG_DNGVERSION                    = 50706;   { &DNG version number }
+  TIFFTAG_DNGBACKWARDVERSION            = 50707;   { &DNG compatibility version }
+  TIFFTAG_UNIQUECAMERAMODEL             = 50708;   { &name for the camera model }
+  TIFFTAG_LOCALIZEDCAMERAMODEL          = 50709;   { &localized camera model name }
+  TIFFTAG_CFAPLANECOLOR                 = 50710;   { &CFAPattern->LinearRaw space mapping }
+  TIFFTAG_CFALAYOUT                     = 50711;   { &spatial layout of the CFA }
+  TIFFTAG_LINEARIZATIONTABLE            = 50712;   { &lookup table description }
+  TIFFTAG_BLACKLEVELREPEATDIM           = 50713;   { &repeat pattern size for the BlackLevel tag }
+  TIFFTAG_BLACKLEVEL                    = 50714;   { &zero light encoding level }
+  TIFFTAG_BLACKLEVELDELTAH              = 50715;   { &zero light encoding level differences (columns) }
+  TIFFTAG_BLACKLEVELDELTAV              = 50716;   { &zero light encoding level differences (rows) }
+  TIFFTAG_WHITELEVEL                    = 50717;   { &fully saturated encoding level }
+  TIFFTAG_DEFAULTSCALE                  = 50718;   { &default scale factors }
+  TIFFTAG_DEFAULTCROPORIGIN             = 50719;   { &origin of the final image area }
+  TIFFTAG_DEFAULTCROPSIZE               = 50720;   { &size of the final image area }
+  TIFFTAG_COLORMATRIX1                  = 50721;   { &XYZ->reference color space transformation matrix 1 }
+  TIFFTAG_COLORMATRIX2                  = 50722;   { &XYZ->reference color space transformation matrix 2 }
+  TIFFTAG_CAMERACALIBRATION1            = 50723;   { &calibration matrix 1 }
+  TIFFTAG_CAMERACALIBRATION2            = 50724;   { &calibration matrix 2 }
+  TIFFTAG_REDUCTIONMATRIX1              = 50725;   { &dimensionality reduction matrix 1 }
+  TIFFTAG_REDUCTIONMATRIX2              = 50726;   { &dimensionality reduction matrix 2 }
+  TIFFTAG_ANALOGBALANCE                 = 50727;   { &gain applied the stored raw values}
+  TIFFTAG_ASSHOTNEUTRAL                 = 50728;   { &selected white balance in linear reference space }
+  TIFFTAG_ASSHOTWHITEXY                 = 50729;   { &selected white balance in x-y chromaticity coordinates }
+  TIFFTAG_BASELINEEXPOSURE              = 50730;   { &how much to move the zero point }
+  TIFFTAG_BASELINENOISE                 = 50731;   { &relative noise level }
+  TIFFTAG_BASELINESHARPNESS             = 50732;   { &relative amount of sharpening }
+  TIFFTAG_BAYERGREENSPLIT               = 50733;   { &how closely the values of the green pixels in the
                                                      blue/green rows track the values of the green pixels
                                                      in the red/green rows }
-  TIFFTAG_LINEARRESPONSELIMIT	        = 50734;   { &non-linear encoding range }
-  TIFFTAG_CAMERASERIALNUMBER	        = 50735;   { &camera's serial number }
-  TIFFTAG_LENSINFO		        = 50736;   { info about the lens }
-  TIFFTAG_CHROMABLURRADIUS	        = 50737;   { &chroma blur radius }
-  TIFFTAG_ANTIALIASSTRENGTH	        = 50738;   { &relative strength of the camera's anti-alias filter }
-  TIFFTAG_SHADOWSCALE		        = 50739;   { &used by Adobe Camera Raw }
-  TIFFTAG_DNGPRIVATEDATA	        = 50740;   { &manufacturer's private data }
-  TIFFTAG_MAKERNOTESAFETY	        = 50741;   { &whether the EXIF MakerNote tag is safe to preserve
+  TIFFTAG_LINEARRESPONSELIMIT           = 50734;   { &non-linear encoding range }
+  TIFFTAG_CAMERASERIALNUMBER            = 50735;   { &camera's serial number }
+  TIFFTAG_LENSINFO                      = 50736;   { info about the lens }
+  TIFFTAG_CHROMABLURRADIUS              = 50737;   { &chroma blur radius }
+  TIFFTAG_ANTIALIASSTRENGTH             = 50738;   { &relative strength of the camera's anti-alias filter }
+  TIFFTAG_SHADOWSCALE                   = 50739;   { &used by Adobe Camera Raw }
+  TIFFTAG_DNGPRIVATEDATA                = 50740;   { &manufacturer's private data }
+  TIFFTAG_MAKERNOTESAFETY               = 50741;   { &whether the EXIF MakerNote tag is safe to preserve
                                                      along with the rest of the EXIF data }
   TIFFTAG_CALIBRATIONILLUMINANT1        = 50778;   { &illuminant 1 }
   TIFFTAG_CALIBRATIONILLUMINANT2        = 50779;   { &illuminant 2 }
-  TIFFTAG_BESTQUALITYSCALE	        = 50780;   { &best quality multiplier }
-  TIFFTAG_RAWDATAUNIQUEID		= 50781;   { &unique identifier for the raw image data }
-  TIFFTAG_ORIGINALRAWFILENAME	        = 50827;   { &file name of the original raw file }
-  TIFFTAG_ORIGINALRAWFILEDATA	        = 50828;   { &contents of the original raw file }
-  TIFFTAG_ACTIVEAREA		        = 50829;   { &active (non-masked) pixels of the sensor }
-  TIFFTAG_MASKEDAREAS		        = 50830;   { &list of coordinates of fully masked pixels }
-  TIFFTAG_ASSHOTICCPROFILE	        = 50831;   { &these two tags used to }
-  TIFFTAG_ASSHOTPREPROFILEMATRIX	= 50832;   { map cameras's color space into ICC profile space }
-  TIFFTAG_CURRENTICCPROFILE	        = 50833;   { & }
-  TIFFTAG_CURRENTPREPROFILEMATRIX	= 50834;   { & }
+  TIFFTAG_BESTQUALITYSCALE              = 50780;   { &best quality multiplier }
+  TIFFTAG_RAWDATAUNIQUEID               = 50781;   { &unique identifier for the raw image data }
+  TIFFTAG_ORIGINALRAWFILENAME           = 50827;   { &file name of the original raw file }
+  TIFFTAG_ORIGINALRAWFILEDATA           = 50828;   { &contents of the original raw file }
+  TIFFTAG_ACTIVEAREA                    = 50829;   { &active (non-masked) pixels of the sensor }
+  TIFFTAG_MASKEDAREAS                   = 50830;   { &list of coordinates of fully masked pixels }
+  TIFFTAG_ASSHOTICCPROFILE              = 50831;   { &these two tags used to }
+  TIFFTAG_ASSHOTPREPROFILEMATRIX        = 50832;   { map cameras's color space into ICC profile space }
+  TIFFTAG_CURRENTICCPROFILE             = 50833;   { & }
+  TIFFTAG_CURRENTPREPROFILEMATRIX       = 50834;   { & }
   { tag 65535 is an undefined tag used by Eastman Kodak }
   TIFFTAG_DCSHUESHIFTVALUES             = 65535;   { hue shift correction data }
 
@@ -561,10 +561,10 @@ const
   TIFFTAG_SGILOGENCODE                  = 65561;   { SGILog data encoding control }
     SGILOGENCODE_NODITHER               = 0;       { do not dither encoded values }
     SGILOGENCODE_RANDITHER              = 1;       { randomly dither encd values }
-  TIFFTAG_LZMAPRESET		        = 65562;   { LZMA2 preset (compression level) }
+  TIFFTAG_LZMAPRESET                    = 65562;   { LZMA2 preset (compression level) }
   TIFFTAG_PERSAMPLE                     = 65563;   { interface for per sample tags }
-    PERSAMPLE_MERGED                    = 0;	   { present as a single value }
-    PERSAMPLE_MULTI                     = 1;	   { present as multiple values }
+    PERSAMPLE_MERGED                    = 0;           { present as a single value }
+    PERSAMPLE_MULTI                     = 1;           { present as multiple values }
 
   { EXIF tags }
   EXIFTAG_EXPOSURETIME                  = 33434;   { Exposure time, given in seconds }
@@ -693,16 +693,16 @@ type
 
   TIFFDisplay = record
       d_mat: array [0..2, 0..2] of float;  { XYZ -> luminance matrix }
-      d_YCR: float;		       { Light o/p for reference white }
+      d_YCR: float;                        { Light o/p for reference white }
       d_YCG: float;
       d_YCB: float;
-      d_Vrwr: uint32;		       { Pixel values for ref. white }
+      d_Vrwr: uint32;                      { Pixel values for ref. white }
       d_Vrwg: uint32;
       d_Vrwb: uint32;
-      d_Y0R: float;		       { Residual light for black pixel }
+      d_Y0R: float;                        { Residual light for black pixel }
       d_Y0G: float;
       d_Y0B: float;
-      d_gammaR: float;		       { Gamma values for the three guns }
+      d_gammaR: float;                     { Gamma values for the three guns }
       d_gammaG: float;
       d_gammaB: float;
   end;
@@ -710,7 +710,7 @@ type
 
   // YCbCr->RGB support
   RecTIFFYCbCrToRGB = record
-    clamptab: PTIFFRGBValue;	       { range clamping table }
+    clamptab: PTIFFRGBValue;               { range clamping table }
     Cr_r_tab: PInteger;
     Cb_b_tab: PInteger;
     Cr_g_tab: pint32;
@@ -725,9 +725,9 @@ const
 type
   // CIE Lab 1976->RGB support
   RecTIFFCIELabToRGB = record
-    range: Integer;		       { Size of conversion table }
+    range: Integer;                          { Size of conversion table }
     rstep, gstep, bstep: float;
-    X0, Y0, Z0: float;		       { Reference white point }
+    X0, Y0, Z0: float;                       { Reference white point }
     display: TIFFDisplay;
     Yr2r: array [0..CIELABTORGB_TABLE_RANGE] of float;  { Conversion of Yr to r }
     Yg2g: array [0..CIELABTORGB_TABLE_RANGE] of float;  { Conversion of Yg to g }
@@ -762,35 +762,35 @@ type
   end;
 
   _TIFFRGBAImage = record
-	tif: PTIFF;                             // image handle
-	stoponerr: Integer;                     // stop on read error
-	isContig: Integer;                      // data is packed/separate
-	alpha: Integer;                         // type of alpha data present
-	width: uint32;                          // image width
-	height: uint32;                         // image height
-	bitspersample: uint16;                  // image bits/sample
-	samplesperpixel: uint16;                // image samples/pixel
-	orientation: uint16;                    // image orientation
-	req_orientation: uint16;                // requested orientation
-	photometric: uint16;                    // image photometric interp
-	redcmap: puint16;                       // colormap pallete
-	greencmap: puint16;
-	bluecmap: puint16;
-	{* get image data routine *}
+        tif: PTIFF;                             // image handle
+        stoponerr: Integer;                     // stop on read error
+        isContig: Integer;                      // data is packed/separate
+        alpha: Integer;                         // type of alpha data present
+        width: uint32;                          // image width
+        height: uint32;                         // image height
+        bitspersample: uint16;                  // image bits/sample
+        samplesperpixel: uint16;                // image samples/pixel
+        orientation: uint16;                    // image orientation
+        req_orientation: uint16;                // requested orientation
+        photometric: uint16;                    // image photometric interp
+        redcmap: puint16;                       // colormap pallete
+        greencmap: puint16;
+        bluecmap: puint16;
+        {* get image data routine *}
         get: getRoutine;
-	{* put decoded strip/tile *}
+        {* put decoded strip/tile *}
         put: put_rec;
-	Map: PTIFFRGBValue;                     // sample mapping array
-	BWmap: ppuint32;                        // black&white map
-	PALmap: ppuint32;                       // palette image map
-	ycbcr: PTIFFYCbCrToRGB;                 // YCbCr conversion state
-	cielab: PTIFFCIELabToRGB;               // CIE L*a*b conversion state
+        Map: PTIFFRGBValue;                     // sample mapping array
+        BWmap: ppuint32;                        // black&white map
+        PALmap: ppuint32;                       // palette image map
+        ycbcr: PTIFFYCbCrToRGB;                 // YCbCr conversion state
+        cielab: PTIFFCIELabToRGB;               // CIE L*a*b conversion state
 
-	UaToAa: puint8;                         // Unassociated alpha to associated alpha convertion LUT
-	Bitdepth16To8: puint8;                  // LUT for conversion from 16bit to 8bit values
+        UaToAa: puint8;                         // Unassociated alpha to associated alpha convertion LUT
+        Bitdepth16To8: puint8;                  // LUT for conversion from 16bit to 8bit values
 
-	row_offset: Integer;
-	col_offset: Integer;
+        row_offset: Integer;
+        col_offset: Integer;
   end;
 
   {
