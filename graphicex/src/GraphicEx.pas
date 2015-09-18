@@ -2740,7 +2740,10 @@ begin
                       ColorManager.TargetSamplesPerPixel := 3 + Ord(HasAlpha);
                       if ColorScheme = csCIELab then // Not sure about this.
                         ColorManager.SourceOptions := ColorManager.SourceOptions +
-                          [coLabByteRange];
+                          [coLabByteRange]
+                      else if ColorScheme = csICCLab then
+                        ColorManager.SourceOptions := ColorManager.SourceOptions +
+                          [coLabByteRange, coLabChromaOffset]
                     end
                     else begin
                       {$IFNDEF FPC}
