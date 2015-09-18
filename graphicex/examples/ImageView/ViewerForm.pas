@@ -743,8 +743,9 @@ const
     'CMY',           // Cyan, magenta, yellow.
     'CMYK',          // CMY with black.
     'CMYKA',         // CMYK with alpha channel.
-    'CIELab',        // CIE color format using luminance and chromaticities.
-    'ITUL*a*b*',     // ITU L*a*b*
+    'CIE L*a*b*',    // 1976 CIE L*a*b* color format using luminance and chromaticities.
+    'ICC L*a*b*',    // ICC L*a*b*
+    'ITU L*a*b*',    // ITU L*a*b*
     'CIE Log2(L)',   // CIE Log2(L)
     'CIE Log2(L) (u''v'')', // CIE Log2(L) (u', v')
     'YCbCr',         // Another format using luminance and chromaticities.
@@ -780,7 +781,9 @@ const
     'PlainZip',         // ZIP compression without prediction
     'PredictedZip',     // ZIP comression with prediction
     'SGILog',           // SGI Log Luminance RLE
-    'SGILog24'          // SGI Log 24-bit packed
+    'SGILog24',         // SGI Log 24-bit packed
+    'Jpeg2000',
+    'LZMA'
   );
 
 type
@@ -820,7 +823,9 @@ const
     NOT_A_TIFF_COMPRESSION_SCHEME,
     NOT_A_TIFF_COMPRESSION_SCHEME,
     'SGI Log Luminance RLE',
-    'SGI Log 24-bit packed'
+    'SGI Log 24-bit packed',
+    'Jpeg2000',
+    'LZMA'
   );
 
   CKnownTiffCompressionSchemes: array [0..TIFF_COMPRESSION_MAX] of TKnownTiffCompressionScheme = (
