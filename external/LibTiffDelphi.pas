@@ -216,6 +216,7 @@ const
     PHOTOMETRIC_CFA                     = 32803;   { color filter array }
     PHOTOMETRIC_LOGL                    = 32844;   { CIE Log2(L) }
     PHOTOMETRIC_LOGLUV                  = 32845;   { CIE Log2(L) (u',v') }
+    PHOTOMETRIC_LINEAR_RAW              = 34892;   // NOT present in LibTiff. DNG: LinearRaw.
   TIFFTAG_THRESHHOLDING                 = 263;     { thresholding used on data }
     THRESHHOLD_BILEVEL                  = 1;       { b&w art scan }
     THRESHHOLD_HALFTONE                 = 2;       { or dithered scan }
