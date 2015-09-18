@@ -143,7 +143,9 @@ type
     ctPlainZip,         // ZIP compression without prediction
     ctPredictedZip,     // ZIP comression with prediction
     ctSGILog,           // SGI Log Luminance RLE
-    ctSGILog24          // SGI Log 24-bit packed
+    ctSGILog24,         // SGI Log 24-bit packed
+    ctJpeg2000,         // Jpeg2000
+    ctLZMA              // LZMA2
   );
 
   // Image orientation, enumeration based on the TIFF Orientation tag
@@ -2991,14 +2993,8 @@ begin
         case TIFFCompression of
           COMPRESSION_NONE:
             Compression := ctNone;
-          COMPRESSION_LZW:
-            Compression := ctLZW;
-          COMPRESSION_PACKBITS:
-            Compression := ctPackedBits;
           COMPRESSION_CCITTRLE:
             Compression := ctFaxRLE;
-          COMPRESSION_CCITTRLEW:
-            Compression := ctFaxRLEW;
           COMPRESSION_CCITTFAX3:
             begin
               TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_T4OPTIONS, @TIFFValue);
@@ -3007,14 +3003,22 @@ begin
               else
                 Compression := ctFax3;
             end;
+          COMPRESSION_CCITTFAX4:
+            Compression := ctFax4;
+          COMPRESSION_LZW:
+            Compression := ctLZW;
           COMPRESSION_OJPEG:
             Compression := ctOJPEG;
           COMPRESSION_JPEG:
             Compression := ctJPEG;
-          COMPRESSION_CCITTFAX4:
-            Compression := ctFax4;
+          {COMPRESSION_T85, - not implemented
+          COMPRESSION_T43   - not implemented}
           COMPRESSION_NEXT:
             Compression := ctNext;
+          COMPRESSION_CCITTRLEW:
+            Compression := ctFaxRLEW;
+          COMPRESSION_PACKBITS:
+            Compression := ctPackedBits;
           COMPRESSION_THUNDERSCAN:
             Compression := ctThunderscan;
           COMPRESSION_IT8CTPAD:
@@ -3040,6 +3044,11 @@ begin
             Compression := ctSGILog;
           COMPRESSION_SGILOG24:
             Compression := ctSGILog24;
+          // COMPRESSION_LEADTOOLS_CMP (34709, LeadTools undocumented)
+          COMPRESSION_JP2000: // LeadTools Jpeg2000
+            Compression := ctJpeg2000;
+          COMPRESSION_LZMA:   // LZMA2
+            Compression := ctLZMA;
         else
           Compression := ctUnknown;
         end;
