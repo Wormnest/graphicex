@@ -306,6 +306,12 @@ type
 
   {$ifdef TIFFGraphic}
   // *.tif, *.tiff images
+  // Record to store some of the actual Tiff tag data
+  TActualTiffData = record
+    TiffCompression: Cardinal;
+    TiffPhotometric: Cardinal;
+  end;
+
   // YCbCr luma handling helper
   TLuma = record
     LumaRed,
@@ -325,7 +331,7 @@ type
     FVertSubSampling: Byte;
     FYcbCrPositioning: Byte;
     FLuma: TLuma;
-
+    FActualTiffData: TActualTiffData;
   protected
     procedure ReadContiguous(tif: PTIFF);
     procedure ReadTiled(tif: PTIFF);
@@ -334,6 +340,7 @@ type
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size:Int64; ImageIndex: Cardinal): Boolean; override;
+    property ActualTiffData: TActualTiffData read FActualTiffData;
   end;
 
     {$ifdef EPSGraphic}
@@ -2952,6 +2959,7 @@ begin
 
         // Photometric interpretation determines the color space.
         TIFFGetField(TIFFImage, TIFFTAG_PHOTOMETRIC, @PhotometricInterpretation);
+        FActualTiffData.TiffPhotometric := PhotometricInterpretation;
         // Type of extra information for additional samples per pixel.
         {$ifndef DELPHI_6_UP}
           ExtraInfo.Value1 := @ExtraSamples;
@@ -2990,6 +2998,7 @@ begin
 
         // Convert compression identifier.
         TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_COMPRESSION, @TIFFCompression);
+        FActualTiffData.TiffCompression :=  TIFFCompression;
         case TIFFCompression of
           COMPRESSION_NONE:
             Compression := ctNone;
