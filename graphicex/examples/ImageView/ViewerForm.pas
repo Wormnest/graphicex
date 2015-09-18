@@ -209,6 +209,7 @@ type
     ImgFile: string;
 
     ImgProperties: TImageProperties;
+    ImgTiffData: TActualTiffData;
     ImgThumbData: PgexThumbData;
 
     // Info for bmp type only:
@@ -791,6 +792,7 @@ type
     tid: Cardinal;       // Original TIFF compression ID
     id:  Cardinal;       // Our id without gaps
   end;
+  TKnownTiffColorScheme = TKnownTiffcompressionScheme;
 
 const
   TIFF_COMPRESSION_MAX = 28;
@@ -891,6 +893,42 @@ const
     'LeadTools Proprietary "FILE_TIF_CMP"'
   );
 
+  TIFF_COLOR_MAX = 14;
+  CKnownTiffColorSchemes: array [0..TIFF_COLOR_MAX] of TKnownTiffColorScheme = (
+    (tid: Cardinal(-1);                id:  0;),
+    (tid: PHOTOMETRIC_MINISWHITE;      id:  1;),
+    (tid: PHOTOMETRIC_MINISBLACK;      id:  2;),
+    (tid: PHOTOMETRIC_RGB;             id:  3;),
+    (tid: PHOTOMETRIC_PALETTE;         id:  4;),
+    (tid: PHOTOMETRIC_MASK;            id:  5;),
+    (tid: PHOTOMETRIC_SEPARATED;       id:  6;),
+    (tid: PHOTOMETRIC_YCBCR;           id:  7;),
+    (tid: PHOTOMETRIC_CIELAB;          id:  8;),
+    (tid: PHOTOMETRIC_ICCLAB;          id:  9;),
+    (tid: PHOTOMETRIC_ITULAB;          id:  10;),
+    (tid: PHOTOMETRIC_CFA;             id:  11;),
+    (tid: PHOTOMETRIC_LOGL;            id:  12;),
+    (tid: PHOTOMETRIC_LOGLUV;          id:  13;),
+    (tid: PHOTOMETRIC_LINEAR_RAW;      id:  14;)
+  );
+  CTiffColor: array [0..TIFF_COLOR_MAX] of string = (
+    'Unknown',
+    'Min is White',
+    'Min is Black',
+    'RGB',
+    'Palette',
+    'Mask',
+    'Separated',
+    'YCbCr',
+    'CIE L*a*b*',
+    'ICC L*a*b*',
+    'ITU L*a*b*',
+    'CFA (DNG color filter array)',
+    'CIE Log2(L)',
+    'CIE Log2(L) (u''v'')',
+    'Linear Raw (DNG)'
+  );
+
   CBmpCompression: array [0..6] of string = (
     'None (not compressed)',
     'RLE 8 bit',
@@ -950,9 +988,27 @@ begin
     sgImgProperties.RowCount := sgImgProperties.RowCount + 5;
 end;
 
+function FindStringIndex(DataArray: Pointer; AMaxIndex: Cardinal; AValue: Cardinal): Integer;
+type
+  TDataArray = array [0..999] of TKnownTiffCompressionScheme;
+var
+  i: Integer;
+  TiffDataArray: ^TDataArray;
+begin
+  Result := -1;
+  TiffDataArray := DataArray;
+  for i := 0 to AMaxIndex do begin
+    if TiffDataArray^[i].tid = AValue then begin
+      Result := TiffDataArray^[i].id;
+      break;
+    end;
+  end;
+end;
+
 procedure TfrmViewer.ShowImageInfo;
 var //r: Integer; // row
   Temp: string;
+  TempVal: Integer;
 begin
   // ImgThumbData is expected to be validated here already!
   // ImgProperties is expected to contain valid data.
@@ -982,7 +1038,20 @@ begin
   end
   else begin
     sgImgProperties.Cells[0,InfoRow] := 'Color scheme:';
-    sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme]; IncInfoRow;
+    if (ImgThumbData.ImageFormat = CgexTIFF) then begin
+      // For now, since we can't get at the real tiff compression atm
+      //sgImgProperties.Cells[1,InfoRow] := CGraphicEx2TiffCompression[ImgProperties.Compression];
+      TempVal := FindStringIndex(@CKnownTiffColorSchemes, TIFF_COLOR_MAX,
+        ImgTiffData.TiffPhotometric);
+      if TempVal > -1 then
+        sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme] +
+          ' (Tiff: ' + CTiffColor[TempVal] + ')'
+      else
+        sgImgProperties.Cells[1,InfoRow] := 'Unknown Tiff image format ' + IntToStr(ImgTiffData.TiffPhotometric);
+    end
+    else
+      sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme];
+    IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Bits per pixel:';
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.BitsPerPixel); IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Bits per sample:';
@@ -1004,7 +1073,14 @@ begin
     sgImgProperties.Cells[0,InfoRow] := 'Compression:';
     if (ImgThumbData.ImageFormat = CgexTIFF) then begin
       // For now, since we can't get at the real tiff compression atm
-      sgImgProperties.Cells[1,InfoRow] := CGraphicEx2TiffCompression[ImgProperties.Compression];
+      //sgImgProperties.Cells[1,InfoRow] := CGraphicEx2TiffCompression[ImgProperties.Compression];
+      TempVal := FindStringIndex(@CKnownTiffCompressionSchemes, TIFF_COMPRESSION_MAX,
+        ImgTiffData.TiffCompression);
+      if TempVal > -1 then
+        sgImgProperties.Cells[1,InfoRow] := CCompression[ImgProperties.Compression] +
+          ' (Tiff: ' + CTiffCompression[TempVal] + ')'
+      else
+        sgImgProperties.Cells[1,InfoRow] := 'Unknown Tiff compression type ' + IntToStr(ImgTiffData.TiffCompression);
     end
     else if (ImgThumbData.ImageFormat <> CgexBitmap) then
       sgImgProperties.Cells[1,InfoRow] := CCompression[ImgProperties.Compression]
@@ -1236,6 +1312,8 @@ begin
   // Therefore it's image properties should be valid and show the state of the current page.
   ImgProperties := AGraphic.ImageProperties;
   if ImgThumbData <> nil then begin
+    if ImgThumbData.ImageFormat = CgexTIFF then
+      ImgTiffData := TTiffGraphic(AGraphic).ActualTiffData;
     lblThumb.Caption := Format('%s (%d x %d), type: %s, modified: %s',
       [ImgThumbData.Name, ImgProperties.Width , ImgProperties.Height,
       cFileTypeNames[ImgThumbData.ImageFormat], DateToStr(ImgThumbData.Modified)]);
