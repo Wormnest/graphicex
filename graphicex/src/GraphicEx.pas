@@ -2724,6 +2724,7 @@ begin
                     end;
                   end;
                 csCIELab,
+                csICCLab,
                 csITULab:
                   begin
                     if SamplesPerPixel >= 3 then begin
@@ -3052,12 +3053,16 @@ begin
                 ColorScheme := csG;
               Include(Options, ioMinIsWhite);
             end;
-          PHOTOMETRIC_MINISBLACK:
+          PHOTOMETRIC_MINISBLACK,
+          PHOTOMETRIC_MASK:      // Mask is long deprecated, try to interpret as grayscale
             if HasAlpha then
               ColorScheme := csGA
             else
               ColorScheme := csG;
-          PHOTOMETRIC_RGB:
+          PHOTOMETRIC_RGB,
+          // These 2 supposedly are DNG specification color schemes, try to interpret as RGB for now
+          PHOTOMETRIC_CFA,
+          PHOTOMETRIC_LINEAR_RAW:
             begin
               if (SamplesPerPixel < 4) then
                 ColorScheme := csRGB
@@ -3078,6 +3083,8 @@ begin
             ColorScheme := csYCbCr;
           PHOTOMETRIC_CIELAB:
             ColorScheme := csCIELab;
+          PHOTOMETRIC_ICCLAB:
+            ColorScheme := csICCLab;
           PHOTOMETRIC_ITULAB:
             ColorScheme := csITULab;
           PHOTOMETRIC_LOGL:
@@ -3088,7 +3095,7 @@ begin
           ColorScheme := csUnknown;
         end;
 
-        if ColorScheme in [csCIELAB, csITULAB] then begin
+        if ColorScheme in [csCIELAB, csICCLab, csITULAB] then begin
           TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_WHITEPOINT, @TiffRationals);
           RefWhiteX := TiffRationals^[0]/TiffRationals^[1] * 100.0;
           ColorManager.SetWhitePoint(
