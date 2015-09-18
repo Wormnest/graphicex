@@ -203,7 +203,8 @@ type
     csCMY,        // Cyan, magenta, yellow.
     csCMYK,       // CMY with black.
     csCMYKA,      // CMYK with alpha channel.
-    csCIELab,     // CIE color format using luminance and chromaticities.
+    csCIELab,     // 1976 CIE L*a*b* color format using luminance and chromaticities.
+    csICCLab,     // ICC L*a*b*
     csITULab,     // ITU L*a*b*
     csCIELog2L,   // CIE Log2(L)
     csCIELog2Luv, // CIE Log2(L) (u', v')
