@@ -2732,9 +2732,9 @@ var
   Increment: Integer;
   AlphaSkip: Integer;
   BitRun: Byte;
+  Convert16_16: function(Value: Word): Word of object; // Byte swap function
 
 begin
-  // TODO: transfer alpha value.
   BitRun := $80;
   AlphaSkip := Ord(coAlpha in FTargetOptions); // 0 if no alpha must be skipped, otherwise 1
 
@@ -2876,9 +2876,12 @@ begin
           Increment := 1;
         end;
 
-        // TODO: SUPPORT FOR BYTESWAP!!!
+        if coNeedByteSwap in FSourceOptions then
+          Convert16_16 := ComponentSwapConvert
+        else
+          Convert16_16 := ComponentNoConvert16;
 
-        case FTargetBPS of
+       case FTargetBPS of
           8: // 161616 to 888
             begin
               Target8 := Target;
@@ -2887,24 +2890,24 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 655.35
+                    L := Convert16_16(LRun16^) / 655.35
                   else
-                    L := LRun16^;
+                    L := Convert16_16(LRun16^);
                   Inc(LRun16, Increment);
 
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ shr 8 - 128;
+                    a := Convert16_16(aRun16^) shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ shr 8 - 128;
+                    b := Convert16_16(bRun16^) shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
                     // Need to convert to ShortInt since it should be in range -128 to 128
-                    a := ShortInt(aRun16^ shr 8); // MulDiv(aRun16^, 256, 65536);
+                    a := ShortInt(Convert16_16(aRun16^) shr 8); // MulDiv(aRun16^, 256, 65536);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^ shr 8); // MulDiv(bRun16^, 256, 65536);
+                    b := ShortInt(Convert16_16(bRun16^) shr 8); // MulDiv(bRun16^, 256, 65536);
                     Inc(bRun16, Increment);
                   end;
 
@@ -2916,7 +2919,7 @@ begin
                 end;
                 if coAlpha in FTargetOptions then begin
                   if coAlpha in FSourceOptions then
-                    PBGRA(Target8)^.A := AlphaRun16^ shr 8
+                    PBGRA(Target8)^.A := Convert16_16(AlphaRun16^) shr 8
                   else
                     PBGRA(Target8)^.A := $ff;
                   Inc(AlphaRun16, Increment);
@@ -2934,23 +2937,23 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 655.35
+                    L := Convert16_16(LRun16^) / 655.35
                   else
-                    L := LRun16^;
+                    L := Convert16_16(LRun16^);
                   Inc(LRun16, Increment);
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ shr 8 - 128;
+                    a := Convert16_16(aRun16^) shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ shr 8 - 128;
+                    b := Convert16_16(bRun16^) shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
                     // Need to convert to ShortInt since it should be in range -128 to 128
-                    a := ShortInt(aRun16^ shr 8);
+                    a := ShortInt(Convert16_16(aRun16^) shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^ shr 8);
+                    b := ShortInt(Convert16_16(bRun16^) shr 8);
                     Inc(bRun16, Increment);
                   end;
 
@@ -2962,7 +2965,7 @@ begin
                 end;
                 if coAlpha in FTargetOptions then begin
                   if coAlpha in FSourceOptions then
-                    PBGRA16(Target16)^.A := AlphaRun16^
+                    PBGRA16(Target16)^.A := Convert16_16(AlphaRun16^)
                   else
                     PBGRA16(Target16)^.A := 65535;
                   Inc(AlphaRun16, Increment);
@@ -2999,6 +3002,7 @@ var
   Increment: Integer;
   AlphaSkip: Integer;
   BitRun: Byte;
+  Convert16_16: function(Value: Word): Word of object; // Byte swap function
 
 begin
   BitRun := $80;
@@ -3142,6 +3146,11 @@ begin
           Increment := 1;
         end;
 
+        if coNeedByteSwap in FSourceOptions then
+          Convert16_16 := ComponentSwapConvert
+        else
+          Convert16_16 := ComponentNoConvert16;
+
         case FTargetBPS of
           8: // 161616 to 888
             begin
@@ -3151,24 +3160,24 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 655.35
+                    L := Convert16_16(LRun16^) / 655.35
                   else
-                    L := LRun16^;
+                    L := Convert16_16(LRun16^);
                   Inc(LRun16, Increment);
 
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ shr 8 - 128;
+                    a := Convert16_16(aRun16^) shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ shr 8 - 128;
+                    b := Convert16_16(bRun16^) shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
                     // Need to convert to ShortInt since it should be in range -128 to 128
-                    a := ShortInt(aRun16^ shr 8);
+                    a := ShortInt(Convert16_16(aRun16^) shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^ shr 8);
+                    b := ShortInt(Convert16_16(bRun16^) shr 8);
                     Inc(bRun16, Increment);
                   end;
 
@@ -3180,7 +3189,7 @@ begin
                 end;
                 if coAlpha in FTargetOptions then begin
                   if coAlpha in FSourceOptions then
-                    PBGRA(Target8)^.A := AlphaRun16^ shr 8
+                    PBGRA(Target8)^.A := Convert16_16(AlphaRun16^) shr 8
                   else
                     PBGRA(Target8)^.A := $ff;
                   Inc(AlphaRun16, Increment);
@@ -3198,23 +3207,23 @@ begin
                 if Boolean(Mask and BitRun) then
                 begin
                   if coLabByteRange in FSourceOptions then
-                    L := LRun16^ / 655.35
+                    L := Convert16_16(LRun16^) / 655.35
                   else
-                    L := LRun16^;
+                    L := Convert16_16(LRun16^);
                   Inc(LRun16, Increment);
                   if coLabChromaOffset in FSourceOptions then
                   begin
-                    a := aRun16^ shr 8 - 128;
+                    a := Convert16_16(aRun16^) shr 8 - 128;
                     Inc(aRun16, Increment);
-                    b := bRun16^ shr 8 - 128;
+                    b := Convert16_16(bRun16^) shr 8 - 128;
                     Inc(bRun16, Increment);
                   end
                   else
                   begin
                     // Need to convert to ShortInt since it should be in range -128 to 128
-                    a := ShortInt(aRun16^ shr 8);
+                    a := ShortInt(Convert16_16(aRun16^) shr 8);
                     Inc(aRun16, Increment);
-                    b := ShortInt(bRun16^ shr 8);
+                    b := ShortInt(Convert16_16(bRun16^) shr 8);
                     Inc(bRun16, Increment);
                   end;
 
@@ -3226,7 +3235,7 @@ begin
                 end;
                 if coAlpha in FTargetOptions then begin
                   if coAlpha in FSourceOptions then
-                    PBGRA16(Target16)^.A := AlphaRun16^
+                    PBGRA16(Target16)^.A := Convert16_16(AlphaRun16^)
                   else
                     PBGRA16(Target16)^.A := 65535;
                   Inc(AlphaRun16, Increment);
