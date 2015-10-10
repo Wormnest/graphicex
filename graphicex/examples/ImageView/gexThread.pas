@@ -118,6 +118,7 @@ type
     FIgnoreException: Boolean;
     FSilentThumbLoadingException: Boolean;
     FSilentThreadException: Boolean;
+    FShowHiddenFiles: Boolean;
     function GetExceptionMessage: string;
     procedure SetExceptionMessage(AMessage: string);
     function GetIgnoreException: Boolean;
@@ -214,6 +215,7 @@ type
     property MaxThumbSizeW: Integer read FMaxThumbSizeW write FMaxThumbSizeW;
     property MaxThumbSizeH: Integer read FMaxThumbSizeH write FMaxThumbSizeH;
     property ImageFolder: string read FImageFolder write FImageFolder;
+    property ShowHiddenFiles: Boolean read FShowHiddenFiles write FShowHiddenFiles default False;
     property ThumbView: TrkView read FThumbView;
   end;
 
@@ -520,6 +522,7 @@ begin
   inherited Create(AOwner);
   FIgnoreException := False;
   FThumbView := nil;
+  FShowHiddenFiles := False;
   Items := TList.Create;
   PoolSize := 0;
   MaxPool := Round(((Screen.Width * Screen.Height) * 3) * 1.5);
@@ -981,6 +984,7 @@ var
   SR: TSearchRec;
   n: Integer;
   Ext: string;
+  Attrib: LongInt;
 begin
   InitView; // Initialize our rkView where the thumbnails should be stored
   if FImageFolder <> '' then
@@ -993,7 +997,10 @@ begin
     Forms.Application.ProcessMessages;
     if FImageFolder[length(FImageFolder)] <> '\' then
       FImageFolder := FImageFolder + '\';
-    if FindFirst(FImageFolder + '*.*', faAnyFile - faDirectory - faHidden - faSysFile - faArchive, SR) = 0 then
+    Attrib := faAnyFile - faDirectory - faSysFile - faArchive;
+    if not FShowHiddenFiles then
+      Attrib := Attrib - faHidden;
+    if FindFirst(FImageFolder + '*.*', Attrib, SR) = 0 then
     begin
       Items.Capacity := 1000;
       repeat
