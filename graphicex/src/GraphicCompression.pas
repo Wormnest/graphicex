@@ -105,9 +105,18 @@ type
   end;
 
   TPackbitsRLEDecoder = class(TDecoder)
+  private
+    FUpdateSource,
+    FUpdateDest: Boolean;
+    FOverflow: Boolean;
   public
+    procedure DecodeInit; override;
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+
+    property Overflow: Boolean read FOverflow;
+    property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
+    property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
 
   TPCXRLEDecoder = class(TDecoder)
@@ -821,6 +830,12 @@ end;
 
 //----------------- TPackbitsRLEDecoder --------------------------------------------------------------------------------
 
+procedure TPackbitsRLEDecoder.DecodeInit;
+begin
+  FUpdateSource := False;
+  FUpdateDest   := False;
+end;
+
 procedure TPackbitsRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 
 // decodes a simple run-length encoded strip of size PackedSize
@@ -833,6 +848,7 @@ var
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
+  FOverflow := False;
   while (UnpackedSize > 0) and (PackedSize > 0) do
   begin
     N := ShortInt(SourcePtr^);
@@ -843,8 +859,10 @@ begin
       if N = -128 then
         Continue; // nop
       N := -N + 1;
-      if N > UnpackedSize then
+      if N > UnpackedSize then begin
+        FOverflow := True;
         N := UnpackedSize;
+      end;
       FillChar(TargetPtr^, N, SourcePtr^);
       Inc(SourcePtr);
       Dec(PackedSize);
@@ -854,10 +872,14 @@ begin
     else
     begin // copy next N + 1 bytes literally
       Inc(N);
-      if N > UnpackedSize then
+      if N > UnpackedSize then begin
+        FOverflow := True;
         N := UnpackedSize;
-      if N > PackedSize then
+      end;
+      if N > PackedSize then begin
+        FOverflow := True;
         N := PackedSize;
+      end;
       Move(SourcePtr^, TargetPtr^, N);
       Inc(TargetPtr, N);
       Inc(SourcePtr, N);
@@ -865,6 +887,13 @@ begin
       Dec(UnpackedSize, N);
     end;
   end;
+  if UnpackedSize > 0 then
+    FOverflow := True;
+  // No test for PackedSize because that may not always be valid
+  if FUpdateSource then
+    Source := SourcePtr;
+  if FUpdateDest then
+    Dest := TargetPtr;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
