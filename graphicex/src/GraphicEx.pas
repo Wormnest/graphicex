@@ -7278,7 +7278,7 @@ begin
             begin
               ColorManager.ConvertRow(PtrArray, ScanLine[Y], W, $FF);
               for iChannel := 0 to Channels-1 do begin
-                Inc(PtrArray[iChannel], Increment);
+                Inc(PAnsiChar(PtrArray[iChannel]), Increment);
               end;
 
               AdvanceProgress(100 / H, 0, 1, True);
