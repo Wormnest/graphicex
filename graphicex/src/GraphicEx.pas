@@ -6867,6 +6867,7 @@ begin
           begin
             Decoder := TPackbitsRLEDecoder.Create;
             try
+              Decoder.DecodeInit;
               SetLength(RLELength, AHeight);
               Count := 2 * AHeight;
               Move(Run^, Pointer(RLELength)^, Count); // RLE lengths are word values.
@@ -7166,6 +7167,7 @@ begin
     ctPackedBits:
       begin
         Decoder := TPackbitsRLEDecoder.Create;
+        Decoder.DecodeInit;
         Count := H * Channels;
         // We have to swap the byte order but must not modify the data pointed to by Run (might be a file mapping).
         // Hence we have to make a copy of the RLE lengths.
