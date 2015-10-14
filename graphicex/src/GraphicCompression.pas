@@ -89,11 +89,14 @@ type
   TTargaRLEDecoder = class(TDecoder)
   private
     FColorDepth: Cardinal;
+    FOverflow: Boolean;
   public
     constructor Create(ColorDepth: Cardinal); 
     
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+
+    property Overflow: Boolean read FOverflow;
   end;
 
   // Lempel-Ziff-Welch encoder/decoder class
@@ -400,12 +403,17 @@ var
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
+  FOverflow := False;
   // unrolled decoder loop to speed up process
   case FColorDepth of
     8:
       while UnpackedSize > 0 do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
+        if RunLength > UnpackedSize then begin
+          FOverflow := True;
+          RunLength := UnpackedSize;
+        end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -427,6 +435,10 @@ begin
       while UnpackedSize > 0 do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
+        if RunLength > UnpackedSize then begin
+          FOverflow := True;
+          RunLength := UnpackedSize;
+        end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -454,6 +466,10 @@ begin
       while UnpackedSize > 0 do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
+        if RunLength > UnpackedSize then begin
+          FOverflow := True;
+          RunLength := UnpackedSize;
+        end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -484,6 +500,10 @@ begin
       while UnpackedSize > 0 do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
+        if RunLength > UnpackedSize then begin
+          FOverflow := True;
+          RunLength := UnpackedSize;
+        end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
