@@ -91,7 +91,7 @@ resourcestring
   gesUnsupportedImage = 'Cannot load image. Unsupported %s image format.';
   gesUnsupportedFeature = 'Cannot load image. %s not supported for %s files.';
   gesInvalidCRC = 'Cannot load image. CRC error found in %s file.';
-  gesCompression = 'Cannot load image. Compression error found in %s file.';
+  gesDecompression = 'Cannot load image. Error during decompression of %s file.';
   gesExtraCompressedData = 'Cannot load image. Extra compressed data found in %s file.';
   gesUnsupportedCompression = 'Cannot load %s image. Unsupported compression scheme.';
   gesColorScheme = 'Cannot load %s image. Color scheme missing or not supported.';

@@ -9659,7 +9659,7 @@ begin
     end;
 
     if TLZ77Decoder(Decoder).ZLibResult <> Z_OK then
-      GraphicExError(gesCompression, ['PNG']);
+      GraphicExError(gesDecompression, ['PNG']);
 
     PendingOutput := BytesPerRow - (NativeInt(LocalBuffer) - NativeInt(RowBuffer));
   until PendingOutput = 0;
