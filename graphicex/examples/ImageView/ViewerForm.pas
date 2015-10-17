@@ -12,6 +12,8 @@ interface
 {$WARN UNIT_PLATFORM OFF} // Stop warning ShellCtrls is specific to a platform
 
 {$DEFINE USE_XCF} // Detect Gimp XCF files
+{$DEFINE USE_MAYAIFF}  // Detect Maya IFF images
+{$DEFINE USE_AMIGAIFF} // Detect Amiga IFF images
 
 {$IFDEF FPC}
   {$mode delphi}
@@ -46,6 +48,12 @@ uses
   {$IFDEF USE_XCF}
   gexXCF, // Support for Gimp XCF files
   {$ENDIF}
+  {$IFDEF USE_MAYAIFF}
+  gexMayaIFF,
+  {$ENDIF}
+  {$IFDEF USE_AMIGAIFF}
+  gexAmigaIFF,
+  {$ENDIF}
   gexBmpWrapper,
   gexJpegWrapper,
   {$DEFINE USE_LIBJPEG}
@@ -70,7 +78,9 @@ const
   CgexGed          = 16;
   CgexEps          = 17;
   CgexXcf          = 18;
-  CLASTIMAGEFORMAT = 18;
+  CgexMayaIff      = 19;
+  CgexAmigaIff     = 20;
+  CLASTIMAGEFORMAT = 20;
   //....
 
   cFileTypeNames : array [0..CLASTIMAGEFORMAT] of string =
@@ -79,7 +89,7 @@ const
       'tiff image', 'tga image', 'pcd image', 'psd image','psp image',
       'pnm image',  'pcx image',  'rla image', 'sgi image', 'Autodesk Animator cel/pic image',
       'DrHalo cut image', 'Arts & Letters ged image', 'EPS image',
-      'Gimp xcf image'
+      'Gimp xcf image', 'Maya iff image', 'Amiga ilbm/iff image'
     );
 
 type
@@ -208,9 +218,11 @@ type
     ImgComment: string;
     ImgFile: string;
 
-    ImgProperties: TImageProperties;
-    ImgTiffData: TActualTiffData;
     ImgThumbData: PgexThumbData;
+    ImgProperties: TImageProperties;
+    // Info about specific image types
+    ImgTiffData: TActualTiffData;
+    ImgIffData: TAmigaIffProperties;
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -397,6 +409,7 @@ end;
 procedure TfrmViewer.FormCreate(Sender: TObject);
 var SelRect: TGridRect;
 begin
+  ShowHiddenFiles := True;
   // WARNING: Ini file is stored in the same location as exe: Obviously you
   //  shouldn't use this in production code installed to Program Files!
   IniFile := TIniFile.Create(ChangeFileExt(Application.ExeName,'.ini')) ;
@@ -1036,6 +1049,101 @@ begin
     sgImgProperties.Cells[0,InfoRow] := 'Compression:';
     sgImgProperties.Cells[1,InfoRow] := 'probably RLE 8 or RLE 4'; IncInfoRow;
   end
+  {$IFDEF USE_AMIGAIFF}
+  else if (ImgThumbData.ImageFormat = CgexAmigaIff) then begin
+    sgImgProperties.Cells[0,InfoRow] := 'Iff type:';
+    case ImgIffData.IffType of
+      itIlbm: sgImgProperties.Cells[1,InfoRow] := 'ilbm';
+      itPbm:  sgImgProperties.Cells[1,InfoRow] := 'pbm';
+    end;
+    IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Color scheme:';
+    if cfHam in ImgIffData.CamgFlags then
+      sgImgProperties.Cells[1,InfoRow] := 'HAM (Combined Indexed/RGB mode)'
+    else
+      case ImgIffData.nPlanes of
+        24: sgImgProperties.Cells[1,InfoRow] := 'RGB';
+        32: sgImgProperties.Cells[1,InfoRow] := 'RGBA';
+      else
+        sgImgProperties.Cells[1,InfoRow] := 'Indexed';
+      end;
+    IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Planes:';
+    sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.nPlanes); IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Compression:';
+    if ImgProperties.Compression = ctUnknown then
+      sgImgProperties.Cells[1,InfoRow] := 'Unknown (' + IntToHex(ImgIffData.CompressionType, 2) + ')'
+    else
+      sgImgProperties.Cells[1,InfoRow] := CCompression[ImgProperties.Compression];
+    IncInfoRow;
+    if ImgIffData.DummyByte <> 0 then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Dummy not zero:';
+      sgImgProperties.Cells[1,InfoRow] := IntToHex(ImgIffData.DummyByte, 2);
+      IncInfoRow;
+    end;
+    if ImgIffData.CamgFlags <> [] then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Flags:';
+      Temp := IntToHex(Word(ImgIffData.CamgFlags), 4);
+      if cfLace in ImgIffData.CamgFlags then begin
+        if Temp <> '' then Temp := Temp + ', ';
+        Temp := Temp + 'Lace';
+      end;
+      if cfExtraHalfBrite in ImgIffData.CamgFlags then begin
+        if Temp <> '' then Temp := Temp + ', ';
+        Temp := Temp + 'ExtraHalfBrite';
+      end;
+      if cfHam in ImgIffData.CamgFlags then begin
+        if Temp <> '' then Temp := Temp + ', ';
+        Temp := Temp + 'Ham';
+      end;
+      if cfExtendedMode in ImgIffData.CamgFlags then begin
+        if Temp <> '' then Temp := Temp + ', ';
+        Temp := Temp + 'ExtendedMode';
+      end;
+      if cfHiRes in ImgIffData.CamgFlags then begin
+        if Temp <> '' then Temp := Temp + ', ';
+        Temp := Temp + 'HiRes';
+      end;
+      sgImgProperties.Cells[1,InfoRow] := Temp; IncInfoRow;
+    end;
+    if ImgIffData.CamgHiFlags <> 0 then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Flags hi word:';
+      sgImgProperties.Cells[1,InfoRow] := IntToHex(ImgIffData.CamgHiFlags, 4); IncInfoRow;
+    end;
+    sgImgProperties.Cells[0,InfoRow] := 'Palette entries:';
+    sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.PalSize); IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Mask:';
+    case ImgIffData.Mask of
+      0: sgImgProperties.Cells[1,InfoRow] := 'None';
+      1: sgImgProperties.Cells[1,InfoRow] := 'Has Mask';
+      2: sgImgProperties.Cells[1,InfoRow] := 'Has Transparent Color';
+      3: sgImgProperties.Cells[1,InfoRow] := 'Has Lasso';
+    else
+      sgImgProperties.Cells[1,InfoRow] := IntToHex(ImgIffData.Mask, 2);
+    end;
+    IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Transparent Color:';
+    sgImgProperties.Cells[1,InfoRow] := IntToHex(ImgIffData.TransparentColor, 4); IncInfoRow;
+    sgImgProperties.Cells[0,InfoRow] := 'Aspect ratio:';
+    sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.xAspect) + ':' +
+      IntToStr(ImgIffData.yAspect); IncInfoRow;
+    if ImgIffData.ExtraChunks <> [] then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Extra chunks present';
+      if idSham in ImgIffData.ExtraChunks then begin
+        sgImgProperties.Cells[1,InfoRow] := 'Sliced Ham palette (SHAM), size: ' + IntToStr(ImgIffData.ShamSize);
+        IncInfoRow;
+      end;
+      if idCtbl in ImgIffData.ExtraChunks then begin
+        sgImgProperties.Cells[1,InfoRow] := 'Color table palette (CTBL), size: ' + IntToStr(ImgIffData.CtblSize);
+        IncInfoRow;
+      end;
+      if idPchg in ImgIffData.ExtraChunks then begin
+        sgImgProperties.Cells[1,InfoRow] := 'Extra palette (PCHG), size: ' + IntToStr(ImgIffData.PchgSize);
+        IncInfoRow;
+      end;
+    end;
+  end
+  {$ENDIF}
   else begin
     sgImgProperties.Cells[0,InfoRow] := 'Color scheme:';
     if (ImgThumbData.ImageFormat = CgexTIFF) then begin
@@ -1141,12 +1249,11 @@ begin
       sgImgProperties.Cells[1,InfoRow] := CSampleFormat[ImgProperties.SampleFormat];
       IncInfoRow;
     end;
-
-    // Show the actual PixelFormat
-    sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
-    sgImgProperties.Cells[1,InfoRow] := CPixelFormat[FPicture.Bitmap.PixelFormat];
-    IncInfoRow;
   end;
+  // Show the actual PixelFormat
+  sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
+  sgImgProperties.Cells[1,InfoRow] := CPixelFormat[FPicture.Bitmap.PixelFormat];
+  IncInfoRow;
 end;
 
 // Source: http://www.efg2.com/Lab/Library/UseNet/2000/0120a.txt
@@ -1312,8 +1419,12 @@ begin
   // Therefore it's image properties should be valid and show the state of the current page.
   ImgProperties := AGraphic.ImageProperties;
   if ImgThumbData <> nil then begin
-    if ImgThumbData.ImageFormat = CgexTIFF then
-      ImgTiffData := TTiffGraphic(AGraphic).ActualTiffData;
+    case ImgThumbData.ImageFormat of
+      CgexTIFF: ImgTiffData := TTiffGraphic(AGraphic).ActualTiffData;
+      {$IFDEF USE_AMIGAIFF}
+      CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
+      {$ENDIF}
+    end;
     lblThumb.Caption := Format('%s (%d x %d), type: %s, modified: %s',
       [ImgThumbData.Name, ImgProperties.Width , ImgProperties.Height,
       cFileTypeNames[ImgThumbData.ImageFormat], DateToStr(ImgThumbData.Modified)]);
@@ -1725,6 +1836,14 @@ begin
 {$IFDEF USE_XCF}
       else if GraphicClass = TXcfGraphic then
         Result := CgexXcf
+{$ENDIF}
+{$IFDEF USE_MAYAIFF}
+      else if GraphicClass = TMayaIffGraphic then
+        Result := CgexMayaIff
+{$ENDIF}
+{$IFDEF USE_AMIGAIFF}
+      else if GraphicClass = TAmigaIffGraphic then
+        Result := CgexAmigaIff
 {$ENDIF}
     end;
     ImageData := GraphicClass;
