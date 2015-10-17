@@ -2277,7 +2277,7 @@ begin
     else
       RowInc := -1;
 
-    Row := 0; RowSubCount := 0;
+    Row := 0;
     while Row < Height do
     begin
       RowsToRead := RowsPerStrip - Row mod RowsPerStrip;
@@ -7136,11 +7136,7 @@ var
   // RLE buffers
   Line,
   Buffer: Pointer;     // all iamge data uncompressed
-  Run1,                // running pointer in Buffer 1
-  Run2,                // etc.
-  Run3,
-  Run4,
-  Run5: PByte;
+  Run1: PByte;         // running pointer in Buffer 1
   PtrArray: array of pointer; // Array of channel buffers
   iChannel: Word;
 
