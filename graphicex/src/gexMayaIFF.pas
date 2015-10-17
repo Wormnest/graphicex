@@ -61,7 +61,7 @@ procedure RegisterMayaIff;
 
 implementation
 
-uses Graphics, gexTypes, GraphicColor, GraphicStrings;
+uses Graphics, gexTypes, {$IFNDEF FPC}gexUtils,{$ENDIF} GraphicColor, GraphicStrings;
 
 const
   // Maya flags values
@@ -166,7 +166,7 @@ var
   ByteData: TByteArray;
   i, row: Integer;
   ChannelSize: Cardinal;
-  CompressedDataPtr, OldPtr, DataPtr: PByte;
+  CompressedDataPtr, OldPtr, DataPtr: Pointer;
   ChannelPtrs: array [0..3] of Pointer;
 begin
   ChannelSize := AWidth * AHeight {*bitspersample div 8};
@@ -176,10 +176,10 @@ begin
   // Loop over all abgr channels and decompress image data
   for i := 0 to ADepth-1 do begin
     SetLength(Channels[i], ChannelSize);
-    Decoder.Decode(CompressedDataPtr, channels[i], CompressedDataSize, ChannelSize);
+    Decoder.Decode(CompressedDataPtr, Pointer(Channels[i]), CompressedDataSize, ChannelSize);
     if TTargaRLEDecoder(Decoder).Overflow then
       raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
-    Dec(CompressedDataSize, NativeUInt(CompressedDataPtr-OldPtr));
+    Dec(CompressedDataSize, NativeUInt(CompressedDataPtr)-NativeUInt(OldPtr));
     OldPtr := CompressedDataPtr;
   end;
 
@@ -203,9 +203,9 @@ begin
   for row := 0 to AHeight-1 do begin
     // Convert planar RGB(A) to interleaved BGR(A)
     ColorManager.ConvertRow(ChannelPtrs, DataPtr, AWidth, $ff);
-    Inc(DataPtr, AWidth * ADepth);
+    Inc(PAnsiChar(DataPtr), AWidth * ADepth);
     for i := 0 to ADepth-1 do
-      Inc(ChannelPtrs[i], AWidth);
+      Inc(PAnsiChar(ChannelPtrs[i]), AWidth);
   end;
 
   // Free allocated memory
@@ -254,7 +254,7 @@ begin
       end
       else // if chunkInfo.ckID.tag = NOSWAP_IFF_ID_FVER then begin
         Inc(Run, SwapEndian(ChunkInfo.ckSize) + 8);
-      if Run > Memory + Size then
+      if NativeUInt(Run) > NativeUInt(Memory) + Size then
         break;
     end;
   end;
@@ -279,7 +279,7 @@ begin
   FData.mdStart := Memory;
   FData.mdSize  := Size;
   FData.mdPos   := Memory;
-  FData.mdEnd   := Memory + Size;
+  FData.mdEnd   := PByte(NativeUInt(Memory) + Size);
 
   // First chunk should be FOR4 or FOR8 with a tag type CIMG
   ChunkInfo := ReadIffChunk(@FData);
@@ -290,7 +290,7 @@ begin
   end;
 
   // Now find the TBHD bitmap header and read the relevant information
-  while FData.mdPos < FData.mdEnd do with FImageProperties do begin
+  while NativeUInt(FData.mdPos) < NativeUInt(FData.mdEnd) do with FImageProperties do begin
     // Read the next chunk
     ChunkInfo := ReadIffChunk(@FData);
 
@@ -414,7 +414,7 @@ begin
 
     // Now look for a chunk of type TBMP
     Done := False;
-    while not Done and (FData.mdPos < FData.mdEnd) do begin
+    while not Done and (NativeUInt(FData.mdPos) < NativeUInt(FData.mdEnd)) do begin
       // Get info for next chunk
       ChunkInfo := ReadIffChunk(@FData);
 
@@ -476,7 +476,7 @@ begin
                   CompressedTileData := ReadCompressedTile(@FData, CompressedTileSize);
                   TileData := DecompressRLEtile(Decoder, TileWidth, TileHeight, depth,
                     CompressedTileData, CompressedTileSize);
-                  CompressedTileData := NIL; // unallocate
+                  CompressedTileData := nil; // unallocate
                 end
                 else begin // Uncompressed tile
                   TileData := ReadUncompressedTile(@FData, TileWidth, TileHeight, depth);
@@ -487,7 +487,7 @@ begin
                   // Take care to do a vertical flip of the data
                   for i := 0 to TileHeight-1 do
                     Move( Tiledata[TileWidth * depth * i],
-                      Pointer(NativeUInt(Scanline[Height-1 - (TileY1+i)]) + (TileX1*depth))^,
+                      Pointer(NativeUInt(Scanline[Cardinal(Height)-1 - (TileY1+i)]) + (TileX1*depth))^,
                       TileWidth * depth);
                     TileData := nil; // free
                 end;
