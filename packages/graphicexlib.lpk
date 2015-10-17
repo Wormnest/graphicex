@@ -10,11 +10,16 @@
         <OtherUnitFiles Value="..\graphicex\src"/>
         <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <SyntaxMode Value="Delphi"/>
+        </SyntaxOptions>
+      </Parsing>
       <Other>
         <CustomOptions Value="-dLIBTIFF4"/>
       </Other>
     </CompilerOptions>
-    <Files Count="18">
+    <Files Count="21">
       <Item1>
         <Filename Value="..\graphicex\src\GraphicStrings.pas"/>
         <UnitName Value="GraphicStrings"/>
@@ -87,6 +92,18 @@
         <Filename Value="..\graphicex\src\gexJpeg.pas"/>
         <UnitName Value="gexJpeg"/>
       </Item18>
+      <Item19>
+        <Filename Value="..\graphicex\src\gexiff.pas"/>
+        <UnitName Value="gexIFF"/>
+      </Item19>
+      <Item20>
+        <Filename Value="..\graphicex\src\gexMayaIFF.pas"/>
+        <UnitName Value="gexMayaIFF"/>
+      </Item20>
+      <Item21>
+        <Filename Value="..\graphicex\src\gexamigaiff.pas"/>
+        <UnitName Value="gexamigaiff"/>
+      </Item21>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>

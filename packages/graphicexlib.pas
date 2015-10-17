@@ -10,7 +10,7 @@ uses
   GraphicStrings, GraphicCompression, GraphicColor, GraphicEx, gexTypes, 
   gexUtils, gexVersion, gexLayers, gexStretch, gexJpegWrapper, gexBmpWrapper, 
   gexGR32Replacement, gexBasicBlendModes, gexXCFTypes, gexXCFBlendModes, 
-  gexXCF, gexBlendModes, gexJpeg;
+  gexXCF, gexBlendModes, gexJpeg, gexIFF, gexMayaIFF, gexAmigaIFF;
 
 implementation
 
