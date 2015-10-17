@@ -166,7 +166,7 @@ procedure gexJpegSkipInputData(cinfo: j_decompress_ptr; NumBytes: Integer); cdec
 begin
   if NumBytes > 0 then begin
     while size_t(NumBytes) > cinfo.Src^.bytes_in_buffer do begin
-      NumBytes := NumBytes - cinfo.Src^.bytes_in_buffer;
+      NumBytes := NumBytes - Integer(cinfo.Src^.bytes_in_buffer);
       cinfo.Src^.fill_input_buffer(cinfo);
 		  { note we assume that fill_input_buffer will never
 		    return FALSE, so suspension need not be handled. }
@@ -225,7 +225,6 @@ end;
 
 function TgexJpegImage.InitJpegDecompress(const Memory: Pointer; const Size: Int64): Boolean;
 begin
-  Result := False;
   // Initialize jpeg error manager
   FJpegInfo.err := InitJpegErrorManager;
 
