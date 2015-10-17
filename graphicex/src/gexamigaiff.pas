@@ -130,7 +130,7 @@ procedure RegisterAmigaIff;
 
 implementation
 
-uses Graphics, gexTypes, GraphicEx, GraphicColor, GraphicStrings;
+uses Graphics, gexTypes, {$IFNDEF FPC}gexUtils,{$ENDIF} GraphicEx, GraphicColor, GraphicStrings;
 
 //------------------------------------------------------------------------------
 //                           TAmigaIffGraphic
@@ -163,10 +163,12 @@ begin
   // Note Data in MainIffChunk hasn't been byte swapped!
 
   // We can handle ILBM and PBM types
+  // For Delphi 6 we need to cast the IFF_ID consts to Cardinal othewise we
+  // get an error ambiguous overloaded call to SwapEndian.
   Result :=
-    (MainIffChunk.ckID.tag = SwapEndian(IFF_ID_FORM)) and
-    ((MainIffChunk.ckType.tag = SwapEndian(IFF_TYPE_ILBM)) or
-    (MainIffChunk.ckType.tag = SwapEndian(IFF_TYPE_PBM)));
+    (MainIffChunk.ckID.tag = SwapEndian(Cardinal(IFF_ID_FORM))) and
+    ((MainIffChunk.ckType.tag = SwapEndian(Cardinal(IFF_TYPE_ILBM))) or
+    (MainIffChunk.ckType.tag = SwapEndian(Cardinal(IFF_TYPE_PBM))));
 end;
 
 //------------------------------------------------------------------------------
@@ -188,10 +190,11 @@ begin
   FData.mdStart := Memory;
   FData.mdSize  := Size;
   FData.mdPos   := Memory;
-  FData.mdEnd   := Memory + Size;
+  FData.mdEnd   := PBYte(NativeUInt(Memory) + Size);
 
   GotCMap := False;
   TempOfs := nil;
+  nPlanes := 0;
 
   FIffProperties.CamgFlags := [];
 
@@ -216,7 +219,7 @@ begin
       Exit;
     end;
 
-    while FData.mdPos < FData.mdEnd do with FImageProperties do begin
+    while NativeUInt(FData.mdPos) < NativeUInt(FData.mdEnd) do with FImageProperties do begin
       // Go to next Iff chunk
       ChunkInfo := ReadIffChunk(@FData);
 
@@ -381,7 +384,8 @@ type
   TRGBArray16 = array [0..15] of TRGB;
   PRGBArray16 = ^TRGBArray16;
 var
-  w, x, y, iBit,
+  w: Integer;
+  x, y, iBit,
   bitplane: Cardinal;
   TotalPlanes: Cardinal;
   BytesPerPixel: Cardinal;
@@ -413,7 +417,7 @@ var
     if IsSham then begin
       Inc(PalData, 2);
       if Height > 200 then
-        aRowMul := aRowMul div (Height div 200);
+        aRowMul := aRowMul div (Cardinal(Height) div 200);
     end;
     Inc(PalData, ARowMul * 16 *2);
     for i := 0 to 15 do begin
@@ -439,6 +443,7 @@ var
   end;
 
 begin
+  Result := False;
   LineBuf := nil;
   PixelBuf := nil;
   ExtraPal := nil;
@@ -448,6 +453,7 @@ begin
   {$ENDIF}
   try
     ExtraPalOfs := nil;
+    ExtraPalIsSham := False;
     if (FIffProperties.ShamSize > 0) and (FIffProperties.nPlanes <= 6) then begin
       GetMem(ExtraPal, SizeOf(TRGBArray16));
       ExtraPalIsSham := True;
@@ -455,7 +461,6 @@ begin
     end
     else if (FIffProperties.CtblSize > 0) and (FIffProperties.nPlanes <= 4) then begin
       GetMem(ExtraPal, SizeOf(TRGBArray16));
-      ExtraPalIsSham := False;
       ExtraPalOfs := FIffProperties.CtblOfs;
     end;
 
@@ -475,10 +480,12 @@ begin
             // Target ColorScheme either RGB(A) or BGR(A) defined when calling
             // the conversion routine (for now).
           end
-          else
+          else begin
             nSamples := FImageProperties.SamplesPerPixel;
-          GetMem(LineBuf, PixelLineSize * Height);
-          GetMem(PixelBuf, Width*nSamples);
+            AlphaIndex := -1;
+          end;
+          GetMem(LineBuf, PixelLineSize * Cardinal(Height));
+          GetMem(PixelBuf, Cardinal(Width)*nSamples);
           AdjustedLineSize := PixelLineSize;
 
           repeat
@@ -486,11 +493,12 @@ begin
             BodyStart := FData.mdPos;
             for y := 0 to Height-1 do begin
               // Initialize all pixels in this line to black
-              FillChar(PixelBuf^, Width*nSamples, 0);
+              FillChar(PixelBuf^, Cardinal(Width)*nSamples, 0);
               if FImageProperties.Compression = ctPackedBits then begin
                 // We don't know the packed size. In rare cases packed size might be
                 // more than unpacked size. To be safe we set it to twice PixelLineSize.
-                Decoder.Decode(FData.mdPos, LineBuf, FData.mdEnd - FData.mdPos, AdjustedLineSize);
+                Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
+                  NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
                 if TPackbitsRLEDecoder(Decoder).Overflow then begin
                   // Incorrect LineSize due to broken image compression.
                   // Try again with fixed LineSize unless we already tried that.
@@ -553,7 +561,7 @@ begin
                   csRGBA:RGBAToBGRA(PixelBuf, Width, 1);
                 end;
                 // Finally Copy this line of Pixels to the Scanline
-                Move(PixelBuf^, Scanline[y]^, Width*nSamples);
+                Move(PixelBuf^, Scanline[y]^, Cardinal(Width)*nSamples);
               end;
             end; // for y
           until FixIncorrectCompression = False;
@@ -616,7 +624,8 @@ begin
                   // problems decoding on some images, but using (Width+1) div 2 * 2
                   // gives problems on other images.
                   // Detect the images that give problems and redo it wiht a correction
-                  Decoder.Decode(FData.mdPos, LineBuf, FData.mdEnd - FData.mdPos, AdjustedLineSize);
+                  Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
+                    NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
                   if TPackbitsRLEDecoder(Decoder).Overflow then begin
                     // Incorrect LineSize due to broken image compression.
                     // Try again with fixed LineSize unless we already tried that.
@@ -669,7 +678,7 @@ begin
             PixelLineSize := LineSize * TotalPlanes;
             GetMem(LineBuf, PixelLineSize);
             {.$IFDEF FPC}
-            ScanlineSize := Width * BytesPerPixel;
+            ScanlineSize := Cardinal(Width) * BytesPerPixel;
             {.$ELSE}
             //ScanlineSize := Width;
             {.$ENDIF}
@@ -681,7 +690,8 @@ begin
               if FImageProperties.Compression = ctPackedBits then begin
                 // We don't know the packed size. In rare cases packed size might be
                 // more than unpacked size. To be safe we set it to twice PixelLineSize.
-                Decoder.Decode(FData.mdPos, LineBuf, FData.mdEnd - FData.mdPos, PixelLineSize);
+                Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
+                  NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), PixelLineSize);
                 if TPackbitsRLEDecoder(Decoder).Overflow then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
               end
@@ -712,7 +722,7 @@ begin
               end; // for bitplane
               case FIffProperties.Mask of
                 mskHasMask:
-                  if FUseMaskForAlpha then begin
+                  begin
                     // The one file I have with a mask (Sexy_Nadja.IFF) shows
                     // wrong when we try to interpret the mask plane as alpha
                     // For now it's turned off by default until we have more
@@ -726,8 +736,8 @@ begin
                       for iBit := 0 to 7 do begin
                         if w < FImageProperties.Width then begin
                           // Compute bit value for this plane and add to pixel
-                          if Byte(LineBufPos^) and mask <> 0 then
-                            Line^ := AnsiChar(255);
+                          if not FUseMaskForAlpha or (Byte(LineBufPos^) and mask <> 0) then
+                            Byte(Line^) := $ff;
                           // Go to the next palette index in Scanline
                           Inc(Line, BytesPerPixel);
                         end;
@@ -742,7 +752,6 @@ begin
                     // If a pixel uses the TransparentColor index then set alpha
                     // to 0 else to 255 (opaqua)
                     Line := PixelBuf;
-                    w := 0;
                     for x := 0 to FImageProperties.Width-1 do begin
                       // Check the pixel palette index to see if it's the TransparentColor index
                       if Byte(Line^) = FIffProperties.TransparentColor then begin
@@ -831,7 +840,7 @@ begin
     else if FImageProperties.Compression = ctUnknown then
       Exit; // TODO: Add warning: unknown compression
 
-    while FData.mdPos < FData.mdEnd do with FImageProperties do begin
+    while NativeUInt(FData.mdPos) < NativeUInt(FData.mdEnd) do with FImageProperties do begin
 
       ChunkInfo := ReadIffChunk(@FData);
 
