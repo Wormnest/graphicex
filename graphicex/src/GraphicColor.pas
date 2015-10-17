@@ -2853,9 +2853,9 @@ begin
                 end;
                 if coAlpha in FTargetOptions then begin
                   if coAlpha in FSourceOptions then
-                    PBGRA16(Target8)^.A := AlphaRun8^ shl 8
+                    PBGRA16(Target16)^.A := AlphaRun8^ shl 8
                   else
-                    PBGRA16(Target8)^.A := 65535;
+                    PBGRA16(Target16)^.A := 65535;
                   Inc(AlphaRun8, Increment);
                 end;
                 Inc(Target16, 3 + AlphaSkip);
