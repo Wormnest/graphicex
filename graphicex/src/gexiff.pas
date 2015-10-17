@@ -27,7 +27,7 @@ interface
 
 uses
   Classes, SysUtils,
-  GraphicEx;
+  C_Types, GraphicEx;
 
 type
   // Make IFF ID accessible as either a string of 4 chars or a Cardinal
@@ -114,7 +114,7 @@ const
 
 implementation
 
-uses gexTypes, GraphicStrings;
+uses gexTypes, {$IFNDEF FPC}gexUtils,{$ENDIF} GraphicStrings;
 
 //------------------------------------------------------------------------------
 //                           TIffGraphicBase
@@ -124,8 +124,8 @@ uses gexTypes, GraphicStrings;
 // Returns number of bytes placed into Buf.
 function TIffGraphicBase.ReadIffData(const Data: PMemoryData; ACount: Cardinal; Buf: Pointer): Cardinal;
 begin
-  if Data.mdPos + ACount > Data.mdEnd then
-    Result := UInt64(Data.mdEnd - Data.mdPos)
+  if NativeUInt(Data.mdPos) + ACount > NativeUInt(Data.mdEnd) then
+    Result := UInt64(NativeUInt(Data.mdEnd) - NativeUInt(Data.mdPos))
   else
     Result := ACount;
   Move(Data.mdPos^, Buf^, Result);
@@ -184,9 +184,15 @@ end;
 
 // Read one 32 bits Single.
 function TIffGraphicBase.ReadIffFloat(const Data: PMemoryData): Single;
+type
+  Dummy = record
+    case Boolean of
+      False: (DummyUInt32: Cardinal);
+      True:  (DummySingle: Single);
+  end;
 begin
   // IFF file format is big endian
-  Result := Single(ReadIffUInt32(Data));
+  Dummy(Result).DummyUInt32 := ReadIffUInt32(Data);
 end;
 
 //------------------------------------------------------------------------------
