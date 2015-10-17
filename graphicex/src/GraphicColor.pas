@@ -368,6 +368,17 @@ type
     constructor Create;
 
     procedure ConvertRow(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+
+    // Convert a line of Count pixels from Amiga Ham in Source to RGB/BGR in Dest
+    // The Ham source uses HamPlanes planes.
+    // TargetColorScheme should be set to either RGB(A) or BGR(A)
+    // if TransParentColorIndex > -1 then when that palette index is used the
+    // alpha is set to invisible (0) otherwise to opaque (255).
+    // ExtraPal is an extra sham palette for the current row or nil if no sham palette available
+    // Expects a palette to be set previously.
+    procedure ConvertHam(Source, Target: Pointer; Count: Cardinal; HamPlanes: Cardinal;
+      TransParentColorIndex: Integer; ExtraPal: PByte = nil);
+
     function CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat; ColorCount: Cardinal;
       RGB: Boolean = True): HPALETTE;
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
@@ -8009,6 +8020,141 @@ begin
       Inc(Offset1);
       Inc(Offset2);
     end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+// Convert a line of Count pixels from Amiga Ham in Source to RGB/BGR in Dest
+// The Ham source uses HamPlanes planes.
+// alpha is set to invisible (0) otherwise to opaque (255).
+// ExtraPal is an extra sham palette for the current row or nil if no sham palette available
+// Expects a palette to be set previously.
+procedure TColorManager.ConvertHam(Source, Target: Pointer; Count: Cardinal; HamPlanes: Cardinal;
+  TransParentColorIndex: Integer; ExtraPal: PByte = nil);
+type
+  TPal = array [0..255] of TRGB;
+  PPal = ^TPal;
+var
+  i: Cardinal;
+  Src: PByte;
+  DestR: PByte;
+  DestG: PByte;
+  DestB: PByte;
+  DestA: PByte;
+  LastColor: TRGBA;
+  PlaneShift, UpShift: Cardinal;
+  Pal: PPal;
+  Mask: Byte;
+  AddAlpha: Boolean;
+begin
+  // Source and Target should not be the same
+  if Target = Source then
+    Exit;
+  if Length(FSourcePaletteData) <> 1 then
+    Exit
+  else
+    Pal := FSourcePaletteData[0];
+  if (Count = 0) then
+    Exit;
+  if (HamPlanes < 3) or (HamPlanes > 8) then
+    Exit;
+
+  // Number of bits to shift out to get the Ham code
+  PlaneShift := HamPlanes - 2;
+  UpShift    := 8 - HamPlanes + 2;
+  Mask := $ff;
+  // Mask to kick out the Ham code bits
+  // Need to convert to Byte after shl because otherwise shr is done on a Cardinal
+  Mask := Byte(Mask shl UpShift) shr UpShift;
+
+  // Init source and dest
+  Src := Source;
+  if FTargetScheme in [csRGB, csRGBA] then begin
+    DestR := Target;
+    DestG := DestR; Inc(DestG);
+    DestB := DestG; Inc(DestB);
+    DestA := DestB; Inc(DestA);
+  end
+  else begin
+    DestB := Target;
+    DestG := DestB; Inc(DestG);
+    DestR := DestG; Inc(DestR);
+    DestA := DestR; Inc(DestA);
+  end;
+
+  AddAlpha := FTargetSPP = 4;
+
+  // Set default LastColor to 0, 0, 0, 255
+  Cardinal(LastColor) := 0;
+  LastColor.A := 255;
+
+  // Loop over Count pixels
+  while Count > 0 do begin
+    case Src^ shr PlaneShift of
+      0: // Use lower bits as palette index
+        begin
+          // Since code bits are 0 no need to use Mask on Src^
+          if ExtraPal = nil then begin
+            DestR^ := Pal^[Src^].R; LastColor.R := DestR^;
+            DestG^ := Pal^[Src^].G; LastColor.G := DestG^;
+            DestB^ := Pal^[Src^].B; LastColor.B := DestB^;
+          end
+          else begin
+            DestR^ := PPal(ExtraPal)^[Src^].R; LastColor.R := DestR^;
+            DestG^ := PPal(ExtraPal)^[Src^].G; LastColor.G := DestG^;
+            DestB^ := PPal(ExtraPal)^[Src^].B; LastColor.B := DestB^;
+          end;
+          if AddAlpha then begin
+            if (TransparentColorIndex > -1) and (Src^ = TransparentColorIndex) then
+              DestA^ := 0
+            else
+              DestA^ := 255;
+            LastColor.A := DestA^;
+          end;
+        end;
+      1: // Modify blue only
+        begin
+          // Color needs to be stretched to 8 bits thus use shift
+          LastColor.B := (Src^ and Mask) shl UpShift;
+          if LastColor.B <> 0 then
+            LastColor.B := LastColor.B or $0f;
+          DestR^ := LastColor.R;
+          DestG^ := LastColor.G;
+          DestB^ := LastColor.B;
+          if AddAlpha then
+            DestA^:= LastColor.A;
+        end;
+      2: // Modify red only
+        begin
+          LastColor.R := Src^ and Mask shl UpShift;
+          if LastColor.R <> 0 then
+            LastColor.R := LastColor.R or $0f;
+          DestR^ := LastColor.R;
+          DestG^ := LastColor.G;
+          DestB^ := LastColor.B;
+          if AddAlpha then
+            DestA^:= LastColor.A;
+        end;
+      3: // Modify green only
+        begin
+          LastColor.G := Src^ and Mask shl UpShift;
+          if LastColor.G <> 0 then
+            LastColor.G := LastColor.G or $0f;
+          DestR^ := LastColor.R;
+          DestG^ := LastColor.G;
+          DestB^ := LastColor.B;
+          if AddAlpha then
+            DestA^:= LastColor.A;
+        end;
+    end;
+    Inc(Src);
+    Inc(DestR, FTargetSPP);
+    Inc(DestG, FTargetSPP);
+    Inc(DestB, FTargetSPP);
+    if AddAlpha then
+      Inc(DestA, FTargetSPP);
+    Dec(Count);
   end;
 end;
 
