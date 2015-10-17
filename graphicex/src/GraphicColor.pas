@@ -8036,7 +8036,6 @@ type
   TPal = array [0..255] of TRGB;
   PPal = ^TPal;
 var
-  i: Cardinal;
   Src: PByte;
   DestR: PByte;
   DestG: PByte;
