@@ -66,6 +66,14 @@ Supported image formats
     + 8 bits per sample
 	+ RGB(A)
 	+ RLE compressed
+* **Maya images (.iff)**
+    + 8 bits per sample
+	+ RGB(A)
+	+ RLE, uncompressed
+* **Amiga ilbm and pbm images (.ilbm, .lbm, .pbm, .iff)**
+    + 1-8 bits per sample; 1-8, 24, 32 planes
+	+ RGB(A), Indexed(A), Ham, Extra HalfBrite, Sham, Ctbl
+	+ RLE, uncompressed
 * **Dr. Halo images (.cut, .pal)**
     + 8 bits per sample
 	+ indexed
@@ -141,6 +149,12 @@ Additions September 2015
 * Fix PSD 16 bit CMYK images.
 * Minor improvements to RLA/RPF, CEL/PIC.
 
+Additions October 2015
+----------------------
+* Maya IFF and Amiga ILBM/PBM image reader classes added.
+* Better detection of overflow errors in Packbits and Targa RLE decoders.
+* ImageViewer example: show also images marked as hidden.
+
 Todo
 ----
 * Make 64 bit safe and add pure pascal alternatives to asm functions.
@@ -148,6 +162,7 @@ Todo
 * Move all code for setting target options from GraphicEx to the ColorManager and
   make that part overrideable. This will make it easier to override how we want
   a certain format converted and to select a target format.
+* Move info about addition to a separate changelog.
 
 Folder structure
 ----------------

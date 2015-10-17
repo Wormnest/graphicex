@@ -12,7 +12,9 @@ online applied and a lot of others fixed by me.
 Besides that many changes and enhancements to the code have been made,
 especially in PSP and TIFF loading.
 
-I have also added support for loading Gimp XCF files, jpeg images, an ImageViewer example, some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
+I have also added support for loading Gimp XCF files, jpeg images,
+Maya IFF images, Amiga ilbm/pbm images, an ImageViewer example, 
+some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
 For more details see the [graphicex](/graphicex/readme.md) folder.
 
 2. external
