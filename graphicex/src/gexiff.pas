@@ -310,7 +310,6 @@ end;
 
 class function TIffGraphicBase.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 var chunkInfo: TIffChunk;
-    Run: PAnsiChar;
 begin
   Result := False;
   if Size < SizeOf(chunkInfo) then
