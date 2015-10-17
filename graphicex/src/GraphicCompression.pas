@@ -397,7 +397,7 @@ var
   I: Integer;
   SourcePtr,
   TargetPtr: PByte;
-  RunLength: Cardinal;
+  RunLength: Integer;
   SourceCardinal: Cardinal;
 
 begin
