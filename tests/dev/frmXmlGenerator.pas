@@ -29,12 +29,16 @@ type
     { Private declarations }
     IgnoreList: TStringList;
     GlobalIgnoreMasks: TStringList;
+    FOverwriteXmlFile: Boolean;
   public
     { Public declarations }
     procedure WriteXml(AFolder: string);
     procedure ParseFolders(ABasePath: string);
     procedure ParseFiles(ABasePath: string; FilesNode: TJclSimpleXMLElem; SimpleXML: TJclSimpleXML);
     function IgnoreFile(AFile: string): Boolean;
+
+    // Do we want to overwrite an existing XML file? Default = No.
+    property OverwriteXmlFile: Boolean read FOverwriteXmlFile write FOverwriteXmlFile default False;
   end;
 
 var
@@ -78,6 +82,9 @@ begin
   if FileExists(AFolder + CDefaultIgnoreFolder) then
     // This folder should be ignored...
     Exit;
+  if not FOverwriteXmlFile and FileExists(AFolder + DirDelimiter + CDefaultXml) then
+    Exit;
+
   if AFolder <> '' then begin
     lblStatus.Caption := 'Parsing folder ' + AFolder;
 
@@ -244,6 +251,7 @@ begin
   GlobalIgnoreMasks := TStringList.Create;
   GlobalIgnoreMasks.Sorted := True;
   IgnoreList := TStringList.Create;
+  FOverwriteXmlFile := False;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
