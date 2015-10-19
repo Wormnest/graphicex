@@ -9,6 +9,8 @@ uses
   //gexJpegWrapper,
   gexJpeg,
   gexXCF,
+  gexMayaIff,
+  gexAmigaIff,
   Graphics,
   {$IFNDEF FPC}
   TestFramework,
