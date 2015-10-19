@@ -30,7 +30,7 @@ uses
   gexIFF, GraphicCompression;
 
 type
-  TIffType = (itIlbm, itPbm, itAcbm);
+  TIffType = (itIlbm, itPbm, itAcbm, itAnim);
   TIffCompression = (icNone, icPackedBits, icVDATRLE);
   // For VDAT rle see: http://www.atari-wiki.com/?title=ST_Picture_Formats (IFF format)
   TCamgFlag = (cf0001, cf0002, cfLace, cf0008, cf0010, cf0020, cf0040,
@@ -113,6 +113,9 @@ const
   IFF_ID_BODY      = $424f4459; // BODY
   IFF_ID_CAMG      = $43414d47; // CAMG
 
+  // IFF ACBM ID's
+  IFF_ID_ABIT      = $41424954; // ABIT (same as BODY for ilbm)
+
   // Additional ID's
   IFF_ID_SHAM      = $5348414d; // SHAM
   IFF_ID_CTBL      = $4354424c; // CTBL
@@ -121,6 +124,8 @@ const
   // IFF ILBM image types
   IFF_TYPE_ILBM    = $494c424d; // ILBM
   IFF_TYPE_PBM     = $50424d20; // PBM
+  IFF_TYPE_ACBM    = $4143424d; // ACBM
+  IFF_TYPE_ANIM    = $414e494d; // ANIM
 
 resourcestring
   gesAmigaIff = 'Amiga ilbm/pbm IFF images';
@@ -162,13 +167,17 @@ class function TAmigaIffGraphic.CanHandle(const MainIffChunk: TIffChunk): Boolea
 begin
   // Note Data in MainIffChunk hasn't been byte swapped!
 
-  // We can handle ILBM and PBM types
+  // We can handle ILBM, PBM, ACBM and ANIM types (ANIM only first frame)
   // For Delphi 6 we need to cast the IFF_ID consts to Cardinal othewise we
   // get an error ambiguous overloaded call to SwapEndian.
-  Result :=
-    (MainIffChunk.ckID.tag = SwapEndian(Cardinal(IFF_ID_FORM))) and
-    ((MainIffChunk.ckType.tag = SwapEndian(Cardinal(IFF_TYPE_ILBM))) or
-    (MainIffChunk.ckType.tag = SwapEndian(Cardinal(IFF_TYPE_PBM))));
+  Result := False;
+  if MainIffChunk.ckID.tag = SwapEndian(Cardinal(IFF_ID_FORM)) then
+    case SwapEndian(MainIffChunk.ckType.tag) of
+      IFF_TYPE_ILBM,
+      IFF_TYPE_PBM,
+      IFF_TYPE_ACBM,
+      IFF_TYPE_ANIM: Result := True;
+    end;
 end;
 
 //------------------------------------------------------------------------------
@@ -212,7 +221,17 @@ begin
         begin
           FIffProperties.IffType := itPbm;
           IffType := Ifftype + '-pbm';
-        end
+        end;
+      IFF_TYPE_ACBM:
+        begin
+          FIffProperties.IffType := itAcbm;
+          IffType := Ifftype + '-acbm';
+        end;
+      IFF_TYPE_ANIM:
+        begin
+          FIffProperties.IffType := itAnim;
+          IffType := Ifftype + '-anim';
+        end;
     else
       // Unexpected IFF type, Exit and return false
       FreeAllChunkData;
@@ -347,7 +366,7 @@ begin
             FIffProperties.PchgOfs := FData.mdPos;
             FIffProperties.PchgSize := ChunkInfo.Chunksize;
           end;
-        IFF_ID_BODY:
+        IFF_ID_BODY, IFF_ID_ABIT:
           // As soon as we get to the body we can stop
           begin
             if GotCMap then begin
@@ -363,6 +382,10 @@ begin
               FData.mdPos := TempOfs;
             end;
             Exit; // Exit without doing another Seek
+          end;
+        IFF_ID_FORM: // Form inside a Form happens for ANIM type
+          begin
+            Continue;
           end;
       else
       end; // case
@@ -440,6 +463,35 @@ var
       PRGB(GrayPal)^.G := PRGB(GrayPal)^.R;
       PRGB(GrayPal)^.B := PRGB(GrayPal)^.R;
     end;
+  end;
+  function ReadACBMPlane: Boolean;
+  var TempData: TMemoryData;
+    PlaneSize: Cardinal;
+    HeightPlaneSize: Cardinal;
+    iPlane: Cardinal;
+    BufPtr: PAnsiChar;
+  begin
+    Result := False;
+    TempData := FData;
+    // ACBM is planar: You get all plane 0 data first for all lines; then for plane 1..n
+    // (ilbm is interleaved: plane 0..n for line 1 then plane 0..n for line 2 etc...)
+    PlaneSize := GetRowSize;
+    HeightPlaneSize := Cardinal(Height) * PlaneSize;
+    BufPtr := LineBuf;
+    for iPlane := 0 to FIffProperties.nPlanes-1 do begin
+      // Compute source pos in file
+      TempData.mdPos := FData.mdPos;
+      Inc(TempData.mdPos, iPlane * HeightPlaneSize);
+      if not ReadIffData(@TempData, PlaneSize, BufPtr) = PixelLineSize then
+        Exit; // Returns False
+      // Compute dest pos in LineBuf
+      Inc(BufPtr, PlaneSize);
+    end;
+
+    // Finally update FData to position of PlaneSize bytes after first plane
+    Inc(FData.mdPos, LineSize);
+
+    Result := True;
   end;
 
 begin
@@ -695,9 +747,14 @@ begin
                 if TPackbitsRLEDecoder(Decoder).Overflow then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
               end
-              else
+              else if FIffProperties.IffType <> itAcbm then begin
                 if not ReadIffData(@FData, PixelLineSize, LineBuf) = PixelLineSize then
                   raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
+              end
+              else begin // ACBM
+                if not ReadACBMPlane then
+                  raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
+              end;
               LineBufPos := LineBuf;
               for bitplane := 0 to FIffProperties.nPlanes-1 do begin
                 bitmask := 1 shl bitplane;
@@ -845,7 +902,7 @@ begin
       ChunkInfo := ReadIffChunk(@FData);
 
       case ChunkInfo.ChunkID.tag of
-        IFF_ID_BODY:
+        IFF_ID_BODY, IFF_ID_ABIT:
           begin
             HandleBody(Decoder);
             Break;

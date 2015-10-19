@@ -1055,6 +1055,8 @@ begin
     case ImgIffData.IffType of
       itIlbm: sgImgProperties.Cells[1,InfoRow] := 'ilbm';
       itPbm:  sgImgProperties.Cells[1,InfoRow] := 'pbm';
+      itAcbm: sgImgProperties.Cells[1,InfoRow] := 'acbm';
+      itAnim: sgImgProperties.Cells[1,InfoRow] := 'anim';
     end;
     IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Color scheme:';
