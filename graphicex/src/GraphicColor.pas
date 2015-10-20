@@ -449,6 +449,11 @@ procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal);
 // Convert RGB TO BGR
 procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal);
 
+// Convert ARGB 4 bits (2 words) TO BGR 8 bits
+procedure X4R4G4B4ToBGR(Source, Dest: Pointer; Width, Height: Cardinal);
+// Convert XRGB 8 bits to BGR 8 bits
+procedure XRGBToBGR(Source, Dest: Pointer; Width, Height: Cardinal);
+
 // Alpha channel functions
 // Converts PBGRA Array of length Count into premultiplied BGRA
 procedure BGRAToPremultipliedAlpha(Source: PBGRA; Count: Integer);
@@ -1372,6 +1377,48 @@ begin
     // Replace Red last since it replace the Blue byte in the line above
     Dest.R := Red;
     Inc(Dest);
+  end;
+end;
+
+// Convert ARGB 4 bits (2 words) TO BGR 8 bits
+procedure X4R4G4B4ToBGR(Source, Dest: Pointer; Width, Height: Cardinal);
+var
+  n: Cardinal;
+  DataPtr: PByte;
+  Target: PBGR;
+begin
+  DataPtr := Source;
+  Target := Dest;
+  for n := 0 to Width * Height - 1 do
+  begin
+    Target^.R := DataPtr^ shl 4 or $0f;
+    Inc(DataPtr);
+    Target^.G := DataPtr^ or $0f;
+    Target^.B := DataPtr^ shl 4 or $0f;
+    Inc(DataPtr);
+    Inc(Target);
+  end;
+end;
+
+// Convert XRGB 8 bits to BGR 8 bits
+procedure XRGBToBGR(Source, Dest: Pointer; Width, Height: Cardinal);
+var
+  n: Cardinal;
+  DataPtr: PByte;
+  Target: PBGR;
+begin
+  DataPtr := Source;
+  Target := Dest;
+  for n := 0 to Width * Height - 1 do
+  begin
+    Inc(DataPtr); // Ignore first byte X
+    Target^.R := DataPtr^;
+    Inc(DataPtr);
+    Target^.G := DataPtr^;
+    Inc(DataPtr);
+    Target^.B := DataPtr^;
+    Inc(DataPtr);
+    Inc(Target);
   end;
 end;
 
