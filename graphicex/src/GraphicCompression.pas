@@ -66,11 +66,11 @@ interface
   {$mode delphi}
 {$ENDIF}
 
-uses                                                
+uses
   Windows, Classes, SysUtils, Graphics,
   //LibJpeg,    // JPEG compression support
   ZLibDelphi; //GXzLib;  // general inflate/deflate and LZ77 compression support
-     
+
 type
   // abstract decoder class to define the base functionality of an encoder/decoder
   TDecoder = class
@@ -91,8 +91,8 @@ type
     FColorDepth: Cardinal;
     FOverflow: Boolean;
   public
-    constructor Create(ColorDepth: Cardinal); 
-    
+    constructor Create(ColorDepth: Cardinal);
+
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
@@ -113,6 +113,24 @@ type
     FUpdateDest: Boolean;
     FOverflow: Boolean;
   public
+    procedure DecodeInit; override;
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+
+    property Overflow: Boolean read FOverflow;
+    property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
+    property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
+  end;
+
+  TAmigaRGBDecoder = class(TDecoder)
+  private
+    FColorDepth: Cardinal;
+    FUpdateSource,
+    FUpdateDest: Boolean;
+    FOverflow: Boolean;
+  public
+    // ColorDepth: 16-RGBN; 32=RGB8
+    constructor Create(ColorDepth: Cardinal);
     procedure DecodeInit; override;
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
@@ -924,7 +942,125 @@ begin
 
 end;
 
-//----------------- TPCXRLEDecoder -------------------------------------------------------------------------------------
+//----------------- TAmigaRGBDecoder -------------------------------------------
+
+// ColorDepth: 16-RGBN; 32=RGB8
+constructor TAmigaRGBDecoder.Create(ColorDepth: Cardinal);
+begin
+  inherited Create;
+  FColorDepth := ColorDepth;
+end;
+
+procedure TAmigaRGBDecoder.DecodeInit;
+begin
+  FUpdateSource := False;
+  FUpdateDest := False;
+end;
+
+procedure TAmigaRGBDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+const
+  RunMask16 = $0700;
+  RunMask32 = $7f000000;
+var
+  SourcePtr16,
+  TargetPtr16: PWord;
+  SourcePtr32,
+  TargetPtr32: PLongWord;
+  RunLength: Cardinal;
+  Data16: Word;
+  Data32: LongWord;
+  i: Cardinal;
+begin
+  FOverflow := False;
+  case FColorDepth of
+    16:
+    begin
+      TargetPtr16 := Dest;
+      SourcePtr16 := Source;
+      while UnpackedSize > 0 do begin
+        Data16 := SourcePtr16^;
+        Inc(SourcePtr16);
+        RunLength := Data16 and RunMask16;
+        RunLength := RunLength shr 8;
+        if RunLength = 0 then begin
+          // Next BYTE is a repeat count or 0
+          RunLength := PByte(SourcePtr16)^;
+          Inc(PByte(SourcePtr16), 1);
+          if RunLength = 0 then begin
+            // Next WORD is a repeat count
+            RunLength := SourcePtr16^;
+            Inc(SourcePtr16);
+          end
+        end;
+        if RunLength*2 > Cardinal(UnpackedSize) then begin
+          FOverflow := True;
+          Break;
+        end;
+        // TODO: Ideally we would need a FillWord implementation.
+        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
+        // Graphics32 FillLongword in GR32_LowLevel.
+        //FillWord( (TargetPtr^, RunLength, Data);
+        for i := 0 to RunLength-1 do begin
+          TargetPtr16^ := Data16;
+          Inc(TargetPtr16);
+          Dec(UnpackedSize, 2);
+        end;
+      end;
+    end;
+    32:
+    begin
+      TargetPtr32 := Dest;
+      SourcePtr32 := Source;
+      while UnpackedSize > 0 do begin
+        Data32 := SourcePtr32^;
+        Inc(SourcePtr32);
+        // TODO: Just use one byte instead of 4 here then no need to shift
+        RunLength := Data32 and RunMask32;
+        RunLength := RunLength shr 24;
+        if RunLength = 0 then begin
+          // Next BYTE is a repeat count or 0
+          RunLength := PByte(SourcePtr32)^;
+          Inc(PByte(SourcePtr32), 1);
+          if RunLength = 0 then begin
+            // Next WORD is a repeat count
+            RunLength := PWord(SourcePtr32)^;
+            Inc(PByte(SourcePtr32), 2);
+          end
+        end;
+        if RunLength*4 > Cardinal(UnpackedSize) then begin
+          FOverflow := True;
+          Break;
+        end;
+        // TODO: Ideally we would need a FillDWord implementation.
+        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
+        // Graphics32 FillLongword in GR32_LowLevel.
+        //FillWord( (TargetPtr^, RunLength, Data);
+        for i := 0 to RunLength-1 do begin
+          TargetPtr32^ := Data32;
+          Inc(TargetPtr32);
+          Dec(UnpackedSize, 4);
+        end;
+      end;
+    end;
+  end; // case
+  if FUpdateSource then
+    if FColorDepth = 16 then
+      Source := SourcePtr16
+    else
+      Source := SourcePtr32;
+  if FUpdateDest then
+    if FColorDepth = 16 then
+      Dest := TargetPtr16
+    else
+      Dest := TargetPtr32;
+end;
+
+procedure TAmigaRGBDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+begin
+  BytesStored := 0;
+end;
+
+//----------------- TPCXRLEDecoder ---------------------------------------------
 
 procedure TPCXRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 
