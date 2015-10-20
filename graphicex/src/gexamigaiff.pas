@@ -30,8 +30,8 @@ uses
   gexIFF, GraphicCompression;
 
 type
-  TIffType = (itIlbm, itPbm, itAcbm, itAnim);
-  TIffCompression = (icNone, icPackedBits, icVDATRLE);
+  TIffType = (itIlbm, itPbm, itAcbm, itAnim, itRgbn, itRgb8, itDeep);
+  TIffCompression = (icNone, icPackedBits, icVDATRLE, ic0003, icRGBN);
   // For VDAT rle see: http://www.atari-wiki.com/?title=ST_Picture_Formats (IFF format)
   TCamgFlag = (cf0001, cf0002, cfLace, cf0008, cf0010, cf0020, cf0040,
     cfExtraHalfBrite, cf0100, cf0200, cf0400, cfHam, cfExtendedMode, cf02000, cfHiRes);
@@ -106,6 +106,7 @@ const
   cmpNone          = 0;
   cmpByteRun1      = 1;
   cmpVDAT          = 2; // Atari-ST special compression type
+  cmpRGB           = 4; // RGBN/RGB8 compression type
 
   // IFF ILBM image ID's
   IFF_ID_BMHD      = $424d4844; // BMHD
@@ -126,6 +127,9 @@ const
   IFF_TYPE_PBM     = $50424d20; // PBM
   IFF_TYPE_ACBM    = $4143424d; // ACBM
   IFF_TYPE_ANIM    = $414e494d; // ANIM
+  IFF_TYPE_RGBN    = $5247424e; // RGBN
+  IFF_TYPE_RGB8    = $52474238; // RGB8
+  IFF_TYPE_DEEP    = $44454550; // DEEP
 
 resourcestring
   gesAmigaIff = 'Amiga ilbm/pbm IFF images';
@@ -176,7 +180,9 @@ begin
       IFF_TYPE_ILBM,
       IFF_TYPE_PBM,
       IFF_TYPE_ACBM,
-      IFF_TYPE_ANIM: Result := True;
+      IFF_TYPE_ANIM,
+      IFF_TYPE_RGBN,
+      IFF_TYPE_RGB8: Result := True;
     end;
 end;
 
@@ -231,6 +237,16 @@ begin
         begin
           FIffProperties.IffType := itAnim;
           IffType := Ifftype + '-anim';
+        end;
+      IFF_TYPE_RGBN:
+        begin
+          FIffProperties.IffType := itRgbn;
+          IffType := Ifftype + '-rgbn';
+        end;
+      IFF_TYPE_RGB8:
+        begin
+          FIffProperties.IffType := itRgb8;
+          IffType := Ifftype + '-rgb8';
         end;
     else
       // Unexpected IFF type, Exit and return false
@@ -300,7 +316,13 @@ begin
                   end;
                   SamplesPerPixel := 1;
                   BitsPerPixel    := BitsPerSample;
-                end
+                end;
+              13, 25:
+                if FIffProperties.IffType in [itRgbn, itRgb8] then begin
+                  ColorScheme := csRGB;
+                  BitsPerSample := 4;
+                  SamplesPerPixel := 3;
+                end;
             else
             end;
 
@@ -519,8 +541,14 @@ begin
     case FImageProperties.ColorScheme of
       csRGB, csRGBA:
         begin
-          LineSize := GetRowSize;
-          PixelLineSize := LineSize * FIffProperties.nPlanes;
+          if FIffProperties.CompressionType <> cmpRGB then begin
+            LineSize := GetRowSize;
+            PixelLineSize := LineSize * FIffProperties.nPlanes;
+          end
+          else begin
+            LineSize := FIffProperties.nPlanes div 6 * Width;
+            PixelLineSize := LineSize;
+          end;
           if cfHam in FIffProperties.CamgFlags then begin
             nSamples := 1;
             if (FIffProperties.Mask = mskHasTransparentColor) and FUseTransparentColorForAlpha then
@@ -546,71 +574,102 @@ begin
             for y := 0 to Height-1 do begin
               // Initialize all pixels in this line to black
               FillChar(PixelBuf^, Cardinal(Width)*nSamples, 0);
-              if FImageProperties.Compression = ctPackedBits then begin
-                // We don't know the packed size. In rare cases packed size might be
-                // more than unpacked size. To be safe we set it to twice PixelLineSize.
+              if FIffProperties.CompressionType <> cmpRGB then begin
+                case FIffProperties.CompressionType of
+                  cmpByteRun1:
+                    begin
+                      // We don't know the packed size. In rare cases packed size might be
+                      // more than unpacked size. To be safe we set it to twice PixelLineSize.
+                      Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
+                        NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
+                      if TPackbitsRLEDecoder(Decoder).Overflow then begin
+                        // Incorrect LineSize due to broken image compression.
+                        // Try again with fixed LineSize unless we already tried that.
+                        if AdjustedLineSize = PixelLineSize then begin
+                          // TODO: Add a warning message about broken compression
+                          AdjustedLineSize := (Width+7) div 8 * FIffProperties.nPlanes;
+                          FixIncorrectCompression := True;
+                          FData.mdPos := BodyStart;
+                        end;
+                        // Test again because new AdjustedLineSize might be the same
+                        // as the original PixelLineSize and we don't want an endless loop!
+                        if AdjustedLineSize = PixelLineSize then begin
+                          // We already tried fixing but it didn't help. Stop processing.
+                          raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
+                        end;
+                        break; // Get out of the for loop
+                      end;
+                    end;
+                  cmpNone:
+                    if not ReadIffData(@FData, PixelLineSize, LineBuf) = PixelLineSize then
+                      raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
+                  cmpVDAT:
+                    begin
+                      // TODO: Add VDAT RLE compression handler
+                    end;
+                else
+                  // Unknown compression!
+                end;
+                LineBufPos := LineBuf;
+                for bitplane := 0 to FIffProperties.nPlanes-1 do begin
+                  bitmask := 1 shl (bitplane mod 8);
+                  Line := PixelBuf;
+                  // With 24 planes r starts at 0, g at 7 and b at 15
+                  Inc(Line, bitplane div 8);
+                  w := 0;
+                  for x := 0 to LineSize-1 do begin
+                    mask := $80; // Mask to loop over all 8 bits
+                    for iBit := 0 to 7 do begin
+                      // TODO: Possibly move out of loop, do last bits separate
+                      if w >= FImageProperties.Width then
+                        Break
+                      else
+                        Inc(w);
+                      // Compute bit value for this plane and add to pixel
+                      if Byte(LineBufPos^) and mask <> 0 then
+                        Line^ := AnsiChar(Byte(Line^) or bitmask);
+                      // Go to the next pixel in Scanline
+                      Inc(Line, nSamples);
+                      mask := mask shr 1;
+                    end;
+                    Inc(LineBufPos);
+                  end; // for x
+                end; // for bitplane
+
+                if cfHam in FIffProperties.CamgFlags then begin
+                  if (FIffProperties.ShamSize <> 0) then begin
+                    // Unpack sham palette for current line
+                    UnpackPal(FIffProperties.ShamOfs, y, True);
+                  end;
+                  ColorManager.ConvertHam(PixelBuf, Scanline[y], Width, FIffProperties.nPlanes,
+                    AlphaIndex, PByte(ExtraPal));
+                end
+                else begin
+                  // Convert RGB(A) to BGR(A)
+                  case FImageProperties.ColorScheme of
+                    csRGB: RGBToBGR(PixelBuf, Width, 1);
+                    csRGBA:RGBAToBGRA(PixelBuf, Width, 1);
+                  end;
+                  // Finally Copy this line of Pixels to the Scanline
+                  Move(PixelBuf^, Scanline[y]^, Cardinal(Width)*nSamples);
+                end;
+              end
+              else begin // RGB Compression, RGBN/RGB8 Iff type
                 Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                   NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
-                if TPackbitsRLEDecoder(Decoder).Overflow then begin
-                  // Incorrect LineSize due to broken image compression.
-                  // Try again with fixed LineSize unless we already tried that.
-                  if AdjustedLineSize = PixelLineSize then begin
-                    // TODO: Add a warning message about broken compression
-                    AdjustedLineSize := (Width+7) div 8 * FIffProperties.nPlanes;
-                    FixIncorrectCompression := True;
-                    FData.mdPos := BodyStart;
-                  end;
-                  // Test again because new AdjustedLineSize might be the same
-                  // as the original PixelLineSize and we don't want an endless loop!
-                  if AdjustedLineSize = PixelLineSize then begin
-                    // We already tried fixing but it didn't help. Stop processing.
-                    raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
-                  end;
-                  break; // Get out of the for loop
-                end;
-              end
-              else
-                if not ReadIffData(@FData, PixelLineSize, LineBuf) = PixelLineSize then
-                  raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
-              LineBufPos := LineBuf;
-              for bitplane := 0 to FIffProperties.nPlanes-1 do begin
-                bitmask := 1 shl (bitplane mod 8);
-                Line := PixelBuf;
-                // With 24 planes r starts at 0, g at 7 and b at 15
-                Inc(Line, bitplane div 8);
-                w := 0;
-                for x := 0 to LineSize-1 do begin
-                  mask := $80; // Mask to loop over all 8 bits
-                  for iBit := 0 to 7 do begin
-                    // TODO: Possibly move out of loop, do last bits separate
-                    if w >= FImageProperties.Width then
-                      Break
-                    else
-                      Inc(w);
-                    // Compute bit value for this plane and add to pixel
-                    if Byte(LineBufPos^) and mask <> 0 then
-                      Line^ := AnsiChar(Byte(Line^) or bitmask);
-                    // Go to the next pixel in Scanline
-                    Inc(Line, nSamples);
-                    mask := mask shr 1;
-                  end;
-                  Inc(LineBufPos);
-                end; // for x
-              end; // for bitplane
+                if TAmigaRGBDecoder(Decoder).Overflow then
+                  raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
 
-              if cfHam in FIffProperties.CamgFlags then begin
-                if (FIffProperties.ShamSize <> 0) then begin
-                  // Unpack sham palette for current line
-                  UnpackPal(FIffProperties.ShamOfs, y, True);
-                end;
-                ColorManager.ConvertHam(PixelBuf, Scanline[y], Width, FIffProperties.nPlanes,
-                  AlphaIndex, PByte(ExtraPal));
-              end
-              else begin
-                // Convert RGB(A) to BGR(A)
-                case FImageProperties.ColorScheme of
-                  csRGB: RGBToBGR(PixelBuf, Width, 1);
-                  csRGBA:RGBAToBGRA(PixelBuf, Width, 1);
+                // Now decode/unpack LineBuf to pixels
+                case FIffProperties.IffType of
+                  itRGBN:
+                    begin
+                      X4R4G4B4ToBGR(LineBuf, PixelBuf, Width, 1);
+                    end;
+                  itRGB8:
+                    begin
+                      XRGBToBGR(LineBuf, PixelBuf, Width, 1);
+                    end;
                 end;
                 // Finally Copy this line of Pixels to the Scanline
                 Move(PixelBuf^, Scanline[y]^, Cardinal(Width)*nSamples);
@@ -887,15 +946,29 @@ begin
     Height := FImageProperties.Height;
     if (Width <= 0) or (Height <= 0) then
       Exit;  // TODO: Add warning
-    if FImageProperties.Compression = ctPackedBits then begin
-      Decoder := TPackbitsRLEDecoder.Create;
-      Decoder.DecodeInit;
-      // We need the source ptr to be updated since we don't know the size of the
-      // compressed data.
-      TPackbitsRLEDecoder(Decoder).UpdateSource := True;
-    end
-    else if FImageProperties.Compression = ctUnknown then
-      Exit; // TODO: Add warning: unknown compression
+    case FIffProperties.CompressionType of
+      cmpByteRun1:
+        begin
+          Decoder := TPackbitsRLEDecoder.Create;
+          Decoder.DecodeInit;
+          // We need the source ptr to be updated since we don't know the size of the
+          // compressed data.
+          TPackbitsRLEDecoder(Decoder).UpdateSource := True;
+        end;
+      cmpRGB:
+        begin
+          Decoder := TAmigaRGBDecoder.Create(FIffProperties.nPlanes div 6 * 8);
+          Decoder.DecodeInit;
+          TAmigaRGBDecoder(Decoder).UpdateSource := True;
+        end;
+      cmpVDAT:
+        begin
+          // TODO: Add VDAT RLE
+        end;
+    else
+      if FImageProperties.Compression = ctUnknown then
+        Exit; // TODO: Add warning: unknown compression
+    end;
 
     while NativeUInt(FData.mdPos) < NativeUInt(FData.mdEnd) do with FImageProperties do begin
 
