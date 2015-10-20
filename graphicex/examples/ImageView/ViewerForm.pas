@@ -1057,6 +1057,9 @@ begin
       itPbm:  sgImgProperties.Cells[1,InfoRow] := 'pbm';
       itAcbm: sgImgProperties.Cells[1,InfoRow] := 'acbm';
       itAnim: sgImgProperties.Cells[1,InfoRow] := 'anim';
+      itRgbn: sgImgProperties.Cells[1,InfoRow] := 'rgbn';
+      itRgb8: sgImgProperties.Cells[1,InfoRow] := 'rgb8';
+      itDeep: sgImgProperties.Cells[1,InfoRow] := 'deep';
     end;
     IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Color scheme:';
@@ -1064,7 +1067,7 @@ begin
       sgImgProperties.Cells[1,InfoRow] := 'HAM (Combined Indexed/RGB mode)'
     else
       case ImgIffData.nPlanes of
-        24: sgImgProperties.Cells[1,InfoRow] := 'RGB';
+        13, 24, 25: sgImgProperties.Cells[1,InfoRow] := 'RGB';
         32: sgImgProperties.Cells[1,InfoRow] := 'RGBA';
       else
         sgImgProperties.Cells[1,InfoRow] := 'Indexed';
@@ -1074,7 +1077,12 @@ begin
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.nPlanes); IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Compression:';
     if ImgProperties.Compression = ctUnknown then
-      sgImgProperties.Cells[1,InfoRow] := 'Unknown (' + IntToHex(ImgIffData.CompressionType, 2) + ')'
+      case ImgIffData.CompressionType of
+        2: sgImgProperties.Cells[1,InfoRow] := 'VDAT (Vertical RLE)';
+        4: sgImgProperties.Cells[1,InfoRow] := 'RGB RLE';
+      else
+        sgImgProperties.Cells[1,InfoRow] := 'Unknown (' + IntToHex(ImgIffData.CompressionType, 2) + ')';
+      end
     else
       sgImgProperties.Cells[1,InfoRow] := CCompression[ImgProperties.Compression];
     IncInfoRow;
