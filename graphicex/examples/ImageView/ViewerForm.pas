@@ -1150,6 +1150,34 @@ begin
       if idPchg in ImgIffData.ExtraChunks then begin
         sgImgProperties.Cells[1,InfoRow] := 'Extra palette (PCHG), size: ' + IntToStr(ImgIffData.PchgSize);
         IncInfoRow;
+        // Show extra info about the PCHG header
+        sgImgProperties.Cells[0,InfoRow] := 'PCHG Compression:';
+        case ImgIffData.PchgHeader.Compression of
+          PCHG_COMP_NONE: sgImgProperties.Cells[1,InfoRow] := 'None (uncompressed)';
+          PCHG_COMP_HUFFMANN: sgImgProperties.Cells[1,InfoRow] := 'Huffman';
+        else
+          sgImgProperties.Cells[1,InfoRow] := 'Unknown compression type ' +
+            IntToStr(ImgIffData.PchgHeader.Compression);
+        end;
+        IncInfoRow;
+        sgImgProperties.Cells[0,InfoRow] := 'PCHG Flags:';
+        case ImgIffData.PchgHeader.Flags of
+          PCHGF_12BIT: sgImgProperties.Cells[1,InfoRow] := '12 bit';
+          PCHGF_32BIT: sgImgProperties.Cells[1,InfoRow] := '32 bit';
+          PCHGF_32BIT+PCHGF_USE_ALPHA: sgImgProperties.Cells[1,InfoRow] := '32 bit including alpha';
+        else
+          sgImgProperties.Cells[1,InfoRow] := 'unknown flags combination!';
+        end;
+        IncInfoRow;
+        sgImgProperties.Cells[0,InfoRow] := 'PCHG LineCount:';
+        sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.PchgHeader.LineCount);
+        IncInfoRow;
+        sgImgProperties.Cells[0,InfoRow] := 'PCHG StartLine:';
+        sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.PchgHeader.StartLine);
+        IncInfoRow;
+        sgImgProperties.Cells[0,InfoRow] := 'PCHG ChangedLines:';
+        sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgIffData.PchgHeader.ChangedLines);
+        IncInfoRow;
       end;
     end;
   end

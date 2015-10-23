@@ -47,6 +47,41 @@ type
     sdColorTable: TShamColorTable;
   end;
 
+  // PCHG Palette header
+  TPCHGHeader = record
+     Compression: Word;
+     Flags: Word;
+     StartLine: SmallInt;
+     LineCount: Word;
+     ChangedLines: Word;
+     MinReg: Word;
+     MaxReg: Word;
+     MaxChanges: Word;
+     TotalChanges: LongWord;
+  end;
+
+  TPCHGCompHeader = record
+     CompInfoSize: LongWord;
+     OriginalDataSize: LongWord;
+  end;
+
+  TSmallLineChanges = record
+     ChangeCount16: Byte;
+     ChangeCount32: Byte;
+     {PaletteChange[]: Word;}
+  end;
+
+  TBigLineChanges = record
+     ChangeCount: Word;
+    { struct BigPaletteChange PaletteChange[];}
+  end;
+
+  TBigPaletteChange = record
+     PalRegister: Word;
+     Alpha, Red, Blue, Green: Byte;
+  end;
+
+
   TAmigaIffProperties = record
     IffType: TIffType;
     nPlanes: Byte;
@@ -68,11 +103,13 @@ type
     CtblSize: Cardinal;
     PchgOfs: PByte;
     PchgSize: Cardinal;
+    PchgHeader: TPCHGHeader;
   end;
 
   TAmigaIffGraphic = class(TIffGraphicBase)
   private
    FData: TMemoryData;
+   CMapOfs: PByte;
    FIffProperties: TAmigaIffProperties;
    FUseMaskForAlpha: Boolean;
    FUseTransparentColorForAlpha: Boolean;
@@ -130,6 +167,15 @@ const
   IFF_TYPE_RGBN    = $5247424e; // RGBN
   IFF_TYPE_RGB8    = $52474238; // RGB8
   IFF_TYPE_DEEP    = $44454550; // DEEP
+
+  // PCHG Compression types
+  PCHG_COMP_NONE     = 0;
+  PCHG_COMP_HUFFMANN = 1;
+
+  // PCHG Flags
+  PCHGF_12BIT        = 1; // Use SmallLineChanges
+  PCHGF_32BIT        = 2; // Use BigLineChanges
+  PCHGF_USE_ALPHA    = 4; // Meaningful only of PCHGB_32BIT is on: use the Alpha
 
 resourcestring
   gesAmigaIff = 'Amiga ilbm/pbm IFF images';
@@ -385,6 +431,17 @@ begin
         IFF_ID_PCHG: // PCHG palette found
           begin
             Include(FIffProperties.ExtraChunks, idPchg);
+            // Read the PCHG Header info
+            FIffProperties.PchgHeader.Compression := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.Flags := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.StartLine := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.LineCount := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.ChangedLines := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.MinReg := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.MaxReg := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.MaxChanges := ReadIffUInt16(@FData);
+            FIffProperties.PchgHeader.TotalChanges := ReadIffUInt32(@FData);
+            // Set Pchg offset to first byte after header
             FIffProperties.PchgOfs := FData.mdPos;
             FIffProperties.PchgSize := ChunkInfo.Chunksize;
           end;
@@ -428,6 +485,8 @@ function TAmigaIffGraphic.HandleBody(Decoder: TDecoder): Boolean;
 type
   TRGBArray16 = array [0..15] of TRGB;
   PRGBArray16 = ^TRGBArray16;
+  TRGBArray32 = array [0..31] of TRGB;
+  PRGBArray32 = ^TRGBArray32;
 var
   w: Integer;
   x, y, iBit,
@@ -450,6 +509,11 @@ var
   ExtraPal: PRGBArray16;
   ExtraPalOfs: PByte;
   ExtraPalIsSham: Boolean;
+  PchgMask: array of LongWord;
+  PchgMaskLength: Cardinal;
+  PchgBit, PchgLong: Cardinal;
+  PchgData: TMemoryData;
+  PchgPal: PRGBArray32;
 
   procedure UnpackPal(const ASource: PByte; const ARow: Cardinal; const IsSham: Boolean);
   var
@@ -515,6 +579,57 @@ var
 
     Result := True;
   end;
+  procedure GetPchgPal;
+  var aLong: LongWord;
+    PalOn: Boolean;
+    ChangeCount16,
+    ChangeCount32: Byte;
+    i: Cardinal;
+    aByte1,
+    aByte2: Byte;
+    RegIdx: Cardinal;
+  begin
+    // Get the next palette on/off bit
+    aLong := PchgMask[PchgLong];
+    PalOn := aLong and 1 <> 0;
+    // Update bit/byte counters and long
+    PchgMask[PchgLong] := aLong shr 1;
+    Inc(PchgBit);
+    if PchgBit = 32 then begin
+      PchgBit := 0;
+      Inc(PchgLong);
+    end;
+    if PalOn then begin
+      // Palette used. Get the SmallLineChanges data
+      ChangeCount16 := ReadIffUInt8(@PchgData); // Changes for palette registers 0-15
+      // For now we will be ignoring the ChangeCount32 which is used to access
+      // registers 16-31 because we don't have any examples that use that.
+      ChangeCount32 := ReadIffUInt8(@PchgData);
+      i := ChangeCount16;
+      while i > 0 do begin
+        // lower 12 bits (big endian) are rgb; high 4 bits register number
+        aByte1:= ReadIffUInt8(@PchgData);
+        aByte2:= ReadIffUInt8(@PchgData);
+        RegIdx := aByte1 and $f0 shr 4;
+        // Make 4 bits RGB values into 8 bits (lower 4 bits $0f)
+        PchgPal^[RegIdx].R := aByte1 shl 4 or $0f;
+        PchgPal^[RegIdx].G := aByte2 or $0f;
+        PchgPal^[RegIdx].B := aByte2 shl 4 or $0f;
+        Dec(i);
+      end;
+      // Currently we are not handling ChangeCount32 since we have never seen it
+      // but we do skip it in case we encounter it
+      // TODO: Palette registers 16-31 need updating
+      i := ChangeCount32;
+      while i > 0 do begin
+        aByte1:= ReadIffUInt8(@PchgData);
+        aByte2:= ReadIffUInt8(@PchgData);
+        Dec(i);
+      end;
+      // Update ExtraPal
+      Move(PchgPal^, ExtraPal^, SizeOf(TRGBArray16));
+    end;
+  end;
 
 begin
   Result := False;
@@ -522,6 +637,8 @@ begin
   PixelBuf := nil;
   ExtraPal := nil;
   GrayPal := nil;
+  PchgMask := nil;
+  PchgPal := nil;
   {$IFDEF FPC}
   BeginUpdate(False);
   {$ENDIF}
@@ -536,6 +653,31 @@ begin
     else if (FIffProperties.CtblSize > 0) and (FIffProperties.nPlanes <= 4) then begin
       GetMem(ExtraPal, SizeOf(TRGBArray16));
       ExtraPalOfs := FIffProperties.CtblOfs;
+    end
+    else if (FIffProperties.PchgSize > 0) and (FIffProperties.nPlanes <= 4) and
+      // Only type of PCHG I have samples of:
+      (FIffProperties.PchgHeader.Compression = PCHG_COMP_NONE) and
+      (FIffProperties.PchgHeader.Flags = PCHGF_12BIT) then begin
+      GetMem(ExtraPal, SizeOf(TRGBArray16));
+      GetMem(PchgPal, SizeOf(TRGBArray32));
+      // Compute length of mask for PCHG
+      PchgMaskLength := (FIffProperties.PchgHeader.LineCount+31) shr 5; // shr 5 = div 32
+      SetLength(PchgMask, PchgMaskLength*SizeOf(LongWord));
+      // Get mask data (mask bit set determines if a line uses PCHG palette or not)
+      Move(FIffProperties.PchgOfs^, PchgMask[0], PchgMaskLength*SizeOf(LongWord));
+      for w := 0 to PchgMaskLength-1 do
+        SwapEndian(PchgMask[w]);
+      ExtraPalOfs := PByte(NativeUInt(FIffProperties.PchgOfs) + PchgMaskLength*SizeOf(LongWord));
+      PchgBit := 0;
+      PchgLong := 0;
+      PchgData := FData;
+      PchgData.mdPos := ExtraPalOfs;
+      // Copy CMAP palette as default palette to PchgPal
+      if CMapOfs <> nil then begin
+        Move(CMapOfs^, PchgPal^, SizeOf(TRGBArray16));
+        // Copy to ExtraPal
+        Move(PchgPal^, ExtraPal^, SizeOf(TRGBArray16));
+      end;
     end;
 
     case FImageProperties.ColorScheme of
@@ -885,8 +1027,16 @@ begin
               // Convert Indexed
               {.$IFDEF FPC}
               if ExtraPalOfs <> nil then begin
-                // Unpack palette for current line
-                UnpackPal(ExtraPalOfs, y, ExtraPalIsSham);
+                if PchgMask <> nil then begin
+                  // Read PCHG Palette for current line
+                  // StartLine is 1-based, while y is 0-base
+                  if y >= FIffProperties.PchgHeader.StartLine-1 then
+                    GetPchgPal;
+                end
+                else begin
+                  // Unpack palette for current line
+                  UnpackPal(ExtraPalOfs, y, ExtraPalIsSham);
+                end;
                 // Set ColorManager palette data
                 ColorManager.SetSourcePalette([ExtraPal], pfInterlaced8Triple);
               end;
@@ -909,6 +1059,8 @@ begin
     {$ENDIF}
     if Assigned(ExtraPal) then
       FreeMem(ExtraPal);
+    if Assigned(PchgPal) then
+      FreeMem(PchgPal);
     if Assigned(GrayPal) then
       FreeMem(GrayPal);
     if Assigned(LineBuf) then
@@ -935,6 +1087,7 @@ begin
 
   Decoder := nil;
   EHBPal := nil;
+  CMapOfs := nil;
   try
     case FImageProperties.ColorScheme of
       csRGB: PixelFormat := pf24Bit;
@@ -999,6 +1152,7 @@ begin
               ColorManager.SetSourcePalette([EHBPal], pfInterlaced8Triple);
             end
             else begin
+              CMapOfs := FData.mdPos;
               Palette := ColorManager.CreateColorPalette([FData.mdPos], pfInterlaced8Triple, PalSize);
               ColorManager.SetSourcePalette([FData.mdPos], pfInterlaced8Triple);
             end;
