@@ -354,7 +354,7 @@ implementation
 
 uses
   Math,
-  gexTypes,
+  gexTypes, gexUtils,
   GraphicEx,
   GraphicStrings,
   GraphicColor;
