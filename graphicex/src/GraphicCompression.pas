@@ -400,6 +400,12 @@ end;
 constructor TTargaRLEDecoder.Create(ColorDepth: Cardinal);
 
 begin
+  // We need to call inherited (TObject) Create otherwise somethings seems to
+  // go wrong in Fpc/Lazarus when calling TTargaRLEDecoder.Decode
+  // Possibly only when specifically calling the specific decoder instead of
+  // the generic TDecoder.Decode?
+  // TODO: Needs to be investigated better sometime for the reason.
+  inherited Create;
   FColorDepth := ColorDepth;
 end;
 
