@@ -154,6 +154,9 @@ const
   // IFF ACBM ID's
   IFF_ID_ABIT      = $41424954; // ABIT (same as BODY for ilbm)
 
+  // IFF VDAT ID
+  IFF_ID_VDAT      = $56444154; // VDAT (Always nPlanes count VDAT's inside a BODY)
+
   // Additional ID's
   IFF_ID_SHAM      = $5348414d; // SHAM
   IFF_ID_CTBL      = $4354424c; // CTBL
@@ -514,6 +517,7 @@ var
   PchgBit, PchgLong: Cardinal;
   PchgData: TMemoryData;
   PchgPal: PRGBArray32;
+  VDatDecoded: PByte;
 
   procedure UnpackPal(const ASource: PByte; const ARow: Cardinal; const IsSham: Boolean);
   var
@@ -579,6 +583,77 @@ var
 
     Result := True;
   end;
+
+  procedure DecodeVDAT;
+  type PIffChunk = ^TIffChunk;
+  var
+    TempData: TMemoryData;
+    Chunk: PIffChunk;
+    vSize: Cardinal;
+    i: Cardinal;
+    vSource: Pointer;
+    vPlaneTarget: Pointer;
+    LinePlaneSize, HeightPlaneSize: Cardinal;
+  begin
+    TempData := FData;
+    LinePlaneSize := GetRowSize;
+    HeightPlaneSize := Cardinal(Height) * LinePlaneSize;
+    GetMem(VDatDecoded, FIffProperties.nPlanes * HeightPlaneSize);
+
+    vPlaneTarget := VDatDecoded;
+    for i := 0 to FIffProperties.nPlanes-1 do begin
+      // 1. Check to see if we really got a VDAT chunk
+      Chunk := PIffChunk(TempData.mdPos);
+      if SwapEndian(Chunk^.ckID.tag) = IFF_ID_VDAT then begin
+        vSize := SwapEndian(Chunk^.ckSize);
+        vSource := @Chunk^.ckType;
+        Decoder.Decode(vSource, vPlaneTarget, vSize, HeightPlaneSize);
+        if TVDATRLEDecoder(Decoder).Overflow then
+          raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
+      end
+      else
+        break;
+      // Update Target Pointer
+      Inc(vPlaneTarget, HeightPlaneSize);
+      // Update Source position
+      if vSize and 1 <> 0 then
+        Inc(vSize);
+      Inc(TempData.mdPos, vSize+8);
+    end;
+  end;
+
+  procedure LoadVDATLine;
+  var
+    iPlane, iColumn: Cardinal;
+    SourcePtr: PByte;
+    SourceWord: PWord;
+    DestPtr: PWord;
+    LinePlaneSize, HeightPlaneSize: Cardinal;
+    LineWordCount: Cardinal;
+    ColWordCount: Cardinal;
+  begin
+    SourcePtr := VDatDecoded;
+    LinePlaneSize := GetRowSize;
+    HeightPlaneSize := Cardinal(Height) * LinePlaneSize;
+    LineWordCount := LinePlaneSize div 2;
+    ColWordCount := Height;
+    Inc(SourcePtr, y*2); // Start at correct line, word sized offset
+    // VDAT has vertical oriented data
+    // plane one contains line 1: word 0, line 2 word 0 ... line n word 0, line 1 word 3, ...
+    // plane two line 1: word 1, line 2 word 1..line n word 1,  line 1 word 4 ...
+    for iPlane := 0 to FIffProperties.nPlanes-1 do begin
+      DestPtr := PWord(LineBuf);
+      Inc(DestPtr, iPlane);
+      SourceWord := PWord(SourcePtr);
+      for iColumn := 0 to LineWordCount-1 do begin
+        DestPtr^ := SourceWord^;
+        Inc(DestPtr, 4);
+        Inc(SourceWord, ColWordCount);
+      end;
+      Inc(SourcePtr, HeightPlaneSize);
+    end;
+  end;
+
   procedure GetPchgPal;
   var aLong: LongWord;
     PalOn: Boolean;
@@ -639,6 +714,7 @@ begin
   GrayPal := nil;
   PchgMask := nil;
   PchgPal := nil;
+  VDatDecoded := nil;
   {$IFDEF FPC}
   BeginUpdate(False);
   {$ENDIF}
@@ -747,7 +823,7 @@ begin
                       raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
                   cmpVDAT:
                     begin
-                      // TODO: Add VDAT RLE compression handler
+                      // VDAT RLE compression handling is done elsewhere
                     end;
                 else
                   // Unknown compression!
@@ -937,6 +1013,10 @@ begin
             {.$ENDIF}
             GetMem(PixelBuf, ScanlineSize);
 
+            if FIffProperties.CompressionType = cmpVDAT then begin
+              DecodeVDAT;
+            end;
+
             for y := 0 to Height-1 do begin
               // Initialize all pixels in this line to black
               FillChar(PixelBuf^, ScanlineSize, 0);
@@ -949,35 +1029,55 @@ begin
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
               end
               else if FIffProperties.IffType <> itAcbm then begin
-                if not ReadIffData(@FData, PixelLineSize, LineBuf) = PixelLineSize then
-                  raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
+                if FIffProperties.CompressionType = cmpVDAT then begin
+                  LoadVDATLine;
+                end
+                else
+                  if not ReadIffData(@FData, PixelLineSize, LineBuf) = PixelLineSize then
+                    raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
               end
               else begin // ACBM
                 if not ReadACBMPlane then
                   raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
               end;
-              LineBufPos := LineBuf;
-              for bitplane := 0 to FIffProperties.nPlanes-1 do begin
-                bitmask := 1 shl bitplane;
+              if FIffProperties.CompressionType <> cmpVDAT then begin
+                LineBufPos := LineBuf;
+                for bitplane := 0 to FIffProperties.nPlanes-1 do begin
+                  bitmask := 1 shl bitplane;
+                  Line := PixelBuf;
+                  w := 0;
+                  for x := 0 to LineSize-1 do begin
+                    mask := $80; // Mask to loop over all 8 bits
+                    for iBit := 0 to 7 do begin
+                      // TODO: Possibly move out of loop, do last bits separate
+                      if w < FImageProperties.Width then begin
+                        // Compute bit value for this plane and add to pixel
+                        if Byte(LineBufPos^) and mask <> 0 then
+                          Line^ := AnsiChar(Byte(Line^) or bitmask);
+                        // Go to the next palette index in Scanline
+                        Inc(Line, BytesPerPixel);
+                      end;
+                      Inc(w);
+                      mask := mask shr 1;
+                    end;
+                    Inc(LineBufPos);
+                  end; // for x
+                end; // for bitplane
+              end
+              else begin
+                // VDAT handling
+                // 4 planes means we have 2 pixel indexes per byte
+                // Move each pixel to a separate byte
+                LineBufPos := LineBuf;
                 Line := PixelBuf;
                 w := 0;
-                for x := 0 to LineSize-1 do begin
-                  mask := $80; // Mask to loop over all 8 bits
-                  for iBit := 0 to 7 do begin
-                    // TODO: Possibly move out of loop, do last bits separate
-                    if w < FImageProperties.Width then begin
-                      // Compute bit value for this plane and add to pixel
-                      if Byte(LineBufPos^) and mask <> 0 then
-                        Line^ := AnsiChar(Byte(Line^) or bitmask);
-                      // Go to the next palette index in Scanline
-                      Inc(Line, BytesPerPixel);
-                    end;
-                    Inc(w);
-                    mask := mask shr 1;
-                  end;
+                while w < FImageProperties.Width do begin
+                  Line^:= AnsiChar(Byte(LineBufPos^) and $0f); Inc(Line);
+                  Line^:= AnsiChar(Byte(LineBufPos^) shr 4 and $0f); Inc(Line);
                   Inc(LineBufPos);
-                end; // for x
-              end; // for bitplane
+                  Inc(w, 2);
+                end;
+              end;
               case FIffProperties.Mask of
                 mskHasMask:
                   begin
@@ -1067,6 +1167,8 @@ begin
       FreeMem(LineBuf);
     if Assigned(PixelBuf) then
       FreeMem(PixelBuf);
+    if Assigned(VDatDecoded) then
+      FreeMem(VDatDecoded);
   end;
   Result := True;
 end;
@@ -1116,7 +1218,9 @@ begin
         end;
       cmpVDAT:
         begin
-          // TODO: Add VDAT RLE
+          Decoder := TVDATRLEDecoder.Create;
+          Decoder.DecodeInit;
+          //TVDATRLEDecoder(Decoder).UpdateSource := True;
         end;
     else
       if FImageProperties.Compression = ctUnknown then
