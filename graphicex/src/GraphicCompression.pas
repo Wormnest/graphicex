@@ -140,6 +140,21 @@ type
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
 
+  TVDATRLEDecoder = class(TDecoder)
+  private
+    FUpdateSource,
+    FUpdateDest: Boolean;
+    FOverflow: Boolean;
+  public
+    procedure DecodeInit; override;
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+
+    property Overflow: Boolean read FOverflow;
+    property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
+    property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
+  end;
+
   TPCXRLEDecoder = class(TDecoder)
   public
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
@@ -1062,6 +1077,142 @@ begin
 end;
 
 procedure TAmigaRGBDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+begin
+  BytesStored := 0;
+end;
+
+//----------------- TVDATRLEDecoder --------------------------------------------
+
+procedure TVDATRLEDecoder.DecodeInit;
+begin
+  FUpdateSource := False;
+  FUpdateDest := False;
+end;
+
+procedure TVDATRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+var
+  i: Cardinal;
+  SourcePtr: PWord;
+  TargetPtr: PByte;
+  CommandPtr: PByte;
+  CommandCount: Word;
+  aCount: ShortInt;
+  aWordCount: Word;
+  TempVal: Word;
+begin
+  FOverflow := False;
+  TargetPtr := Dest;
+  SourcePtr := Source;
+  if PackedSize <= 5 then begin
+    FOverflow := True;
+    Exit;
+  end;
+  CommandCount := SwapEndian(SourcePtr^) - 2;
+  Inc(SourcePtr);
+  Dec(PackedSize, 2);
+  CommandPtr := PByte(SourcePtr);
+  // Data words come after the command bytes
+  Inc(PByte(SourcePtr), CommandCount);
+  Dec(PackedSize,CommandCount);
+  if PackedSize <= 0 then begin
+    FOverflow := True;
+    Exit;
+  end;
+
+  while (PackedSize > 0) and (UnpackedSize > 0) do begin
+    if CommandCount = 0 then begin
+      FOverflow := True;
+      Exit;
+    end;
+    case CommandPtr^ of
+      0: // read one data word as count; output count literal words from data words.
+        begin
+          if PackedSize < 2 then begin
+            FOverflow := True;
+            Exit;
+          end;
+          aWordCount := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Dec(PackedSize, 2);
+          if (aWordCount*2 > UnpackedSize) or (aWordCount*2 > PackedSize) then begin
+            FOverflow := True;
+            Exit;
+          end;
+          Dec(UnpackedSize, aWordCount*2);
+          Dec(PackedSize, aWordCount*2);
+          for i := 0 to aWordCount-1 do begin
+            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+            Inc(SourcePtr);
+            Inc(TargetPtr, 2);
+          end;
+        end;
+      1: // read one command word as count, then one data word as data output data count times
+        begin
+          if PackedSize < 2 then begin
+            FOverflow := True;
+            Exit;
+          end;
+          aWordCount := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Dec(PackedSize, 2);
+          if (aWordCount*2 > UnpackedSize) or (PackedSize < 2) then begin
+            FOverflow := True;
+            Exit;
+          end;
+          Dec(UnpackedSize, aWordCount*2);
+          Dec(PackedSize, 2);
+          for i := 0 to aWordCount-1 do begin
+            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+            Inc(TargetPtr, 2);
+          end;
+          Inc(SourcePtr);
+        end;
+    else
+      aCount := ShortInt(CommandPtr^);
+      if aCount < 0 then begin
+        // <0: -cmd is count, output count words from data words
+        aCount := -aCount;
+        if (aCount*2 > UnpackedSize) or (aCount*2 > PackedSize) then begin
+          FOverflow := True;
+          Exit;
+        end;
+        Dec(UnpackedSize, aCount*2);
+        Dec(PackedSize, aCount*2);
+        for i := 0 to aCount-1 do begin
+          PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Inc(TargetPtr, 2);
+        end;
+      end
+      else begin
+        // >2: cmd is count, read one data word as data output data count times
+        // JB: Note that although the info says greater than 2 I'm assuming it
+        // should be greater than or equal to 2.
+        if (aCount*2 > UnpackedSize) or (PackedSize < 2) then begin
+          FOverflow := True;
+          Exit;
+        end;
+        Dec(UnpackedSize, aCount*2);
+        Dec(PackedSize, 2);
+        TempVal := SwapEndian(SourcePtr^);
+        for i := 0 to aCount-1 do begin
+          PWord(TargetPtr)^ := TempVal;
+          Inc(TargetPtr, 2);
+        end;
+        Inc(SourcePtr);
+      end
+    end;
+    Inc(CommandPtr);
+    Dec(CommandCount);
+  end;
+
+  if FUpdateSource then
+    Source := SourcePtr;
+  if FUpdateDest then
+    Dest := TargetPtr;
+end;
+
+procedure TVDATRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
 begin
   BytesStored := 0;
 end;
