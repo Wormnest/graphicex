@@ -402,9 +402,11 @@ var
 
 implementation
 
-{$IFDEF CompilerVersion >= 7}
+{$IFNDEF FPC}
+{$IF CompilerVersion >= 7}
   {$WARN UNSAFE_TYPE OFF}
   {$WARN UNSAFE_CODE OFF}
+{$IFEND}
 {$ENDIF}
 
 uses
