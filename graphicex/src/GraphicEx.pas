@@ -7333,6 +7333,8 @@ var
   BlockSize: Cardinal;
   S: AnsiString;
   BlockStart: PByte;
+  // Required for newer Delphi (cannot assign to class property records)
+  TempMaskData: TPSDLayerMaskData;
 
 begin
   // Skip the layer section size. We are going to read the full section.
@@ -7420,32 +7422,31 @@ begin
       BlockSize := ReadBigEndianCardinal(Run);
       if BlockSize > 0 then
       begin
-        with Layer.MaskData do
+        // Newer Delphi requires us to use a local variable to assign to a TRect as part of a class
+        // See: http://stackoverflow.com/questions/12352563/why-do-i-get-left-side-cannot-be-assigned-to-for-trect-after-upgrading-delphi
+        TempMaskData := Layer.MaskData;
+        R.Top := ReadBigEndianInteger(Run);
+        R.Left := ReadBigEndianInteger(Run);
+        R.Bottom := ReadBigEndianInteger(Run);
+        R.Right := ReadBigEndianInteger(Run);
+        TempMaskData.Bounds := R;
+        TempMaskData.DefaultColor := Byte(Run^);
+        Inc(Run);
+        TempMaskData.Flags := TPSDLayerMaskFlags(Run^);
+        Inc(Run);
+        // If only 20 bytes mask data is present then we are finished here with it (except 2 padding bytes).
+        // Otherwise read additional data.
+        if BlockSize = 20 then
+          Inc(Run, 2)
+        else
         begin
-          with Bounds do
-          begin
-            Top := ReadBigEndianInteger(Run);
-            Left := ReadBigEndianInteger(Run);
-            Bottom := ReadBigEndianInteger(Run);
-            Right := ReadBigEndianInteger(Run);
-          end;
-          DefaultColor := Byte(Run^);
+          // Skip "real flags" field, which is just a duplication of the flags.
           Inc(Run);
-          Flags := TPSDLayerMaskFlags(Run^);
-          Inc(Run);
-          // If only 20 bytes mask data is present then we are finished here with it (except 2 padding bytes).
-          // Otherwise read additional data.
-          if BlockSize = 20 then
-            Inc(Run, 2)
-          else
-          begin
-            // Skip "real flags" field, which is just a duplication of the flags.
-            Inc(Run);
-            UserMaskBackground := Byte(Run^);
-            // Advance after the mask background value and skip the copy of the enclosing rectangle too, which follows.
-            Inc(Run, 1 + 4 * SizeOf(Cardinal));
-          end;
+          TempMaskData.UserMaskBackground := Byte(Run^);
+          // Advance after the mask background value and skip the copy of the enclosing rectangle too, which follows.
+          Inc(Run, 1 + 4 * SizeOf(Cardinal));
         end;
+        Layer.MaskData := TempMaskData;
       end;
 
       // Next are the layer blending ranges. In opposition to the docs the size seems not to depend on the number of
