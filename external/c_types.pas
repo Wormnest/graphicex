@@ -34,11 +34,7 @@ type
 
 
   // C specific
-  {$IF Defined(CPU64) OR Defined(CPUX64)}
-  size_t = NativeUInt;
-  {$ELSE}
-  size_t = Cardinal;
-  {$IFEND}
+  size_t  = NativeUInt;
   Psize_t = ^size_t;
 
   float  = Single;
