@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{3A7CA9B8-6C62-43AF-B529-8ADD40176403}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="ShellControls_R.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="ShellControls_D.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ShellControls_R">
+        <MSBuild Projects="ShellControls_R.dproj"/>
+    </Target>
+    <Target Name="ShellControls_R:Clean">
+        <MSBuild Projects="ShellControls_R.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ShellControls_R:Make">
+        <MSBuild Projects="ShellControls_R.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ShellControls_D">
+        <MSBuild Projects="ShellControls_D.dproj"/>
+    </Target>
+    <Target Name="ShellControls_D:Clean">
+        <MSBuild Projects="ShellControls_D.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ShellControls_D:Make">
+        <MSBuild Projects="ShellControls_D.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ShellControls_R;ShellControls_D"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ShellControls_R:Clean;ShellControls_D:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ShellControls_R:Make;ShellControls_D:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
