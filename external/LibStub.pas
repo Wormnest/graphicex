@@ -354,7 +354,7 @@ end;
 var
   // Static buffer for ctime to return a time in a string of the form "Mon Nov 21 11:31:54 1983\n\0".
   // It is overriden everytime ctime is called (just as the BCB equivalent).
-  Staticctime: array[0..25] of Char;
+  Staticctime: array[0..25] of AnsiChar;
 
 function ctime(const clock: Ptime_t): PAnsiChar;
 
@@ -922,7 +922,9 @@ end;
 function memcmp(s1, s2: Pointer; n: NativeUInt): Integer;
 
 begin
-  Result := StrLComp(s1, s2, n);
+  // Since we have to return an Integer value not a Boolean we can't use CompareMem.
+  // Use PChar not PAnsiChar because we don't want string conversions since it doesn't have to be text.
+  Result := StrLComp(PChar(s1), PChar(s2), n);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -984,7 +986,7 @@ procedure Exchange(Left, Right: PAnsiChar);
 
 var
   I: Cardinal;
-  C: Char;
+  C: AnsiChar;
 
 begin
   for I := 1 to qWidth do
@@ -1169,7 +1171,7 @@ procedure sprintf(Buffer, Format: PAnsiChar; Arguments: va_list);
 // Optional parameters are passed in a va_list as the last parameter. 
 
 begin
-  wvsprintf(Buffer, Format, @Arguments);
+  wvsprintfA(Buffer, Format, @Arguments);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1205,7 +1207,7 @@ end;
 function strchr(s: PAnsiChar; c: Integer): PAnsiChar;
 
 begin
-  Result := StrScan(s, Char(c));
+  Result := StrScan(s, AnsiChar(c));
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1270,7 +1272,7 @@ var
   Len: Cardinal;
 
 begin
-  Len := StrLen(strSource);
+  Len := SysUtils.StrLen(strSource);
   if count <= Len then
     StrLCopy(strDest, strSource, count)
   else
@@ -1366,11 +1368,11 @@ end;
 function vfprintf(Stream: TStream; Format: PAnsiChar; Arguments: va_list): Integer;
 
 var
-  Buffer: array[0..10000] of Char;
+  Buffer: array[0..10000] of AnsiChar;
 
 begin
-  wvsprintf(Buffer, Format, Arguments);
-  Result := StrLen(Buffer);
+  wvsprintfA(Buffer, Format, Arguments);
+  Result := SysUtils.StrLen(Buffer);
   Stream.Write(Buffer, Result);
 end;
 
@@ -1382,13 +1384,13 @@ function vprintf(Format: PAnsiChar; Arguments: va_list): Integer;
 // Hence we write a record to the debug output.
 
 var
-  Buffer: array[0..10000] of Char;
+  Buffer: array[0..10000] of AnsiChar;
 
 begin
-  wvsprintf(Buffer, Format, Arguments);
-  OutputDebugString(Buffer);
+  wvsprintfA(Buffer, Format, Arguments);
+  OutputDebugStringA(Buffer);
   OutputDebugString(#13#10);
-  Result := StrLen(Buffer);
+  Result := SysUtils.StrLen(Buffer);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1396,7 +1398,7 @@ end;
 procedure vsprintf(Buffer, Format: PAnsiChar; Arguments: va_list);
 
 begin
-  wvsprintf(Buffer, Format, Arguments);
+  wvsprintfA(Buffer, Format, Arguments);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
