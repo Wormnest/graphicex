@@ -5991,7 +5991,12 @@ begin
   while i <= Length(s) do begin
     if s[i] <> ' ' then begin
       if s[i] = '.' then begin
+        {$IF Defined(CompilerVersion) AND CompilerVersion >= 22}
+        // Starting with Delphi VER220 = CompilerVersion 22 = XE use of FormatSettings is required.
+        Result[j] := FormatSettings.DecimalSeparator;
+        {$ELSE}
         Result[j] := DecimalSeparator;
+        {$IFEND}
       end
       else
         Result[j] := s[i];
