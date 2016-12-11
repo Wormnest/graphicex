@@ -1719,25 +1719,23 @@ end;
 procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); cdecl;
 var
   ShouldWeContinue: Boolean;
-{$ifopt D+} // For debugging only.
   ErrMsg: string;
-{$endif D+}
 begin
   if msg_level < 0 then
     Inc(cinfo^.err^.num_warnings);
   // By default we continue for everything non fatal including warnings
   ShouldWeContinue := True;
 
+  if Assigned(@MessageInterceptor) then begin
+     ErrMsg := GetMessage(cinfo);
+     MessageInterceptor(ErrMsg, msg_level, ShouldWeContinue);
+  end
+  else
+      ErrMsg := '';
 {$ifopt D+} // For debugging only.
-  ErrMsg := GetMessage(cinfo);
-  if Assigned(@MessageInterceptor) then
-    MessageInterceptor(ErrMsg, msg_level, ShouldWeContinue);
   {$IFDEF WINDOWS}
   OutputDebugString(PChar(ErrMsg));
   {$ENDIF}
-{$else D+}
-  if Assigned(@MessageInterceptor) then
-    MessageInterceptor(GetMessage(cinfo), msg_level, ShouldWeContinue);
 {$endif D+}
   if not ShouldWeContinue then begin
     jpeg_destroy(cinfo);
