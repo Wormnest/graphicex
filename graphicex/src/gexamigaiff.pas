@@ -613,8 +613,8 @@ var
       end
       else
         break;
-      // Update Target Pointer
-      Inc(vPlaneTarget, HeightPlaneSize);
+      // Update Target Pointer. Use of PByte required for Delphi Berlin.
+      Inc(PByte(vPlaneTarget), HeightPlaneSize);
       // Update Source position
       if vSize and 1 <> 0 then
         Inc(vSize);
