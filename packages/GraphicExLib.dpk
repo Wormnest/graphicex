@@ -1,0 +1,59 @@
+package GraphicExLib;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$DEFINE LIBTIFF4}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  ExternalLibs,
+  vclimg;
+
+contains
+  gexamigaiff in '..\graphicex\src\gexamigaiff.pas',
+  gexBasicBlendModes in '..\graphicex\src\gexBasicBlendModes.pas',
+  gexBlendModes in '..\graphicex\src\gexBlendModes.pas',
+  gexBmpWrapper in '..\graphicex\src\gexBmpWrapper.pas',
+  gexGR32Replacement in '..\graphicex\src\gexGR32Replacement.pas',
+  gexIFF in '..\graphicex\src\gexIFF.pas',
+  gexJpeg in '..\graphicex\src\gexJpeg.pas',
+  gexJpegWrapper in '..\graphicex\src\gexJpegWrapper.pas',
+  gexLayers in '..\graphicex\src\gexLayers.pas',
+  gexMayaIFF in '..\graphicex\src\gexMayaIFF.pas',
+  gexStretch in '..\graphicex\src\gexStretch.pas',
+  gexTypes in '..\graphicex\src\gexTypes.pas',
+  gexUtils in '..\graphicex\src\gexUtils.pas',
+  gexVersion in '..\graphicex\src\gexVersion.pas',
+  gexXCF in '..\graphicex\src\gexXCF.pas',
+  gexXCFBlendModes in '..\graphicex\src\gexXCFBlendModes.pas',
+  gexXCFTypes in '..\graphicex\src\gexXCFTypes.pas',
+  GraphicColor in '..\graphicex\src\GraphicColor.pas',
+  GraphicCompression in '..\graphicex\src\GraphicCompression.pas',
+  GraphicEx in '..\graphicex\src\GraphicEx.pas',
+  GraphicStrings in '..\graphicex\src\GraphicStrings.pas';
+
+end.

@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{73932CC7-D1AA-4E77-B98B-AA9B6B0B78DB}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="ExternalLibs.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="GraphicExLib.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="rkView.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ExternalLibs">
+        <MSBuild Projects="ExternalLibs.dproj"/>
+    </Target>
+    <Target Name="ExternalLibs:Clean">
+        <MSBuild Projects="ExternalLibs.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ExternalLibs:Make">
+        <MSBuild Projects="ExternalLibs.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="GraphicExLib">
+        <MSBuild Projects="GraphicExLib.dproj"/>
+    </Target>
+    <Target Name="GraphicExLib:Clean">
+        <MSBuild Projects="GraphicExLib.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="GraphicExLib:Make">
+        <MSBuild Projects="GraphicExLib.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="rkView">
+        <MSBuild Projects="rkView.dproj"/>
+    </Target>
+    <Target Name="rkView:Clean">
+        <MSBuild Projects="rkView.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="rkView:Make">
+        <MSBuild Projects="rkView.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ExternalLibs;GraphicExLib;rkView"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ExternalLibs:Clean;GraphicExLib:Clean;rkView:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ExternalLibs:Make;GraphicExLib:Make;rkView:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
