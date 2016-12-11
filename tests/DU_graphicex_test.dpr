@@ -16,7 +16,9 @@ program DU_graphicex_test;
 uses
   {$IFNDEF FPC}
   FastMM4,
+  {$IFDEF VER140}
   D6Support,                           // Ignore known memory leaks
+  {$ENDIF}
   {$ELSE}
   {$IFDEF HEAPTRC_LOG}
   HeaptrcLog,                          // Heaptrc logging should start as early as possible
