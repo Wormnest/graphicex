@@ -5991,7 +5991,8 @@ begin
   while i <= Length(s) do begin
     if s[i] <> ' ' then begin
       if s[i] = '.' then begin
-        {$IF Defined(CompilerVersion) AND CompilerVersion >= 22}
+        {$IF Declared(CompilerVersion) AND (CompilerVersion >= 22)}
+        // Note that we should use Declared here not Defined since that doesn't work.
         // Starting with Delphi VER220 = CompilerVersion 22 = XE use of FormatSettings is required.
         Result[j] := FormatSettings.DecimalSeparator;
         {$ELSE}
