@@ -88,7 +88,7 @@ const
       'bmp image',  'jpeg image', 'png image', 'gif image',
       'tiff image', 'tga image', 'pcd image', 'psd image','psp image',
       'pnm image',  'pcx image',  'rla image', 'sgi image', 'Autodesk Animator cel/pic image',
-      'DrHalo cut image', 'Arts & Letters ged image', 'EPS image',
+      'DrHalo cut image', 'Arts & Letters ged 'thumbnail image', 'EPS image',
       'Gimp xcf image', 'Maya iff image', 'Amiga ilbm/iff image'
     );
 
