@@ -1,9 +1,9 @@
 object frmViewer: TfrmViewer
   Left = 263
   Top = 124
-  Width = 1616
-  Height = 694
   Caption = 'frmViewer'
+  ClientHeight = 655
+  ClientWidth = 1600
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -25,15 +25,14 @@ object frmViewer: TfrmViewer
     Left = 185
     Top = 0
     Width = 4
-    Height = 656
-    Cursor = crHSplit
+    Height = 655
     ResizeStyle = rsUpdate
   end
   object pnl4: TPanel
     Left = 189
     Top = 0
     Width = 1411
-    Height = 656
+    Height = 655
     Align = alClient
     BevelOuter = bvNone
     Caption = 'pnl4'
@@ -42,8 +41,7 @@ object frmViewer: TfrmViewer
       Left = 632
       Top = 0
       Width = 4
-      Height = 656
-      Cursor = crHSplit
+      Height = 655
       AutoSnap = False
       Color = clBtnFace
       ParentColor = False
@@ -54,7 +52,7 @@ object frmViewer: TfrmViewer
       Left = 636
       Top = 0
       Width = 775
-      Height = 656
+      Height = 655
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
@@ -311,8 +309,6 @@ object frmViewer: TfrmViewer
           Width = 761
           Height = 17
           Anchors = [akLeft, akTop, akRight]
-          Min = 0
-          Max = 100
           TabOrder = 1
         end
         object cbStretchFilter: TComboBox
@@ -327,7 +323,6 @@ object frmViewer: TfrmViewer
           Font.Height = -12
           Font.Name = 'Segoe UI'
           Font.Style = []
-          ItemHeight = 15
           ItemIndex = 0
           ParentFont = False
           TabOrder = 2
@@ -354,7 +349,6 @@ object frmViewer: TfrmViewer
           Font.Height = -12
           Font.Name = 'Segoe UI'
           Font.Style = []
-          ItemHeight = 15
           ItemIndex = 0
           ParentFont = False
           TabOrder = 3
@@ -369,7 +363,7 @@ object frmViewer: TfrmViewer
         Left = 0
         Top = 65
         Width = 775
-        Height = 591
+        Height = 590
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 1
@@ -377,7 +371,7 @@ object frmViewer: TfrmViewer
           Left = 0
           Top = 0
           Width = 775
-          Height = 591
+          Height = 590
           HorzScrollBar.Smooth = True
           HorzScrollBar.Tracking = True
           VertScrollBar.Smooth = True
@@ -415,7 +409,7 @@ object frmViewer: TfrmViewer
       Left = 0
       Top = 0
       Width = 632
-      Height = 656
+      Height = 655
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 1
@@ -478,6 +472,7 @@ object frmViewer: TfrmViewer
           CellOffset = 5
           CellSpace = 5
           CellSelect = True
+          Columns = ''
           ColorSel = 16750899
         end
         object pnlHeader: TPanel
@@ -507,14 +502,10 @@ object frmViewer: TfrmViewer
             Height = 28
             Max = 255
             Min = 31
-            Orientation = trHorizontal
             Frequency = 16
             Position = 127
-            SelEnd = 0
-            SelStart = 0
             TabOrder = 0
             TickMarks = tmTopLeft
-            TickStyle = tsAuto
             OnChange = tbSizeChange
           end
         end
@@ -523,7 +514,7 @@ object frmViewer: TfrmViewer
         Left = 0
         Top = 407
         Width = 632
-        Height = 249
+        Height = 248
         Align = alClient
         Caption = 'pnlImageProperties'
         TabOrder = 1
@@ -531,7 +522,7 @@ object frmViewer: TfrmViewer
           Left = 1
           Top = 1
           Width = 630
-          Height = 247
+          Height = 246
           Align = alClient
           ColCount = 2
           DefaultColWidth = 170
@@ -554,6 +545,11 @@ object frmViewer: TfrmViewer
           OnMouseWheelDown = sgImgPropertiesMouseWheelDown
           OnMouseWheelUp = sgImgPropertiesMouseWheelUp
           OnSelectCell = sgImgPropertiesSelectCell
+          ColWidths = (
+            170
+            170)
+          RowHeights = (
+            20)
         end
       end
     end
@@ -562,7 +558,7 @@ object frmViewer: TfrmViewer
     Left = 0
     Top = 0
     Width = 185
-    Height = 656
+    Height = 655
     Align = alLeft
     Caption = 'pnlFolderView'
     TabOrder = 1
@@ -570,7 +566,7 @@ object frmViewer: TfrmViewer
       Left = 1
       Top = 1
       Width = 183
-      Height = 654
+      Height = 653
       ObjectTypes = [otFolders]
       Root = 'rfDesktop'
       UseShellImages = True
