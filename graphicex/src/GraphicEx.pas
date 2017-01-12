@@ -9808,28 +9808,28 @@ const
   GEDFileDescription = $5F;
 
 class function TGEDGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
-
 var
   Run: PByte;
-
 begin
   Result := (Size > Length(GEDMagic)) and (StrLIComp(PAnsiChar(Memory), PAnsiChar(GEDMagic), Length(GEDMagic)) = 0);
   if Result then
   begin
     Run := Memory;
+    // Skip Arts & Letters ID string.
+    Inc(Run, Length(GEDMagic));
     // Seek to the start of the tags and check the version number.
     Inc(Run, GEDVersionHeader);
 
     Result := Run^ >= GEDEditorVersion40c;
     if Result then
     begin
-      Inc(Run);
+      Inc(Run, 2);
       // The file description is always first.
       Result := Run^ = GEDFileDescription;
       if Result then
       begin
-        // Skip the description tag
-        Inc(Run, Run^);
+        // Skip the description tag and 1 extra word
+        Inc(Run, 4);
 
         // Here we should now find a thumbnail tag.
         Result := Run^ = GEDDibThumbnail;
