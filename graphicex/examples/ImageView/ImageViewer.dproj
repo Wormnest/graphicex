@@ -3,7 +3,7 @@
         <ProjectGuid>{0F0F3E9E-DF8D-4A2E-B2E6-41D2CC55FE85}</ProjectGuid>
         <MainSource>ImageViewer.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Application</AppType>
         <FrameworkType>VCL</FrameworkType>
