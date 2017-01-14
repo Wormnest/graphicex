@@ -82,9 +82,8 @@ Supported image formats
     + 8 bits per sample
 	+ indexed
 	+ uncompressed
-* **Arts & Letters images (.ged)**    
-    _Should be considered deprecated since we don't have any sample images to
-    test with nor any documentation of this format._
+* **Arts & Letters images (.ged)**
+    + only the embedded thumbnail images can be loaded.
     + indexed, RGB(A)
 
 Image formats that can be used via a wrapper class
@@ -107,7 +106,7 @@ This fork is currently maintained, updated and extended by Jacob Boerema.
 Bug reports
 -----------
 Please report bugs in the issuetracker using the link below. Bugs concerning
-problems loading a certain image should add the problematic image.
+problems loading a certain image should add an example of a problematic image.
 Without an example image it will be most likely impossible to find
 what's wrong.    
 Link: [issuetracker](https://bitbucket.org/jacobb/graphicex/issues?status=new&status=open)
@@ -123,10 +122,10 @@ found elsewhere on the internet.
 * A lot of other bugs have been fixed by me, a few extra security checks and 
 extra functionality added by myself.
 * I added a Gimp XCF image loader.
-* Unicode aware fixes have been added, however it needs testing by someone
-that has a Unicode version of Delphi.
+* Unicode aware fixes have been added, tested in Delphi 10.1 Berlin.
 * LibTiff updated to version 4.0.4, libjpeg 6b, zlib 1.2.8. The C source code
 and necessary MQ patches have also been added to the repository.
+* Delphi 32 bits and Lazarus/Free Pascal 32 and 64 bits Windows compatible.
 
 Additions March/April 2015
 --------------------------
@@ -155,14 +154,25 @@ Additions October 2015
 * Better detection of overflow errors in Packbits and Targa RLE decoders.
 * ImageViewer example: show also images marked as hidden.
 
+Additions December 2016 - January 2017
+--------------------------------------
+* Make it run on Delphi Unicode versions.
+* Add Delphi Berlin packages (only 32 bits supported)
+
 Todo
 ----
-* Make 64 bit safe and add pure pascal alternatives to asm functions.
+* Make it work for Delphi Windows 64 bit target. (Should only need small changes
+  since it is already working for Lazarus 64 bits, however I don't have a Delphi
+  version that can make 64 bit builds.)
+* Make 64 bit version of the .obj files.
+* Add pure pascal alternatives to asm functions.
 * Add more unit tests.
 * Move all code for setting target options from GraphicEx to the ColorManager and
   make that part overrideable. This will make it easier to override how we want
   a certain format converted and to select a target format.
-* Move info about addition to a separate changelog.
+* Move info about additions to a separate changelog.
+* It would be nice if we could also choose using external libraries instead of
+  linking in .obj files.
 
 Folder structure
 ----------------
@@ -177,7 +187,7 @@ Note that the .obj files needed for Delphi are not available in the hg repositor
 Currently there are two versions. The first includes zlib, libjpeg and libtiff 3.9.7;
 and the second includes zlib, libjpeg and libtiff 4.0.4.    
 
-Downloads:    
+Downloads (32 bits only):    
 
 * Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip)    
 * Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip)    

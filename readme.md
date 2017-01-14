@@ -23,9 +23,9 @@ Interface code for linking with external C libraries and C rtl replacement
 functions. Used by grapicex but can also be used separately.
 Currently available here are zlib, libtiff and libjpeg.    
 
-The .obj files needed by Delphi for zlib, JPG and TIFF support are available
-as a separate download since versioning them in hg doesn't work well.    
-Downloads:    
+The .obj files needed by Delphi 32 bits for zlib, JPG and TIFF support are
+available as a separate download since versioning them in hg doesn't work well.    
+Downloads (32 bits versions only):    
 https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip    
 https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip    
 
