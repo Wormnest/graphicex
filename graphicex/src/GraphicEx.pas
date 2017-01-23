@@ -904,6 +904,17 @@ implementation
 uses
   {$IFNDEF FPC}Consts,{$ENDIF}
   Math, ZLibDelphi,
+  {$IFDEF PaintshopProGraphic}
+  {$IFDEF USE_GEXJPEG}
+  // PSP images can have a JPEG encoded composite image. We don't want to pull in
+  // gexJpeg unnecessarily so we only will use it when that unit is already being used.
+  // If it is not used we will try to use the layers to merge the image from.
+  // Note pulling this in here is not ideal since it will cause a circular
+  // reference that may cause problems.
+  // TODO: Move PSP image handling to a separate unit.
+  gexJpeg,
+  {$ENDIF}
+  {$ENDIF}
   gexTypes, gexVersion, gexUtils;
 
 type
@@ -8350,6 +8361,347 @@ var
     end;
   end;
 
+  procedure ConvertRows(SourceWidth: Integer; AbsoluteRect: TRect; ChannelStart: PByte);
+  var
+    RowSize, IgnoredRowsCount, Delta, //OriginalLeft,
+    StartOfs, VisibleWidth: Integer;
+    X, Y: Integer;
+  begin
+    Move(Run^, BitmapCount, SizeOf(BitmapCount));
+    Inc(Run, SizeOf(BitmapCount));
+
+    Move(Run^, ChannelCount, SizeOf(ChannelCount));
+    Inc(Run, SizeOf(ChannelCount));
+
+    // ChannelCount can be 0 for a layer when the actual size of visible area is 0.
+    if (ChannelCount = 0) or (BitmapCount = 0) then
+      Exit;
+
+    // By now we can reliably say whether we have an alpha channel or not.
+    // This kind of information can only be read very late and causes us to
+    // possibly reallocate the entire image (because it is copied by the VCL
+    // when changing the pixel format).
+    // I don't know another way (preferably before the size of the image is set).
+    // We need to take BitmapCount into consideration. However since most of
+    // the time with BitmapCount = 2 that extra Bitmap is a mask which is
+    // effectively an Alpha layer, we just ignore it for now
+    if ChannelCount > 3 then
+    begin
+      FImageProperties.ColorScheme := csRGBA;
+      ColorManager.SourceColorScheme := csRGBA;
+      ColorManager.TargetColorScheme := csBGRA;
+      PixelFormat := pf32Bit;
+    end;
+
+    if FImageProperties.Version > 3 then
+      Run := ChannelStart; //Pointer(LastPosition + ChunkSize);
+
+    // TODO: For composite images I think we can encounter a color palette
+    // block too for images where that is relevant.
+    // However we need an example image to test that.
+
+    // allocate memory for all channels and read raw data
+    for X := 0 to ChannelCount - 1 do
+      ReadChannelData;
+
+    R := RedBuffer;
+    G := GreenBuffer;
+    B := BlueBuffer;
+    C := CompBuffer;
+
+    if ColorManager.TargetColorScheme in [csIndexed, csG] then
+    begin
+      // Make sure we got a valid grayscale channel
+      if not Assigned(C) then
+        GraphicExError(gesInvalidImage, ['PSP']);
+
+      if AbsoluteRect.Left < 0 then begin
+        Delta := abs(AbsoluteRect.Left);
+        AbsoluteRect.Left := 0;
+      end
+      else
+        Delta := 0;
+
+      case FImageProperties.BitsPerSample of // TODO: What about 16 bits per channel
+        1: begin
+             RowSize := (SourceWidth + 7) div 8;
+             StartOfs := (AbsoluteRect.Left + 7) div 8;
+           end;
+        4: begin
+             RowSize := (SourceWidth + 1) div 2;
+             StartOfs := (AbsoluteRect.Left + 1) div 2;
+           end;
+      else // 8
+        RowSize := SourceWidth;
+        StartOfs := AbsoluteRect.Left;
+      end;
+
+      // From PSP spec: Each scanline in the image data is stored on a 4 byte boundary.
+      // Therefore we need to make sure LayerRowSize is a multiple of 4.
+      // Note: Nowhere do I see any mention that 8 BitsPerSample is being excluded
+      // from this but with the sample images we have this seems to be the case.
+      if FImageProperties.BitsPerSample <> 8 then
+        RowSize := (RowSize + 3) div 4 * 4;
+
+      // Since parts of a layer can be outside of the image boundaries we need to
+      // clip the layer data to what is visible in the image.
+      if AbsoluteRect.Top < 0 then begin
+        IgnoredRowsCount := abs(AbsoluteRect.Top);
+        AbsoluteRect.Top := 0;
+        Inc(C, IgnoredRowsCount*RowSize + Delta);
+      end
+      else if Delta > 0 then
+        Inc(C, Delta);
+      if AbsoluteRect.Right > Width then begin
+        AbsoluteRect.Right := Width;
+      end;
+      if AbsoluteRect.Bottom > Height then begin
+        AbsoluteRect.Bottom := Height;
+      end;
+      VisibleWidth := AbsoluteRect.Right - AbsoluteRect.Left;
+
+      {$IFDEF FPC}
+      TargetColorScheme := csBGR;
+      TargetBitsPerSample := 8;
+      TargetSamplesPerPixel := 3;
+      PixelFormat := pf24Bit;
+      {$ENDIF}
+      for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
+      begin
+        // Note: I don't have any samples for BPS = 1 or 4 and am not
+        // sure if StartOfs in those cases is correct.
+        ColorManager.ConvertRow([C], PAnsiChar(ScanLine[Y])+StartOfs, VisibleWidth, $FF);
+        Inc(C, RowSize);
+      end;
+    end
+    else
+    begin // scBGR(A)
+      // Make sure we got valid RGB or RGBA channels
+      if not (Assigned(R) and Assigned(G) and Assigned(B) and
+        ((ChannelCount = 3) or Assigned(C))) then
+        GraphicExError(gesInvalidImage, ['PSP']);
+
+      // Since BPS should be always 8 here RowSize is the same as SourceWidth.
+      // TODO What about 16 bits channels!
+      RowSize := SourceWidth;
+      // Since parts of a layer can be outside of the image boundaries we need to
+      // clip the layer data to what is visible in the image.
+      if AbsoluteRect.Top < 0 then begin
+        IgnoredRowsCount := abs(AbsoluteRect.Top);
+        AbsoluteRect.Top := 0;
+        Inc(R, IgnoredRowsCount*RowSize);
+        Inc(G, IgnoredRowsCount*RowSize);
+        Inc(B, IgnoredRowsCount*RowSize);
+        Inc(C, IgnoredRowsCount*RowSize);
+      end;
+      if AbsoluteRect.Left < 0 then begin
+        Delta := abs(AbsoluteRect.Left);
+        VisibleWidth := SourceWidth - Delta;
+        Inc(R, Delta);
+        Inc(G, Delta);
+        Inc(B, Delta);
+        Inc(C, Delta);
+        AbsoluteRect.Left := 0;
+      end
+      else
+        VisibleWidth := SourceWidth;
+      if AbsoluteRect.Right > Width then begin
+        Delta := AbsoluteRect.Right - Width;
+        VisibleWidth := VisibleWidth - Delta;
+        AbsoluteRect.Right := Width;
+      end;
+      if AbsoluteRect.Bottom > Height then begin
+        AbsoluteRect.Bottom := Height;
+      end;
+      // TODO: Check that AbsoluteRect.Bottom is inside image boundary.
+      // PSP has separate channels thus we need to set that in source options.
+      ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+      // Compute start offset in ScanLine for this layer
+      if ColorManager.TargetColorScheme = csBGR then
+        StartOfs := AbsoluteRect.Left * 3  // 3 bytes per pixel
+      else // csBGRA
+        StartOfs := AbsoluteRect.Left * 4; // 4 bytes per pixel
+      for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
+      begin
+        ColorManager.ConvertRow([R, G, B, C], PAnsiChar(ScanLine[Y])+StartOfs,
+          VisibleWidth, $FF);
+        Inc(R, RowSize);
+        Inc(G, RowSize);
+        Inc(B, RowSize);
+        Inc(C, RowSize);
+      end;
+    end;
+
+    // Since we may be reading multiple layers we need to free the
+    // Channel data here or we might cause leaked memory.
+    // Since we may get another check for assigned in ReadChannelData or
+    // when finishing this function, we need to set all of them to nil.
+    if Assigned(RedBuffer) then begin
+      FreeMem(RedBuffer);
+      RedBuffer := nil;
+    end;
+    if Assigned(GreenBuffer) then begin
+      FreeMem(GreenBuffer);
+      GreenBuffer := nil;
+    end;
+    if Assigned(BlueBuffer) then begin
+      FreeMem(BlueBuffer);
+      BlueBuffer := nil;
+    end;
+    if Assigned(CompBuffer) then begin
+      FreeMem(CompBuffer);
+      CompBuffer := nil;
+    end;
+  end;
+
+  {$IFDEF USE_GEXJPEG}
+  function ConvertJpegChunk(JpegCompressedData: PByte): Boolean;
+  var
+    CompressedImgSize: Cardinal;
+    UncompressedImgSize: Cardinal;
+    ImageType: Word;
+    JpegContent: TgexJpegImage;
+  begin
+    Result := False;
+    Move(Run^, CompressedImgSize, SizeOf(CompressedImgSize));
+    Inc(Run, SizeOf(CompressedImgSize));
+
+    Move(Run^, UncompressedImgSize, SizeOf(UncompressedImgSize));
+    Inc(Run, SizeOf(UncompressedImgSize));
+
+    Move(Run^, ImageType, SizeOf(ImageType));
+    Inc(Run, SizeOf(ImageType));
+
+    // Now uncompress the Jpeg Compressed Data
+    if (ImageType = PSP_DIB_COMPOSITE) and (PWord(JpegCompressedData)^= $d8ff) then begin
+      JpegContent := TgexJpegImage.Create;
+      try
+        // Load the Jpeg Data.
+        JpegContent.LoadFromMemory(JpegCompressedData, CompressedImgSize, 0);
+        // Move to our PSP bitmap
+        // Note this has known side effects to our Image Info which for now we will ignore.
+        // TODO: Make sure that our PSP image info is not overwritten.
+        Self.Assign(JpegContent);
+        Result := True;
+      finally
+        JpegContent.Free;
+      end;
+    end;
+  end;
+  {$ENDIF}
+
+  // Returns True if we can use composite image, False if we need to use the layers.
+  function HandleCompositeImage(): Boolean;
+  var
+    NextBlock: PAnsiChar;
+    CompositeImageCount: Cardinal;
+    CompositeImgInfo: TPSPCompositeImageAttributes;
+    CompositeImgIndex, i: Integer;
+    ImageRect: TRect;
+  begin
+    Result := False;
+    // Since all samples of version 4 we have seen only had a smaller scale thumbnail
+    // we will only handle composite images for version 5 and up.
+    if FImageProperties.Version > 4 then begin
+      // First we get the Composite Image Bank Information Chunk
+      LastPosition := PAnsiChar(Run);
+      // First DWORD is Chunk size
+      Move(Run^, ChunkSize, SizeOf(ChunkSize));
+      Inc(Run, SizeOf(ChunkSize));
+      // Second DWORD is composite image count
+      Move(Run^, CompositeImageCount, SizeOf(CompositeImageCount));
+      //Inc(Run, SizeOf(CompositeImageCount)); Not needed atm since other data will be skipped anyway.
+      // Any other data in this chunk is unknown and should be skipped
+      Run := Pointer(LastPosition + ChunkSize);
+      LastPosition := PAnsiChar(Run);
+
+      // Now follows CompositeImageCount number of Composite Image Attributes Entries chunks (5.4.6)
+      // Each starts with a block header with identifier PSP_COMPOSITE_ATTRIBUTES_BLOCK
+      // For us only the info for the block with the full image is relevant so we will skip anything else.
+      CompositeImgIndex := -1;
+      i := 0;
+      repeat
+        if not ReadBlockHeader then
+          Break;
+        NextBlock := Pointer(PAnsiChar(Run) + TotalBlockLength);
+        if BlockIdentifier <> PSP_COMPOSITE_ATTRIBUTES_BLOCK then
+          Break;
+        // Now read the Composite Image Attributes Information Chunk
+        //LastPosition := PAnsiChar(Run);
+        // First DWORD is Chunk size
+        Move(Run^, ChunkSize, SizeOf(ChunkSize));
+        Inc(Run, SizeOf(ChunkSize));
+        Move(Run^, CompositeImgInfo, SizeOf(CompositeImgInfo));
+        // Check if we have the full composite image or a thumbnail:
+        if CompositeImgInfo.CompositeImageType = PSP_IMAGE_COMPOSITE then begin
+          // TODO: Do we also need to check that Width, Height etc. are also the same
+          // as mentioned in the main image info header?
+          CompositeImgIndex := i;
+          //Break;
+        end;
+        Inc(i);
+        // Any other data in this chunk is unknown and should be skipped
+        Run := Pointer(NextBlock);
+      until False;
+      if CompositeImgIndex = -1 then
+        Exit;
+
+      // After that CompositeImageCount number of Composite Image Entries chunks (5.4.7)
+      // Each starts with a block header with either identifier PSP_ JPEG_BLOCK or PSP_COMPOSITE_IMAGE_BLOCK
+      // We only need to handle block number CompositeImgIndex, skip the others
+      i := 0;
+      repeat
+        if i = CompositeImgIndex then begin
+          Break;
+        end;
+        // skip this block since it's not the one we want
+        Run := Pointer(NextBlock);
+        if not ReadBlockHeader then
+          Break;
+        Inc(i);
+        NextBlock := Pointer(PAnsiChar(Run) + TotalBlockLength);
+      until False;
+      if i = CompositeImgIndex then begin
+        LastPosition := PAnsiChar(Run);
+        // Get length of Jpeg or Composite Image Information Chunk
+        Move(Run^, ChunkSize, SizeOf(ChunkSize));
+        Inc(Run, SizeOf(ChunkSize));
+        case BlockIdentifier of
+          PSP_JPEG_BLOCK:
+          begin
+            {$IFDEF USE_GEXJPEG}
+            // Only use Jpeg composite image if the image has vector or adjustment layers
+            // (because we can't convert these) and no raster layers. Because
+            // Jpeg doesn't handle transparency and we prefer to see transparent areas
+            // over not seeing more rare vector or adjustment layers.
+            // TODO: We should add an option to our Reader class where the user can choose
+            // whether to prefer Jpeg composite image over being able to see transparency.
+            if (Image.GraphicContents and (PSP_GC_VECTORLAYERS+PSP_GC_ADJUSTMENTLAYERS) > 0) and
+               (Image.GraphicContents and PSP_GC_RASTERLAYERS = 0) then
+              Result := ConvertJpegChunk(Pointer(LastPosition + ChunkSize));
+            {$ENDIF}
+          end;
+          PSP_COMPOSITE_IMAGE_BLOCK:
+          begin
+            if Image.GraphicContents and PSP_GC_ALPHACHANNELS = 0 then begin
+
+            // Set up ImageRect for the whole image and start converting rows
+            ImageRect.Top := 0;
+            ImageRect.Left := 0;
+            ImageRect.Height := FImageProperties.Height-1;
+            ImageRect.Width := FImageProperties.Width-1;
+            ConvertRows(FImageProperties.Width, ImageRect, Pointer(LastPosition + ChunkSize));
+
+            Result := True;
+            end
+            else
+              Result := False;
+          end;
+        end;
+      end
+    end;
+  end;
+
   //--------------- end local functions ---------------------------------------
 
 begin
@@ -8432,14 +8784,15 @@ begin
           Break;
 
         case BlockIdentifier of
-          {PSP_COMPOSITE_IMAGE_BANK_BLOCK:
+          PSP_COMPOSITE_IMAGE_BANK_BLOCK:
             begin
               // composite image block, if present then it must appear before the layer start block
               // and represents a composition of several layers
-
-              // do not need to read anything further
-              Break;
-            end;}
+              // If we can find a valid full size composite image then we stop
+              // here because then we don't need to loop over all layers to get an image.
+              if HandleCompositeImage() then
+                Break;
+            end;
           PSP_LAYER_START_BLOCK:
           begin
             iLayer := Image.LayerCount;
@@ -8506,40 +8859,6 @@ begin
                 end;
               end;
 
-              Move(Run^, BitmapCount, SizeOf(BitmapCount));
-              Inc(Run, SizeOf(BitmapCount));
-
-              Move(Run^, ChannelCount, SizeOf(ChannelCount));
-              Inc(Run, SizeOf(ChannelCount));
-
-              // By now we can reliably say whether we have an alpha channel or not.
-              // This kind of information can only be read very late and causes us to
-              // possibly reallocate the entire image (because it is copied by the VCL
-              // when changing the pixel format).
-              // I don't know another way (preferably before the size of the image is set).
-              // We need to take BitmapCount into consideration. However since most of
-              // the time with BitmapCount = 2 that extra Bitmap is a mask which is
-              // effectively an Alpha layer, we just ignore it for now
-              if ChannelCount{-BitmapCount+1} > 3 then
-              begin
-                ColorScheme := csRGBA;
-                ColorManager.SourceColorScheme := csRGBA;
-                ColorManager.TargetColorScheme := csBGRA;
-                PixelFormat := pf32Bit;
-              end;
-
-              if Version > 3 then
-                Run := Pointer(LastPosition + ChunkSize);
-
-              // allocate memory for all channels and read raw data
-              for X := 0 to ChannelCount - 1 do
-                ReadChannelData;
-
-              R := RedBuffer;
-              G := GreenBuffer;
-              B := BlueBuffer;
-              C := CompBuffer;
-
               // PSP defines for each layer an ImageRectangle that defines the
               // position of the layer in the image and a SavedImageRectangle that
               // defines the parts inside ImageRectangle that are used (and thus were saved)
@@ -8559,88 +8878,7 @@ begin
               // Currently not used for progress, progress needs to be revised for multilayer support.
               //LayerHeight := AbsoluteRect.Bottom - AbsoluteRect.Top;
 
-              with ColorManager do
-              begin
-                if TargetColorScheme in [csIndexed, csG] then
-                begin
-                  case BitsPerSample of
-                    1: begin
-                         LayerRowSize := (LayerWidth + 7) div 8;
-                         LayerStartOfs := (AbsoluteRect.Left + 7) div 8;
-                       end;
-                    4: begin
-                         LayerRowSize := (LayerWidth + 1) div 2;
-                         LayerStartOfs := (AbsoluteRect.Left + 1) div 2;
-                       end;
-                  else // 8
-                    LayerRowSize := LayerWidth;
-                    LayerStartOfs := AbsoluteRect.Left;
-                  end;
-
-                  // From PSP spec: Each scanline in the image data is stored on a 4 byte boundary.
-                  // Therefore we need to make sure LayerRowSize is a multiple of 4.
-                  // Note: Nowhere do I see any mention that 8 BitsPerSample is being excluded
-                  // from this but with the sample images we have this seems to be the case.
-                  if BitsPerSample <> 8 then
-                    LayerRowSize := (LayerRowSize + 3) div 4 * 4;
-
-                  {$IFDEF FPC}
-                  TargetColorScheme := csBGR;
-                  TargetBitsPerSample := 8;
-                  TargetSamplesPerPixel := 3;
-                  PixelFormat := pf24Bit;
-                  {$ENDIF}
-                  for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
-                  begin
-                    // Note: I don't have any samples for BPS = 1 or 4 and am not
-                    // sure if LayerStartOfs in those cases is correct.
-                    ColorManager.ConvertRow([C], PAnsiChar(ScanLine[Y])+LayerStartOfs, LayerWidth, $FF);
-                    Inc(C, LayerRowSize);
-                  end;
-                end
-                else
-                begin // scBGR(A)
-                  // Since BPS should be always 8 here LayerRowSize is the same as LayerWidth.
-                  LayerRowSize := LayerWidth;
-                  // PSP has separate channels thus we need to set that in source options.
-                  ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-                  // Compute start offset in ScanLine for this layer
-                  if ColorManager.TargetColorScheme = csBGR then
-                    LayerStartOfs := AbsoluteRect.Left * 3  // 3 bytes per pixel
-                  else // csBGRA
-                    LayerStartOfs := AbsoluteRect.Left * 4; // 4 bytes per pixel
-                  for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
-                  begin
-                    ColorManager.ConvertRow([R, G, B, C], PAnsiChar(ScanLine[Y])+LayerStartOfs,
-                      LayerWidth, $FF);
-                    Inc(R, LayerRowSize);
-                    Inc(G, LayerRowSize);
-                    Inc(B, LayerRowSize);
-                    Inc(C, LayerRowSize);
-                  end;
-                end;
-              end;
-
-              // Since we're now reading multiple layers we need to free the
-              // Channel data here or we might cause leaked memory.
-              // Since we may get another check for assigned in ReadChannelData or
-              // when finishing this function, we need to set all of them to nil.
-              if Assigned(RedBuffer) then begin
-                FreeMem(RedBuffer);
-                RedBuffer := nil;
-              end;
-              if Assigned(GreenBuffer) then begin
-                FreeMem(GreenBuffer);
-                GreenBuffer := nil;
-              end;
-              if Assigned(BlueBuffer) then begin
-                FreeMem(BlueBuffer);
-                BlueBuffer := nil;
-              end;
-              if Assigned(CompBuffer) then begin
-                FreeMem(CompBuffer);
-                CompBuffer := nil;
-              end;
+              ConvertRows(LayerWidth, AbsoluteRect, Pointer(LastPosition + ChunkSize));
 
               // Update progress
               Dec(iLayer);
