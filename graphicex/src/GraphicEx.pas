@@ -8362,7 +8362,7 @@ begin
     GreenBuffer := nil;
     BlueBuffer := nil;
     CompBuffer := nil;
-    with FImageProperties do
+    with FImageProperties do  // TODO: Remove with
     try
       // Initialize outermost progress display.
       InitProgress(Width, 1);
@@ -8389,7 +8389,7 @@ begin
       Move(Run^, Image, SizeOf(Image));
       Run := Pointer(LastPosition + TotalBlockLength);
 
-      with ColorManager, Image do
+      with ColorManager, Image do // TODO: Remove with
       begin
         SourceOptions := [];
         SourceBitsPerSample := BitsPerSample;
