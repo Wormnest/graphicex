@@ -7878,7 +7878,8 @@ const
   PSP_SELECTION_BLOCK = 6;                  // Selection Block (main)
   PSP_ALPHA_BANK_BLOCK = 7;                 // Alpha Bank Block (main)
     PSP_ALPHA_CHANNEL_BLOCK = 8;            // Alpha Channel Block (sub)
-  PSP_THUMBNAIL_BLOCK = 9;                  // Thumbnail Block (main)
+  PSP_THUMBNAIL_BLOCK = 9;                  // Thumbnail Block (main) [version 5]
+  PSP_COMPOSITE_IMAGE_BLOCK = 9;            // Composite Image Block (sub) [version 6 and up]
   PSP_EXTENDED_DATA_BLOCK = 10;             // Extended Data Block (main)
   PSP_TUBE_BLOCK = 11;                      // Picture Tube Data Block (main)
     PSP_ADJUSTMENT_EXTENSION_BLOCK = 12;    // Adjustment Layer Extension Block (sub)
@@ -8096,6 +8097,17 @@ type
     MinorVersion: Word;
   end;
 
+  TPSPCompositeImageAttributes = packed record
+    Width,
+    Height: Integer;
+    BitDepth,                               // The bit depth of the color bitmap in each Layer of the image document
+                                            // (must be 1, 4, 8, 24 or 48).
+    Compression,                            // Type of compression used to compress the composite image (one of PSPCompression, including PSP_COMP_JPEG)
+    PlaneCount: Word;                       // Number of planes in the composite image (this value must be 1)
+    ColorCount: Cardinal;                   // number of colors in the image (2^bit depth)
+    CompositeImageType: Word;               // Type of composite image (PSP_IMAGE_COMPOSITE, PSP_IMAGE_THUMBNAIL)
+  end;
+
   TPSPImageAttributes = packed record
     Width,
     Height: Integer;
@@ -8103,7 +8115,7 @@ type
     ResolutionMetric: Byte;                 // Metric used for resolution (one of the metric constants)
     Compression,                            // compression type of image (not thumbnail, it has its own compression)
     BitDepth,                               // The bit depth of the color bitmap in each Layer of the image document
-                                            // (must be 1, 4, 8 or 24).
+                                            // (must be 1, 4, 8, 24 or 48).
     PlaneCount: Word;                       // Number of planes in each layer of the image document (usually 1)
     ColorCount: Cardinal;                   // number of colors in each layer (2^bit depth)
     GreyscaleFlag: Boolean;                 // Indicates whether the color bitmap in each layer of image document is a
