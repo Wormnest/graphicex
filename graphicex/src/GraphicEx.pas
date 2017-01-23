@@ -8724,7 +8724,7 @@ begin
       StartProgressSection(1, gesLoadingData);
 
       // Check for valid BitsPerSample
-      if not (BitsPerSample in [1, 4, 8]) then
+      if not (BitsPerSample in [1, 4, 8, 16]) then
         GraphicExError(gesInvalidColorFormat, ['PSP']);
 
       Move(Run^, Header, SizeOf(Header));
@@ -8745,7 +8745,10 @@ begin
       begin
         SourceOptions := [];
         SourceBitsPerSample := BitsPerSample;
-        TargetBitsPerSample := BitsPerSample;
+        if BitsPerSample <= 8 then
+          TargetBitsPerSample := BitsPerSample
+        else
+          TargetBitsPerSample := 8;
         SourceSamplesPerPixel := SamplesPerPixel;
         TargetSamplesPerPixel := SamplesPerPixel;
         SourceColorScheme := ColorScheme;
@@ -8998,11 +9001,11 @@ begin
         Move(Run^, Image, SizeOf(Image));
         Run := Pointer(PAnsiChar(LastPosition) + TotalBlockLength);
 
-        if Image.BitDepth = 24 then
+        if Image.BitDepth >= 24 then
         begin
-          BitsPerSample := 8;
           SamplesPerPixel := 3;
-          ColorScheme := csRGB; // an alpha channel might exist, this is determined by the layer's channel count 
+          BitsPerSample := Image.BitDepth div 3;
+          ColorScheme := csRGB; // an alpha channel might exist, this is determined by the layer's channel count
         end
         else
         begin
