@@ -8787,8 +8787,8 @@ begin
             Compression := ctRLE;
           PSP_COMP_LZ77:
             Compression := ctLZ77;
-          PSP_COMP_JPEG:
-            Compression := ctJPEG;
+          {PSP_COMP_JPEG: // This is not valid for the image as a whole, only for composite/thumbnail images.
+            Compression := ctJPEG;}
         else
           Compression := ctUnknown;
         end;
