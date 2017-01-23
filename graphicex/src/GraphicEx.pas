@@ -8386,10 +8386,16 @@ begin
         TargetSamplesPerPixel := SamplesPerPixel;
         SourceColorScheme := ColorScheme;
         if ColorScheme = csRGB then begin
-          if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
+          // Even when this is set it doesn't mean we will have an alpha channel
+          // next to our color channels apparently.
+          // This flag is possibly used when the optional "Alpha Bank Block" is present.
+          // The Alpha Bank Block is an optional block that defines alpha channels associated
+          // with the image document. (See 2.4 in psp fileformat specification 7.)
+          // Example: "Marble head.PspImage"
+          {if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
             // alpha channel present (jb: I haven't encountered this yet, example needed)
             TargetColorScheme := csBGRA
-          else
+          else}
             TargetColorScheme := csBGR;
         end
         else
