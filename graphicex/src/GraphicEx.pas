@@ -912,7 +912,11 @@ uses
   // Note pulling this in here is not ideal since it will cause a circular
   // reference that may cause problems.
   // TODO: Move PSP image handling to a separate unit.
-  gexJpeg,
+  // 2017-01-28 Disabled since it causes initialization of gexJpeg to be called before
+  // initialization of GraphicEx meaning FileFormatList is still nil when gexJpeg is
+  // initialized meaning it can't register its image format.
+  {$UNDEF USE_GEXJPEG}
+  //gexJpeg,
   {$ENDIF}
   {$ENDIF}
   gexTypes, gexVersion, gexUtils;
