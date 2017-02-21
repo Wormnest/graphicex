@@ -6163,6 +6163,8 @@ end;
 const
   PSD_COMPRESSION_NONE = 0;
   PSD_COMPRESSION_RLE = 1; // RLE compression (same as TIFF packed bits)
+  PSD_PLAIN_ZIP = 2;
+  PSD_PREDICTED_ZIP = 3;
 
   PSD_MAX_CHANNELS = 56; // Maximum number of channels allowed according to the specs.
 
@@ -6694,7 +6696,7 @@ begin
       Result := ctPackedBits;
     2: // not yet supported
       Result := ctPlainZIP;
-    4: // not yet supported
+    3: // not yet supported
       Result := ctPredictedZIP;
   else
     Result := ctUnknown;
