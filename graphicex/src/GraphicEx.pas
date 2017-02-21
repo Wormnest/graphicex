@@ -748,7 +748,7 @@ type
 
   TPSDGraphic = class(TGraphicExGraphic)
   private
-    FChannels,     // Original channel count of the image (1..24).
+    FChannels,     // Original channel count of the image (1..56).
     FMode: Word;   // Original color mode of the image (PSD_*).
     FLayers: TPhotoshopLayers;
     FGridSettings: TPSDGridSettings;
@@ -6155,6 +6155,8 @@ const
   PSD_COMPRESSION_NONE = 0;
   PSD_COMPRESSION_RLE = 1; // RLE compression (same as TIFF packed bits)
 
+  PSD_MAX_CHANNELS = 56; // Maximum number of channels allowed according to the specs.
+
   PSDBlendModeMapping: array[TPSDLayerBlendMode] of PAnsiChar = (
     'norm', // lbmNormal
     'dark', // lbmDarken
@@ -7398,6 +7400,10 @@ begin
       R.Right := Integer(ReadBigEndianCardinal(Run));
       Layer.Bounds := R;
       Channels := ReadBigEndianWord(Run);
+      // Extra safety check: current specs say 56 is max.
+      // Note that apparently it is possible and allowed that Channels > FChannels.
+      if (Channels > PSD_MAX_CHANNELS) then // FChannels from PSD header
+        GraphicExError(gesInvalidPSDLayerData);
 
       // Keep the channel data for later pixel data retrieval.
       SetLength(Layer.FChannels, Channels);
@@ -7865,6 +7871,7 @@ begin
         BitsPerSample := Header.Depth;
         FChannels := Header.Channels;
         // 1..24 channels are supported in PSD files.
+        // 2017-02-21 Current specs say 1..56 channels are supported: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
         // The documentation states that main image data (rgb(a), cmyk etc.) is always
         // written with the first channels in their component order.
         // We accept extra channels but will ignore them unless we know what to do with them.
