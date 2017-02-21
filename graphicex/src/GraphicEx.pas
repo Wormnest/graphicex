@@ -575,7 +575,17 @@ type
   TPSDLayerMaskFlags = set of (
     lmfRelativePosition,     // Position of mask is relative to layer.
     lmfMaskDisabled,         // The layer mask is disabled.
-    lmfInvertMask            // Invert layer mask when blending.
+    lmfInvertMask,           // Invert layer mask when blending. (obsolete)
+    lmfUserMaskRendered,     // Indicates that the user mask actually came from rendering other data
+    lmfMaskWithParameters    // Indicates that the user and/or vector masks have parameters applied to them
+  );
+  // Flags in case lmfMaskWithParameters bit was set (see above)
+  // Flags that are set below specify how many bytes are following
+  TPSDMaskParameters = set of (
+    mpUserMaskDensity,       // user mask density, 1 byte
+    mpUserMaskFeather,       // user mask feather, 8 byte, double
+    mpVectorMaskDensity,     // vector mask density, 1 byte
+    mpVectorMaskFeather      // vector mask feather, 8 bytes, double
   );
 
   TPSDLayerMaskData = record
@@ -583,6 +593,7 @@ type
     DefaultColor: Byte;
     Flags: TPSDLayerMaskFlags;
     UserMaskBackground: Byte;
+    MaskParameters: TPSDMaskParameters;
   end;
 
   // Currently no info is available for data in this block.
@@ -7434,10 +7445,11 @@ begin
       Inc(Run, SizeOf(Cardinal));
 
       // Read out mask data.
-      // The size is either 36, 20, or 0.
+      // The size depends on LayerMaskFlags and MaskParameters
       BlockSize := ReadBigEndianCardinal(Run);
       if BlockSize > 0 then
       begin
+        BlockStart := Run;
         // Newer Delphi requires us to use a local variable to assign to a TRect as part of a class
         // See: http://stackoverflow.com/questions/12352563/why-do-i-get-left-side-cannot-be-assigned-to-for-trect-after-upgrading-delphi
         TempMaskData := Layer.MaskData;
@@ -7456,13 +7468,25 @@ begin
           Inc(Run, 2)
         else
         begin
-          // Skip "real flags" field, which is just a duplication of the flags.
-          Inc(Run);
-          TempMaskData.UserMaskBackground := Byte(Run^);
-          // Advance after the mask background value and skip the copy of the enclosing rectangle too, which follows.
-          Inc(Run, 1 + 4 * SizeOf(Cardinal));
+          if lmfMaskWithParameters in TempMaskData.Flags then begin
+            // 1 extra byte with "Mask Parameters". Extra size depends on the bits that are set.
+            TempMaskData.MaskParameters := TPSDMaskParameters(Run^);
+            Inc(Run);
+            // Not reading the extra bytes here. Rest of the block will be skipped.
+          end
+          else begin
+            // Skip "real flags" field, which is just a duplication of the flags.
+            Inc(Run);
+            TempMaskData.UserMaskBackground := Byte(Run^);
+            // Advance after the mask background value and skip the copy of the enclosing rectangle too, which follows.
+            Inc(Run, 1 + 4 * SizeOf(Cardinal));
+          end;
         end;
         Layer.MaskData := TempMaskData;
+        // To be better able to handle unexpected information (future changes etc)
+        // we will use the BlockSize to compute the next block offset.
+        Inc(BlockStart, BlockSize);
+        Run := BlockStart;
       end;
 
       // Next are the layer blending ranges. In opposition to the docs the size seems not to depend on the number of
