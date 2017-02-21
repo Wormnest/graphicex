@@ -223,6 +223,8 @@ type
     // Info about specific image types
     ImgTiffData: TActualTiffData;
     ImgIffData: TAmigaIffProperties;
+    ImgPsdMode: Word;
+    ImgLayerCount: Cardinal;
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -1195,6 +1197,22 @@ begin
       else
         sgImgProperties.Cells[1,InfoRow] := 'Unknown Tiff image format ' + IntToStr(ImgTiffData.TiffPhotometric);
     end
+    else if (ImgThumbData.ImageFormat = CgexPSD) then begin
+      case ImgPsdMode of
+        PSD_BITMAP: Temp := 'Bitmap (Black & White)';
+        PSD_GRAYSCALE: Temp := 'Grayscale';
+        PSD_INDEXED: Temp := 'Indexed';
+        PSD_RGB: Temp := 'RGB';
+        PSD_CMYK: Temp := 'CMYK';
+        PSD_MULTICHANNEL: Temp := 'Multi Channel';
+        PSD_DUOTONE: Temp := 'Duotone';
+        PSD_LAB: Temp := 'LAB';
+      else
+        Temp := 'Unknown PSD color mode ' + IntToStr(ImgPsdMode);
+      end;
+      sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme] +
+          ' (PSD Mode: ' + Temp + ')'
+    end
     else
       sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme];
     IncInfoRow;
@@ -1285,6 +1303,12 @@ begin
     if ImgProperties.SampleFormat > 0 then begin
       sgImgProperties.Cells[0,InfoRow] := 'Data type of samples:';
       sgImgProperties.Cells[1,InfoRow] := CSampleFormat[ImgProperties.SampleFormat];
+      IncInfoRow;
+    end;
+    // For formats that have layers:
+    if (ImgLayerCount <> 0) then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Number of layers:';
+      sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgLayerCount);
       IncInfoRow;
     end;
   end;
@@ -1459,6 +1483,11 @@ begin
   if ImgThumbData <> nil then begin
     case ImgThumbData.ImageFormat of
       CgexTIFF: ImgTiffData := TTiffGraphic(AGraphic).ActualTiffData;
+      CgexPSD:
+        begin
+          ImgPsdMode := TPSDGraphic(AGraphic).Mode;
+          ImgLayerCount := TPSDGraphic(AGraphic).LayerCount;
+        end;
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
       {$ENDIF}
