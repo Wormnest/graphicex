@@ -6282,12 +6282,12 @@ type
   PPSDHeader = ^TPSDHeader;
   TPSDHeader = packed record
     Signature: array[0..3] of AnsiChar; // always '8BPS'
-    Version: Word;                  // always 1
+    Version: Word;                  // always 1 (2 for PSB)
     Reserved: array[0..5] of Byte;  // reserved, always 0
-    Channels: Word;                 // 1..24, number of channels in the image (including alpha)
+    Channels: Word;                 // 1..56, number of channels in the image (including alpha)
     Rows,
-    Columns: Cardinal;              // 1..30000, size of image
-    Depth: Word;                    // 1, 8, 16 bits per channel
+    Columns: Cardinal;              // 1..30000, size of image (**PSB** max of 300,000.)
+    Depth: Word;                    // 1, 8, 16, 32 bits per channel
     Mode: Word;                     // color mode (see constants above)
   end;
 
