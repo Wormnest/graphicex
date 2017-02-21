@@ -561,8 +561,11 @@ type
 
   TPSDLayerOptions = set of (
     loTransparencyProtected,
-    loHidden,
-    loIrrelevantData
+    loVisible,      // According to current specs it's visible not hidden
+    loObsolete,     // Obsolete according to specs
+    loPhotoshop5,   // for Photoshop 5.0 and later, tells if bit 4 has useful information
+                    // If it's on then the next bit is valid
+    loPixelDataIrrelevant // If on: pixel data irrelevant to appearance of document
   );
 
   TPSDLayerType = (
@@ -7364,6 +7367,7 @@ var
   BlockStart: PByte;
   // Required for newer Delphi (cannot assign to class property records)
   TempMaskData: TPSDLayerMaskData;
+  HasIrrelevantData: Boolean;
 
 begin
   // Skip the layer section size. We are going to read the full section.
@@ -7436,14 +7440,14 @@ begin
       else
         Layer.Clipping := lcNonBase;
       Inc(Run);
-      Dummy := Byte(Run^);
+      Dummy := Byte(Run^); // 5 valid bits
       {$IFNDEF FPC}
-      Layer.Options := TPSDLayerOptions(Dummy and 3);
+      Layer.Options := TPSDLayerOptions(Dummy and 31);
       {$ELSE}
-      Layer.Options := TPSDLayerOptions(Dummy and Byte(3));
+      Layer.Options := TPSDLayerOptions(Dummy and Byte(31));
       {$ENDIF}
-      if Dummy and $18 = $18 then
-        Layer.Options := Layer.Options + [loIrrelevantData];
+      HasIrrelevantData := [loPhotoshop5, loPixelDataIrrelevant] * Layer.Options =
+        [loPhotoshop5, loPixelDataIrrelevant];
       // There is a filler byte after the flags/options.
       Inc(Run, 2);
 
@@ -7548,9 +7552,9 @@ begin
       // If the layer contains irrelevant data then tell it the reader method so it skips the data accordingly.
       for I := 0 to High(Layer.FChannels) do
         with Layer.Bounds do
-          ReadChannelData(Run, Layer.FChannels[I], Right - Left, Bottom - Top, loIrrelevantData in Layer.Options);
+          ReadChannelData(Run, Layer.FChannels[I], Right - Left, Bottom - Top, HasIrrelevantData);
 
-      if not (loIrrelevantData in Layer.Options) then
+      if not HasIrrelevantData then
       begin
         // Extra layer channels always follow the actual image data so we can limit the maximum
         // number of channels to use to 4 without harm.
