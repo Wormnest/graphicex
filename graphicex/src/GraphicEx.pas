@@ -533,6 +533,18 @@ type
   {$endif RLAGraphic}
 
   {$ifdef PhotoshopGraphic}
+const
+  // color modes
+  PSD_BITMAP = 0;
+  PSD_GRAYSCALE = 1;
+  PSD_INDEXED = 2;
+  PSD_RGB = 3;
+  PSD_CMYK = 4;
+  PSD_MULTICHANNEL = 7;
+  PSD_DUOTONE = 8;
+  PSD_LAB = 9;
+
+type
   // *.psd, *.pdd images
   TPSDLayerBlendMode = (
     lbmNormal,
@@ -6149,16 +6161,6 @@ end;
 {$ifdef PhotoshopGraphic}
 
 const
-  // color modes
-  PSD_BITMAP = 0;
-  PSD_GRAYSCALE = 1;
-  PSD_INDEXED = 2;
-  PSD_RGB = 3;
-  PSD_CMYK = 4;
-  PSD_MULTICHANNEL = 7;
-  PSD_DUOTONE = 8;
-  PSD_LAB = 9;
-
   PSD_COMPRESSION_NONE = 0;
   PSD_COMPRESSION_RLE = 1; // RLE compression (same as TIFF packed bits)
 
