@@ -753,6 +753,7 @@ type
   private
     FChannels,     // Original channel count of the image (1..56).
     FMode: Word;   // Original color mode of the image (PSD_*).
+    FLayerCount: Cardinal; // ReadImageProperties doesn't read all layers so we can't use FLayers.Count.
     FLayers: TPhotoshopLayers;
     FGridSettings: TPSDGridSettings;
   protected
@@ -776,6 +777,9 @@ type
 
     property GridSettings: TPSDGridSettings read FGridSettings;
     property Layers: TPhotoshopLayers read FLayers;
+    property ChannelCount: Word read FChannels;
+    property Mode: Word read FMode;
+    property LayerCount: Cardinal read FLayerCount;
   end;
   {$endif PhotoshopGraphic}
 
@@ -7847,7 +7851,7 @@ var
   Run: PByte;
   Header: TPSDHeader;
   Count: Cardinal;
-
+  TempRun: PByte;
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
@@ -7897,17 +7901,24 @@ begin
         // Skip palette (count is always given, might be 0 however, e.g. for RGB).
         Inc(Run, Count);
 
-        // Skip resource and layers section.
+        // Skip resourcesection.
         Count := ReadBigEndianCardinal(Run);
         Inc(Run, Count);
+        // Layer section: We want to know the number of layers.
         Count := ReadBigEndianCardinal(Run);
+        if Count > 0 then begin
+          TempRun := Run;
+          Inc(TempRun,4); // Skip Layer Section Size
+          FLayerCount := Abs(SwapEndian(PSmallInt(TempRun)^));
+        end;
+        // Skip layer section
         Inc(Run, Count);
 
         Compression := ConvertCompression(ReadBigEndianWord(Run));
         Result := True;
       end
       else
-        Result := False;                                        
+        Result := False;
     end;
 end;
 
