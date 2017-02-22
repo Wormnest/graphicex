@@ -766,6 +766,7 @@ type
     FChannels,     // Original channel count of the image (1..56).
     FMode: Word;   // Original color mode of the image (PSD_*).
     FLayerCount: Cardinal; // ReadImageProperties doesn't read all layers so we can't use FLayers.Count.
+    FMergedTransparencyPresent: Boolean; // If True: first alpha channel contains the transparency data for the merged result.
     FLayers: TPhotoshopLayers;
     FGridSettings: TPSDGridSettings;
   protected
@@ -792,6 +793,7 @@ type
     property ChannelCount: Word read FChannels;
     property Mode: Word read FMode;
     property LayerCount: Cardinal read FLayerCount;
+    property MergedTransparencyPresent: Boolean read FMergedTransparencyPresent;
   end;
   {$endif PhotoshopGraphic}
 
@@ -7670,7 +7672,7 @@ function TPSDGraphic.SetupColorManager(Channels: Integer): TPixelFormat;
 
 var
   CurrentColorScheme: TColorScheme;
-  
+
 begin
   with FImageProperties, ColorManager do
   begin
@@ -7870,6 +7872,7 @@ var
   Header: TPSDHeader;
   Count: Cardinal;
   TempRun: PByte;
+  Temp: SmallInt;
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
@@ -7927,7 +7930,9 @@ begin
         if Count > 0 then begin
           TempRun := Run;
           Inc(TempRun,4); // Skip Layer Section Size
-          FLayerCount := Abs(SwapEndian(PSmallInt(TempRun)^));
+          Temp := SwapEndian(PSmallInt(TempRun)^);
+          FLayerCount := Abs(Temp);
+          FMergedTransparencyPresent := Temp < 0;
         end;
         // Skip layer section
         Inc(Run, Count);
