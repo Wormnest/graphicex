@@ -315,6 +315,7 @@ type
     function ComponentScaleConvert25_31To8(Value: LongWord; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert32To8(Value: LongWord; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvert32To8(Value: LongWord): Byte; overload;
+    function ComponentSwapScaleConvert32To8(Value: LongWord): Byte; overload;
     function ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
     function ComponentScaleConvert64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvert64To8(Value: UInt64): Byte; overload;
@@ -322,6 +323,7 @@ type
     function ComponentScaleConvertFloat24To8(Value: LongWord; BitsPerSample: Byte): Byte;
     function ComponentScaleConvertFloat32To8(Value: LongWord; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvertFloat32To8(Value: LongWord): Byte; overload;
+    function ComponentSwapScaleConvertFloat32To8(Value: LongWord): Byte;
     function ComponentScaleConvertFloat64To8(Value: UInt64; BitsPerSample: Byte): Byte; overload;
     function ComponentScaleConvertFloat64To8(Value: UInt64): Byte; overload;
     function ComponentScaleGammaConvert(Value: Word): Byte;
@@ -1705,6 +1707,13 @@ begin
   Result := Value shr 24;
 end;
 
+function TColorManager.ComponentSwapScaleConvert32To8(Value: LongWord): Byte;
+begin
+  // TODO: We can probably just grab the low byte since the low byte will
+  // get swapped to the high byte and that's the only byte left after shr 24!
+  Result := SwapEndian(Value) shr 24;
+end;
+
 function TColorManager.ComponentScaleConvert33_63To8(Value: UInt64; BitsPerSample: Byte): Byte;
 begin
   // Convert/scale up or down from 33..63 bits to 8 bits
@@ -1776,7 +1785,22 @@ function TColorManager.ComponentScaleConvertFloat32To8(Value: LongWord): Byte;
 var s: Single absolute Value;
   TempVal: Integer;
 begin
-  TempVal := Trunc(s * 255);
+  TempVal := Trunc(s * 255.0);
+  if TempVal < 0 then
+    TempVal := 0
+  else if TempVal > 255 then
+    TempVal := 255;
+  Result := TempVal;
+end;
+
+// WARNING: Currently assuming values between 0.0 and 1.0!
+function TColorManager.ComponentSwapScaleConvertFloat32To8(Value: LongWord): Byte;
+var
+  TempVal: Integer;
+  s: Single absolute TempVal;
+begin
+  TempVal := SwapEndian(Value);
+  TempVal := Trunc(s*255.0);
   if TempVal < 0 then
     TempVal := 0
   else if TempVal > 255 then
@@ -5854,10 +5878,7 @@ begin
         case FTargetBPS of
           8: // 323232 to 888
             begin
-              // Float sample data format needs separate conversion.
-              if FSourceDataFormat = sdfFloat then
-                Convert32_8 := ComponentScaleConvertFloat32To8
-              else
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
               { Gamma conversion not supported here for now.
               if coApplyGamma in FTargetOptions then
               begin
@@ -5865,23 +5886,29 @@ begin
                   Convert32_8 := ComponentSwapScaleGammaConvert32To8
                 else
                   Convert32_8 := ComponentScaleGammaConvert32To8;
+              end;}
+
+              if FSourceDataFormat = sdfFloat then begin
+                // Float sample data format needs separate conversion.
+                if coNeedByteSwap in FSourceOptions then begin
+                  Convert32_8 := ComponentSwapScaleConvertFloat32To8;
+                  Convert32_8Alpha := ComponentSwapScaleConvertFloat32To8;
+                end
+                else begin
+                  Convert32_8 := ComponentScaleConvertFloat32To8;
+                  Convert32_8Alpha := ComponentScaleConvertFloat32To8;
+                end;
               end
-              else}
-              begin
-                { Byte swapping not supported here for now.
-                if coNeedByteSwap in FSourceOptions then
-                  Convert32_8 := ComponentSwapScaleConvert32To8
-                else}
+              else begin
+                if coNeedByteSwap in FSourceOptions then begin
+                  Convert32_8 := ComponentSwapScaleConvert32To8;
+                  Convert32_8Alpha := ComponentSwapScaleConvert32To8;
+                end
+                else begin
                   Convert32_8 := ComponentScaleConvert32To8;
+                  Convert32_8Alpha := ComponentScaleConvert32To8;
+                end;
               end;
-              // Since alpha channels are never gamma corrected we need a separate conversion routine
-              if FSourceDataFormat = sdfFloat then
-                Convert32_8Alpha := ComponentScaleConvertFloat32To8
-              else { Byte swapping not supported here for now.
-              if coNeedByteSwap in FSourceOptions then
-                Convert32_8Alpha := ComponentSwapScaleConvert
-              else}
-                Convert32_8Alpha := ComponentScaleConvert32To8;
 
               if CopyAlpha then
               begin
@@ -6739,10 +6766,7 @@ begin
         case FTargetBPS of
           8: // 323232 to 888
             begin
-              // Float sample data format needs separate conversion.
-              if FSourceDataFormat = sdfFloat then
-                Convert32_8 := ComponentScaleConvertFloat32To8
-              else
+              // Since alpha channels are never gamma corrected we need a separate conversion routine
               { Gamma conversion not supported here for now.
               if coApplyGamma in FTargetOptions then
               begin
@@ -6750,23 +6774,29 @@ begin
                   Convert32_8 := ComponentSwapScaleGammaConvert32To8
                 else
                   Convert32_8 := ComponentScaleGammaConvert32To8;
+              end;}
+
+              if FSourceDataFormat = sdfFloat then begin
+                // Float sample data format needs separate conversion.
+                if coNeedByteSwap in FSourceOptions then begin
+                  Convert32_8 := ComponentSwapScaleConvertFloat32To8;
+                  Convert32_8Alpha := ComponentSwapScaleConvertFloat32To8;
+                end
+                else begin
+                  Convert32_8 := ComponentScaleConvertFloat32To8;
+                  Convert32_8Alpha := ComponentScaleConvertFloat32To8;
+                end;
               end
-              else}
-              begin
-                { Byte swapping not supported here for now.
-                if coNeedByteSwap in FSourceOptions then
-                  Convert32_8 := ComponentSwapScaleConvert
-                else}
+              else begin
+                if coNeedByteSwap in FSourceOptions then begin
+                  Convert32_8 := ComponentSwapScaleConvert32To8;
+                  Convert32_8Alpha := ComponentSwapScaleConvert32To8;
+                end
+                else begin
                   Convert32_8 := ComponentScaleConvert32To8;
+                  Convert32_8Alpha := ComponentScaleConvert32To8;
+                end;
               end;
-              // Since alpha channels are never gamma corrected we need a separate conversion routine
-              if FSourceDataFormat = sdfFloat then
-                Convert32_8Alpha := ComponentScaleConvertFloat32To8
-              else { Byte swapping not supported here for now.
-                if coNeedByteSwap in FSourceOptions then
-                Convert32_8Alpha := ComponentSwapScaleConvert
-              else}
-                Convert32_8Alpha := ComponentScaleConvert32To8;
 
               if CopyAlpha then
               begin
