@@ -7567,8 +7567,8 @@ begin
       if not HasIrrelevantData then
       begin
         // Extra layer channels always follow the actual image data so we can limit the maximum
-        // number of channels to use to 4 without harm.
-        Layer.Image.PixelFormat := SetupColorManager(Min(4, Length(Layer.FChannels)));
+        // number of channels to use to 5 (CMYKA) without harm.
+        Layer.Image.PixelFormat := SetupColorManager(Min(5, Length(Layer.FChannels)));
         with Layer, Bounds do
         begin
           Image.Width := Right - Left;
