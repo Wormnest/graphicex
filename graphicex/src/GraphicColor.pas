@@ -12,7 +12,7 @@ unit GraphicColor;
 //
 // The original code is GraphicCompression.pas, released November 1, 1999.
 //
-// The initial developer of the original code is Dipl. Ing. Mike Lischke (Pleißa, Germany, www.delphi-gems.com),
+// The initial developer of the original code is Dipl. Ing. Mike Lischke (Plei�a, Germany, www.delphi-gems.com),
 //
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
@@ -1505,7 +1505,7 @@ const
   // TIFF 6.0 specification tells that it is no default value for the WhitePoint,
   // but AdobePhotoshop TIFF Technical Note tells that it should be CIE D50.
 
-  // Observer= 2Â°, Illuminant= D50
+  // Observer= 2°, Illuminant= D50
   ref_X =  96.422;
   ref_Y = 100.000;
   ref_Z =  82.521;
