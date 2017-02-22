@@ -7674,13 +7674,27 @@ var
 begin
   with FImageProperties, ColorManager do
   begin
+    // PSD always uses bigendian (even for float values!).
     SourceOptions := [coNeedByteSwap];
     SourceBitsPerSample := BitsPerSample;
-    if BitsPerSample = 16 then
-      TargetBitsPerSample := 8
+    case BitsPerSample of
+      1, 8:
+      begin
+        TargetBitsPerSample := BitsPerSample;
+      end;
+      16:
+      begin
+        TargetBitsPerSample := 8;
+      end;
+      32:
+      begin
+        TargetBitsPerSample := 8;
+        SourceDataFormat := sdfFloat;
+      end;
     else
-      TargetBitsPerSample := BitsPerSample;
-
+      // On purpose nothing is set here.
+      // Unknown BitsPerSample will raise a bitdepth error.
+    end;
     SourceSamplesPerPixel := Channels;
 
     CurrentColorScheme := DetermineColorScheme(Channels);
