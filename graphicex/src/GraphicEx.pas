@@ -535,14 +535,24 @@ type
   {$ifdef PhotoshopGraphic}
 const
   // color modes
+  // Several PSD libraries list extra modes although the official specification
+  // does not mention them. I have added these here with a remark.
   PSD_BITMAP = 0;
   PSD_GRAYSCALE = 1;
   PSD_INDEXED = 2;
   PSD_RGB = 3;
   PSD_CMYK = 4;
+  PSD_HSL = 5;               // Not in official specification
+  PSD_HSB = 6;               // Not in official specification
   PSD_MULTICHANNEL = 7;
   PSD_DUOTONE = 8;
   PSD_LAB = 9;
+  PSD_GRAYSCALE16 = 10;      // Not in official specification
+  PSD_RGB48 = 11;            // Not in official specification
+  PSD_LAB48 = 12;            // Not in official specification
+  PSD_CMYK64 = 13;           // Not in official specification
+  PSD_DEEPMULTICHANNEL = 14; // Not in official specification
+  PSD_DUOTONE16 = 15;        // Not in official specification
 
 type
   // *.psd, *.pdd images
@@ -6612,6 +6622,10 @@ begin
         end;
       pf32Bit:
         begin
+          // TODO: A lot of the conversion stuff below can probably be handled in ColorManager
+          // or is already present there! Remove it here to simplify things.
+          // We should also check for the determined color mode csXXX instead of using FMode.
+          // TODO: Support 16 bit per channel versions. Doing the above will probably solve that.
           // We need to add planar to our source options
           ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
           if FMode = PSD_CMYK then
@@ -6716,7 +6730,7 @@ begin
   // the image is with/without alpha channel.
   case FMode of
     PSD_DUOTONE, // duo tone should be handled as grayscale
-    PSD_GRAYSCALE:
+    PSD_GRAYSCALE, PSD_GRAYSCALE16:
       case ChannelCount of
         1:
           Result := csG;
@@ -6736,8 +6750,8 @@ begin
       else
         Result := csIndexedA;
       end;
-    PSD_MULTICHANNEL,
-    PSD_RGB:
+    PSD_MULTICHANNEL, PSD_DEEPMULTICHANNEL,
+    PSD_RGB, PSD_RGB48:
       case ChannelCount of
         3:
           Result := csRGB;
@@ -6746,14 +6760,14 @@ begin
       else
         Result := csRGBA;
       end;
-    PSD_CMYK:
+    PSD_CMYK, PSD_CMYK64:
       if ChannelCount = 4 then
         Result := csCMYK
       else if ChannelCount = 5 then
         Result := csCMYKA
       else
         Result := csCMYKA;
-    PSD_LAB:
+    PSD_LAB, PSD_LAB48:
       if ChannelCount = 3 then
         Result := csCIELab
       else
@@ -6808,7 +6822,7 @@ const
     'lnsr', // 32, Layer name source setting
     'shpa', // 33, Pattern data
     'shmd', // 34, Meta data setting
-    'Layr'  // 35, Layer data 
+    'Layr'  // 35, Layer data
   );
 
   // Signatures used in an effects adjustment layer.
@@ -7203,7 +7217,7 @@ begin
 
   // Reading the merged image takes up the rest of the entire loading process.
   StartProgressSection(0, gesTransfering);
-  
+
   Decoder := nil;
   case Compression of
     ctNone: ;
