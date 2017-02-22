@@ -225,6 +225,7 @@ type
     ImgIffData: TAmigaIffProperties;
     ImgPsdMode: Word;
     ImgLayerCount: Cardinal;
+    PsdMergedTransparencyPresent: Boolean;
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -1306,9 +1307,17 @@ begin
       IncInfoRow;
     end;
     // For formats that have layers:
-    if (ImgLayerCount <> 0) then begin
+    if (ImgLayerCount <> 0) or (ImgThumbData.ImageFormat = CgexPSD)then begin
       sgImgProperties.Cells[0,InfoRow] := 'Number of layers:';
       sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgLayerCount);
+      IncInfoRow;
+    end;
+    if (ImgThumbData.ImageFormat = CgexPSD) then begin
+      sgImgProperties.Cells[0,InfoRow] := 'PSD Merged transparency:';
+      if PsdMergedTransparencyPresent then
+        sgImgProperties.Cells[1,InfoRow] := 'Present'
+      else
+        sgImgProperties.Cells[1,InfoRow] := 'Not Present';
       IncInfoRow;
     end;
   end;
@@ -1487,6 +1496,9 @@ begin
         begin
           ImgPsdMode := TPSDGraphic(AGraphic).Mode;
           ImgLayerCount := TPSDGraphic(AGraphic).LayerCount;
+          PsdMergedTransparencyPresent := TPSDGraphic(AGraphic).MergedTransparencyPresent;
+          if TPSDGraphic(AGraphic).ImageProperties.BitsPerSample = 32 then
+            ImgProperties.SampleFormat := SAMPLEFORMAT_IEEEFP;
         end;
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
