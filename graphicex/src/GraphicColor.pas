@@ -413,6 +413,7 @@ type
 function CopyPalette(Palette: HPALETTE): HPALETTE;
 
 // Common color conversion functions
+// Conversion to/from HLS aka HSL
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 function RGBToHLS(const RGB: TRGBFloat): THLSFloat;
 function HLSInterpolation(const HLS1, HLS2: THLSFloat; Ratio: Extended): THLSFloat;
@@ -430,6 +431,7 @@ procedure XYZToBGR16(X, Y, Z: Extended; bgr: PBGR16);
 // Convert from CIE XYZ to 16 bits RGB.
 procedure XYZToRGB16(X, Y, Z: Extended; rgb: PRGB16);
 
+// Conversion to/from HSV aka HSB
 function  HSVToRGB32(const A, H, S, V: Integer): TRGBAColor32;
 procedure RGBToHSV32(const ARGB: TRGBAColor32; var H, S, V: Integer);
 function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32;
@@ -643,6 +645,7 @@ end;
 function HLStoRGB(const HLS: THLSFloat): TRGBFloat;
 
 // Converts from HLS (hue, luminance, saturation) to RGB using floating point math
+// HLS is also known as HSL
 // Input parameters and result values are all in the range 0..1.
 
   //--------------- Local function --------------------------------------------
@@ -703,6 +706,7 @@ end;
 function RGBToHLS(const RGB: TRGBFloat): THLSFloat;
 
 // Converts from RGB to HLS using floating point math
+// HLS is also known as HSL
 // Input parameters and result values are all in the range 0..1.
 
 var
@@ -839,7 +843,7 @@ begin
   Result := (A shl 24) or (R shl 16) or (G shl 8) or B;
 end;
 
-//-- HSV -----------------------------------------------------------------------
+//-- HSV aka HSB ---------------------------------------------------------------
 
 // Converted from the GraphicsMagic versions which are based on Earl F. Grey's versions.
 // See GraphicsMagic gmColorSpace but also (in externals) ColorLibrary.pas and RealColorLibrary.pas.
