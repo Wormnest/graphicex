@@ -6951,6 +6951,18 @@ begin
               FreeAndNil(Decoder);
             end;
           end;
+        ctPlainZIP, ctPredictedZIP: // Supposedly these are only used for layer data not composited data
+          begin
+            // We try with Z_FINISH first if that doesn't work we can try Z_PARTIAL_FLUSH
+            // but that will need extra code in a loop.
+            Decoder := TLZ77Decoder.Create(Z_FINISH, False);
+            Decoder.DecodeInit;
+            Decoder.Decode(Pointer(Run), Channel.Data, RemainingSize, AWidth);
+            if Compression = ctPredictedZIP then begin
+              // Extra work needs to be done here for prediction.
+              // See: https://github.com/psd-tools/psd-tools/blob/master/src/psd_tools/compression.py
+            end;
+          end;
       else
         FreeMem(Channel.Data);
         GraphicExError(gesUnsupportedFeature, [gesCompressionScheme, 'PSD/PDD']);
