@@ -6204,17 +6204,18 @@ const
   Obsolete1 = $03E8;                        // Obsolete—Photoshop 2.0 only. Contains five 2 byte values: number of
                                             // channels, rows, columns, depth, and mode.
   MacPrintManInfo = $03E9;                  // Optional. Macintosh print manager print info record.
+  MacPageFormatInfo = $03EA;                // Macintosh page format information. No longer read by Photoshop. (Obsolete)
   Obsolete2 = $03EB;                        // Obsolete—Photoshop 2.0 only. Contains the indexed color table.
   ResInfo = $03ED;                          // ResolutionInfo structure. See Appendix A in Photoshop SDK Guide.pdf.
   AlphaChannelNames = $03EE;                // Names of the alpha channels as a series of Pascal strings.
-  DisplayInfo = $03EF;                      // DisplayInfo structure. See Appendix A in Photoshop SDK Guide.pdf.
+  DisplayInfoOld = $03EF;                   // Obsolete. See id $0435. DisplayInfo structure. See Appendix A in Photoshop SDK Guide.pdf.
   Caption = $03F0;                          // Optional. The caption as a Pascal string.
-  Border = $03F1;                           // Border information. Contains a fixed-number for the border width, and 2
-                                            // bytes for border units (1 = inches, 2 = cm, 3 = points, 4 = picas, 5 = columns).
+  Border = $03F1;                           // Border information. Contains a fixed number (2 bytes real, 2 bytes fraction)
+                                            // for the border width, and 2 bytes for border units (1 = inches, 2 = cm, 3 = points, 4 = picas, 5 = columns).
   BackgroundColor = $03F2;                  // Background color. See the Colors additional file information.
   PrintFlags = $03F3;                       // Print flags. A series of one byte boolean values (see Page Setup dialog):
                                             // labels, crop marks, color bars, registration marks, negative, flip,
-                                            // interpolate, caption.
+                                            // interpolate, caption, print flags.
   GrayMultichannelHalftoningInfo = $03F4;   // Grayscale and multichannel halftoning information.
   ColorHalftoningInfo = $03F5;              // Color halftoning information.
   DuotoneHalftoningInfo = $03F6;            // Duotone halftoning information.
@@ -6235,45 +6236,41 @@ const
                                             // dragging groups. Layers in a group have the same group ID.
   Obsolete5 = $0403;                        // Obsolete.
   IPTC_NAARecord = $0404;                   // IPTC-NAA record. This contains the File Info... information. See the
-                                            // IIMV4.pdf document.
+                                            // documentation in the IPTC folder of the Documentation folder.
   RawImageMode = $0405;                     // Image mode for raw format files.
   JPEGQuality = $0406;                      // JPEG quality. Private.
-  GridAndGuides = $0408;                    // Grid and guides information. 
-  ThumbnailResource = $0409;                // Thumbnail resource. See thumbnail resource in Photoshop File Formats Spec.
-  CopyrightFlg = $040A;                     // Copyright flag. Boolean indicating whether image is copyrighted. Can be
+  GridAndGuides = $0408;                    // Grid and guides information.
+  ThumbnailResource = $0409;                // New since Photoshop 4.0. Thumbnail resource for Photoshop 4.0 only. See thumbnail resource in Photoshop File Formats Spec.
+  CopyrightFlg = $040A;                     // New since Photoshop 4.0. Copyright flag. Boolean indicating whether image is copyrighted. Can be
                                             // set via Property suite or by user in File Info...
-  URL = $040B;                              // URL. Handle of a text string with uniform resource locator. Can be set
+  URL = $040B;                              // New since Photoshop 4.0. URL. Handle of a text string with uniform resource locator. Can be set
                                             // via Property suite or by user in File Info...
-  ThumbnailResource2 = $040C;               // Thumbnail resource. See thumbnail resource in Photoshop File Formats Spec.
-  GlobalAngle = $040D;                      // Global Angle. 4 bytes that contain an integer between 0..359 which is the
-                                            // global lighting angle for effects layer. If not present assumes 30.
-  ColorSamplersResource = $040E;            // Color samplers resource. 
-  ICCProfile = $040F;                       // ICC Profile. The raw bytes of an ICC format profile, see the ICC34.pdf
-                                            // and ICC34.h files from the Internation Color Consortium located in the
-                                            // documentation section.
-  Watermark = $0410;                        // One byte for Watermark.
-  ICCUntagged = $0411;                      // ICC Untagged. 1 byte that disables any assumed profile handling when
+  ThumbnailResource2 = $040C;               // New since Photoshop 5.0. Thumbnail resource (supersedes $0409). See thumbnail resource in Photoshop File Formats Spec.
+  GlobalAngle = $040D;                      // New since Photoshop 5.0. Global Angle. 4 bytes that contain an integer between 0..359 which is the
+                                            // global lighting angle for effects layer. If not present assumed to be 30.
+  ColorSamplersResource = $040E;            // Obsolete. New since Photoshop 5.0. Color samplers resource. See See Color samplers resource format.
+  ICCProfile = $040F;                       // New since Photoshop 5.0. ICC Profile. The raw bytes of an  ICC (International Color Consortium) format profile.
+                                            // See ICC1v42_2006-05.pdf in the Documentation folder and icProfileHeader.h in Sample Code\Common\Includes .
+  Watermark = $0410;                        // New since Photoshop 5.0. One byte for Watermark.
+  ICCUntagged = $0411;                      // New since Photoshop 5.0. ICC Untagged. 1 byte that disables any assumed profile handling when
                                             // opening the file. 1 = intentionally untagged.
-  EffectsVisible = $0412;                   // Effects visible. 1 byte global flag to show/hide all the effects layer.
+  EffectsVisible = $0412;                   // New since Photoshop 5.0. Effects visible. 1 byte global flag to show/hide all the effects layer.
                                             // Only present when they are hidden.
-  SpotHalftone = $0413;                     // Spot Halftone. 4 bytes for version, 4 bytes for length, and the variable
-                                            // length data.
-  DocumentSpecificIDs = $0414;              // Document specific IDs, layer IDs will be generated starting at this base
-                                            // value or a greater value if we find existing IDs to already exceed it.
+  SpotHalftone = $0413;                     // New since Photoshop 5.0. New since Photoshop 5.0. Spot Halftone. 4 bytes for version, 4 bytes for length,
+                                            // and the variable length data.
+  DocumentSpecificIDs = $0414;              // New since Photoshop 5.0. Document specific IDs seed number: 4 bytes:
+                                            // Base value starting at which layer IDs will be generated (or a greater value if existing IDs already exceed it)
                                             // It’s purpose is to avoid the case where we add layers, flatten, save,
-                                            // open, and then add more layers that end up with the same IDs as the first
-                                            // set. 4 bytes.
-  AlphaNames = $0415;                       // Unicode Alpha Names. 4 bytes for length and the string as a unicode string.
-  ColorTableCount = $0416;                  // Indexed Color Table Count. 2 bytes for the number of colors in table that
-                                            // are actually defined
-  TransparentIndex = $0417;                 // New since version 6.0 of Adobe Photoshop: Tansparent Index. 2 bytes for
+                                            // open, and then add more layers that end up with the same IDs as the first set.
+  AlphaNames = $0415;                       // New since Photoshop 5.0. Unicode Alpha Names. 4 bytes for length and the string as a unicode string.
+  ColorTableCount = $0416;                  // New since Photoshop 6.0. Indexed Color Table Count. 2 bytes for the number
+                                            // of colors in table that are actually defined.
+  TransparentIndex = $0417;                 // New since version 6.0 of Adobe Photoshop: Tansparency Index. 2 bytes for
                                             // the index of transparent color, if any.
   GlobalAltitude = $0419;                   // New since version 6.0 of Adobe Photoshop: Global Altitude. 4 byte entry
-                                            // for altitude
-  Slices = $041A;                           // New since version 6.0 of Adobe Photoshop: Slices. See description later
-                                            // in this chapter
-  WorkflowURL = $041B;                      // New since version 6.0 of Adobe Photoshop: Workflow URL. Unicode string,
-                                            // 4 bytes of length followed by unicode string.
+                                            // for altitude.
+  Slices = $041A;                           // New since version 6.0 of Adobe Photoshop: Slices. See Slices resource format.
+  WorkflowURL = $041B;                      // New since version 6.0 of Adobe Photoshop: Workflow URL. Unicode string.
   XPEP = $041C;                             // New since version 6.0 of Adobe Photoshop: Jump To XPEP. 2 bytes major
                                             // version, 2 bytes minor version, 4 bytes count. Following is repeated for
                                             // count: 4 bytes block size, 4 bytes key, if key = 'jtDd' then next is a
@@ -6285,8 +6282,61 @@ const
   VersionInfo = $0421;                      // New since version 6.0 of Adobe Photoshop: Version Info. 4 byte version,
                                             // 1 byte HasRealMergedData, unicode string of writer name, unicode string
                                             // of reader name, 4 bytes of file version.
+  ExifData1 = $0422;                        // (Photoshop 7.0) EXIF data 1. See http://www.kodak.com/global/plugins/acrobat/en/service/digCam/exifStandard2.pdf
+  ExifData3 = $0423;                        // (Photoshop 7.0) EXIF data 1. See http://www.kodak.com/global/plugins/acrobat/en/service/digCam/exifStandard2.pdf
+  XMPMetaData = $0424;                      // (Photoshop 7.0) XMP metadata. File info as XML description. See http://www.adobe.com/devnet/xmp/
+  CaptionDigest = $0425;                    // (Photoshop 7.0) Caption digest. 16 bytes: RSA Data Security, MD5 message-digest algorithm.
+  PrintScale = $0426;                       // (Photoshop 7.0) Print scale. 2 bytes style (0 = centered, 1 = size to fit, 2 = user defined).
+                                            // 4 bytes x location (floating point). 4 bytes y location (floating point). 4 bytes scale (floating point)
+  PixelAspectRatio = $0428;                 // (Photoshop CS) Pixel Aspect Ratio. 4 bytes (version = 1 or 2), 8 bytes double, x / y of a pixel.
+                                            // Version 2, attempting to correct values for NTSC and PAL, previously off by a factor of approx. 5%.
+  LayerComps = $0429;                       // (Photoshop CS) Layer Comps. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure)
+  AlternateDuotoneColors = $042A;           // (Photoshop CS) Alternate Duotone Colors. 2 bytes (version = 1), 2 bytes count, following is repeated for
+                                            // each count: [ Color: 2 bytes for space followed by 4 * 2 byte color component ], following this is
+                                            // another 2 byte count, usually 256, followed by Lab colors one byte each for L, a, b. This resource
+                                            // is not read or used by Photoshop.
+  AlternateSpotColors = $42B;               // (Photoshop CS) Alternate Spot Colors. 2 bytes (version = 1), 2 bytes channel count, following is
+                                            // repeated for each count: 4 bytes channel ID, Color: 2 bytes for space followed by 4 * 2 byte color
+                                            // component. This resource is not read or used by Photoshop.
+  LayerSectionIDs = $42D;                   // (Photoshop CS2) Layer Selection ID(s). 2 bytes count, following is repeated for each count: 4 bytes layer ID.
+  HDRToningInfo = $042E;                    // (Photoshop CS2) HDR Toning information.
+  PrintInfo1 = $042F;                       // (Photoshop CS2) Print info.
+  LayerGroupsEnabled = $0430;               // (Photoshop CS2) Layer Group(s) Enabled ID. 1 byte for each layer in the document, repeated
+                                            // by length of the resource. NOTE: Layer groups have start and end markers.
+  ColorSamplers = $0431;                    // (Photoshop CS3) Color samplers resource. Also see ID 1038 ($040E) for old
+                                            // format. See See Color samplers resource format.
+  MeasurementScale = $0432;                 // (Photoshop CS3) Measurement Scale. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+  TimelineInfo = $0433;                     // (Photoshop CS3) Timeline Information. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+  SheetDisclosure = $0434;                  // (Photoshop CS3) Sheet Disclosure. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+  DisplayInfo = $0435;                      // (Photoshop CS3) DisplayInfo structure to support floating point clors. Also see ID 1007 ($03EF). See Appendix A in Photoshop API Guide.pdf.
+  OnionSkins = $0436;                       // (Photoshop CS3) Onion Skins. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+  CountInfo = $0438;                        // (Photoshop CS4) Count Information. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+                                            // Information about the count in the document. See the Count Tool.
+  PrintInfo2 = $043A;                       // (Photoshop CS5) Print Information. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+                                            // Information about the current print settings in the document. The color management options.
+  PrintStyle = $043B;                       // (Photoshop CS5) Print Style. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+                                            // Information about the current print style in the document. The printing marks, labels, ornaments, etc.
+  MacNSPrintInfo = $043C;                   // (Photoshop CS5) Macintosh NSPrintInfo. Variable OS specific info for Macintosh. NSPrintInfo.
+                                            // It is recommened that you do not interpret or use this data.
+  WinDevMode = $043D;                       // (Photoshop CS5) Windows DEVMODE. Variable OS specific info for Windows. DEVMODE.
+                                            // It is recommened that you do not interpret or use this data.
+  AutoSaveFilePath = $043E;                 // (Photoshop CS6) Auto Save File Path. Unicode string. It is recommened that you do not interpret or use this data.
+  AutoSaveFormat = $043F;                   // (Photoshop CS6) Auto Save Format. Unicode string. It is recommened that you do not interpret or use this data.
+  PathSelectionState = $0440;               // (Photoshop CC)Path Selection State. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+                                            // Information about the current path selection state.
   // $07D0 - $0BB6 Path Information (saved paths). See path resource format in Photoshop File Formats Spec.
-  ClippingPathName = $0BB7;                 // Name of clipping path. See path resource format later in this chapter.
+  ClippingPathName = $0BB7;                 // Name of clipping path. See path resource format.
+  OriginPathInfo = $0BB8;                   // (Photoshop CC) Origin Path Info. 4 bytes (descriptor version = 16), Descriptor (see See Descriptor structure).
+                                            // Information about the origin path data.
+  // $0FA0 - $1387 - Plug-In resource(s). Resources added by a plug-in. See the plug-in API found in the SDK documentation.
+  ImageReadyVariables = $1B58;              // Image Ready variables. XML representation of variables definition
+  ImageReadyDataSets = $1B59;               // Image Ready data sets
+  ImageReadyDefaultSelectStat = $1B5A;      // Image Ready default selected state
+  ImageReady7RolloverExpanded = $1B5B;      // Image Ready 7 rollover expanded state
+  ImageReadyRolloverExpanded = $1B5C;       // Image Ready rollover expanded state
+  ImageReadySaveLayerSettings = $1B5D;      // Image Ready save layer settings
+  ImageReadyVersion = $1B5E;                // Image Ready version
+  LightroomWorkflow = $1F40;                // (Photoshop CS3) Lightroom workflow, if present the document is in the middle of a Lightroom workflow.
   PrintFlagsInfo = $2710;                   // Print flags information. 2 bytes version (= 1), 1 byte center crop marks,
                                             // 1 byte (= 0), 4 bytes bleed width value, 2 bytes bleed width scale.
 
