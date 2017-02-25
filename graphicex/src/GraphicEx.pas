@@ -9477,53 +9477,49 @@ begin
             // After reading the image data the next chunk header has already been loaded
             // so continue with code below instead trying to load a new chunk header.
           end
-          else
-            if IsChunk(PLTE) then
+          else if IsChunk(PLTE) then
+          begin
+            // palette chunk
+            if (FHeader.Length mod 3) <> 0 then
+              GraphicExError(gesInvalidPalette, ['PNG']);
+            ReadDataAndCheckCRC(Run);
+            // load palette only if the image is indexed colors and we
+            // haven't loaded a palette yet. Duplicate palettes isn't
+            // allowed but broken images might still contain one.
+            // Not checking this might cause a memory leak.
+            if (Description.ColorType = 3) and not Assigned(PaletteBuf) then
             begin
-              // palette chunk
-              if (FHeader.Length mod 3) <> 0 then
-                GraphicExError(gesInvalidPalette, ['PNG']);
-              ReadDataAndCheckCRC(Run);
-              // load palette only if the image is indexed colors and we
-              // haven't loaded a palette yet. Duplicate palettes isn't
-              // allowed but broken images might still contain one.
-              // Not checking this might cause a memory leak.
-              if (Description.ColorType = 3) and not Assigned(PaletteBuf) then
-              begin
-                // first setup pixel format before actually creating a palette
-                FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
-                FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
-                // We need to copy palette from FRawBuffer because FRawBuffer
-                // will be reused...
-                // Always needed for fpc but also in Delphi for Indexed with Alpha.
-                GetMem(PaletteBuf, FHeader.Length);
-                Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
-                ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
-              end;
-              Continue;
-            end
-            else
-              if IsChunk(gAMA) then
-              begin
-                ReadDataAndCheckCRC(Run);
-                // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-                ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
-                ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
-                Include(Options, ioUseGamma);
-                Continue;
-              end
-              else
-                if IsChunk(bKGD) then
-                begin
-                  LoadBackgroundColor(Run, Description);
-                  Continue;
-                end
-                else
-                  if IsChunk(tRNS) then
-                  begin
-                    LoadTransparency(Run, Description);
-                    Continue;
-                  end;
+              // first setup pixel format before actually creating a palette
+              FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
+              FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
+              // We need to copy palette from FRawBuffer because FRawBuffer
+              // will be reused...
+              // Always needed for fpc but also in Delphi for Indexed with Alpha.
+              GetMem(PaletteBuf, FHeader.Length);
+              Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
+              ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
+            end;
+            Continue;
+          end
+          else if IsChunk(gAMA) then
+          begin
+            ReadDataAndCheckCRC(Run);
+            // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
+            ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
+            ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+            Include(Options, ioUseGamma);
+            Continue;
+          end
+          else if IsChunk(bKGD) then
+          begin
+            LoadBackgroundColor(Run, Description);
+            Continue;
+          end
+          else if IsChunk(tRNS) then
+          begin
+            LoadTransparency(Run, Description);
+            Continue;
+          end;
 
           // Skip unknown or unsupported chunks (+4 because of always present CRC).
           // IEND will be skipped as well, but this chunk is empty, so the stream will correctly
