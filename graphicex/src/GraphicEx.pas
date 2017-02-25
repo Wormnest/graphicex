@@ -185,6 +185,7 @@ type
     Comment: WideString;               // Implemented for PNG and GIF.
     Orientation: TgexOrientation;      // Image orientation (TIFF, Targa, RLA, ...)
 
+    // TODO: Internal info should be moved to the specific imageformat classes.
     // Informational data, used internally and/or by decoders
     // PCD
     Overview: Boolean;                 // true if image is an overview image
