@@ -6250,10 +6250,10 @@ const
   GlobalAngle = $040D;                      // New since Photoshop 5.0. Global Angle. 4 bytes that contain an integer between 0..359 which is the
                                             // global lighting angle for effects layer. If not present assumed to be 30.
   ColorSamplersResource = $040E;            // Obsolete. New since Photoshop 5.0. Color samplers resource. See See Color samplers resource format.
-  ICCProfile = $040F;                       // New since Photoshop 5.0. ICC Profile. The raw bytes of an  ICC (International Color Consortium) format profile.
+  ICC_Profile = $040F;                      // New since Photoshop 5.0. ICC Profile. The raw bytes of an  ICC (International Color Consortium) format profile.
                                             // See ICC1v42_2006-05.pdf in the Documentation folder and icProfileHeader.h in Sample Code\Common\Includes .
   Watermark = $0410;                        // New since Photoshop 5.0. One byte for Watermark.
-  ICCUntagged = $0411;                      // New since Photoshop 5.0. ICC Untagged. 1 byte that disables any assumed profile handling when
+  ICC_Untagged = $0411;                     // New since Photoshop 5.0. ICC Untagged. 1 byte that disables any assumed profile handling when
                                             // opening the file. 1 = intentionally untagged.
   EffectsVisible = $0412;                   // New since Photoshop 5.0. Effects visible. 1 byte global flag to show/hide all the effects layer.
                                             // Only present when they are hidden.
