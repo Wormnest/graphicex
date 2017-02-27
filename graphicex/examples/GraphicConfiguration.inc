@@ -14,7 +14,7 @@
 // Copyright (C) 1999-2005 Mike Lischke. All Rights Reserved.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2013-2017 Jacob Boerema. All Rights Reserved.
 //------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
@@ -30,8 +30,10 @@
 // can change the name back to GraphicConfiguration.inc. To be able to
 // support multiple configurations copy this file to your project's folder
 // and then change the name to GraphicConfiguration.inc.
-// Additionally we add a Define GraphicExConfigured to be able to detect
-// multiple includes.
+//
+// 2017-02-27 jb Added defines for using ICC profiles with lcms2. When enabled
+// you will have to make sure to add lcms2.dll to the folder of your executable.
+//
 // IMPORTANT: a change in this include file always requires a REBUILD of your project!
 //
 //------------------------------------------------------------------------------
@@ -146,4 +148,14 @@
 
 // EPSGraphic depends on TIFFGraphic so undefine it if the latter is not defined.
 {$ifndef TIFFGraphic} {$undef EPSGraphic} {$endif}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//      Support for ICC profiles. Disabled by default but enabled for our ImageViewer example.
+////////////////////////////////////////////////////////////////////////////////
+{$define LCMS}                   // Enable use of LCMS. This requires availability of lcms2.dll.
+{$ifdef LCMS}
+  {$define LCMS_CONVERSION}      // Enable by default conversion based on ICC profiles for images that have an ICC profile.
+{$endif}
 
