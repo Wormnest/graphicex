@@ -15,6 +15,7 @@ especially in PSP and TIFF loading.
 I have also added support for loading Gimp XCF files, jpeg images,
 Maya IFF images, Amiga ilbm/pbm images, an ImageViewer example, 
 some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
+Recently I have started adding color management support using LCMS.
 For more details see the [graphicex](/graphicex/readme.md) folder.
 
 2. external

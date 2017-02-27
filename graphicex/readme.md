@@ -18,9 +18,10 @@ Supported image formats
     + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
     + uses libtiff version 4.0.4 or 3.9.7
 * **Photoshop images (.psd, .pdd)**
-    + 1, 8, 16 bits per sample
+    + 1, 8, 16, 32 bits per sample
     + indexed, RGB, CMYK, CIE L*a*b*
     + uncompressed and packed bits
+	+ color profiles can be read and used except for indexed
 * **Paintshop Pro images (.psp)**
     + 1, 4, 8 bits per sample
     + indexed, grayscale, RGB
@@ -36,6 +37,7 @@ Supported image formats
     + 1, 2, 4, 8, 16 bits per sample
     + indexed(A), grayscale(A), RGB(A)
 	+ LZ77 compressed
+	+ color profiles can be read and used except for interlaced images
 * **Gif images (.gif)**
     + 1, 4, 8 bits per sample
 	+ indexed
@@ -126,6 +128,7 @@ extra functionality added by myself.
 * LibTiff updated to version 4.0.4, libjpeg 6b, zlib 1.2.8. The C source code
 and necessary MQ patches have also been added to the repository.
 * Delphi 32 bits and Lazarus/Free Pascal 32 and 64 bits Windows compatible.
+* A start has been made with adding color profile support.
 
 Additions March/April 2015
 --------------------------
@@ -159,6 +162,12 @@ Additions December 2016 - January 2017
 * Make it run on Delphi Unicode versions.
 * Add Delphi Berlin packages (only 32 bits supported)
 
+Additions February 2017
+-----------------------
+* 32 bit PSD support.
+* Optional handling of included ICC color profiles for most PSD and PNG images.
+  However this does need the lcms2.dll.
+
 Todo
 ----
 * Make it work for Delphi Windows 64 bit target. (Should only need small changes
@@ -191,6 +200,8 @@ Downloads (32 bits only):
 
 * Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip)    
 * Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip)    
+
+* lcms2, version 2.8:[bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/lcms2%20version%202.8,%2032bits.zip)    
 
 The .a lib files needed for Fpc/Lazarus you will have to make yourself although
 libz and libcrtdll can be copied/used from your MingW installation.
