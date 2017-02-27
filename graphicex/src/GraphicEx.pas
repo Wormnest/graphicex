@@ -98,6 +98,9 @@ uses
   {$IFDEF FPC}
   FPImage, // Progress stage defines
   {$ENDIF}
+  {$IFDEF LCMS}
+  gexICC, // ICC profile manager
+  {$ENDIF}
   GraphicCompression, GraphicStrings, GraphicColor;
 
 type
@@ -233,6 +236,10 @@ type
   TGraphicExGraphic = class(TBitmap)
   private
     FColorManager: TColorManager;
+    {$IFDEF LCMS}
+    FICCManager: TICCProfileManager;
+    FICCTransformEnabled: Boolean;
+    {$ENDIF}
 
     // Advanced progress display support.
     FProgressStack: TStack;       // Used to manage nested progress sections.
@@ -276,6 +283,11 @@ type
 
     property ColorManager: TColorManager read FColorManager;
     property ImageProperties: TImageProperties read FImageProperties;
+    {$IFDEF LCMS}
+    property ICCManager: TICCProfileManager read FICCManager;
+    property ICCTransformEnabled: Boolean read FICCTransformEnabled write FICCTransformEnabled
+      default {$IFDEF LCMS_CONVERSION}true{$ELSE}false{$ENDIF};
+    {$ENDIF}
   end;
 
   TGraphicExGraphicClass = class of TGraphicExGraphic;
@@ -1198,6 +1210,13 @@ begin
   inherited;
   FColorManager := TColorManager.Create;
   Decoder := nil;
+  {$IFDEF LCMS}
+  {$IFDEF LCMS_CONVERSION}
+  FICCTransformEnabled := True;
+  {$ELSE}
+  FICCTransformEnabled := False;
+  {$ENDIF}
+  {$ENDIF}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1206,6 +1225,9 @@ destructor TGraphicExGraphic.Destroy;
 
 begin
   ClearProgressStack;
+  {$IFDEF LCMS}
+  FICCManager.Free;
+  {$ENDIF}
   FColorManager.Free;
   Decoder.Free;
 
