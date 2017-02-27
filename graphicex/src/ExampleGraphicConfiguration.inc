@@ -128,8 +128,7 @@
 //      Consider them deprecated and only use them if you really need them.
 ////////////////////////////////////////////////////////////////////////////////
 
-// Arts & Letters Draw images, supposedly version 4 and possibly newer.
-// I haven't been able to find any samples thus no way to test if it still works.
+// Arts & Letters Draw thumbnail preview images.
 // Consider it very deprecated.
 {.$define ArtsAndLettersGraphic}  // *.ged images
 
