@@ -870,6 +870,7 @@ type
     procedure LoadIDAT(var Source: PByte; const Description);
     procedure LoadText(var Source: PByte);
     procedure LoadTransparency(var Source: PByte; const Description);
+    procedure LoadICCProfile(var Source: PByte);
     procedure ReadDataAndCheckCRC(var Source: PByte);
     procedure ReadRow(var Source: PByte; RowBuffer: Pointer; BytesPerRow: Integer);
     function SetupColorDepth(ColorType, BitDepth: Integer): Integer;
@@ -9287,6 +9288,7 @@ const
   tRNS: TChunkType = 'tRNS';
   bKGD: TChunkType = 'bKGD';
   tEXt: TChunkType = 'tEXt';
+  iCCP: TChunkType = 'iCCP';
 
   CHUNKMASK = $20; // used to check bit 5 in chunk types
 
@@ -9566,6 +9568,14 @@ begin
             begin
               // first setup pixel format before actually creating a palette
               FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
+              {$IFDEF LCMS}
+              // if this PNG contains an ICC profile we will have to convert the palette entries:
+              if (FICCManager <> nil) and FICCTransformEnabled then begin
+                FICCManager.CreateTransformPalette(False, False); // Interlaced thus not Planar; No Alpha.
+                FICCManager.ExecuteTransform(FRawBuffer, FHeader.Length div 3);
+                FICCManager.DestroyTransform();
+              end;
+              {$ENDIF}
               FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
               // We need to copy palette from FRawBuffer because FRawBuffer
               // will be reused...
@@ -9579,9 +9589,12 @@ begin
           else if IsChunk(gAMA) then
           begin
             ReadDataAndCheckCRC(Run);
-            // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-            ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
-            ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+            // The PNG specs say that Gamma should only be handled if there is no ICC profile
+            {$IFDEF LCMS}if FICCManager = nil then begin{$ENDIF}
+              // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
+              ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
+              ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+            {$IFDEF LCMS}end;{$ENDIF}
             Include(Options, ioUseGamma);
             Continue;
           end
@@ -9594,6 +9607,10 @@ begin
           begin
             LoadTransparency(Run, Description);
             Continue;
+          end
+          else if IsChunk(iCCP) then
+          begin
+            // Gets read in ReadImageProperties. No need to read it twice!
           end;
 
           // Skip unknown or unsupported chunks (+4 because of always present CRC).
@@ -9720,12 +9737,16 @@ begin
                 Include(Options, ioUseGamma);
                 Continue;
               end
-              else
-                if IsChunk(tEXt) then
-                begin
-                  LoadText(Run);
-                  Continue;
-                end;
+              else if IsChunk(tEXt) then
+              begin
+                LoadText(Run);
+                Continue;
+              end
+              else if IsChunk(iCCP) then
+              begin
+                LoadICCProfile(Run);
+                Continue;
+              end;
 
               Inc(Run, FHeader.Length + 4);
               if IsChunk(IEND) then
@@ -9746,6 +9767,66 @@ begin
       else
         Result := False;
     end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
+const MAXBUF = 32768; // From the PNG spec it looks like this is the max size we can expect.
+var
+  ProfileName: PAnsiChar;
+  ProfileLength: Cardinal;
+  Compression: Byte;
+  CompressedBytes, DecompressedSize: Cardinal;
+  ICCDecoder: TLZ77Decoder;
+  LocalBuffer, DecompressBuf: PAnsiChar;
+begin
+  ProfileName := PAnsiChar(Source);
+  ProfileLength := Length(ProfileName)+1; // +1 to include the null byte
+  Inc(Source, ProfileLength); // Skip PAnsiChar
+  Compression := Source^; // TODO: Check that Compression = 0
+  Inc(Source); // Skip Compression type
+  CompressedBytes := FHeader.Length - ProfileLength - 1;
+  {$IFDEF LCMS}
+  // Since Decoding the ICC works a little different from decoding image data
+  // we use a separate decoder instead of reusing the already created one.
+  ICCDecoder := TLZ77Decoder.Create(Z_FINISH, False);
+  // Allocate memory for the decode buffer.
+  GetMem(LocalBuffer, MAXBUF);
+  // Since Decode moves the Buffer pointers we need an extra variable.
+  DecompressBuf := LocalBuffer;
+  try
+    // Initialize decoder and decode ICC
+    ICCDecoder.DecodeInit;
+    ICCDecoder.Decode(Pointer(Source), Pointer(DecompressBuf), CompressedBytes, MAXBUF);
+    // Check if decoding was ok.
+    // Note we currently don't check for correct end code because apparently some
+    // (very) old Photoshop produced PNG's may have an invalid end of compression (missing Adler32 checksum)
+    // which will cause return code -5 (Z_BUF_ERROR) instead of Z_STREAM_END.
+    // Therefor we only check if all input is handled and in that case assume everything is ok.
+    // Example see: https://pmt.sourceforge.io/iccp/
+    if //(ICCDecoder.ZLibResult <> Z_STREAM_END) or
+      (ICCDecoder.AvailableInput > 0) then
+      // TODO: Maybe change this to just adding a warning message
+      // since we can still show the image without having an ICC.
+      GraphicExError(gesDecompression, ['PNG']);
+    // Get the number of decompressed bytes.
+    DecompressedSize := MAXBUF - ICCDecoder.AvailableOutput;
+    // In case there were multiple iCCP chunks (which is not allowed) or
+    // in case the ICCManager is already created for other reasons we check for nil here.
+    if FICCManager = nil then
+      FICCManager := TICCProfileManager.Create;
+    // Load the memory ICC profile in our ICCManager.
+    FICCManager.LoadSourceProfileFromMemory(LocalBuffer, DecompressedSize);
+  finally
+    // Free the memory we used for decoder and buffer.
+    ICCDecoder.DecodeEnd;
+    ICCDecoder.Free;
+    FreeMem(LocalBuffer);
+  end;
+  {$ELSE}
+  Inc(Source, CompressedBytes);
+  {$ENDIF}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -9887,6 +9968,7 @@ begin
     // prepare interlaced images
     if TIHDRChunk(Description).Interlaced = 1 then
     begin
+      // TODO: Add ICC color profile handling
       for Pass := 0 to 6 do
       begin
         // prepare next interlace run
@@ -9922,6 +10004,20 @@ begin
     end
     else
     begin
+      {$IFDEF LCMS}
+      if FICCManager = nil then
+        // This will allow us to call Transform that directly returns (does nothing)
+        // that way we will not have to check for nil inside the loop.
+        FICCManager := TICCProfileManager.Create
+      else if FICCTransformEnabled then begin
+        if TargetBPP >= 3 then
+          FICCManager.CreateTransformTosRGB(TargetBPP >= 4)
+        else if (TargetBPP = 1) and (FImageProperties.ColorScheme = csG) then
+          // TODO: In case of Indexed we shouldn't do anything here but transform the palette!!!
+          FICCManager.CreateTransformTosRGB_Gray8();
+      end;
+      // else dummy Transform will be called.
+      {$ENDIF}
       for Row := 0 to Height - 1 do
       begin
         ReadRow(Source, RowBuffer[EvenRow], BytesPerRow);
@@ -9933,11 +10029,17 @@ begin
                     BytesPerRow - 1);
 
         ColorManager.ConvertRow([Pointer(RowBuffer[EvenRow] + 1)], ScanLine[Row], Width, $FF);
+        {$IFDEF LCMS}
+        FICCManager.ExecuteTransform(ScanLine[Row], Width);
+        {$ENDIF}
         EvenRow := not EvenRow;
 
         Progress(Self, psRunning, MulDiv(Row, 100, Height), True, FProgressRect, '');
         OffsetRect(FProgressRect, 0, 1);
       end;
+      {$IFDEF LCMS}
+      FICCManager.DestroyTransform();
+      {$ENDIF}
     end;
     {$IFDEF FPC}
     EndUpdate;
