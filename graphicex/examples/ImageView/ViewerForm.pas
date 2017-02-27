@@ -226,6 +226,8 @@ type
     ImgPsdMode: Word;
     ImgLayerCount: Cardinal;
     PsdMergedTransparencyPresent: Boolean;
+    ImgIccProfile: string;
+    PsdIccEnabled: Boolean;
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -1320,6 +1322,19 @@ begin
         sgImgProperties.Cells[1,InfoRow] := 'Not Present';
       IncInfoRow;
     end;
+    if (ImgIccProfile <> '') then begin
+      sgImgProperties.Cells[0,InfoRow] := 'ICC profile:';
+      sgImgProperties.Cells[1,InfoRow] := ImgIccProfile;
+      IncInfoRow;
+      if (ImgThumbData.ImageFormat = CgexPSD) then begin
+        sgImgProperties.Cells[0,InfoRow] := 'ICC Untagged:';
+        if PsdIccEnabled then
+          sgImgProperties.Cells[1,InfoRow] := 'No'
+        else
+          sgImgProperties.Cells[1,InfoRow] := 'Yes';
+        IncInfoRow;
+      end;
+    end;
   end;
   // Show the actual PixelFormat
   sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
@@ -1489,6 +1504,12 @@ begin
   // We expect AGraphic to be valid and just having read a page from the image or the whole image.
   // Therefore it's image properties should be valid and show the state of the current page.
   ImgProperties := AGraphic.ImageProperties;
+  {$IFDEF LCMS}
+  if Assigned(AGraphic.ICCManager) then
+    ImgIccProfile := AGraphic.ICCManager.SourceProfileDescription
+  else
+  {$ENDIF}
+    ImgIccProfile := ''; // This part outside the ifdef.
   if ImgThumbData <> nil then begin
     case ImgThumbData.ImageFormat of
       CgexTIFF: ImgTiffData := TTiffGraphic(AGraphic).ActualTiffData;
@@ -1499,6 +1520,7 @@ begin
           PsdMergedTransparencyPresent := TPSDGraphic(AGraphic).MergedTransparencyPresent;
           if TPSDGraphic(AGraphic).ImageProperties.BitsPerSample = 32 then
             ImgProperties.SampleFormat := SAMPLEFORMAT_IEEEFP;
+          PsdIccEnabled := not TPSDGraphic(AGraphic).ICCUntagged;
         end;
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
