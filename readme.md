@@ -30,9 +30,14 @@ Downloads (32 bits versions only):
 https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip    
 https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip    
 
+Also available is the 32 bits version of lcms2.dll to be used when color
+profiling using lcms is turned on.    
+https://bitbucket.org/jacobb/graphicex/downloads/lcms2%20version%202.8,%2032bits.zip    
+
+
 GraphicEx is now also working with Fpc/Lazarus Win32 and Win64. However, you
 will have to compile the libraries yourself for now.
 
 
-August 2013 - September 2015
+August 2013 - February 2017
 Jacob Boerema
