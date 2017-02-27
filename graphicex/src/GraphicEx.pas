@@ -792,6 +792,7 @@ type
     FMergedTransparencyPresent: Boolean; // If True: first alpha channel contains the transparency data for the merged result.
     FLayers: TPhotoshopLayers;
     FGridSettings: TPSDGridSettings;
+    FICCUntagged: Boolean; // True if ICC profile is intentionally untagged (disabled).
   protected
     procedure CombineChannels(Layer: TPhotoshopLayer);
     function ConvertCompression(Value: Word): TCompressionType;
@@ -817,6 +818,7 @@ type
     property Mode: Word read FMode;
     property LayerCount: Cardinal read FLayerCount;
     property MergedTransparencyPresent: Boolean read FMergedTransparencyPresent;
+    property ICCUntagged: Boolean read FICCUntagged;
   end;
   {$endif PhotoshopGraphic}
 
@@ -6576,6 +6578,7 @@ constructor TPSDGraphic.Create;
 begin
   inherited;
   FLayers := TPhotoshopLayers.Create(Self);
+  FICCUntagged := False;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -7328,6 +7331,15 @@ begin
       csG,
       csIndexed:
         begin
+          {$IFDEF LCMS}
+          if FICCManager = nil then
+            // This will allow us to call Transform that directly returns (does nothing)
+            // that way we will not have to check for nil inside the loop.
+            FICCManager := TICCProfileManager.Create
+          else if FICCTransformEnabled and (FImageProperties.ColorScheme = csG) then
+            FICCManager.CreateTransformTosRGB_Gray8();
+          // else for Indexed no transform should be done here, instead the palette entries should be transformed
+          {$ENDIF}
           // Very simple format here, we don't need the color conversion manager.
           if Assigned(Decoder) then
           begin
@@ -7349,6 +7361,9 @@ begin
                 {$IFDEF FPC}
                 ColorManager.ConvertRow([Buffer], ScanLine[Y], W, $FF);
                 {$ENDIF}
+                {$IFDEF LCMS}
+                FICCManager.ExecuteTransform(ScanLine[Y], W);
+                {$ENDIF}
                 AdvanceProgress(100 / H, 0, 1, True);
               end;
             {$IFDEF FPC}
@@ -7365,10 +7380,16 @@ begin
               {$ELSE}
               ColorManager.ConvertRow([Source], ScanLine[Y], W, $FF);
               {$ENDIF}
+              {$IFDEF LCMS}
+              FICCManager.ExecuteTransform(ScanLine[Y], W);
+              {$ENDIF}
               Inc(Source, W);
 
               AdvanceProgress(100 / H, 0, 1, True);
             end;
+          {$IFDEF LCMS}
+          FICCManager.DestroyTransform();
+          {$ENDIF}
         end;
       csGA,
       csIndexedA,
@@ -7416,15 +7437,30 @@ begin
               PtrArray[iChannel] := Run1;
               Inc(Run1, ChannelSize);
             end;
+            {$IFDEF LCMS}
+            if FICCManager = nil then
+              // This will allow us to call Transform that directly returns (does nothing)
+              // that way we will not have to check for nil inside the loop.
+              FICCManager := TICCProfileManager.Create
+            else if FICCTransformEnabled then
+              FICCManager.CreateTransformTosRGB(Channels > 3);
+            // else dummy Transform will be called.
+            {$ENDIF}
             for Y := 0 to H - 1 do
             begin
               ColorManager.ConvertRow(PtrArray, ScanLine[Y], W, $FF);
+              {$IFDEF LCMS}
+              FICCManager.ExecuteTransform(ScanLine[Y], W);
+              {$ENDIF}
               for iChannel := 0 to Channels-1 do begin
                 Inc(PAnsiChar(PtrArray[iChannel]), Increment);
               end;
 
               AdvanceProgress(100 / H, 0, 1, True);
             end;
+            {$IFDEF LCMS}
+            FICCManager.DestroyTransform();
+            {$ENDIF}
           finally
             if Assigned(Buffer) then
               FreeMem(Buffer);
@@ -7750,6 +7786,20 @@ begin
             end;
           end;
         end;
+      ICC_Profile:
+        begin
+          {$IFDEF LCMS}
+          if not Assigned(FICCManager) then
+            FICCManager := TICCProfileManager.Create;
+          FICCManager.LoadSourceProfileFromMemory(Run, Size);
+          {$ENDIF}
+          Inc(Run, Size);
+        end;
+      ICC_Untagged:
+        begin
+          FICCUntagged := Run^ = 1;
+          Inc(Run, Size);
+        end;
     else
       // Simply skip any unknown entries.
       Inc(Run, Size);
@@ -7922,6 +7972,9 @@ begin
           Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
         csIndexed:
           begin
+            {$IFDEF LCMS}
+            // TODO: Figure out how to handle interlaced palette color transform
+            {$ENDIF}
             Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
               PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count);
             ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
