@@ -28,7 +28,7 @@ const
   CRepository     = #13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
   CLibTiffDelphi  = 'LibTiffDelphi ';
   {$IFDEF LIBTIFF4}
-  CLibTiffVersion = '4.0.4';
+  CLibTiffVersion = '4.0.7';
   {$ELSE}
   CLibTiffVersion = '3.9.7';
   {$ENDIF}
