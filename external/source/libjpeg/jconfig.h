@@ -17,8 +17,8 @@
 #undef INCOMPLETE_TYPES_BROKEN
 #define NO_GETENV     /* disable use of environment variables (and scanf) */
 
-/* Define "boolean" as unsigned char, not int, per Windows custom */
-#if defined(WIN32) && !defined(__MINGW32__)
+/* Define "boolean" as unsigned char, not int, per Windows custom (but not for MINGW) */
+#if defined(__BORLANDC__)
 #ifndef __RPCNDR_H__		/* don't conflict if rpcndr.h already read */
 typedef unsigned char boolean;
 #endif
