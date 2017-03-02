@@ -9751,6 +9751,16 @@ begin
               begin
                 LoadICCProfile(Run);
                 Continue;
+              end
+              else if IsChunk(tRNS) then
+              begin
+                // Transparency chunk present.
+                // Checking presence of this chunk is the only way to detect Indexed with Alpha.
+                // It's a sort of alpha palette in that case so the Samples per Pixel does not change!
+                if TIHDRChunk(Description).ColorType = 3 then begin
+                  ColorScheme := csIndexedA;
+                end;
+                // Don't use continue since we did not read the contents of the chunk!
               end;
 
               Inc(Run, FHeader.Length + 4);
