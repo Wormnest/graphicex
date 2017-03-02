@@ -871,6 +871,8 @@ type
     procedure LoadText(var Source: PByte);
     procedure LoadTransparency(var Source: PByte; const Description);
     procedure LoadICCProfile(var Source: PByte);
+    procedure DecompressToBuffer(Source: PByte; CompressedSize: Cardinal;
+      out DecompressBuf: PByte; out DecompressedSize: Cardinal);
     procedure ReadDataAndCheckCRC(var Source: PByte);
     procedure ReadRow(var Source: PByte; RowBuffer: Pointer; BytesPerRow: Integer);
     function SetupColorDepth(ColorType, BitDepth: Integer): Integer;
@@ -9774,62 +9776,132 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
-const MAXBUF = 32768; // From the PNG spec it looks like this is the max size we can expect.
+procedure TPNGGraphic.DecompressToBuffer(Source: PByte; CompressedSize: Cardinal;
+  out DecompressBuf: PByte; out DecompressedSize: Cardinal);
+const MAXBUF = 65536; // Size of temporary buffer used for decompressing
 var
-  ProfileName: PAnsiChar;
-  ProfileLength: Cardinal;
-  Compression: Byte;
-  CompressedBytes, DecompressedSize: Cardinal;
   ICCDecoder: TLZ77Decoder;
-  LocalBuffer, DecompressBuf: PAnsiChar;
+  LocalBuffer, LocalDecompressBuf, ResultBuffer: PByte;
+  finished: Boolean;
+  RemainingSize: Cardinal;
+  ResultSize, ResultMaxSize, SizeIncrease: Cardinal;
+  ResultPos: PByte;
+
+  procedure AddResult(ABuffer: PByte; ASize: Cardinal);
+  begin
+    if ResultSize+ASize > ResultMaxSize then begin
+      // Increase with the size of the Compressed data since we don't want to realloc very often.
+      Inc(ResultMaxSize, SizeIncrease);
+      ReallocMem(ResultBuffer, ResultMaxSize);
+      // Update the current position.
+      ResultPos := ResultBuffer;
+      Inc(ResultPos, ResultSize);
+    end;
+    // Add the decompressed bytes.
+    Move(ABuffer^, ResultPos^, ASize);
+    Inc(ResultPos, ASize);
+    Inc(ResultSize, ASize);
+    // Update decompressed data size
+    Inc(DecompressedSize, ASize);
+  end;
 begin
-  ProfileName := PAnsiChar(Source);
-  ProfileLength := Length(ProfileName)+1; // +1 to include the null byte
-  Inc(Source, ProfileLength); // Skip PAnsiChar
-  Compression := Source^; // TODO: Check that Compression = 0
-  Inc(Source); // Skip Compression type
-  CompressedBytes := FHeader.Length - ProfileLength - 1;
-  {$IFDEF LCMS}
+  DecompressBuf := nil;
+  DecompressedSize := 0;
   // Since Decoding the ICC works a little different from decoding image data
   // we use a separate decoder instead of reusing the already created one.
-  ICCDecoder := TLZ77Decoder.Create(Z_FINISH, False);
+  ICCDecoder := TLZ77Decoder.Create(Z_PARTIAL_FLUSH, False);
   // Allocate memory for the decode buffer.
   GetMem(LocalBuffer, MAXBUF);
-  // Since Decode moves the Buffer pointers we need an extra variable.
-  DecompressBuf := LocalBuffer;
+  // Start with an output buffer size of twice the compressed size. Should be enough in most cases.
+  SizeIncrease := CompressedSize;
+  ResultMaxSize := 2 * SizeIncrease;
+  if ResultMaxSize < MAXBUF then
+    ResultMaxSize := MAXBUF;
+  GetMem(ResultBuffer, ResultMaxSize);
   try
+    finished := False;
+    RemainingSize := CompressedSize;
+    ResultSize := 0;
+    ResultPos := ResultBuffer;
     // Initialize decoder and decode ICC
     ICCDecoder.DecodeInit;
-    ICCDecoder.Decode(Pointer(Source), Pointer(DecompressBuf), CompressedBytes, MAXBUF);
+    repeat
+      // Since Decode moves the Buffer pointers we need an extra variable.
+      LocalDecompressBuf := LocalBuffer;
+      ICCDecoder.Decode(Pointer(Source), Pointer(LocalDecompressBuf), RemainingSize, MAXBUF);
+      AddResult(LocalBuffer, MAXBUF-ICCDecoder.AvailableOutput);
+      // Update remaining compressed size
+      RemainingSize := ICCDecoder.AvailableInput;
+      if ICCDecoder.ZLibResult = Z_STREAM_END then
+        break
+      else if ICCDecoder.ZLibResult <> Z_OK then
+        break;
+    until RemainingSize = 0;
+
     // Check if decoding was ok.
     // Note we currently don't check for correct end code because apparently some
     // (very) old Photoshop produced PNG's may have an invalid end of compression (missing Adler32 checksum)
     // which will cause return code -5 (Z_BUF_ERROR) instead of Z_STREAM_END.
     // Therefor we only check if all input is handled and in that case assume everything is ok.
     // Example see: https://pmt.sourceforge.io/iccp/
-    if //(ICCDecoder.ZLibResult <> Z_STREAM_END) or
-      (ICCDecoder.AvailableInput > 0) then
+    if RemainingSize > 0 then begin
       // TODO: Maybe change this to just adding a warning message
       // since we can still show the image without having an ICC.
-      GraphicExError(gesDecompression, ['PNG']);
-    // Get the number of decompressed bytes.
-    DecompressedSize := MAXBUF - ICCDecoder.AvailableOutput;
-    // In case there were multiple iCCP chunks (which is not allowed) or
-    // in case the ICCManager is already created for other reasons we check for nil here.
-    if FICCManager = nil then
-      FICCManager := TICCProfileManager.Create;
-    // Load the memory ICC profile in our ICCManager.
-    FICCManager.LoadSourceProfileFromMemory(LocalBuffer, DecompressedSize);
+      //GraphicExError(gesDecompression, ['PNG']);
+      DecompressedSize := 0;
+    end
+    else begin
+      DecompressBuf := ResultBuffer;
+      finished := True;
+    end;
   finally
+    FreeMem(LocalBuffer);
+    if not finished then begin
+      // Error decompressing. Free the result
+      FreeMem(ResultBuffer);
+    end;
     // Free the memory we used for decoder and buffer.
     ICCDecoder.DecodeEnd;
     ICCDecoder.Free;
-    FreeMem(LocalBuffer);
+  end;
+end;
+
+procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
+var
+  ProfileName: PAnsiChar;
+  ProfileLength: Cardinal;
+  Compression: Byte;
+  CompressedBytes, DecompressedSize: Cardinal;
+  LocalBuffer: PByte;
+begin
+  ProfileName := PAnsiChar(Source);
+  ProfileLength := Length(ProfileName)+1; // +1 to include the null byte
+  Inc(Source, ProfileLength); // Skip ProfileName including terminating 0
+  Compression := Source^;
+  // TODO: Only valid Compression type is 0. But we should only warn here not stop.
+  //if Compression <> 0 then
+  //  GraphicExError(gesDecompression, ['PNG']);
+  Inc(Source); // Skip Compression type
+  CompressedBytes := FHeader.Length - ProfileLength - 1;
+  {$IFDEF LCMS}
+  try
+    DecompressToBuffer(Source, CompressedBytes, LocalBuffer, DecompressedSize);
+    // Check if anything got decompressed.
+    // Since ICC is not essential we will continue even in case of error decompressing ICC.
+    if (DecompressedSize > 0) and (LocalBuffer <> nil) then begin
+      if FICCManager = nil then
+        FICCManager := TICCProfileManager.Create;
+      // Load the memory ICC profile in our ICCManager.
+      FICCManager.LoadSourceProfileFromMemory(LocalBuffer, DecompressedSize);
+    end;
+  finally
+    // We are responsible for freeing the buffer
+    if LocalBuffer <> nil then
+      FreeMem(LocalBuffer);
   end;
   {$ELSE}
-  Inc(Source, CompressedBytes);
   {$ENDIF}
+  Inc(Source, CompressedBytes);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
