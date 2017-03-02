@@ -9711,7 +9711,10 @@ begin
               3:
                 ColorScheme := csIndexed;
               4:
-                ColorScheme := csGA;
+                begin
+                  ColorScheme := csGA;
+                  SamplesPerPixel := 2;
+                end;
               6:
                 begin
                   ColorScheme := csRGBA;
