@@ -16,7 +16,7 @@ unit LibTiffDelphi;
 {$ENDIF}
 
 {$ALIGN 8}
-{$MINENUMSIZE 1}
+{$MINENUMSIZE 4} // = $Z4
 
 interface
 
