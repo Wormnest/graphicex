@@ -25,7 +25,7 @@ uses
 
 const
   CPrecompiled    = #13#10'Pre-compiled LibTiff for ';
-  CRepository     = #13#10'https://bitbucket.org/jacobb/jgb-thirdparty'#13#10;
+  CRepository     = #13#10'https://bitbucket.org/jacobb/graphicex'#13#10;
   CLibTiffDelphi  = 'LibTiffDelphi ';
   {$IFDEF LIBTIFF4}
   CLibTiffVersion = '4.0.7';
