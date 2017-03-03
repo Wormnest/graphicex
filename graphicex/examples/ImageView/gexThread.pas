@@ -59,6 +59,7 @@ type
     Modified: TDateTime;
     IWidth, IHeight: Integer;
     GotThumb: Boolean;
+    Broken: Boolean;                // An image that has problems. Don't try to get a thumb for this one.
     Image: TObject;
     ImageFormat: TImageFileFormat;  // The image file format
     ImageData: Pointer;             // Descendant classes can use this to store extra info
@@ -855,6 +856,7 @@ begin
         FThumbJpeg.LoadFromFile(FName);
       except
         ExceptionMessage := 'Error loading jpeg: ' + FName;
+        Thumb.Broken := True;
         fail := True;
         // Because of the exception when loading a jpeg the FThumbJpeg state might
         // be incorrect for further usage. (Experienced in the Fpc Jpeg loader.)
@@ -878,6 +880,7 @@ begin
           // thus we use a var which in this case we know will only be
           // used either here, or in thread excute after this method has
           // finished, so should be safe
+          Thumb.Broken := True;
           FExceptionMessage := 'Error loading bitmap: ' + FName;
           fail := True;
         end;
@@ -899,6 +902,7 @@ begin
           FExceptionMessage := 'Error loading image: ' + FName + #13#10 + e.Message;
         else // unknown exception class
           FExceptionMessage := 'Error loading image: ' + FName;
+        Thumb.Broken := True;
         fail := True;
       end;
     end;
@@ -1023,6 +1027,7 @@ begin
           Entry.ThumbWidth := 0;
           Entry.ThumbHeight := 0;
           Entry.GotThumb := False;
+          Entry.Broken := False;
           Entry.Image := nil;
           Entry.ImageFormat := CgexUnknown;
           Entry.ImageData := nil;
@@ -1431,17 +1436,20 @@ var
   Old: Integer;
   Update: Boolean;
   InView: Integer;
+  GettingThumb: Boolean;
 begin
   inherited;
   if (XPView.Items.Count = 0) then
     Exit;
   Cnt := 0;
   Old := XPView.ViewIdx;
-  try
-    repeat
+  GettingThumb := False;
+  repeat
+    try
       FIThumbnail.ExceptionMessage := '';
       while (Cnt < XPView.Items.Count) and (Terminated = False) do
       begin
+        GettingThumb := False;
         if XPView.ViewIdx <> Old then
         begin
           Cnt := XPView.ViewIdx - 1;
@@ -1451,10 +1459,12 @@ begin
         end;
         PThumb := PgexThumbData(XPList.Items[Cnt]);
         Update := PThumb.GotThumb;
-        if (not Update) and (not Terminated) then
+        if (not PThumb.Broken) and (not Update) and (not Terminated) then
         begin
           PostMessage(FParentForm.Handle, CM_UpdateProgress, Cnt, XPView.Items.Count);
+          GettingThumb := True;
           FIThumbnail.ThumbsGetThumbnail(XPView, PThumb);
+          GettingThumb := False;
           if FIThumbnail.ExceptionMessage <> '' then
           begin
             if not FIThumbNail.SilentThumbLoadingException then
@@ -1469,21 +1479,28 @@ begin
       end;
       Cnt := 0;
       for i := 0 to XPView.Items.Count - 1 do
-        if PgexThumbData(XPList.Items[i]).GotThumb = False then
+        // Count images that don't have a thumbnail yet but exclude broken images.
+        if (PgexThumbData(XPList.Items[i]).GotThumb = False) and
+          (PgexThumbData(XPList.Items[i]).Broken = False) then
           inc(Cnt);
-    until (Cnt = 0) or (Terminated);
-  except
-    on E:exception do
-    begin
-      if not FIThumbnail.IgnoreException and not FIThumbNail.SilentThreadException then begin
-        FThreadExceptionMsg := E.Message;
-        Synchronize (ShowThreadException);
-      end
-      else
-        // Reset Exception status
-        FIThumbnail.IgnoreException := False;
+    except
+      on E:exception do
+      begin
+        if not FIThumbnail.IgnoreException and not FIThumbNail.SilentThreadException then begin
+          FThreadExceptionMsg := E.Message;
+          Synchronize (ShowThreadException);
+        end
+        else
+          // Reset Exception status
+          FIThumbnail.IgnoreException := False;
+        if GettingThumb then begin
+          PThumb.Broken := True;
+          Inc(Cnt); // Skip the image that may be causing problems.
+          GettingThumb := False;
+        end;
+      end;
     end;
-  end;
+  until (Cnt = 0) or (Terminated);
   if not Terminated then begin
     PostMessage(FParentForm.Handle, CM_UpdateView, 0, 0);
     PostMessage(FParentForm.Handle, CM_UpdateProgress, XPView.Items.Count, XPView.Items.Count);
