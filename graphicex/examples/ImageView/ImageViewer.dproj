@@ -56,7 +56,7 @@
         <DCC_S>false</DCC_S>
         <DCC_DebugInformation>1</DCC_DebugInformation>
         <DCC_E>false</DCC_E>
-        <DCC_Define>LIBTIFF4;LCMS;$(DCC_Define)</DCC_Define>
+        <DCC_Define>LCMS;$(DCC_Define)</DCC_Define>
         <DCC_UnitSearchPath>..;..\..\..\external;..\..\..\external\obj;..\..\..\external\obj\libtiff4;..\..\..\include;..\..\..\graphicex\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">

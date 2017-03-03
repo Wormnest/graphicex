@@ -42,7 +42,6 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_UnitSearchPath>..\include;..\external\obj;..\external\obj\libtiff4;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_Define>LIBTIFF4;$(DCC_Define)</DCC_Define>
         <GenPackage>true</GenPackage>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <SanitizedProjectName>ExternalLibs</SanitizedProjectName>
