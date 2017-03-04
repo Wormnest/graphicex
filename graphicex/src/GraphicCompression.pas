@@ -1375,6 +1375,8 @@ begin
   TargetPtr := Dest;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then
+    Exit;
   while True do
   begin
     Pixel := PByte(Source)^;
