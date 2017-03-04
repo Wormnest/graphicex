@@ -14,8 +14,8 @@ especially in PSP and TIFF loading.
 
 I have also added support for loading Gimp XCF files, jpeg images,
 Maya IFF images, Amiga ilbm/pbm images, an ImageViewer example, 
-some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.
-Recently I have started adding color management support using LCMS.
+some unit tests, and Fpc/Lazarus Win32/Win64 compatibility.    
+Recently I have started adding color management support using LCMS.    
 For more details see the [graphicex](/graphicex/readme.md) folder.
 
 2. external
@@ -37,6 +37,24 @@ https://bitbucket.org/jacobb/graphicex/downloads/lcms2%20version%202.8,%2032bits
 GraphicEx is now also working with Fpc/Lazarus Win32 and Win64. However, you
 will have to compile the libraries yourself for now.
 
+3.include
+---------
+Contains compilers.inc used both in graphicex and external.
 
-August 2013 - February 2017
+4. packages
+-----------
+Contains Delphi Berlin and Lazarus packages including packages used for the
+ImageViewer example.
+
+5. tests
+--------
+Contains project that has partial tests for the GraphicEx library.
+There are also tests that can read whole folders of images but
+you will need to adapt some paths to make it work on your system.    
+In the dev folder is a project to make default test expectations
+for all images under a root path.    
+Publishing some of the test images is still on my todo list.
+
+
+August 2013 - March 2017
 Jacob Boerema
