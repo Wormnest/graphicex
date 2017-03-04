@@ -5239,6 +5239,11 @@ begin
       {$ENDIF}
       Self.Width := Width;
       Self.Height := Height;
+      // TODO: We should first decode the image data and depending on the
+      // amount of palette indexes used determine the palette size and what
+      // to use for what indexes. e.g. I have examples using probably only 2
+      // colors black/white that now get 2 very similar blacks instead of
+      // 1 index black and 1 white.
       LogPalette := LoadPalette;
 
       {$IFDEF FPC}
