@@ -273,10 +273,10 @@ end;
 
 
 initialization
-  RegisterTests('Test graphicex.Test Class FileFormatList.Basic Tests',
+  RegisterTests('Test GraphicEx.Test Class FileFormatList.Basic Tests',
     [TTestFileFormatList{$IFNDEF FPC}.Suite{$ENDIF}]);
-  RegisterTests('Test graphicex.Test Class FileFormatList.RegisterFileFormat',
+  RegisterTests('Test GraphicEx.Test Class FileFormatList.RegisterFileFormat',
     [TRegisterFileFormatTests{$IFNDEF FPC}.Suite{$ENDIF}]);
-  RegisterTests('Test graphicex.Test Class FileFormatList.RegisterFileFormat.Exceptions',
+  RegisterTests('Test GraphicEx.Test Class FileFormatList.RegisterFileFormat.Exceptions',
     [TRegisterFileFormatExceptionTests{$IFNDEF FPC}.Suite{$ENDIF}]);
 end.
