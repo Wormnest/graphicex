@@ -34,11 +34,7 @@ const
   CException      = 'Exception';
   CMessage        = 'Message';
   CVersion        = 'Version';
-  {$IFDEF LIBTIFF4}
   CVersionDefault = '4';
-  {$ELSE}
-  CVersionDefault = '3';
-  {$ENDIF}
 
   TesterAll       = 'All';
   {$IFDEF FPC}
