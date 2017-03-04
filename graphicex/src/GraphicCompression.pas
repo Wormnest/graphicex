@@ -1371,33 +1371,50 @@ var
   TargetPtr: PByte;
   Pixel: Byte;
   RunLength: Cardinal;
-
 begin
   TargetPtr := Dest;
-  // Skip first two bytes per row. This contains a Word value of the number of
-  // encoded bytes in this scan line.
-  Inc(PByte(Source), 2);
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
   while True do
   begin
     Pixel := PByte(Source)^;
     Inc(PByte(Source));
+    Dec(FCompressedBytesAvailable);
     if Pixel = 0 then
+      Break;
+    // Secure against buffer overrun
+    if FCompressedBytesAvailable <= 0 then
       Break;
 
     RunLength := Pixel and $7F;
     if (Pixel and $80) = 0 then
     begin
+      // Secure against buffer overruns
+      if RunLength > FCompressedBytesAvailable then
+        Break;
+      if FDecompressedBytes + RunLength > UnpackedSize then
+        Break;
+      // Copy RunLength bytes
       Move(Source^, TargetPtr^, RunLength);
       Inc(TargetPtr, RunLength);
       Inc(PByte(Source), RunLength);
+      Dec(FCompressedBytesAvailable, RunLength);
     end
     else
     begin
+      // Secure against buffer overruns
+      if FCompressedBytesAvailable <= 0 then
+        Break;
+      if FDecompressedBytes + RunLength > UnpackedSize then
+        Break;
+      // Copy 1 byte RunLength times
       Pixel := PByte(Source)^;
       Inc(PByte(Source));
       FillChar(TargetPtr^, RunLength, Pixel);
       Inc(TargetPtr, RunLength);
+      Dec(FCompressedBytesAvailable);
     end;
+    Inc(FDecompressedBytes, RunLength);
   end;
 end;
 
