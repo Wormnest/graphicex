@@ -16,7 +16,7 @@ Supported image formats
     + 1..64 bits per sample, including 16, 24, 32 and 64 bits floating point
     + indexed(A), grayscale(A), RGB(A), CMYK(A), L*a*b*(A), ...
     + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
-    + uses libtiff version 4.0.4 or 3.9.7
+    + uses libtiff version 4.0.7
 * **Photoshop images (.psd, .pdd)**
     + 1, 8, 16, 32 bits per sample
     + indexed, RGB, CMYK, CIE L*a*b*
@@ -193,13 +193,12 @@ Folder structure
 \packages = Contains the Lazarus packages.
 
 Note that the .obj files needed for Delphi are not available in the hg repository itself.
-Currently there are two versions. The first includes zlib, libjpeg and libtiff 3.9.7;
-and the second includes zlib, libjpeg and libtiff 4.0.4.    
+Only the 32 bits object files are available here as a separate download. The zip file includes
+zlib 1.2.8, libjpeg 6b and libtiff 4.0.7.    
 
 Downloads (32 bits only):    
 
-* Version one: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_397.zip)    
-* Version two: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_404.zip)    
+* Object files: [bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/obj\_libtiff\_407.zip)    
 
 * lcms2, version 2.8:[bitbucket](https://bitbucket.org/jacobb/graphicex/downloads/lcms2%20version%202.8,%2032bits.zip)    
 
