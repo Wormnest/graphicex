@@ -5213,6 +5213,7 @@ var
   LineBuf: PByte;
   {$ENDIF}
   LogPalette: TMaxLogPalette;
+  CompressedSize: Word;
 
 begin
   inherited;
@@ -5259,7 +5260,14 @@ begin
           {$ELSE}
           Line := LineBuf;
           {$ENDIF}
-          Decoder.Decode(Pointer(Source), Line, 0, Width);
+          // Length in bytes of compressed data.
+          CompressedSize := PWord(Source)^;
+          Inc(Source, 2);
+          // Decode one line.
+          Decoder.Decode(Pointer(Source), Line, CompressedSize, Width);
+          // Check that the correct amount of data got decompressed.
+          if (Decoder.CompressedBytesAvailable <> 0) or (Decoder.DecompressedBytes <> Width) then
+            GraphicExError(gesDecompression, ['CUT']);
 
           {$IFDEF FPC}
           ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
