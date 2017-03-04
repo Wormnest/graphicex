@@ -74,6 +74,9 @@ uses
 type
   // abstract decoder class to define the base functionality of an encoder/decoder
   TDecoder = class
+  private
+    FCompressedBytesAvailable,
+    FDecompressedBytes: Integer;
   public
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); virtual; abstract;
     procedure DecodeEnd; virtual;
@@ -81,6 +84,13 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); virtual; abstract;
     procedure EncodeInit; virtual;
     procedure EncodeEnd; virtual;
+
+    // Properties that can be used by descendant classes.
+    // TODO: Implement for more classes.
+    // Number of compressed bytes not yet decompressed.
+    property CompressedBytesAvailable: Integer read FCompressedBytesAvailable;
+    // Number of bytes that have been decompressed.
+    property DecompressedBytes: Integer read FDecompressedBytes;
   end;
 
   // generally, there should be no need to cover the decoder classes by conditional symbols
