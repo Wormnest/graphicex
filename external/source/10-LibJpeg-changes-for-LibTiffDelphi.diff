@@ -1,11 +1,11 @@
 # HG changeset patch
-# Parent 45c79bcee196ed153660a26f3998844c244ba522
+# Parent 4fe30fa0ff948e0570688aec2b588380381d0b08
 LibJpeg: Replace Exit in error_exit with a function call that should raise an
 exception.
 
-diff -r 45c79bcee196 external/source/libjpeg/jerror.c
---- a/external/source/libjpeg/jerror.c	Fri Nov 15 15:03:21 2013 +0100
-+++ b/external/source/libjpeg/jerror.c	Fri Nov 15 15:13:42 2013 +0100
+diff -r 4fe30fa0ff94 external/source/libjpeg/jerror.c
+--- a/external/source/libjpeg/jerror.c	Sat Mar 04 19:38:38 2017 +0100
++++ b/external/source/libjpeg/jerror.c	Sat Mar 04 19:38:52 2017 +0100
 @@ -66,6 +66,12 @@
   * or jpeg_destroy) at some point.
   */

@@ -1,10 +1,10 @@
 # HG changeset patch
-# Parent 7519bb56833e1d559a3124afea123049c979e7cc
-LibTiff: Replace jmps with external calls to be able to use it in LibTiffDelphi.
+# Parent  73ccd71b8b619bbf3abdb2e2c258bdffc5075016
+LibTiff: Encapsulate setjmp calls in tif_jpeg.c to make it usable from Delphi.
 
-diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
---- a/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:35:48 2013 +0100
-+++ b/external/source/libtiff/tif_jpeg.c	Tue Nov 05 17:57:43 2013 +0100
+diff -r 73ccd71b8b61 -r 693178723e55 external/source/libtiff4/tif_jpeg.c
+--- a/external/source/libtiff4/tif_jpeg.c	Tue Feb 28 19:47:35 2017 +0100
++++ b/external/source/libtiff4/tif_jpeg.c	Tue Feb 28 20:50:12 2017 +0100
 @@ -42,7 +42,14 @@
   *
   * Contributed by Tom Lane <tgl@sss.pgh.pa.us>.
@@ -18,10 +18,10 @@ diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
  #include <setjmp.h>
 +#endif
  
- int TIFFFillStrip(TIFF*, tstrip_t);
- int TIFFFillTile(TIFF*, ttile_t);
-@@ -132,7 +139,9 @@
-         int             cinfo_initialized;
+ int TIFFFillStrip(TIFF* tif, uint32 strip);
+ int TIFFFillTile(TIFF* tif, uint32 tile);
+@@ -144,7 +151,9 @@
+ 	int             cinfo_initialized;
  
  	jpeg_error_mgr	err;		/* libjpeg error manager */
 +#ifndef LIBJPEG_ENCAP_EXTERNAL
@@ -30,7 +30,7 @@ diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
  	/*
  	 * The following two members could be a union, but
  	 * they're small enough that it's not worth the effort.
-@@ -214,6 +223,29 @@
+@@ -204,6 +213,29 @@
   * messages through the appropriate libtiff handlers.
   */
  
@@ -60,7 +60,7 @@ diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
  /*
   * Error handling routines (these replace corresponding
   * IJG routines from jerror.c).  These are used for both
-@@ -228,7 +260,11 @@
+@@ -218,7 +250,11 @@
  	(*cinfo->err->format_message) (cinfo, buffer);
  	TIFFErrorExt(sp->tif->tif_clientdata, "JPEGLib", "%s", buffer);		/* display the error message */
  	jpeg_abort(cinfo);			/* clean up libjpeg state */
@@ -72,9 +72,9 @@ diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
  }
  
  /*
-@@ -262,7 +298,11 @@
- 	sp->err.error_exit = TIFFjpeg_error_exit;
- 	sp->err.output_message = TIFFjpeg_output_message;
+@@ -255,7 +291,11 @@
+ 	/* set client_data to avoid UMR warning from tools like Purify */
+ 	sp->cinfo.c.client_data = NULL;
  
 +#ifndef LIBJPEG_ENCAP_EXTERNAL
  	return CALLVJPEG(sp, jpeg_create_compress(&sp->cinfo.c));
@@ -84,9 +84,9 @@ diff -r 7519bb56833e external/source/libtiff/tif_jpeg.c
  }
  
  static int
-@@ -273,118 +313,204 @@
- 	sp->err.error_exit = TIFFjpeg_error_exit;
- 	sp->err.output_message = TIFFjpeg_output_message;
+@@ -269,118 +309,204 @@
+ 	/* set client_data to avoid UMR warning from tools like Purify */
+ 	sp->cinfo.d.client_data = NULL;
  
 +#ifndef LIBJPEG_ENCAP_EXTERNAL
  	return CALLVJPEG(sp, jpeg_create_decompress(&sp->cinfo.d));
