@@ -5617,140 +5617,179 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    Transparent := False;
+
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+
+    FSource := Memory;
+    Move(FSource^, Header, SizeOf(Header));
+    Inc(FSource, SizeOf(Header));
+
+    PixelFormat := pf8Bit;
+    {$IFDEF FPC}
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+    // Source bits per sampel should always be 8 since apparently always a
+    // whole byte is used even if bps is less than 8 (and 8 is the maximum).
+    ColorManager.SourceBitsPerSample := 8;
+    ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    // fpc doesn't support indexed pf8Bit so we will have to convert
+    // it to 24bits BGR
+    ColorManager.TargetColorScheme := csBGR;
+    ColorManager.TargetBitsPerSample := 8;
+    ColorManager.TargetSamplesPerPixel := 3;
+    PixelFormat := ColorManager.TargetPixelFormat;
+    {$ENDIF}
+
+    // Read general information.
+    Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
+    Inc(FSource, SizeOf(ScreenDescriptor));
+
+    ZeroMemory(@LogPalette, SizeOf(LogPalette));
+    LogPalette.palVersion := $300;
+    // Read global color table if given.
+    if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
     begin
-      Transparent := False;
-
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
-
-      FSource := Memory;
-      Move(FSource^, Header, SizeOf(Header));
-      Inc(FSource, SizeOf(Header));
-
-      PixelFormat := pf8Bit;
+      // The global color table immediately follows the screen descriptor.
       {$IFDEF FPC}
-      ColorManager.SourceColorScheme := ColorScheme;
-      // Source bits per sampel should always be 8 since apparently always a
-      // whole byte is used even if bps is less than 8 (and 8 is the maximum).
-      ColorManager.SourceBitsPerSample := 8;
-      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
-      // fpc doesn't support indexed pf8Bit so we will have to convert
-      // it to 24bits BGR
-      ColorManager.TargetColorScheme := csBGR;
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.TargetSamplesPerPixel := 3;
-      PixelFormat := ColorManager.TargetPixelFormat;
+      ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
       {$ENDIF}
-
-      // Read general information.
-      Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
-      Inc(FSource, SizeOf(ScreenDescriptor));
-
-      ZeroMemory(@LogPalette, SizeOf(LogPalette));
-      LogPalette.palVersion := $300;
-      // Read global color table if given.
-      if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
+      LogPalette.palNumEntries := 2 shl (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE);
+      for I := 0 to LogPalette.palNumEntries - 1 do
       begin
-        // The global color table immediately follows the screen descriptor.
+        LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
+        LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
+        LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
+      end;
+      // Finally create the palette.
+      Palette := CreatePalette(PLogPalette(@LogPalette)^);
+    end;
+
+    BlockID := SkipExtensions;
+
+    // SkipExtensions might have set the transparent property.
+    if Transparent then
+      // If transparent color index is valid then get transparent color.
+      if FTransparentIndex < LogPalette.palNumEntries then
+        with LogPalette.palPalEntry[FTransparentIndex] do
+          TransparentColor := RGB(peRed, peGreen, peBlue);
+
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+    // image found?
+    if BlockID = GIF_IMAGEDESCRIPTOR then
+    begin
+      Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
+      Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
+      Inc(FSource, SizeOf(TImageDescriptor));
+      Self.Width := FImageProperties.Width;
+      Self.Height := FImageProperties.Height;
+
+      // if there is a local color table then override the already set one
+      if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
+      begin
+        // the global color table immediately follows the image descriptor
         {$IFDEF FPC}
         ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
         {$ENDIF}
-        LogPalette.palNumEntries := 2 shl (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE);
+        LogPalette.palNumEntries := 2 shl (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE);
         for I := 0 to LogPalette.palNumEntries - 1 do
         begin
           LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
           LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
           LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
         end;
-        // Finally create the palette.
         Palette := CreatePalette(PLogPalette(@LogPalette)^);
       end;
 
-      BlockID := SkipExtensions;
-
-      // SkipExtensions might have set the transparent property.
-      if Transparent then
-        // If transparent color index is valid then get transparent color.
-        if FTransparentIndex < LogPalette.palNumEntries then
-          with LogPalette.palPalEntry[FTransparentIndex] do
-          TransparentColor := RGB(peRed, peGreen, peBlue);
-
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
-
-      // image found?
-      if BlockID = GIF_IMAGEDESCRIPTOR then
-      begin
-        Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
-        Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
-        Inc(FSource, SizeOf(TImageDescriptor));
-        Self.Width := Width;
-        Self.Height := Height;
-
-        // if there is a local color table then override the already set one
-        if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
-        begin
-          // the global color table immediately follows the image descriptor
-          {$IFDEF FPC}
-          ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
-          {$ENDIF}
-          LogPalette.palNumEntries := 2 shl (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE);
-          for I := 0 to LogPalette.palNumEntries - 1 do
-          begin
-            LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
-            LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
-            LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
-          end;
-          Palette := CreatePalette(PLogPalette(@LogPalette)^);
-        end;
-
-        InitCodeSize := FSource^;
+      InitCodeSize := FSource^;
+      Inc(FSource);
+      // decompress data in one step
+      // 1) count data
+      Marker := FSource;
+      Pass := 0;
+      repeat
+        Increment := FSource^;
         Inc(FSource);
-        // decompress data in one step
-        // 1) count data
-        Marker := FSource;
-        Pass := 0;
+        Inc(Pass, Increment);
+        Inc(FSource, Increment);
+      until Increment = 0;
+
+      // 2) allocate enough memory
+      GetMem(RawData, Pass);
+      // add one extra line of extra memory for badly coded images
+      GetMem(TargetBuffer, Width * (Height + 1));
+
+      try
+        // 3) read and decode data
+        FSource := Marker;
+        Run := RawData;
         repeat
           Increment := FSource^;
           Inc(FSource);
-          Inc(Pass, Increment);
+          Move(FSource^, Run^, Increment);
+          Inc(Run, Increment);
           Inc(FSource, Increment);
         until Increment = 0;
 
-        // 2) allocate enough memory
-        GetMem(RawData, Pass);
-        // add one extra line of extra memory for badly coded images
-        GetMem(TargetBuffer, Width * (Height + 1));
-
+        Decoder := TGIFLZWDecoder.Create(InitCodeSize);
         try
-          // 3) read and decode data
-          FSource := Marker;
           Run := RawData;
-          repeat
-            Increment := FSource^;
-            Inc(FSource);
-            Move(FSource^, Run^, Increment);
-            Inc(Run, Increment);
-            Inc(FSource, Increment);
-          until Increment = 0;
+          Decoder.Decode(Pointer(Run), TargetBuffer, Pass, Width * Height);
+        finally
+          FreeAndNil(Decoder);
+        end;
+        Progress(Self, psEnding, 0, False, FProgressRect, '');
 
-          Decoder := TGIFLZWDecoder.Create(InitCodeSize);
-          try
-            Run := RawData;
-            Decoder.Decode(Pointer(Run), TargetBuffer, Pass, Width * Height);
-          finally
-            FreeAndNil(Decoder);
-          end;
-          Progress(Self, psEnding, 0, False, FProgressRect, '');
-
-          // finally transfer image data
-          Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
-          if (ImageDescriptor.PackedFields and GIF_INTERLACED) = 0 then
+        // finally transfer image data
+        Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+        if (ImageDescriptor.PackedFields and GIF_INTERLACED) = 0 then
+        begin
+          TargetRun := TargetBuffer;
+          for I := 0 to Height - 1 do
           begin
-            TargetRun := TargetBuffer;
-            for I := 0 to Height - 1 do
+            Line := Scanline[I];
+            {$IFNDEF FPC}
+            Move(TargetRun^, Line^, Width);
+            {$ELSE}
+            ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+            {$ENDIF}
+            Inc(PByte(TargetRun), Width);
+
+            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+            OffsetRect(FProgressRect, 0, 1);
+          end;
+        end
+        else
+        begin
+          TargetRun := TargetBuffer;
+          // interlaced image, need to move in four passes
+          for Pass := 0 to 3 do
+          begin
+            // determine start line and increment of the pass
+            case Pass of
+              0:
+                begin
+                  I := 0;
+                  Increment := 8;
+                end;
+              1:
+                begin
+                  I := 4;
+                  Increment := 8;
+                end;
+              2:
+                begin
+                  I := 2;
+                  Increment := 4;
+                end;
+            else
+              I := 1;
+              Increment := 2;
+            end;
+
+            while I < Height do
             begin
               Line := Scanline[I];
               {$IFNDEF FPC}
@@ -5759,66 +5798,23 @@ begin
               ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
               {$ENDIF}
               Inc(PByte(TargetRun), Width);
+              Inc(I, Increment);
 
-              Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-          end
-          else
-          begin
-            TargetRun := TargetBuffer;
-            // interlaced image, need to move in four passes
-            for Pass := 0 to 3 do
-            begin
-              // determine start line and increment of the pass
-              case Pass of
-                0:
-                  begin
-                    I := 0;
-                    Increment := 8;
-                  end;
-                1:
-                  begin
-                    I := 4;
-                    Increment := 8;
-                  end;
-                2:
-                  begin
-                    I := 2;
-                    Increment := 4;
-                  end;
-              else
-                I := 1;
-                Increment := 2;
-              end;
-
-              while I < Height do
+              if Pass = 3 then
               begin
-                Line := Scanline[I];
-                {$IFNDEF FPC}
-                Move(TargetRun^, Line^, Width);
-                {$ELSE}
-                ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
-                {$ENDIF}
-                Inc(PByte(TargetRun), Width);
-                Inc(I, Increment);
-
-                if Pass = 3 then
-                begin
-                  // progress events only for last (and most expensive) run
-                  Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-                  OffsetRect(FProgressRect, 0, 1);
-                end;
+                // progress events only for last (and most expensive) run
+                Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
               end;
             end;
           end;
-          Progress(Self, psEnding, 0, False, FProgressRect, '');
-        finally
-          if Assigned(TargetBuffer) then
-            FreeMem(TargetBuffer);
-          if Assigned(RawData) then
-            FreeMem(RawData);
         end;
+        Progress(Self, psEnding, 0, False, FProgressRect, '');
+      finally
+        if Assigned(TargetBuffer) then
+          FreeMem(TargetBuffer);
+        if Assigned(RawData) then
+          FreeMem(RawData);
       end;
     end;
   end
@@ -5839,61 +5835,59 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
+  if Result then begin
+    FSource := Memory;
+    Move(FSource^, Header, SizeOf(Header));
+    Inc(FSource, SizeOf(Header));
+    if UpperCase(Header.Signature) = 'GIF' then
     begin
-      FSource := Memory;
-      Move(FSource^, Header, SizeOf(Header));
-      Inc(FSource, SizeOf(Header));
-      if UpperCase(Header.Signature) = 'GIF' then
+      FImageProperties.Version := StrToInt(Copy(Header.Version, 1, 2));
+      FImageProperties.ColorScheme := csIndexed;
+      FImageProperties.SamplesPerPixel := 1;
+      // might be overwritten
+      FImageProperties.BitsPerSample := 8;
+      FImageProperties.Compression := ctLZW;
+
+      // general information
+      Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
+      Inc(FSource, SizeOf(ScreenDescriptor));
+
+      // Skip global color table if given.
+      if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
       begin
-        Version := StrToInt(Copy(Header.Version, 1, 2));
-        ColorScheme := csIndexed;
-        SamplesPerPixel := 1;
-        // might be overwritten
-        BitsPerSample := 8;
-        Compression := ctLZW;
+        FImageProperties.BitsPerSample := (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
+        // The global color table immediately follows the screen descriptor.
+        Inc(FSource, 3 * (1 shl FImageProperties.BitsPerSample));
+      end;
 
-        // general information
-        Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
-        Inc(FSource, SizeOf(ScreenDescriptor));
+      BlockID := SkipExtensions;
 
-        // Skip global color table if given.
-        if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
-        begin
-          BitsPerSample := (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
-          // The global color table immediately follows the screen descriptor.
-          Inc(FSource, 3 * (1 shl BitsPerSample));
-        end;
+      // Image found?
+      if BlockID = GIF_IMAGEDESCRIPTOR then
+      begin
+        Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
 
-        BlockID := SkipExtensions;
+        FImageProperties.Width := ImageDescriptor.Width;
+        if FImageProperties.Width = 0 then
+          FImageProperties.Width := ScreenDescriptor.ScreenWidth;
+        FImageProperties.Height := ImageDescriptor.Height;
+        if FImageProperties.Height = 0 then
+          FImageProperties.Height := ScreenDescriptor.ScreenHeight;
 
-        // Image found?
-        if BlockID = GIF_IMAGEDESCRIPTOR then
-        begin
-          Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
+        // if there is a local color table then override the already set one
+        FImageProperties.LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
+        if FImageProperties.LocalColorTable then
+          FImageProperties.BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
+        FImageProperties.Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
+      end;
 
-          Width := ImageDescriptor.Width;
-          if Width = 0 then
-            Width := ScreenDescriptor.ScreenWidth;
-          Height := ImageDescriptor.Height;
-          if Height = 0 then
-            Height := ScreenDescriptor.ScreenHeight;
+      FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
 
-          // if there is a local color table then override the already set one
-          LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
-          if LocalColorTable then
-            BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
-          Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
-        end;
-
-        BitsPerPixel := SamplesPerPixel * BitsPerSample;
-
-        Result := True;
-      end
-      else
-        Result := False;
-    end;
+      Result := True;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif GIFGraphic}
