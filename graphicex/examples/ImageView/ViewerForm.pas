@@ -228,6 +228,7 @@ type
     PsdMergedTransparencyPresent: Boolean;
     ImgIccProfile: string;
     PsdIccEnabled: Boolean;
+    ImgStrings: TStringList; // StringList with data depending on image type (currently only used by GIF)
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -469,6 +470,8 @@ begin
   // We don't want exception messages to popup during loading of images etc....
   SilentThumbLoadingException := True;
   SilentThreadException := True;
+
+  ImgStrings := TStringList.Create;
 end;
 
 procedure TfrmViewer.FormDestroy(Sender: TObject);
@@ -478,6 +481,7 @@ begin
   FPicture.Free;
   FThumbnailBackground.Free;
   IniFile.Free;
+  ImgStrings.Free;
 end;
 
 procedure TfrmViewer.FormShow(Sender: TObject);
@@ -1335,6 +1339,11 @@ begin
         IncInfoRow;
       end;
     end;
+    if (ImgThumbData.ImageFormat = CgexGIF) and (ImgStrings.Count > 0) then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Application Extensions:';
+      sgImgProperties.Cells[1,InfoRow] := ImgStrings.Text;//ImgStrings.GetText;
+      IncInfoRow;
+    end;
   end;
   // Show the actual PixelFormat
   sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
@@ -1522,6 +1531,8 @@ begin
             ImgProperties.SampleFormat := SAMPLEFORMAT_IEEEFP;
           PsdIccEnabled := not TPSDGraphic(AGraphic).ICCUntagged;
         end;
+      CgexGIF:
+        ImgStrings.Assign(TGIFGraphic(AGraphic).ApplicationExtensions);
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
       {$ENDIF}
@@ -1617,6 +1628,7 @@ begin
   ImgPage := 0; ImgPageCount := 1;
   ImgComment := '';
   ImgThumbData := Thumb;
+  ImgStrings.Clear;
   {$IFDEF FPC}
   ImgRealPixelFormat := pfCustom;
   {$ENDIF}
