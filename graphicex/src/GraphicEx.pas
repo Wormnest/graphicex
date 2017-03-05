@@ -5429,7 +5429,15 @@ const
   GIF_IMAGEDESCRIPTOR = Ord(',');
   GIF_EXTENSIONINTRODUCER = Ord('!');
   GIF_TRAILER = Ord(';');
-  
+
+  // Graphic Control Extension - Disposal method values etc.
+  GIF_NO_DISPOSAL              = 0;  // 0
+  GIF_DO_NOT_DISPOSE           = 4;  // 1
+  GIF_RESTORE_BACKGROUND_COLOR = 8;  // 2
+  GIF_RESTORE_PREVIOUS         = 12; // 3
+  GIF_USER_INPUT_FLAG          = 2;
+  GIF_TRANSPARENT_COLOR_FLAG   = 1;
+
 type
   PGIFHeader = ^TGIFHeader;
   TGIFHeader = packed record
@@ -5453,6 +5461,13 @@ type
     Height: Word;
     PackedFields: Byte;
   end;
+
+  TGraphicControlExtension = packed record
+    PackedFields: Byte;
+    DelayTime: Word;
+    TransparentColorIndex: Byte;
+  end;
+  PGraphicControlExtension = ^TGraphicControlExtension;
 
   TAppExtensionDescriptor = packed record
     AppID: array [0..7] of AnsiChar;
@@ -5529,13 +5544,16 @@ begin
             Inc(FSource);
             if Increment > 0 then
             begin
-              // The graphic control extention includes the transparency flag.
-              // Read this and the transparency color index.
-              if (FSource^ and 1) <> 0 then
-              begin
-                // Image is transparent, read index.
-                Transparent := True;
-                FTransparentIndex := Byte((PAnsiChar(FSource) + 3)^);
+              // Size should always be 4 so this is just a failsafe
+              if Increment = 4 then begin
+                // The graphic control extension includes the transparency flag.
+                // Read this and the transparency color index.
+                if (PGraphicControlExtension(FSource)^.PackedFields and GIF_TRANSPARENT_COLOR_FLAG) <> 0 then
+                begin
+                  // Image is transparent, read index.
+                  Transparent := True;
+                  FTransparentIndex := PGraphicControlExtension(FSource)^.TransparentColorIndex;
+                end;
               end;
               Inc(FSource, Increment);
             end;
