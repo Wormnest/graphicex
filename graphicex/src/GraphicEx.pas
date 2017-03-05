@@ -524,11 +524,17 @@ type
   private
     FSource: PByte;
     FTransparentIndex: Byte;
+    FApplicationExtensions: TStringList;
     function SkipExtensions: Byte;
   public
+    constructor Create; override;
+    destructor Destroy; override;
+
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
+
+    property ApplicationExtensions: TStringList read FApplicationExtensions;
   end;
   {$endif GIFGraphic}
 
@@ -5448,6 +5454,24 @@ type
     PackedFields: Byte;
   end;
 
+  TAppExtensionDescriptor = packed record
+    AppID: array [0..7] of AnsiChar;
+    AppAuthenticationCode: array [0..2] of Byte;
+  end;
+  PAppExtensionDescriptor = ^TAppExtensionDescriptor;
+
+constructor TGIFGraphic.Create;
+begin
+  inherited Create;
+  FApplicationExtensions := TStringList.Create;
+end;
+
+destructor TGIFGraphic.Destroy;
+begin
+  FApplicationExtensions.Free;
+  inherited Destroy;
+end;
+
 //----------------------------------------------------------------------------------------------------------------------
 
 class function TGIFGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
@@ -5467,9 +5491,11 @@ function TGIFGraphic.SkipExtensions: Byte;
 var
   Increment: Byte;
   Content : array[0..255] of AnsiChar; // Gif comment sub-block has a maximum size of 255 bytes
-
+  GotApp, NeedApp: Boolean;
 begin
   FImageProperties.Comment := '';
+  // Flag to check that we don't read app extensions twice because LoadFromMemory call ReadImageProperties
+  NeedApp := FApplicationExtensions.Count = 0;
 
   // Iterate through the blocks until first image is found.
   repeat
@@ -5531,11 +5557,16 @@ begin
         GIF_APPLICATIONEXTENSION:
           begin
             // application id and authentication code plus potential application data
+            GotApp := not NeedApp;
             repeat
               Increment := FSource^;
               Inc(FSource);
               if Increment = 0 then
                 Break;
+              if not GotApp then begin
+                FApplicationExtensions.Add(PAppExtensionDescriptor(FSource).AppID);
+                GotApp := True;
+              end;
               Inc(FSource, Increment);
             until False;
           end;
