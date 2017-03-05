@@ -9,7 +9,7 @@
 /* #define const */
 #undef CHAR_IS_UNSIGNED
 #define HAVE_STDDEF_H
-#define HAVE_STDLIB_H
+#define HAVE_STDLIB_H 1
 #undef NEED_BSD_STRINGS
 #undef NEED_SYS_TYPES_H
 #undef NEED_FAR_POINTERS	/* we presume a 32-bit flat memory model */
@@ -18,7 +18,7 @@
 #define NO_GETENV     /* disable use of environment variables (and scanf) */
 
 /* Define "boolean" as unsigned char, not int, per Windows custom (but not for MINGW) */
-#if defined(__BORLANDC__)
+#if defined(__BORLANDC__) && !defined(HAVE_BOOLEAN)
 #ifndef __RPCNDR_H__		/* don't conflict if rpcndr.h already read */
 typedef unsigned char boolean;
 #endif
