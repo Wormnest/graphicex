@@ -5614,6 +5614,31 @@ var
   Increment: Integer;
   Marker: Pointer;
 
+  // Global and Local color table have the same layout and the PackedFields too
+  // thus we can make a function that handles both.
+  procedure ReadPalette(APackedFields: Byte);
+  var I: Integer;
+  begin
+    // Read color table if given.
+    // Note we can use GIF_GLOBALCOLORTABLE als for the local color table
+    // because the same values are used for both.
+    if (APackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
+    begin
+      {$IFDEF FPC}
+      ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
+      {$ENDIF}
+      LogPalette.palNumEntries := 2 shl (APackedFields and GIF_COLORTABLESIZE);
+      for I := 0 to LogPalette.palNumEntries - 1 do
+      begin
+        LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
+        LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
+        LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
+      end;
+      // Finally create the palette.
+      Palette := CreatePalette(PLogPalette(@LogPalette)^);
+    end;
+  end;
+
 begin
   inherited;
 
@@ -5649,22 +5674,7 @@ begin
     ZeroMemory(@LogPalette, SizeOf(LogPalette));
     LogPalette.palVersion := $300;
     // Read global color table if given.
-    if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
-    begin
-      // The global color table immediately follows the screen descriptor.
-      {$IFDEF FPC}
-      ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
-      {$ENDIF}
-      LogPalette.palNumEntries := 2 shl (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE);
-      for I := 0 to LogPalette.palNumEntries - 1 do
-      begin
-        LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
-        LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
-        LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
-      end;
-      // Finally create the palette.
-      Palette := CreatePalette(PLogPalette(@LogPalette)^);
-    end;
+    ReadPalette(ScreenDescriptor.PackedFields);
 
     BlockID := SkipExtensions;
 
@@ -5687,21 +5697,7 @@ begin
       Self.Height := FImageProperties.Height;
 
       // if there is a local color table then override the already set one
-      if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
-      begin
-        // the global color table immediately follows the image descriptor
-        {$IFDEF FPC}
-        ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
-        {$ENDIF}
-        LogPalette.palNumEntries := 2 shl (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE);
-        for I := 0 to LogPalette.palNumEntries - 1 do
-        begin
-          LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
-          LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
-          LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
-        end;
-        Palette := CreatePalette(PLogPalette(@LogPalette)^);
-      end;
+      ReadPalette(ImageDescriptor.PackedFields);
 
       InitCodeSize := FSource^;
       Inc(FSource);
