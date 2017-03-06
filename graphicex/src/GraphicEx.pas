@@ -520,6 +520,23 @@ type
 
   {$ifdef GIFGraphic}
   // *.gif images
+  TGifFlag = (gfHasGlobalColorTable, gfHasLocalColorTable,
+    gfGlobalSorted, gfLocalSorted, gfInterlaced,
+    gfHasTransparentColor, gfUserInput);
+  TGifDisposalFlag = (gdfNoDisposal, gdfDoNotDispose, gdfRestoreBackgroundColor, gdfRestorePrevious);
+  TGifFlags = set of TGifFlag;
+  TGifInfo = record
+    CanvasWidth, CanvasHeight: Word;
+    FrameLeft, FrameTop,
+    FrameWidth, FrameHeight: Word;
+    Flags: TGifFlags;
+    BackgroundColorIndex: Byte;  // According to specs only valid if global colortable present
+    TransparentColorIndex: Byte;
+    AspectRatio: Byte;
+    DelayTime: Word;
+    Disposal: TGifDisposalFlag;
+  end;
+
   TGIFGraphic = class(TGraphicExGraphic)
   private
     FSource: PByte;
@@ -527,7 +544,8 @@ type
     FImageSource: PByte;
     FTransparentIndex: Byte;
     FApplicationExtensions: TStringList;
-    function SkipExtensions: Byte;
+    FGifInformation: TGifInfo;
+    function SkipExtensions(IsTargetImage: Boolean = True): Byte;
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -537,6 +555,7 @@ type
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
 
     property ApplicationExtensions: TStringList read FApplicationExtensions;
+    property GifInformation: TGifInfo read FGifInformation;
   end;
   {$endif GIFGraphic}
 
@@ -5415,7 +5434,7 @@ const
   // logical screen descriptor packed field masks
   GIF_GLOBALCOLORTABLE = $80;
   GIF_COLORRESOLUTION = $70;
-  GIF_GLOBALCOLORTABLESORTED = $08; 
+  GIF_GLOBALCOLORTABLESORTED = $08;
   GIF_COLORTABLESIZE = $07;
 
   // image flags
@@ -5437,6 +5456,7 @@ const
   GIF_DO_NOT_DISPOSE           = 4;  // 1
   GIF_RESTORE_BACKGROUND_COLOR = 8;  // 2
   GIF_RESTORE_PREVIOUS         = 12; // 3
+  GIF_DISPOSAL_ALL             = 28; // bits 2-4 ($1C)
   GIF_USER_INPUT_FLAG          = 2;
   GIF_TRANSPARENT_COLOR_FLAG   = 1;
 
@@ -5500,7 +5520,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function TGIFGraphic.SkipExtensions: Byte;
+function TGIFGraphic.SkipExtensions(IsTargetImage: Boolean = True): Byte;
 
 // Skips all blocks until an image block has been found in the data stream.
 // Result is the image block ID if an image block could be found.
@@ -5555,6 +5575,17 @@ begin
                   // Image is transparent, read index.
                   Transparent := True;
                   FTransparentIndex := PGraphicControlExtension(FSource)^.TransparentColorIndex;
+                  if IsTargetImage then begin
+                    FGifInformation.TransparentColorIndex := FTransparentIndex;
+                    Include(FGifInformation.Flags, gfHasTransparentColor);
+                  end;
+                end;
+                if IsTargetImage then begin
+                  FGifInformation.DelayTime := PGraphicControlExtension(FSource)^.DelayTime;
+                  if (PGraphicControlExtension(FSource)^.PackedFields and GIF_USER_INPUT_FLAG) <> 0 then
+                    Include(FGifInformation.Flags, gfUserInput);
+                  FGifInformation.Disposal := TGifDisposalFlag(Byte(PGraphicControlExtension(FSource)^.PackedFields
+                    and GIF_DISPOSAL_ALL) shr 2);
                 end;
               end;
               Inc(FSource, Increment);
@@ -5682,7 +5713,7 @@ begin
     if FImageSource <> nil then
       FSource := FImageSource;
 
-    BlockID := SkipExtensions;
+    BlockID := SkipExtensions();
 
     // SkipExtensions might have set the transparent property.
     if Transparent then
@@ -5881,10 +5912,19 @@ begin
       // general information
       Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
       Inc(FSource, SizeOf(ScreenDescriptor));
+      // Copy info to our public GifInformation record
+      FGifInformation.CanvasWidth := ScreenDescriptor.ScreenWidth;
+      FGifInformation.CanvasHeight := ScreenDescriptor.ScreenHeight;
+      // Background color index only valid if global color table present
+      FGifINformation.BackgroundColorIndex := ScreenDescriptor.BackgroundColorIndex;
+      FGifInformation.AspectRatio := ScreenDescriptor.AspectRatio;
 
       // Skip global color table if given.
       if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
       begin
+        Include(FGifInformation.Flags, gfHasGlobalColorTable);
+        if (ScreenDescriptor.PackedFields and GIF_GLOBALCOLORTABLESORTED) <> 0 then
+          Include(FGifInformation.Flags, gfGlobalSorted);
         FImageProperties.BitsPerSample := (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
         // The global color table immediately follows the screen descriptor.
         Inc(FSource, 3 * (1 shl FImageProperties.BitsPerSample));
@@ -5892,7 +5932,7 @@ begin
 
       if ImageIndex = 0 then
         FImageSource := FSource;
-      BlockID := SkipExtensions;
+      BlockID := SkipExtensions(ImageIndex = 0);
 
       // We want to know the number of images/frames so we will skip and count them
       repeat
@@ -5908,11 +5948,21 @@ begin
             if FImageProperties.Height = 0 then
               FImageProperties.Height := ScreenDescriptor.ScreenHeight;
 
+            FGifInformation.FrameLeft := ImageDescriptor.Left;
+            FGifInformation.FrameTop := ImageDescriptor.Top;
+            FGifInformation.FrameWidth := ImageDescriptor.Width;
+            FGifInformation.FrameHeight := ImageDescriptor.Height;
+
             // if there is a local color table then override the already set one
-            FImageProperties.LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
-            if FImageProperties.LocalColorTable then
+            if (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then begin
+              Include(FGifInformation.Flags, gfHasLocalColorTable);
+              if (ScreenDescriptor.PackedFields and GIF_LOCALCOLORTABLESORTED) <> 0 then
+                Include(FGifInformation.Flags, gfLocalSorted);
               FImageProperties.BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
+            end;
             FImageProperties.Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
+            if FImageProperties.Interlaced then
+              Include(FGifInformation.Flags, gfInterlaced);
           end;
           Inc(FImageProperties.ImageCount);
           BlockID := SkipImage();
@@ -5923,7 +5973,7 @@ begin
           // Set memory location of the image we want to show
           if FImageProperties.ImageCount = ImageIndex then
             FImageSource := FSource;
-          BlockID := SkipExtensions();
+          BlockID := SkipExtensions(FImageProperties.ImageCount = ImageIndex);
         end
         else begin
           // Since we don't know what to do here we will stop.
