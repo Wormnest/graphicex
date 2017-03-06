@@ -229,6 +229,7 @@ type
     ImgIccProfile: string;
     PsdIccEnabled: Boolean;
     ImgStrings: TStringList; // StringList with data depending on image type (currently only used by GIF)
+    GifInfo: TGifInfo;       // Extra info for GIF images
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -1031,6 +1032,7 @@ procedure TfrmViewer.ShowImageInfo;
 var //r: Integer; // row
   Temp: string;
   TempVal: Integer;
+  TempFloat: Single;
 begin
   // ImgThumbData is expected to be validated here already!
   // ImgProperties is expected to contain valid data.
@@ -1339,9 +1341,59 @@ begin
         IncInfoRow;
       end;
     end;
-    if (ImgThumbData.ImageFormat = CgexGIF) and (ImgStrings.Count > 0) then begin
-      sgImgProperties.Cells[0,InfoRow] := 'Application Extensions:';
-      sgImgProperties.Cells[1,InfoRow] := ImgStrings.Text;//ImgStrings.GetText;
+    if (ImgThumbData.ImageFormat = CgexGIF) then begin
+      if (ImgStrings.Count > 0) then begin
+        sgImgProperties.Cells[0,InfoRow] := 'Application Extensions:';
+        sgImgProperties.Cells[1,InfoRow] := ImgStrings.Text;//ImgStrings.GetText;
+        IncInfoRow;
+      end;
+      sgImgProperties.Cells[0,InfoRow] := 'GIF Canvas size (w x h):';
+      sgImgProperties.Cells[1,InfoRow] := Format('%u x %u',[GifInfo.CanvasWidth , GifInfo.CanvasHeight]); IncInfoRow;
+      sgImgProperties.Cells[0,InfoRow] := 'GIF Frame position (left, top):';
+      sgImgProperties.Cells[1,InfoRow] := Format('(%u, %u)',[GifInfo.FrameLeft , GifInfo.FrameTop]); IncInfoRow;
+      sgImgProperties.Cells[0,InfoRow] := 'GIF Frame size (w x h):';
+      sgImgProperties.Cells[1,InfoRow] := Format('%u x %u',[GifInfo.FrameWidth , GifInfo.FrameHeight]); IncInfoRow;
+      if gfInterlaced in GifInfo.Flags then begin
+        sgImgProperties.Cells[0,InfoRow] := 'GIF is';
+        sgImgProperties.Cells[1,InfoRow] := 'Interlaced';
+        IncInfoRow;
+      end;
+      if gfHasGlobalColorTable in GifInfo.Flags then begin
+        sgImgProperties.Cells[0,InfoRow] := 'GIF has';
+        sgImgProperties.Cells[1,InfoRow] := 'global color table';
+        IncInfoRow;
+      end;
+      if gfHasLocalColorTable in GifInfo.Flags then begin
+        sgImgProperties.Cells[0,InfoRow] := 'GIF has';
+        sgImgProperties.Cells[1,InfoRow] := 'local color table';
+        IncInfoRow;
+      end;
+      if gfHasTransparentColor in GifInfo.Flags then begin
+        sgImgProperties.Cells[0,InfoRow] := 'GIF has';
+        sgImgProperties.Cells[1,InfoRow] := Format('transparent color defined (index %d)', [GifInfo.TransparentColorIndex]);
+        IncInfoRow;
+      end;
+      if gfHasGlobalColorTable in GifInfo.Flags then begin
+        sgImgProperties.Cells[0,InfoRow] := 'GIF has';
+        sgImgProperties.Cells[1,InfoRow] := Format('background color defined (index %d)', [GifInfo.BackgroundColorIndex]);
+        IncInfoRow;
+      end;
+      if GifInfo.AspectRatio > 0 then begin
+        TempFloat := (GifInfo.AspectRatio+15) / 64;
+        sgImgProperties.Cells[0,InfoRow] := 'GIF Aspect Ratio:';
+        sgImgProperties.Cells[1,InfoRow] := Format('%f', [TempFloat]);
+        IncInfoRow;
+      end;
+      sgImgProperties.Cells[0,InfoRow] := 'GIF frame delay:';
+      sgImgProperties.Cells[1,InfoRow] := Format('%d /100 s', [GifInfo.DelayTime]);
+      IncInfoRow;
+      sgImgProperties.Cells[0,InfoRow] := 'GIF frame disposal type:';
+      case GifInfo.Disposal of
+        gdfNoDisposal: sgImgProperties.Cells[1,InfoRow] := 'no disposal specified (no action required)';
+        gdfDoNotDispose: sgImgProperties.Cells[1,InfoRow] := 'Do not dispose (leave image)';
+        gdfRestoreBackgroundColor: sgImgProperties.Cells[1,InfoRow] := 'Restore to background color';
+        gdfRestorePrevious: sgImgProperties.Cells[1,InfoRow] := 'Restore to previous frame image';
+      end;
       IncInfoRow;
     end;
   end;
@@ -1532,7 +1584,10 @@ begin
           PsdIccEnabled := not TPSDGraphic(AGraphic).ICCUntagged;
         end;
       CgexGIF:
-        ImgStrings.Assign(TGIFGraphic(AGraphic).ApplicationExtensions);
+        begin
+          ImgStrings.Assign(TGIFGraphic(AGraphic).ApplicationExtensions);
+          GifInfo := TGIFGraphic(AGraphic).GifInformation;
+        end;
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
       {$ENDIF}
