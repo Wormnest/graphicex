@@ -194,9 +194,6 @@ type
     Overview: Boolean;                 // true if image is an overview image
     Rotate: Byte;                      // describes how the image is rotated (aka landscape vs. portrait image)
 
-    // GIF
-    LocalColorTable: Boolean;          // image uses an own color palette instead of the global one
-
     // PNG
     FilterMode: Byte;
 
