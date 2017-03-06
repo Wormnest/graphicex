@@ -523,6 +523,8 @@ type
   TGIFGraphic = class(TGraphicExGraphic)
   private
     FSource: PByte;
+    // Offset of the image/frame we want to view, set by ReadImageInfo based on ImageIndex
+    FImageSource: PByte;
     FTransparentIndex: Byte;
     FApplicationExtensions: TStringList;
     function SkipExtensions: Byte;
@@ -5676,6 +5678,10 @@ begin
     // Read global color table if given.
     ReadPalette(ScreenDescriptor.PackedFields);
 
+    // Now skip to the correct image we want to show
+    if FImageSource <> nil then
+      FSource := FImageSource;
+
     BlockID := SkipExtensions;
 
     // SkipExtensions might have set the transparent property.
@@ -5828,7 +5834,35 @@ var
   ImageDescriptor: TImageDescriptor;
   BlockID: Integer;
 
+  // Skip image contents and return next block ID
+  function SkipImage(): Byte;
+  var
+    ctSize, Increment: Cardinal;
+    IDesc: TImageDescriptor;
+  begin
+    Move(FSource^, IDesc, SizeOf(TImageDescriptor));
+    // Skip Image descriptor
+    Inc(FSource, SizeOf(TImageDescriptor));
+    // Skip local color table if present
+    if (IDesc.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
+    begin
+      // Get size of color table and skip memory
+      ctSize := 2 shl (IDesc.PackedFields and GIF_COLORTABLESIZE);
+      Inc(FSource, 3*ctSize);
+    end;
+    // Skip "InitCodeSize" compression marker
+    Inc(FSource);
+    // Skip decompression data
+    repeat
+      Increment := FSource^;
+      Inc(FSource, Increment+1);
+    until Increment = 0;
+    Result := FSource^;
+    Inc(FSource);
+  end;
+
 begin
+  FImageSource := nil;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
   if Result then begin
@@ -5856,29 +5890,51 @@ begin
         Inc(FSource, 3 * (1 shl FImageProperties.BitsPerSample));
       end;
 
+      if ImageIndex = 0 then
+        FImageSource := FSource;
       BlockID := SkipExtensions;
 
-      // Image found?
-      if BlockID = GIF_IMAGEDESCRIPTOR then
-      begin
-        Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
+      // We want to know the number of images/frames so we will skip and count them
+      repeat
+        if BlockID = GIF_IMAGEDESCRIPTOR then begin
+          if FImageProperties.ImageCount = ImageIndex then begin
+            // Found the requested image
+            Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
 
-        FImageProperties.Width := ImageDescriptor.Width;
-        if FImageProperties.Width = 0 then
-          FImageProperties.Width := ScreenDescriptor.ScreenWidth;
-        FImageProperties.Height := ImageDescriptor.Height;
-        if FImageProperties.Height = 0 then
-          FImageProperties.Height := ScreenDescriptor.ScreenHeight;
+            FImageProperties.Width := ImageDescriptor.Width;
+            if FImageProperties.Width = 0 then
+              FImageProperties.Width := ScreenDescriptor.ScreenWidth;
+            FImageProperties.Height := ImageDescriptor.Height;
+            if FImageProperties.Height = 0 then
+              FImageProperties.Height := ScreenDescriptor.ScreenHeight;
 
-        // if there is a local color table then override the already set one
-        FImageProperties.LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
-        if FImageProperties.LocalColorTable then
-          FImageProperties.BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
-        FImageProperties.Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
-      end;
+            // if there is a local color table then override the already set one
+            FImageProperties.LocalColorTable := (ImageDescriptor.PackedFields and GIF_LOCALCOLORTABLE) <> 0;
+            if FImageProperties.LocalColorTable then
+              FImageProperties.BitsPerSample := (ImageDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
+            FImageProperties.Interlaced := (ImageDescriptor.PackedFields and GIF_INTERLACED) <> 0;
+          end;
+          Inc(FImageProperties.ImageCount);
+          BlockID := SkipImage();
+        end
+        else if BlockID = GIF_EXTENSIONINTRODUCER then begin
+          // Since SkipExtensions expects to read the ID byte we need to back up our position.
+          Dec(FSource); // TODO: Should be changed to not need this!
+          // Set memory location of the image we want to show
+          if FImageProperties.ImageCount = ImageIndex then
+            FImageSource := FSource;
+          BlockID := SkipExtensions();
+        end
+        else begin
+          // Since we don't know what to do here we will stop.
+          // "Images" that only have a text block and no real image will arrive
+          // here with BlockID = GIF_TRAILER.
+          // All other cases shouldn't happen but might be caused by a broken image.
+          BlockID := GIF_TRAILER; // Dummy to be able to set a breakpoint here.
+        end;
+      until BlockID = GIF_TRAILER;
 
       FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
-
       Result := True;
     end
     else
