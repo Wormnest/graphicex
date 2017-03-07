@@ -135,6 +135,8 @@ resourcestring
   gesJPEGSamplingFactors = 'Improper JPEG sampling factors.';
   gesJPEGBogusTableField = 'Bogus JPEG tables field.';
   gesJPEGFractionalLine = 'Fractional JPEG scanline unsupported.';
+  gesOutputBufferOverflow = 'Output buffer overflow in %s.'#10'Please report this bug. It is a serious flaw!';
+  gesInputBufferOverflow = 'Input buffer overflow in %s.'#10'Please report this bug. It is a serious flaw!';
 
   // miscellaneous
   gesWarning = 'Warning';

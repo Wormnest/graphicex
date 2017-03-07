@@ -1487,7 +1487,12 @@ end;
 constructor TGIFLZWDecoder.Create(InitialCodeSize: Byte);
 
 begin
-  FInitialCodeSize := InitialCodeSize;
+  if (InitialCodeSize >= 2) and (InitialCodeSize <= 8) then begin
+    FInitialCodeSize := InitialCodeSize;
+    FDecoderStatus := dsOK;
+  end
+  else
+    FDecoderStatus := dsInitializationError;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1516,8 +1521,11 @@ var
   EOICode: Word;
 
 begin
+  if FDecoderStatus <> dsOK then
+    Exit;
   Target := Dest;
   SourcePtr := Source;
+  FDecompressedBytes := UnpackedSize;
 
   // initialize parameter
   CodeSize := FInitialCodeSize + 1;
@@ -1569,8 +1577,10 @@ begin
       end;
 
       // check whether it is a valid, already registered code
-      if Code > FreeCode then
+      if Code > FreeCode then begin
+        FDecoderStatus := dsInvalidInput;
         Break;
+      end;
 
       // handling for the first LZW code: print and keep it
       if OldCode = NoLZWCode then
@@ -1621,6 +1631,10 @@ begin
       // put decoded bytes (from the stack) into the target Buffer
       OldCode := InCode;
       repeat
+        if UnpackedSize <= 0 then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          break;
+        end;
         Dec(StackPointer);
         Target^ := StackPointer^;
         Inc(Target);
@@ -1629,7 +1643,29 @@ begin
     end;
     Inc(SourcePtr);
     Dec(PackedSize);
+    if FDecoderStatus <> dsOK then
+      Break;
   end;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize < 0 then begin
+      FDecoderStatus := dsNotEnoughInput;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+      CompressionError(Format(gesInputBufferOverflow, ['GIF LZW decoder']));
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput
+      else begin// < 0
+        FDecoderStatus := dsOutputBufferTooSmall;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['GIF LZW decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := FDecompressedBytes - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
