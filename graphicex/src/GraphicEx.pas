@@ -5767,6 +5767,12 @@ begin
         try
           Run := RawData;
           Decoder.Decode(Pointer(Run), TargetBuffer, Pass, Width * Height);
+          if Decoder.DecoderStatus <> dsOK then begin
+            // Corrupt image. Since all errors get caught we could in principle
+            // still show the image (in case part of it did get decoded), however
+            // for safety it's probably better to always stop with an error.
+            GraphicExError(gesDecompression, ['GIF']);
+          end;
         finally
           FreeAndNil(Decoder);
         end;
