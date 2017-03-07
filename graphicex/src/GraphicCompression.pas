@@ -72,11 +72,23 @@ uses
   ZLibDelphi; //GXzLib;  // general inflate/deflate and LZ77 compression support
 
 type
+  // Decoding/Encoding status
+  TDecoderStatus = (
+    dsNotUsed,               // Decoder is not using status
+    dsNotInitialized,        // Decoder is not yet initialized (use DecodeInit)
+    dsInitializationError,   // There was an error while initializing (wrong input?)
+    dsOK,                    // Everything ok
+    dsNotEnoughInput,        // Decoder ran out of input
+    dsOutputBufferTooSmall,  // Decoder could not decode all input because output buffer is too small
+    dsInvalidInput           // Decoder encountered invalid input (corrupt data)
+  );
+
   // abstract decoder class to define the base functionality of an encoder/decoder
   TDecoder = class
   private
     FCompressedBytesAvailable,
     FDecompressedBytes: Integer;
+    FDecoderStatus: TDecoderStatus;
   public
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); virtual; abstract;
     procedure DecodeEnd; virtual;
@@ -91,6 +103,7 @@ type
     property CompressedBytesAvailable: Integer read FCompressedBytesAvailable;
     // Number of bytes that have been decompressed.
     property DecompressedBytes: Integer read FDecompressedBytes;
+    property DecoderStatus: TDecoderStatus read FDecoderStatus;
   end;
 
   // generally, there should be no need to cover the decoder classes by conditional symbols
