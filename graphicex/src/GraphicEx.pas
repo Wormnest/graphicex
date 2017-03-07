@@ -5672,11 +5672,10 @@ var
 begin
   inherited;
 
+  FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+  Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
   if ReadImageProperties(Memory, Size, ImageIndex) then begin
     Transparent := False;
-
-    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
-    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
     FSource := Memory;
     Move(FSource^, Header, SizeOf(Header));
@@ -5719,12 +5718,12 @@ begin
         with LogPalette.palPalEntry[FTransparentIndex] do
           TransparentColor := RGB(peRed, peGreen, peBlue);
 
-    Progress(Self, psEnding, 0, False, FProgressRect, '');
+    Progress(Self, psEnding, 1, False, FProgressRect, '');
 
     // image found?
     if BlockID = GIF_IMAGEDESCRIPTOR then
     begin
-      Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
+      Progress(Self, psStarting, 1, False, FProgressRect, gesLoadingData);
       Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
       Inc(FSource, SizeOf(TImageDescriptor));
       Self.Width := FImageProperties.Width;
@@ -5776,10 +5775,10 @@ begin
         finally
           FreeAndNil(Decoder);
         end;
-        Progress(Self, psEnding, 0, False, FProgressRect, '');
+        Progress(Self, psEnding, 50, True, FProgressRect, '');
 
         // finally transfer image data
-        Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+        Progress(Self, psStarting, 25, False, FProgressRect, gesTransfering);
         if (ImageDescriptor.PackedFields and GIF_INTERLACED) = 0 then
         begin
           TargetRun := TargetBuffer;
@@ -5793,7 +5792,7 @@ begin
             {$ENDIF}
             Inc(PByte(TargetRun), Width);
 
-            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+            Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
             OffsetRect(FProgressRect, 0, 1);
           end;
         end
@@ -5839,14 +5838,14 @@ begin
               if Pass = 3 then
               begin
                 // progress events only for last (and most expensive) run
-                Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+                Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
                 OffsetRect(FProgressRect, 0, 1);
               end;
             end;
           end;
         end;
-        Progress(Self, psEnding, 0, False, FProgressRect, '');
       finally
+        Progress(Self, psEnding, 0, False, FProgressRect, '');
         if Assigned(TargetBuffer) then
           FreeMem(TargetBuffer);
         if Assigned(RawData) then
@@ -5854,8 +5853,10 @@ begin
       end;
     end;
   end
-  else
+  else begin
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
     GraphicExError(gesInvalidImage, ['GIF']);
+  end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
