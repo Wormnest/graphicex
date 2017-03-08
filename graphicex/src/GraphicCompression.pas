@@ -80,7 +80,8 @@ type
     dsOK,                    // Everything ok
     dsNotEnoughInput,        // Decoder ran out of input
     dsOutputBufferTooSmall,  // Decoder could not decode all input because output buffer is too small
-    dsInvalidInput           // Decoder encountered invalid input (corrupt data)
+    dsInvalidInput,          // Decoder encountered invalid input (corrupt data)
+    dsBufferOverflow         // Decoder stopped to prevent a buffer overflow
   );
 
   // abstract decoder class to define the base functionality of an encoder/decoder
@@ -1515,10 +1516,12 @@ var
   Suffix,                             // LZW suffix
   Stack: array [0..4095] of Byte;     // stack
   StackPointer: PByte;
+  MaxStackPointer: PBYte;
   Target: PByte;
   FirstChar: Byte;  // Buffer for decoded byte
   ClearCode,
   EOICode: Word;
+  MaxCode: Boolean;
 
 begin
   if FDecoderStatus <> dsOK then
@@ -1534,6 +1537,7 @@ begin
   FreeCode := ClearCode + 2;
   OldCode := NoLZWCode;
   CodeMask := (1 shl CodeSize) - 1;
+  MaxCode := False;
 
   // init code table
   for I := 0 to ClearCode - 1 do
@@ -1544,6 +1548,7 @@ begin
 
   // initialize stack
   StackPointer := @Stack;
+  MaxStackPointer := @Stack[4095];
   FirstChar := 0;
 
   Data := 0;
@@ -1562,8 +1567,20 @@ begin
       Dec(Bits, CodeSize);
 
       // decoding finished?
-      if Code = EOICode then
+      if Code = EOICode then begin
+        // If we arrive here there's probably something suspicious with the GIF image
+        // because usually we will stop as soon as our output buffer is full,
+        // meaning we will never read the closing EOICode in normal images.
+        // Since buffer status is already check after the main loop we will not do that here.
         Break;
+      end;
+
+      // check whether it is a valid, already registered code
+      if Code > FreeCode then begin
+        // Code isn't allowed to be higher than FreeCode so we got a broken image here.
+        FDecoderStatus := dsInvalidInput;
+        Break;
+      end;
 
       // handling of clear codes
       if Code = ClearCode then
@@ -1573,82 +1590,92 @@ begin
         CodeMask := (1 shl CodeSize) - 1;
         FreeCode := ClearCode + 2;
         OldCode := NoLZWCode;
-        Continue;
-      end;
-
-      // check whether it is a valid, already registered code
-      if Code > FreeCode then begin
-        FDecoderStatus := dsInvalidInput;
-        Break;
-      end;
-
-      // handling for the first LZW code: print and keep it
-      if OldCode = NoLZWCode then
+        MaxCode := False;
+      end
+      else if OldCode = NoLZWCode then
       begin
+        // handling for the first LZW code: print and keep it
         FirstChar := Suffix[Code];
         Target^ := FirstChar;
         Inc(Target);
         Dec(UnpackedSize);
         OldCode := Code;
-        Continue;
-      end;
+      end
+      else begin
+        // keep the passed LZW code
+        InCode := Code;
 
-      // keep the passed LZW code
-      InCode := Code;
+        // Put new LZW code on the stack except when we have already used all available codes
+        if (Code = FreeCode) and not MaxCode then
+        begin
+          StackPointer^ := FirstChar;
+          Inc(StackPointer);
+          Code := OldCode;
+        end;
 
-      // the first LZW code is always smaller than FFirstCode
-      if Code = FreeCode then
-      begin
+        // loop to put decoded bytes onto the stack
+        while Code > ClearCode do
+        begin
+          StackPointer^ := Suffix[Code];
+          if StackPointer >= MaxStackPointer then begin
+            // Shouldn't happen but just a precaution
+            FDecoderStatus := dsBufferOverflow;
+          end;
+          Inc(StackPointer);
+          Code := Prefix[Code];
+        end;
+        if FDecoderStatus <> dsOK then
+          break;
+
+        // place new code into code table
+        FirstChar := Suffix[Code];
         StackPointer^ := FirstChar;
         Inc(StackPointer);
-        Code := OldCode;
-      end;
 
-      // loop to put decoded bytes onto the stack
-      while Code > ClearCode do
-      begin
-        StackPointer^ := Suffix[Code];
-        Inc(StackPointer);
-        Code := Prefix[Code];
-      end;
+        // put decoded bytes (from the stack) into the target Buffer
+        repeat
+          if UnpackedSize <= 0 then begin
+            FDecoderStatus := dsOutputBufferTooSmall;
+            break;
+          end;
+          Dec(StackPointer);
+          Target^ := StackPointer^;
+          Inc(Target);
+          Dec(UnpackedSize);
+        until StackPointer = @Stack;
 
-      // place new code into code table
-      FirstChar := Suffix[Code];
-      StackPointer^ := FirstChar;
-      Inc(StackPointer);
-      Prefix[FreeCode] := OldCode;
-      Suffix[FreeCode] := FirstChar;
+        if not MaxCode then begin
+          Prefix[FreeCode] := OldCode;
+          Suffix[FreeCode] := FirstChar;
 
-      // increase code size if necessary
-      if (FreeCode = CodeMask) and (CodeSize < 12) then
-      begin
-        Inc(CodeSize);
-        CodeMask := (1 shl CodeSize) - 1;
-      end;
-      if FreeCode < 4095 then
-        Inc(FreeCode);
+          // increase code size if necessary
+          if (FreeCode = CodeMask) then begin
+            if (CodeSize < 12) then
+            begin
+              Inc(CodeSize);
+              CodeMask := (1 shl CodeSize) - 1;
+            end
+            else // Can't go higher, we reached the max size
+              MaxCode := True;
+          end;
 
-      // put decoded bytes (from the stack) into the target Buffer
-      OldCode := InCode;
-      repeat
-        if UnpackedSize <= 0 then begin
-          FDecoderStatus := dsOutputBufferTooSmall;
-          break;
+          if FreeCode < 4095 then
+            Inc(FreeCode);
         end;
-        Dec(StackPointer);
-        Target^ := StackPointer^;
-        Inc(Target);
-        Dec(UnpackedSize);
-      until StackPointer = @Stack;
-    end;
+        OldCode := InCode;
+      end;
+    end; // while
     Inc(SourcePtr);
     Dec(PackedSize);
-    if FDecoderStatus <> dsOK then
+    if (FDecoderStatus <> dsOK) or (Code = EOICode) then
       Break;
   end;
   FCompressedBytesAvailable := PackedSize;
   if FDecoderStatus = dsOK then begin
     // Only check if status is ok. If it is not OK we already know something is wrong.
+    // Note that it is normal for PackedSize to be a little > 0 because we usually
+    // do not read the EOICode but stop as soon as our output buffer is full
+    // which should normally be the code just before the EOICode.
     if PackedSize < 0 then begin
       FDecoderStatus := dsNotEnoughInput;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
@@ -1658,7 +1685,7 @@ begin
       if UnpackedSize > 0 then
         // Broken/corrupt image
         FDecoderStatus := dsNotEnoughInput
-      else begin// < 0
+      else begin // < 0
         FDecoderStatus := dsOutputBufferTooSmall;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
         CompressionError(Format(gesOutputBufferOverflow, ['GIF LZW decoder']));
