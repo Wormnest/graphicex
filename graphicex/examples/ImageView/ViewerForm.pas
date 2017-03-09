@@ -1617,18 +1617,26 @@ begin
     ImgPage := PageNo;
     ClearGrid; // Clear grid with image info
     // We assume that all multipage images are imageformats that GraphicEx handles.
-    AGraphic := ImgGraphicClass.Create;
-    try
-      // Load the desired page of current Image File
-      TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
-      // Assign loaded graphic to image
-      FPicture.Assign(AGraphic);
-    finally
-      // Get page specific image info
-      // Do this in the finally, that way we can even show some image info
-      // when the image is corrupt.
-      CopyImageInfo(TGraphicExGraphic(AGraphic));
-      AGraphic.Free;
+    // However in corrupt or broken images an image page may be invalid so we need
+    // to check if ImgGraphicClass exists
+    if Assigned(ImgGraphicClass) then begin
+      AGraphic := ImgGraphicClass.Create;
+      try
+        // Load the desired page of current Image File
+        TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
+        // Assign loaded graphic to image
+        FPicture.Assign(AGraphic);
+      finally
+        // Get page specific image info
+        // Do this in the finally, that way we can even show some image info
+        // when the image is corrupt.
+        CopyImageInfo(TGraphicExGraphic(AGraphic));
+        AGraphic.Free;
+      end;
+    end
+    else begin
+      // TODO: Show error in case it was NOT assigned and clear old image
+      FPicture.Assign(nil);
     end;
     FLoadTick := GetAccurateTick - FLoadTick;
     // Update status text and buttons
@@ -1827,7 +1835,9 @@ begin
           // Note: we only do this because we are an image viewer. Normal usage
           // would be to assign it only if there was no exception/error.
           if (AGraphic <> nil) and (AGraphic.Width > 0) and (AGraphic.Height > 0) then
-            FPicture.Assign(AGraphic);
+            FPicture.Assign(AGraphic)
+          else
+            FPicture.Assign(nil);
           // Get some basic image info
           // Do this in the finally, that way we can even show some image info
           // when the image is corrupt.
