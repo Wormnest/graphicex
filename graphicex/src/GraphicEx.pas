@@ -5988,6 +5988,9 @@ begin
         end;
       until BlockID = GIF_TRAILER;
 
+      // Make sure Bits per Sample is valid
+      if (FImageProperties.BitsPerSample < 1) or (FImageProperties.BitsPerSample > 8) then
+        GraphicExError(gesInvalidBitsPerSample, ['GIF', FImageProperties.BitsPerSample]);
       FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
       Result := True;
     end
