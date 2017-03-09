@@ -101,7 +101,7 @@ uses
   {$IFDEF LCMS}
   gexICC, // ICC profile manager
   {$ENDIF}
-  GraphicCompression, GraphicStrings, GraphicColor;
+  GraphicCompression, GraphicStrings, GraphicColor, gexMemory;
 
 type
   TCardinalArray = array of Cardinal;
@@ -536,12 +536,13 @@ type
 
   TGIFGraphic = class(TGraphicExGraphic)
   private
-    FSource: PByte;
     // Offset of the image/frame we want to view, set by ReadImageInfo based on ImageIndex
-    FImageSource: PByte;
+    FImageOffset: UInt64;
     FTransparentIndex: Byte;
     FApplicationExtensions: TStringList;
     FGifInformation: TGifInfo;
+    FMem: TMemoryAccess;
+
     function SkipExtensions(IsTargetImage: Boolean = True): Byte;
   public
     constructor Create; override;
@@ -5503,6 +5504,7 @@ end;
 destructor TGIFGraphic.Destroy;
 begin
   FApplicationExtensions.Free;
+  FMem.Free;
   inherited Destroy;
 end;
 
@@ -5526,6 +5528,8 @@ var
   Increment: Byte;
   Content : array[0..255] of AnsiChar; // Gif comment sub-block has a maximum size of 255 bytes
   GotApp, NeedApp: Boolean;
+  GraphicExtension: TGraphicControlExtension;
+  AppExtensionDescriptor: TAppExtensionDescriptor;
 begin
   FImageProperties.Comment := '';
   // Flag to check that we don't read app extensions twice because LoadFromMemory call ReadImageProperties
@@ -5533,72 +5537,68 @@ begin
 
   // Iterate through the blocks until first image is found.
   repeat
-    Result := FSource^;
-    Inc(FSource);
+    Result := FMem.GetByte();
     if Result = GIF_EXTENSIONINTRODUCER then
     begin
       // Read the block control label and act accordingly.
-      Result := FSource^;
-      Inc(FSource);
+      Result := FMem.GetByte();
       case Result of
         GIF_PLAINTEXT:
           begin
             // Block size of text grid data.
-            Increment := FSource^;
-            Inc(FSource, Increment + 1);
-            // Skip variable lengthed text block.
+            Increment := FMem.GetByte();
+            FMem.SeekForward(Increment);
+            // Skip variable length text block.
             repeat
               // Block size.
-              Increment := FSource^;
-              Inc(FSource);
+              Increment := FMem.GetByte();
               if Increment = 0 then
                 Break;
-              Inc(FSource, Increment);
+              FMem.SeekForward(Increment);
             until False;
           end;
         GIF_GRAPHICCONTROLEXTENSION:
           begin
             // Block size.
-            Increment := FSource^;
-            Inc(FSource);
+            Increment := FMem.GetByte();
             if Increment > 0 then
             begin
               // Size should always be 4 so this is just a failsafe
               if Increment = 4 then begin
+                FMem.GetBytes(GraphicExtension, SizeOf(TGraphicControlExtension));
                 // The graphic control extension includes the transparency flag.
                 // Read this and the transparency color index.
-                if (PGraphicControlExtension(FSource)^.PackedFields and GIF_TRANSPARENT_COLOR_FLAG) <> 0 then
+                if (GraphicExtension.PackedFields and GIF_TRANSPARENT_COLOR_FLAG) <> 0 then
                 begin
                   // Image is transparent, read index.
                   Transparent := True;
-                  FTransparentIndex := PGraphicControlExtension(FSource)^.TransparentColorIndex;
+                  FTransparentIndex := GraphicExtension.TransparentColorIndex;
                   if IsTargetImage then begin
                     FGifInformation.TransparentColorIndex := FTransparentIndex;
                     Include(FGifInformation.Flags, gfHasTransparentColor);
                   end;
                 end;
                 if IsTargetImage then begin
-                  FGifInformation.DelayTime := PGraphicControlExtension(FSource)^.DelayTime;
-                  if (PGraphicControlExtension(FSource)^.PackedFields and GIF_USER_INPUT_FLAG) <> 0 then
+                  FGifInformation.DelayTime := GraphicExtension.DelayTime;
+                  if (GraphicExtension.PackedFields and GIF_USER_INPUT_FLAG) <> 0 then
                     Include(FGifInformation.Flags, gfUserInput);
-                  FGifInformation.Disposal := TGifDisposalFlag(Byte(PGraphicControlExtension(FSource)^.PackedFields
+                  FGifInformation.Disposal := TGifDisposalFlag(Byte(GraphicExtension.PackedFields
                     and GIF_DISPOSAL_ALL) shr 2);
                 end;
-              end;
-              Inc(FSource, Increment);
+              end
+              else
+                FMem.SeekForward(Increment);
             end;
             // Finally skip terminator.
-            Inc(FSource);
+            FMem.SeekForward(1);
           end;
         GIF_COMMENTEXTENSION:
           repeat
             // block size
-            Increment := FSource^;
-            Inc(FSource); // Skip the count byte
+            Increment := FMem.GetByte();
             if Increment = 0 then
               Break;
-            Move(FSource^, Content, Increment); // Copy ansi characters
-            Inc(FSource, Increment); // Skip the characters we just copied
+            FMem.GetBytes(Content, Increment);
             Content[Increment] := #0;
             FImageProperties.Comment := FImageProperties.Comment + Content;
           until False;
@@ -5607,15 +5607,16 @@ begin
             // application id and authentication code plus potential application data
             GotApp := not NeedApp;
             repeat
-              Increment := FSource^;
-              Inc(FSource);
+              Increment := FMem.GetByte();
               if Increment = 0 then
                 Break;
-              if not GotApp then begin
-                FApplicationExtensions.Add(PAppExtensionDescriptor(FSource).AppID);
+              if not GotApp and (Increment = SizeOf(TAppExtensionDescriptor)) then begin
+                FMem.GetBytes(AppExtensionDescriptor, SizeOf(TAppExtensionDescriptor));
+                FApplicationExtensions.Add(AppExtensionDescriptor.AppID);
                 GotApp := True;
-              end;
-              Inc(FSource, Increment);
+              end
+              else
+                FMem.SeekForward(Increment);
             until False;
           end;
       end;
@@ -5642,27 +5643,32 @@ var
   Line: Pointer;
   Pass,
   Increment: Integer;
-  Marker: Pointer;
+  SavedPosition: UInt64;
 
   // Global and Local color table have the same layout and the PackedFields too
   // thus we can make a function that handles both.
   procedure ReadPalette(APackedFields: Byte);
   var I: Integer;
+    {$IFDEF FPC}
+    FPalettePtr: Pointer;
+    {$ENDIF}
   begin
     // Read color table if given.
     // Note we can use GIF_GLOBALCOLORTABLE als for the local color table
     // because the same values are used for both.
     if (APackedFields and GIF_GLOBALCOLORTABLE) <> 0 then
     begin
-      {$IFDEF FPC}
-      ColorManager.SetSourcePalette([FSource], pfInterlaced8Triple);
-      {$ENDIF}
       LogPalette.palNumEntries := 2 shl (APackedFields and GIF_COLORTABLESIZE);
+      {$IFDEF FPC}
+      // TODO: This should be changed so that the actual palette info will be copied!
+      FPalettePtr := FMem.GetAccessToMemory(3*LogPalette.palNumEntries);
+      ColorManager.SetSourcePalette([FPalettePtr], pfInterlaced8Triple);
+      {$ENDIF}
       for I := 0 to LogPalette.palNumEntries - 1 do
       begin
-        LogPalette.palPalEntry[I].peRed := FSource^;   Inc(FSource);
-        LogPalette.palPalEntry[I].peGreen := FSource^; Inc(FSource);
-        LogPalette.palPalEntry[I].peBlue := FSource^;  Inc(FSource);
+        LogPalette.palPalEntry[I].peRed := FMem.GetByte();
+        LogPalette.palPalEntry[I].peGreen := FMem.GetByte();
+        LogPalette.palPalEntry[I].peBlue := FMem.GetByte();
       end;
       // Finally create the palette.
       Palette := CreatePalette(PLogPalette(@LogPalette)^);
@@ -5677,9 +5683,12 @@ begin
   if ReadImageProperties(Memory, Size, ImageIndex) then begin
     Transparent := False;
 
-    FSource := Memory;
-    Move(FSource^, Header, SizeOf(Header));
-    Inc(FSource, SizeOf(Header));
+    // ReadImageProperties will have set our Memory Access handler
+    if not Assigned(FMem) then // However it can't hurt to make sure
+      Exit;
+    // Since ReadImageProperties moved the current position reset it.
+    FMem.SeekFromBeginning(0);
+    FMem.GetBytes(Header, SizeOf(Header));
 
     PixelFormat := pf8Bit;
     {$IFDEF FPC}
@@ -5697,8 +5706,7 @@ begin
     {$ENDIF}
 
     // Read general information.
-    Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
-    Inc(FSource, SizeOf(ScreenDescriptor));
+    FMem.GetBytes(ScreenDescriptor, SizeOf(ScreenDescriptor));
 
     ZeroMemory(@LogPalette, SizeOf(LogPalette));
     LogPalette.palVersion := $300;
@@ -5706,9 +5714,10 @@ begin
     ReadPalette(ScreenDescriptor.PackedFields);
 
     // Now skip to the correct image we want to show
-    if FImageSource <> nil then
-      FSource := FImageSource;
+    if FImageOffset <> 0 then
+      FMem.SeekFromBeginning(FImageOffset);
 
+    // Read or skip extension info
     BlockID := SkipExtensions();
 
     // SkipExtensions might have set the transparent property.
@@ -5724,25 +5733,22 @@ begin
     if BlockID = GIF_IMAGEDESCRIPTOR then
     begin
       Progress(Self, psStarting, 1, False, FProgressRect, gesLoadingData);
-      Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
-      Inc(FSource, SizeOf(TImageDescriptor));
+      FMem.GetBytes(ImageDescriptor, SizeOf(TImageDescriptor));
       Self.Width := FImageProperties.Width;
       Self.Height := FImageProperties.Height;
 
       // if there is a local color table then override the already set one
       ReadPalette(ImageDescriptor.PackedFields);
 
-      InitCodeSize := FSource^;
-      Inc(FSource);
+      InitCodeSize := FMem.GetByte();
       // decompress data in one step
       // 1) count data
-      Marker := FSource;
+      SavedPosition := FMem.CurrentPosition;
       Pass := 0;
       repeat
-        Increment := FSource^;
-        Inc(FSource);
+        Increment := FMem.GetByte();
         Inc(Pass, Increment);
-        Inc(FSource, Increment);
+        FMem.SeekForward(Increment);
       until Increment = 0;
 
       // 2) allocate enough memory
@@ -5752,14 +5758,12 @@ begin
 
       try
         // 3) read and decode data
-        FSource := Marker;
+        FMem.SeekFromBeginning(SavedPosition);
         Run := RawData;
         repeat
-          Increment := FSource^;
-          Inc(FSource);
-          Move(FSource^, Run^, Increment);
+          Increment := FMem.GetByte();
+          FMem.GetBytes(Run^, Increment);
           Inc(Run, Increment);
-          Inc(FSource, Increment);
         until Increment = 0;
 
         Decoder := TGIFLZWDecoder.Create(InitCodeSize);
@@ -5870,40 +5874,45 @@ var
   BlockID: Integer;
 
   // Skip image contents and return next block ID
-  function SkipImage(): Byte;
+  function SkipImage(NeedDescriptor: Boolean): Byte;
   var
     ctSize, Increment: Cardinal;
     IDesc: TImageDescriptor;
+    Flags: Byte;
   begin
-    Move(FSource^, IDesc, SizeOf(TImageDescriptor));
-    // Skip Image descriptor
-    Inc(FSource, SizeOf(TImageDescriptor));
+    if NeedDescriptor then begin
+      // Skip Image descriptor
+      FMem.GetBytes(IDesc, SizeOf(TImageDescriptor));
+      Flags := IDesc.PackedFields;
+    end
+    else
+      Flags := ImageDescriptor.PackedFields;
+
     // Skip local color table if present
-    if (IDesc.PackedFields and GIF_LOCALCOLORTABLE) <> 0 then
+    if (Flags and GIF_LOCALCOLORTABLE) <> 0 then
     begin
       // Get size of color table and skip memory
-      ctSize := 2 shl (IDesc.PackedFields and GIF_COLORTABLESIZE);
-      Inc(FSource, 3*ctSize);
+      ctSize := 2 shl (Flags and GIF_COLORTABLESIZE);
+      FMem.SeekForward(3*ctSize);
     end;
     // Skip "InitCodeSize" compression marker
-    Inc(FSource);
+    FMem.SeekForward(1);
     // Skip decompression data
     repeat
-      Increment := FSource^;
-      Inc(FSource, Increment+1);
+      Increment := FMem.GetByte();
+      FMem.SeekForward(Increment);
     until Increment = 0;
-    Result := FSource^;
-    Inc(FSource);
+    Result := FMem.GetByte();
   end;
 
 begin
-  FImageSource := nil;
+  FImageOffset := 0;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
   if Result then begin
-    FSource := Memory;
-    Move(FSource^, Header, SizeOf(Header));
-    Inc(FSource, SizeOf(Header));
+    if not Assigned(FMem) then
+      FMem := TMemoryAccess.Create(Memory, Size, 'GIF');
+    FMem.GetBytes(Header, SizeOf(Header));
     if UpperCase(Header.Signature) = 'GIF' then
     begin
       FImageProperties.Version := StrToInt(Copy(Header.Version, 1, 2));
@@ -5914,8 +5923,7 @@ begin
       FImageProperties.Compression := ctLZW;
 
       // general information
-      Move(FSource^, ScreenDescriptor, SizeOf(ScreenDescriptor));
-      Inc(FSource, SizeOf(ScreenDescriptor));
+      FMem.GetBytes(ScreenDescriptor, SizeOf(ScreenDescriptor));
       // Copy info to our public GifInformation record
       FGifInformation.CanvasWidth := ScreenDescriptor.ScreenWidth;
       FGifInformation.CanvasHeight := ScreenDescriptor.ScreenHeight;
@@ -5931,11 +5939,11 @@ begin
           Include(FGifInformation.Flags, gfGlobalSorted);
         FImageProperties.BitsPerSample := (ScreenDescriptor.PackedFields and GIF_COLORTABLESIZE) + 1;
         // The global color table immediately follows the screen descriptor.
-        Inc(FSource, 3 * (1 shl FImageProperties.BitsPerSample));
+        FMem.SeekForward(3 * (1 shl FImageProperties.BitsPerSample));
       end;
 
       if ImageIndex = 0 then
-        FImageSource := FSource;
+        FImageOffset := FMem.CurrentPosition;
       BlockID := SkipExtensions(ImageIndex = 0);
 
       // We want to know the number of images/frames so we will skip and count them
@@ -5943,7 +5951,7 @@ begin
         if BlockID = GIF_IMAGEDESCRIPTOR then begin
           if FImageProperties.ImageCount = ImageIndex then begin
             // Found the requested image
-            Move(FSource^, ImageDescriptor, SizeOf(TImageDescriptor));
+            FMem.GetBytes(ImageDescriptor, SizeOf(TImageDescriptor));
 
             FImageProperties.Width := ImageDescriptor.Width;
             if FImageProperties.Width = 0 then
@@ -5968,15 +5976,15 @@ begin
             if FImageProperties.Interlaced then
               Include(FGifInformation.Flags, gfInterlaced);
           end;
+          BlockID := SkipImage(FImageProperties.ImageCount <> ImageIndex);
           Inc(FImageProperties.ImageCount);
-          BlockID := SkipImage();
         end
         else if BlockID = GIF_EXTENSIONINTRODUCER then begin
           // Since SkipExtensions expects to read the ID byte we need to back up our position.
-          Dec(FSource); // TODO: Should be changed to not need this!
+          FMem.SeekBackward(1); // TODO: Should be changed to not need this!
           // Set memory location of the image we want to show
           if FImageProperties.ImageCount = ImageIndex then
-            FImageSource := FSource;
+            FImageOffset := FMem.CurrentPosition;
           BlockID := SkipExtensions(FImageProperties.ImageCount = ImageIndex);
         end
         else begin
