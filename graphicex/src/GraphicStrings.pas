@@ -100,6 +100,7 @@ resourcestring
   gesInvalidPSDLayerData = 'Image is invalid. Layer data is corrupt.';
   gesInvalidPSDResourceData = 'Image is invalid. Resource data is corrupt.';
   gesInvalidDimensions = 'Cannot load %s image. Invalid or unsupported dimensions %d x %d.';
+  gesInvalidBitsPerSample = 'Cannot load %s image. Invalid value %d for bits per sample.';
 
   // features (usually used together with unsupported feature string)
   gesCompressionScheme = 'The compression scheme is';
