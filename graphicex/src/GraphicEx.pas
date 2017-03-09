@@ -5644,6 +5644,8 @@ var
   Pass,
   Increment: Integer;
   SavedPosition: UInt64;
+  TransValid: Boolean;
+  TransColor: TColor; // TransparentColor is already taken by TBitmap
 
   // Global and Local color table have the same layout and the PackedFields too
   // thus we can make a function that handles both.
@@ -5720,12 +5722,17 @@ begin
     // Read or skip extension info
     BlockID := SkipExtensions();
 
+    TransValid := False;
     // SkipExtensions might have set the transparent property.
     if Transparent then
       // If transparent color index is valid then get transparent color.
-      if FTransparentIndex < LogPalette.palNumEntries then
+      if FTransparentIndex < LogPalette.palNumEntries then begin
+        TransValid := True;
+        // We are not setting TBitmap's TransparentColor here since it seems to
+        // cause some problems when reading in a thread.
         with LogPalette.palPalEntry[FTransparentIndex] do
-          TransparentColor := RGB(peRed, peGreen, peBlue);
+          TransColor := RGB(peRed, peGreen, peBlue);
+      end;
 
     Progress(Self, psEnding, 1, False, FProgressRect, '');
 
@@ -5787,52 +5794,14 @@ begin
 
         // finally transfer image data
         Progress(Self, psStarting, 25, False, FProgressRect, gesTransfering);
-        if (ImageDescriptor.PackedFields and GIF_INTERLACED) = 0 then
-        begin
-          TargetRun := TargetBuffer;
-          for I := 0 to Height - 1 do
+        Self.Canvas.Lock;
+        try
+          if TransValid then
+            TransparentColor := TransColor;
+          if (ImageDescriptor.PackedFields and GIF_INTERLACED) = 0 then
           begin
-            Line := Scanline[I];
-            {$IFNDEF FPC}
-            Move(TargetRun^, Line^, Width);
-            {$ELSE}
-            ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
-            {$ENDIF}
-            Inc(PByte(TargetRun), Width);
-
-            Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
-            OffsetRect(FProgressRect, 0, 1);
-          end;
-        end
-        else
-        begin
-          TargetRun := TargetBuffer;
-          // interlaced image, need to move in four passes
-          for Pass := 0 to 3 do
-          begin
-            // determine start line and increment of the pass
-            case Pass of
-              0:
-                begin
-                  I := 0;
-                  Increment := 8;
-                end;
-              1:
-                begin
-                  I := 4;
-                  Increment := 8;
-                end;
-              2:
-                begin
-                  I := 2;
-                  Increment := 4;
-                end;
-            else
-              I := 1;
-              Increment := 2;
-            end;
-
-            while I < Height do
+            TargetRun := TargetBuffer;
+            for I := 0 to Height - 1 do
             begin
               Line := Scanline[I];
               {$IFNDEF FPC}
@@ -5841,16 +5810,61 @@ begin
               ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
               {$ENDIF}
               Inc(PByte(TargetRun), Width);
-              Inc(I, Increment);
 
-              if Pass = 3 then
+              Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          end
+          else
+          begin
+            TargetRun := TargetBuffer;
+            // interlaced image, need to move in four passes
+            for Pass := 0 to 3 do
+            begin
+              // determine start line and increment of the pass
+              case Pass of
+                0:
+                  begin
+                    I := 0;
+                    Increment := 8;
+                  end;
+                1:
+                  begin
+                    I := 4;
+                    Increment := 8;
+                  end;
+                2:
+                  begin
+                    I := 2;
+                    Increment := 4;
+                  end;
+              else
+                I := 1;
+                Increment := 2;
+              end;
+
+              while I < Height do
               begin
-                // progress events only for last (and most expensive) run
-                Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
+                Line := Scanline[I];
+                {$IFNDEF FPC}
+                Move(TargetRun^, Line^, Width);
+                {$ELSE}
+                ColorManager.ConvertRow(TargetRun, Line, Width, $FF);
+                {$ENDIF}
+                Inc(PByte(TargetRun), Width);
+                Inc(I, Increment);
+
+                if Pass = 3 then
+                begin
+                  // progress events only for last (and most expensive) run
+                  Progress(Self, psRunning, 25 + MulDiv(I, 50, Height), True, FProgressRect, '');
+                  OffsetRect(FProgressRect, 0, 1);
+                end;
               end;
             end;
           end;
+        finally
+          Self.Canvas.Unlock;
         end;
       finally
         Progress(Self, psEnding, 0, False, FProgressRect, '');
