@@ -5751,33 +5751,37 @@ begin
         FMem.SeekForward(Increment);
       until Increment = 0;
 
-      // 2) allocate enough memory
-      GetMem(RawData, Pass);
-      // add one extra line of extra memory for badly coded images
-      GetMem(TargetBuffer, Width * (Height + 1));
+      // 2) Allocate memory for decompressed image
+      GetMem(TargetBuffer, Width * Height);
 
       try
-        // 3) read and decode data
-        FMem.SeekFromBeginning(SavedPosition);
-        Run := RawData;
-        repeat
-          Increment := FMem.GetByte();
-          FMem.GetBytes(Run^, Increment);
-          Inc(Run, Increment);
-        until Increment = 0;
-
-        Decoder := TGIFLZWDecoder.Create(InitCodeSize);
+        // 3) Allocate memory for decompress buffer
+        GetMem(RawData, Pass);
         try
+          // 4) read and decode data
+          FMem.SeekFromBeginning(SavedPosition);
           Run := RawData;
-          Decoder.Decode(Pointer(Run), TargetBuffer, Pass, Width * Height);
-          if Decoder.DecoderStatus <> dsOK then begin
-            // Corrupt image. Since all errors get caught we could in principle
-            // still show the image (in case part of it did get decoded), however
-            // for safety it's probably better to always stop with an error.
-            GraphicExError(gesDecompression, ['GIF']);
+          repeat
+            Increment := FMem.GetByte();
+            FMem.GetBytes(Run^, Increment);
+            Inc(Run, Increment);
+          until Increment = 0;
+
+          Decoder := TGIFLZWDecoder.Create(InitCodeSize);
+          try
+            Run := RawData;
+            Decoder.Decode(Pointer(Run), TargetBuffer, Pass, Width * Height);
+            if Decoder.DecoderStatus <> dsOK then begin
+              // Corrupt image. Since all errors get caught we could in principle
+              // still show the image (in case part of it did get decoded), however
+              // for safety it's probably better to always stop with an error.
+              GraphicExError(gesDecompression, ['GIF']);
+            end;
+          finally
+            FreeAndNil(Decoder);
           end;
         finally
-          FreeAndNil(Decoder);
+          FreeMem(RawData);
         end;
         Progress(Self, psEnding, 50, True, FProgressRect, '');
 
@@ -5852,8 +5856,6 @@ begin
         Progress(Self, psEnding, 0, False, FProgressRect, '');
         if Assigned(TargetBuffer) then
           FreeMem(TargetBuffer);
-        if Assigned(RawData) then
-          FreeMem(RawData);
       end;
     end;
   end
