@@ -11372,7 +11372,7 @@ initialization
     {$endif PortableNetworkGraphic}
 
     {$ifdef GIFGraphic}
-      RegisterFileFormat('gif', gesCompuserve, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
+      RegisterFileFormat('gif', gesGIF, '', [ftRaster, ftMultiImage, ftAnimation], False, TGIFGraphic);
     {$endif GIFGraphic}
 
     {$ifdef TIFFGraphic}

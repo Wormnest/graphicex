@@ -70,7 +70,7 @@ resourcestring
   gesPortableMono = 'Portable bitmap images';
   gesAutoDesk = 'Autodesk images';
   gesKodakPhotoCD = 'Kodak Photo-CD images';
-  gesCompuserve = 'CompuServe images';
+  gesGIF = 'GIF images';
   gesHalo = 'Dr. Halo images';
   gesPaintshopPro = 'Paintshop Pro images';
   gesPaintshopProFrames = 'Paintshop Pro frames';
