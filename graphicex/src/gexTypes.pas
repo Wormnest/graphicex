@@ -31,6 +31,7 @@ type
   EgexColorConversionError = class(EgexBaseException);
   EgexGraphicCompressionError = class(EgexBaseException);
   EgexStretchException = class(EgexBaseException);
+  EgexMemoryAccessException = class(EgexBaseException);
 
   // Compatibility layer
   {$IF NOT Declared(UInt64)}
