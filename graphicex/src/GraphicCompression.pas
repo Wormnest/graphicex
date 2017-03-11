@@ -1600,6 +1600,7 @@ begin
   OldCode := NoLZWCode;
   CodeMask := (1 shl CodeSize) - 1;
   MaxCode := False;
+  Code := 0;
 
   // init code table
   for I := 0 to ClearCode - 1 do
