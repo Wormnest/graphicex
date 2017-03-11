@@ -3578,7 +3578,11 @@ begin
               // Targa RLE is not line oriented. Convert all the RLE data in one rush.
               GetMem(Buffer, Height * LineSize);
               Run := Buffer;
-              Decoder.Decode(Pointer(Source), Pointer(Buffer), Width, Height * Width);
+              // Problematic is that we don't know in advance the size of the compressed data
+              // Only thing we can do is make sure it doesn't go beyond the size of the image
+              Decoder.Decode(Pointer(Source), Pointer(Buffer),
+                Size - (NativeUInt(Source)-NativeUInt(Memory)),
+                Height * Width);
 
               // Finally put data into the image.
               for I := 0 to Height - 1 do
