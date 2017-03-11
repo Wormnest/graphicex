@@ -1454,39 +1454,88 @@ var
   SourcePtr,
   TargetPtr: PByte;
   RunLength: Cardinal;
+  DecompressBufSize: Integer;
 
 begin
   SourcePtr := Source;
   TargetPtr := Dest;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
   if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
     FCompressedBytesAvailable := 0;
     FDecoderStatus := dsInvalidBufferSize;
     Exit;
   end;
   FDecoderStatus := dsOK;
-  while PackedSize > 0 do
+  while (PackedSize > 0) and (UnpackedSize > 0) do
   begin
     RunLength := SourcePtr^;
     Inc(SourcePtr);
     Dec(PackedSize);
     if RunLength < 128 then
     begin
+      if RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        // We do not fill in remaining possible input because then we would also have to
+        // first check overflow of input buffer which seems overkill for a corrupt image.
+        break;
+      end
+      else if RunLength > PackedSize then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
       Move(SourcePtr^, TargetPtr^, RunLength);
       Inc(TargetPtr, RunLength);
       Inc(SourcePtr, RunLength);
       Dec(PackedSize, RunLength);
+      Dec(UnpackedSize, RunLength);
     end
     else
     begin
       Dec(RunLength, 128);
+      if RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        // We do not fill in remaining possible input because then we would also have to
+        // first check overflow of input buffer which seems overkill for a corrupt image.
+        break;
+      end
+      else if PackedSize < 1 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
       FillChar(TargetPtr^, RunLength, SourcePtr^);
       Inc(SourcePtr);
       Inc(TargetPtr, RunLength);
+      Dec(UnpackedSize, RunLength);
       Dec(PackedSize);
     end;
   end;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end
+      else begin // > 0
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
