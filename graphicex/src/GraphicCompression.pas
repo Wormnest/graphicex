@@ -1390,8 +1390,11 @@ begin
   TargetPtr := Dest;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
-  if (PackedSize <= 0) or (UnpackedSize <= 0) then
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
     Exit;
+  end;
   while FCompressedBytesAvailable > 0 do
   begin
     Pixel := PByte(Source)^;
