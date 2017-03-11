@@ -1457,6 +1457,14 @@ var
 begin
   SourcePtr := Source;
   TargetPtr := Dest;
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   while PackedSize > 0 do
   begin
     RunLength := SourcePtr^;
