@@ -81,7 +81,8 @@ type
     dsNotEnoughInput,        // Decoder ran out of input
     dsOutputBufferTooSmall,  // Decoder could not decode all input because output buffer is too small
     dsInvalidInput,          // Decoder encountered invalid input (corrupt data)
-    dsBufferOverflow         // Decoder stopped to prevent a buffer overflow
+    dsBufferOverflow,        // Decoder stopped to prevent a buffer overflow
+    dsInvalidBufferSize      // The input or output buffer has an invalid size
   );
 
   // abstract decoder class to define the base functionality of an encoder/decoder
