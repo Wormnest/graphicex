@@ -1739,7 +1739,7 @@ begin
     // do not read the EOICode but stop as soon as our output buffer is full
     // which should normally be the code just before the EOICode.
     if PackedSize < 0 then begin
-      FDecoderStatus := dsNotEnoughInput;
+      FDecoderStatus := dsInternalError;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
       CompressionError(Format(gesInputBufferOverflow, ['GIF LZW decoder']));
     end;
@@ -1748,7 +1748,7 @@ begin
         // Broken/corrupt image
         FDecoderStatus := dsNotEnoughInput
       else begin // < 0
-        FDecoderStatus := dsOutputBufferTooSmall;
+        FDecoderStatus := dsInternalError;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
         CompressionError(Format(gesOutputBufferOverflow, ['GIF LZW decoder']));
       end;
