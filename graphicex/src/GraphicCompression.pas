@@ -119,6 +119,10 @@ type
   public
     constructor Create(ColorDepth: Cardinal);
 
+    // Note The Targa decoder is also used by the Maya IFF image format.
+    // Targa itself can't specify an exact size for the compressed data but Maya can.
+    // This means we can't do exact checks whether all input data has been handled.
+    // Note2 UnpackedSize is the size in pixels, not bytes!
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
@@ -452,6 +456,10 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// Note The Targa decoder is also used by the Maya IFF image format.
+// Targa itself can't specify an exact size for the compressed data but Maya can.
+// This means we can't do exact checks whether all input data has been handled.
+// Note2 UnpackedSize is the size in pixels, not bytes!
 procedure TTargaRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 
 type
@@ -464,49 +472,80 @@ var
   TargetPtr: PByte;
   RunLength: Integer;
   SourceCardinal: Cardinal;
+  DecompressBufSize: Cardinal;
 
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
   FOverflow := False;
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   // unrolled decoder loop to speed up process
   case FColorDepth of
     8:
-      while UnpackedSize > 0 do
+      while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
         if RunLength > UnpackedSize then begin
           FOverflow := True;
           RunLength := UnpackedSize;
+          FDecoderStatus := dsOutputBufferTooSmall;
         end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
+          if PackedSize < 1 then begin
+            FOverflow := True;
+            FDecoderStatus := dsNotEnoughInput;
+            // No input left to fill output
+            break;
+          end;
           FillChar(TargetPtr^, RunLength, SourcePtr^);
           Inc(TargetPtr, RunLength);
           Inc(SourcePtr);
+          Dec(PackedSize);
         end
         else
         begin
           Inc(SourcePtr);
+          if RunLength > PackedSize then begin
+            FOverflow := True;
+            RunLength := PackedSize;
+            FDecoderStatus := dsNotEnoughInput;
+          end;
           Move(SourcePtr^, TargetPtr^, RunLength);
           Inc(SourcePtr, RunLength);
           Inc(TargetPtr, RunLength);
+          Dec(PackedSize, RunLength);
         end;
         Dec(UnpackedSize, RunLength);
       end;
     15,
     16:
-      while UnpackedSize > 0 do
+      while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
         if RunLength > UnpackedSize then begin
           FOverflow := True;
           RunLength := UnpackedSize;
+          FDecoderStatus := dsOutputBufferTooSmall;
         end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
+          if PackedSize < 2 then begin
+            FOverflow := True;
+            FDecoderStatus := dsNotEnoughInput;
+            // No input left to fill output
+            break;
+          end;
           for I := 0 to RunLength - 1 do
           begin
             TargetPtr^ := SourcePtr^;
@@ -517,27 +556,41 @@ begin
             Inc(TargetPtr);
           end;
           Inc(SourcePtr, 2);
+          Dec(PackedSize, 2);
         end
         else
         begin
           Inc(SourcePtr);
+          if 2 * RunLength > PackedSize then begin
+            FOverflow := True;
+            RunLength := PackedSize div 2;
+            FDecoderStatus := dsNotEnoughInput;
+          end;
           Move(SourcePtr^, TargetPtr^, 2 * RunLength);
           Inc(SourcePtr, 2 * RunLength);
           Inc(TargetPtr, 2 * RunLength);
+          Dec(PackedSize, 2 * RunLength);
         end;
         Dec(UnpackedSize, RunLength);
       end;
     24:
-      while UnpackedSize > 0 do
+      while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
         if RunLength > UnpackedSize then begin
           FOverflow := True;
           RunLength := UnpackedSize;
+          FDecoderStatus := dsOutputBufferTooSmall;
         end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
+          if PackedSize < 3 then begin
+            FOverflow := True;
+            FDecoderStatus := dsNotEnoughInput;
+            // No input left to fill output
+            break;
+          end;
           for I := 0 to RunLength - 1 do
           begin
             TargetPtr^ := SourcePtr^;
@@ -551,46 +604,92 @@ begin
             Inc(TargetPtr);
           end;
           Inc(SourcePtr, 3);
+          Dec(PackedSize, 3);
         end
         else
         begin
           Inc(SourcePtr);
+          if 3 * RunLength > PackedSize then begin
+            FOverflow := True;
+            RunLength := PackedSize div 3;
+            FDecoderStatus := dsNotEnoughInput;
+          end;
           Move(SourcePtr^, TargetPtr^, 3 * RunLength);
           Inc(SourcePtr, 3 * RunLength);
           Inc(TargetPtr, 3 * RunLength);
+          Dec(PackedSize, 3 * RunLength);
         end;
         Dec(UnpackedSize, RunLength);
       end;
     32:
-      while UnpackedSize > 0 do
+      while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
         if RunLength > UnpackedSize then begin
           FOverflow := True;
           RunLength := UnpackedSize;
+          FDecoderStatus := dsOutputBufferTooSmall;
         end;
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
+          if PackedSize < 4 then begin
+            FOverflow := True;
+            FDecoderStatus := dsNotEnoughInput;
+            // No input left to fill output
+            break;
+          end;
           SourceCardinal := PCardinalArray(SourcePtr)^[0];
           for I := 0 to RunLength - 1 do
             PCardinalArray(TargetPtr)^[I] := SourceCardinal;
 
           Inc(TargetPtr, 4 * RunLength);
           Inc(SourcePtr, 4);
+          Dec(PackedSize, 4);
         end
         else
         begin
           Inc(SourcePtr);
+          if 4 * RunLength > PackedSize then begin
+            FOverflow := True;
+            RunLength := PackedSize div 4;
+            FDecoderStatus := dsNotEnoughInput;
+          end;
           Move(SourcePtr^, TargetPtr^, 4 * RunLength);
           Inc(SourcePtr, 4 * RunLength);
           Inc(TargetPtr, 4 * RunLength);
+          Dec(PackedSize, 4);
         end;
         Dec(UnpackedSize, RunLength);
       end;
+  else
+    FDecoderStatus := dsInitializationError;
   end;
-
   Source := SourcePtr;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end;
+      // Can't check for PackedSize > 0 because for TGA we don't know the exact size
+      // of the input buffer (but for Maya IFF we do).
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
