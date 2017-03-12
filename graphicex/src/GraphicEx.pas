@@ -3448,6 +3448,12 @@ begin
         {$IFNDEF FPC}
         TargetBitsPerSample := BitsPerSample;
         TargetSamplesPerPixel := SamplesPerPixel;
+        // To be able to set alpha to opaque we need to check target color scheme
+        // which by default is csBGR. Since for Delphi we don't convert but just
+        // move bytes for 32 bits this is the only reason to set target color scheme for.
+        if TargetSamplesPerPixel = 4 then begin
+          TargetColorScheme := csBGRA;
+        end;
         {$ELSE}
         TargetBitsPerSample := 8;
         if BitsPerSample = 5 then
