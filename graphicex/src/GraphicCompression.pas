@@ -116,7 +116,6 @@ type
   TTargaRLEDecoder = class(TDecoder)
   private
     FColorDepth: Cardinal;
-    FOverflow: Boolean;
   public
     constructor Create(ColorDepth: Cardinal);
 
@@ -126,8 +125,6 @@ type
     // Note that for all ColorDepths UnpackedSize should specify the size in bytes not pixels.
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-
-    property Overflow: Boolean read FOverflow;
   end;
 
   // Lempel-Ziff-Welch encoder/decoder class
@@ -478,7 +475,6 @@ var
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
-  FOverflow := False;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
   DecompressBufSize := UnpackedSize;
@@ -495,7 +491,6 @@ begin
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
         if RunLength > UnpackedSize then begin
-          FOverflow := True;
           RunLength := UnpackedSize;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
@@ -504,7 +499,6 @@ begin
         begin
           Inc(SourcePtr);
           if PackedSize < 1 then begin
-            FOverflow := True;
             FDecoderStatus := dsNotEnoughInput;
             // No input left to fill output
             break;
@@ -518,7 +512,6 @@ begin
         begin
           Inc(SourcePtr);
           if RunLength > PackedSize then begin
-            FOverflow := True;
             RunLength := PackedSize;
             FDecoderStatus := dsNotEnoughInput;
           end;
@@ -536,7 +529,6 @@ begin
         RunLength := 1 + (SourcePtr^ and $7F);
         RunBytes := 2 * RunLength;
         if RunBytes > UnpackedSize then begin
-          FOverflow := True;
           RunBytes := UnpackedSize;
           RunLength := RunBytes div 2;
           FDecoderStatus := dsOutputBufferTooSmall;
@@ -546,7 +538,6 @@ begin
         begin
           Inc(SourcePtr);
           if PackedSize < 2 then begin
-            FOverflow := True;
             FDecoderStatus := dsNotEnoughInput;
             // No input left to fill output
             break;
@@ -567,7 +558,6 @@ begin
         begin
           Inc(SourcePtr);
           if RunBytes > PackedSize then begin
-            FOverflow := True;
             RunBytes := PackedSize;
             RunLength := RunBytes div 2;
             FDecoderStatus := dsNotEnoughInput;
@@ -585,7 +575,6 @@ begin
         RunLength := 1 + (SourcePtr^ and $7F);
         RunBytes := 3 * RunLength;
         if RunBytes > UnpackedSize then begin
-          FOverflow := True;
           RunBytes := UnpackedSize;
           RunLength := RunBytes div 3;
           FDecoderStatus := dsOutputBufferTooSmall;
@@ -595,7 +584,6 @@ begin
         begin
           Inc(SourcePtr);
           if PackedSize < 3 then begin
-            FOverflow := True;
             FDecoderStatus := dsNotEnoughInput;
             // No input left to fill output
             break;
@@ -619,7 +607,6 @@ begin
         begin
           Inc(SourcePtr);
           if RunBytes > PackedSize then begin
-            FOverflow := True;
             RunBytes := PackedSize;
             //RunLength := RunBytes div 3;
             FDecoderStatus := dsNotEnoughInput;
@@ -637,7 +624,6 @@ begin
         RunLength := 1 + (SourcePtr^ and $7F);
         RunBytes := 4 * RunLength;
         if RunBytes > UnpackedSize then begin
-          FOverflow := True;
           RunBytes := UnpackedSize;
           RunLength := RunBytes div 4;
           FDecoderStatus := dsOutputBufferTooSmall;
@@ -647,7 +633,6 @@ begin
         begin
           Inc(SourcePtr);
           if PackedSize < 4 then begin
-            FOverflow := True;
             FDecoderStatus := dsNotEnoughInput;
             // No input left to fill output
             break;
@@ -664,7 +649,6 @@ begin
         begin
           Inc(SourcePtr);
           if RunBytes > PackedSize then begin
-            FOverflow := True;
             RunBytes := PackedSize;
             RunLength := RunBytes div 4;
             FDecoderStatus := dsNotEnoughInput;

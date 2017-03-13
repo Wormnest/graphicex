@@ -177,7 +177,7 @@ begin
   for i := 0 to ADepth-1 do begin
     SetLength(Channels[i], ChannelSize);
     Decoder.Decode(CompressedDataPtr, Pointer(Channels[i]), CompressedDataSize, ChannelSize);
-    if TTargaRLEDecoder(Decoder).Overflow then
+    if Decoder.DecoderStatus <> dsOK then
       raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
     Dec(CompressedDataSize, NativeUInt(CompressedDataPtr)-NativeUInt(OldPtr));
     OldPtr := CompressedDataPtr;
