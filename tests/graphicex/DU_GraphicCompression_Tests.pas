@@ -31,6 +31,37 @@ type
   published
   end;
 
+  TTGARLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder8: TTargaRLEDecoder;
+    FDecoder16: TTargaRLEDecoder;
+    FDecoder24: TTargaRLEDecoder;
+    FDecoder32: TTargaRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte8bits;
+    procedure TestDecompress1Byte16bits;
+    procedure TestDecompress1Byte24bits;
+    procedure TestDecompress1Byte32bits;
+    procedure TestDecompressMove8Bits;
+    procedure TestDecompressFill8Bits;
+    procedure TestDecompressMove16Bits;
+    procedure TestDecompressFill16Bits;
+    procedure TestDecompressMove24Bits;
+    procedure TestDecompressFill24Bits;
+    procedure TestDecompressMove32Bits;
+    procedure TestDecompressFill32Bits;
+    {procedure TestDecompress2Bytes;
+    procedure TestDecompress3Bytes;
+    procedure TestDecompressOutputMove;
+    procedure TestDecompressOutputFill;
+    procedure TestDecompressOutputMixed;}
+  end;
+
   TPSPRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TPSPRLEDecoder;
@@ -163,6 +194,348 @@ begin
   Check(ADecoder.DecoderStatus = dsInvalidBufferSize,
     Format('Decoding status not dsInvalidBufferSize but %s.',
     [GetDecodingStatusAsString(ADecoder.DecoderStatus)]));
+end;
+
+// ********** TTGARLEDecoderTests **********
+
+procedure TTGARLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder8 := TTargaRLEDecoder.Create(8);
+  FDecoder16 := TTargaRLEDecoder.Create(16);
+  FDecoder24 := TTargaRLEDecoder.Create(24);
+  FDecoder32 := TTargaRLEDecoder.Create(32);
+end;
+
+procedure TTGARLEDecoderTests.TearDown;
+begin
+  FDecoder8.Free;
+  FDecoder16.Free;
+  FDecoder24.Free;
+  FDecoder32.Free;
+  inherited TearDown;
+end;
+
+procedure TTGARLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder8);
+  TestCompressedSizeLimits(FDecoder16);
+  TestCompressedSizeLimits(FDecoder24);
+  TestCompressedSizeLimits(FDecoder32);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder8);
+  TestDecompressedSizeLimits(FDecoder16);
+  TestDecompressedSizeLimits(FDecoder24);
+  TestDecompressedSizeLimits(FDecoder32);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompress1Byte8bits;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompress1Byte16bits;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder16, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder16, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder16, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder16, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder16, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder16, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder16, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder16, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompress1Byte24bits;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder24, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder24, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder24, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder24, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder24, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder24, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder24, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder24, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompress1Byte32bits;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder32, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder32, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder32, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder32, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder32, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder32, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder32, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder32, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressMove8Bits;
+var InputBuffer: array [0..128] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Move for bytes <= $7F
+  InputBuffer[0] := 0; // Move 1 byte
+  InputBuffer[1] := $ab;
+  TestDecompress(FDecoder8, Source, 2, 1, 0, 1, dsOK, 1);
+  InputBuffer[0] := 1; // Move 2 bytes
+  InputBuffer[2] := $cd;
+  TestDecompress(FDecoder8, Source, 3, 2, 0, 2, dsOK, 2);
+  InputBuffer[0] := 127; // Move 128 bytes
+  for i := 1 to 128 do
+    InputBuffer[i] := 255-i;
+  TestDecompress(FDecoder8, Source, 129, 128, 0, 128, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 127 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed byte at position %d', [i]));
+  TestDecompress(FDecoder8, Source, 129, 127, 1, 127, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder8, Source, 128, 128, 0, 127, dsNotEnoughInput, 5);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressFill8Bits;
+var InputBuffer: array [0..128] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Fill for bytes > $7F
+  InputBuffer[0] := 128; // Fill 1 byte
+  InputBuffer[1] := $ab;
+  TestDecompress(FDecoder8, Source, 2, 1, 0, 1, dsOK, 1);
+  InputBuffer[0] := 129; // Fill 2 bytes
+  InputBuffer[1] := $cd;
+  TestDecompress(FDecoder8, Source, 2, 2, 0, 2, dsOK, 2);
+  InputBuffer[0] := 255; // Fill 128 bytes
+  InputBuffer[1] := $ef;
+  TestDecompress(FDecoder8, Source, 2, 128, 0, 128, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 127 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[1],
+      Format('Unexpected decompressed word at position %d', [i]));
+  TestDecompress(FDecoder8, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder8, Source, 1, 128, 0, 0, dsNotEnoughInput, 5);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressMove16Bits;
+var InputBuffer: array [0..256] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Move for bytes <= $7F
+  InputBuffer[0] := 0; // Move 1 pixel = 2 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $cd;
+  TestDecompress(FDecoder16, Source, 3, 2, 0, 2, dsOK, 1);
+  InputBuffer[0] := 1; // Move 2 pixels = 4 bytes
+  InputBuffer[3] := $aa;
+  InputBuffer[4] := $bb;
+  TestDecompress(FDecoder16, Source, 5, 4, 0, 4, dsOK, 2);
+  InputBuffer[0] := 127; // Move 128 pixels = 256 bytes
+  for i := 1 to 256 do
+    InputBuffer[i] := 256-i;
+  TestDecompress(FDecoder16, Source, 257, 256, 0, 256, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 255 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed byte at position %d', [i]));
+  TestDecompress(FDecoder16, Source, 257, 255, 1, 255, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder16, Source, 256, 256, 0, 255, dsNotEnoughInput, 5);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressFill16Bits;
+var InputBuffer: array [0..2] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Fill for bytes > $7F
+  InputBuffer[0] := 128; // Fill 1 pixel = 2 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $ba;
+  TestDecompress(FDecoder16, Source, 3, 2, 0, 2, dsOK, 1);
+  InputBuffer[0] := 129; // Fill 2 pixels = 4 bytes
+  TestDecompress(FDecoder16, Source, 3, 4, 0, 4, dsOK, 2);
+  InputBuffer[0] := 255; // Fill 128 pixels = 256 bytes
+  TestDecompress(FDecoder16, Source, 3, 256, 0, 256, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 127 do
+    Check(PWordArray(FDecompressBuffer)^[i] = PWord(@InputBuffer[1])^,
+      Format('Unexpected decompressed word at position %d', [i]));
+  TestDecompress(FDecoder16, Source, 3, 255, 0, 255, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder16, Source, 2, 256, 1, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder16, Source, 1, 256, 0, 0, dsNotEnoughInput, 6);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressMove24Bits;
+var InputBuffer: array [0..384] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Move for bytes <= $7F
+  InputBuffer[0] := 0; // Move 1 pixel = 3 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $cd;
+  InputBuffer[3] := $ef;
+  TestDecompress(FDecoder24, Source, 4, 3, 0, 3, dsOK, 1);
+  InputBuffer[0] := 1; // Move 2 pixels = 6 bytes
+  InputBuffer[4] := $aa;
+  InputBuffer[5] := $bb;
+  InputBuffer[6] := $cc;
+  TestDecompress(FDecoder24, Source, 7, 6, 0, 6, dsOK, 2);
+  InputBuffer[0] := 127; // Move 128 pixels = 384 bytes
+  for i := 1 to 384 do
+    InputBuffer[i] := i div 3;
+  TestDecompress(FDecoder24, Source, 385, 384, 0, 384, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 383 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed byte at position %d', [i]));
+  TestDecompress(FDecoder24, Source, 385, 383, 1, 383, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder24, Source, 384, 384, 0, 383, dsNotEnoughInput, 5);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressFill24Bits;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Fill for bytes > $7F
+  InputBuffer[0] := 128; // Fill 1 pixel = 3 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $ba;
+  InputBuffer[3] := $ef;
+  TestDecompress(FDecoder24, Source, 4, 3, 0, 3, dsOK, 1);
+  InputBuffer[0] := 129; // Fill 2 pixels = 6 bytes
+  TestDecompress(FDecoder24, Source, 4, 6, 0, 6, dsOK, 2);
+  InputBuffer[0] := 255; // Fill 128 pixels = 384 bytes
+  TestDecompress(FDecoder24, Source, 4, 384, 0, 384, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 383 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i mod 3 + 1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder24, Source, 4, 383, 0, 383, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder24, Source, 3, 384, 2, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder24, Source, 2, 384, 1, 0, dsNotEnoughInput, 6);
+  TestDecompress(FDecoder24, Source, 1, 384, 0, 0, dsNotEnoughInput, 7);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressMove32Bits;
+var InputBuffer: array [0..512] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Move for bytes <= $7F
+  InputBuffer[0] := 0; // Move 1 pixel = 4 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $cd;
+  InputBuffer[3] := $01;
+  InputBuffer[4] := $23;
+  TestDecompress(FDecoder32, Source, 5, 4, 0, 4, dsOK, 1);
+  InputBuffer[0] := 1; // Move 2 pixels = 8 bytes
+  InputBuffer[5] := $1b;
+  InputBuffer[6] := $2d;
+  InputBuffer[7] := $31;
+  InputBuffer[8] := $43;
+  TestDecompress(FDecoder32, Source, 9, 8, 0, 8, dsOK, 2);
+  InputBuffer[0] := 127; // Move 128 pixels = 512 bytes
+  for i := 1 to 512 do
+    InputBuffer[i] := i mod 256;
+  TestDecompress(FDecoder32, Source, 513, 512, 0, 512, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 511 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed byte at position %d', [i]));
+  TestDecompress(FDecoder32, Source, 513, 511, 1, 511, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder32, Source, 512, 512, 0, 511, dsNotEnoughInput, 5);
+end;
+
+procedure TTGARLEDecoderTests.TestDecompressFill32Bits;
+var InputBuffer: array [0..4] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  // TGA RLE does Fill for bytes > $7F
+  InputBuffer[0] := 128; // Fill 1 pixel = 4 bytes
+  InputBuffer[1] := $ab;
+  InputBuffer[2] := $ba;
+  InputBuffer[3] := $98;
+  InputBuffer[4] := $76;
+  TestDecompress(FDecoder32, Source, 5, 4, 0, 4, dsOK, 1);
+  InputBuffer[0] := 129; // Fill 2 pixels = 8 bytes
+  TestDecompress(FDecoder32, Source, 5, 8, 0, 8, dsOK, 2);
+  InputBuffer[0] := 255; // Fill 128 pixels = 512 bytes
+  TestDecompress(FDecoder32, Source, 5, 512, 0, 512, dsOK, 3);
+  // Check contents of buffer
+  for i := 0 to 511 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i mod 4 + 1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder32, Source, 5, 511, 0, 511, dsOutputBufferTooSmall, 4);
+  TestDecompress(FDecoder32, Source, 4, 512, 3, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder32, Source, 3, 512, 2, 0, dsNotEnoughInput, 6);
+  TestDecompress(FDecoder32, Source, 2, 512, 1, 0, dsNotEnoughInput, 7);
+  TestDecompress(FDecoder32, Source, 1, 512, 0, 0, dsNotEnoughInput, 8);
 end;
 
 // ********** TPSPRLEDecoderTests **********
@@ -571,6 +944,7 @@ end;
 initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
     [
+      TTGARLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
