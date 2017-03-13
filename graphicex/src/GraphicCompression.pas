@@ -12,7 +12,7 @@ unit GraphicCompression;
 //
 // The original code is GraphicCompression.pas, released November 1, 1999.
 //
-// The initial developer of the original code is Dipl. Ing. Mike Lischke (PleiÃŸa, Germany, www.delphi-gems.com),
+// The initial developer of the original code is Dipl. Ing. Mike Lischke (Pleißa, Germany, www.delphi-gems.com),
 //
 // Portions created by Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
@@ -93,6 +93,7 @@ type
     FDecompressedBytes: Integer;
     FDecoderStatus: TDecoderStatus;
   public
+    // PackedSize and UnpackedSize specify the size in bytes of the input and output buffers
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); virtual; abstract;
     procedure DecodeEnd; virtual;
     procedure DecodeInit; virtual;
@@ -122,7 +123,7 @@ type
     // Note The Targa decoder is also used by the Maya IFF image format.
     // Targa itself can't specify an exact size for the compressed data but Maya can.
     // This means we can't do exact checks whether all input data has been handled.
-    // Note2 UnpackedSize is the size in pixels, not bytes!
+    // Note that for all ColorDepths UnpackedSize should specify the size in bytes not pixels.
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
@@ -459,7 +460,7 @@ end;
 // Note The Targa decoder is also used by the Maya IFF image format.
 // Targa itself can't specify an exact size for the compressed data but Maya can.
 // This means we can't do exact checks whether all input data has been handled.
-// Note2 UnpackedSize is the size in pixels, not bytes!
+// Note that for all ColorDepths UnpackedSize should specify the size in bytes not pixels.
 procedure TTargaRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 
 type
@@ -470,7 +471,7 @@ var
   I: Integer;
   SourcePtr,
   TargetPtr: PByte;
-  RunLength: Integer;
+  RunLength, RunBytes: Cardinal;
   SourceCardinal: Cardinal;
   DecompressBufSize: Cardinal;
 
@@ -533,9 +534,11 @@ begin
       while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
-        if RunLength > UnpackedSize then begin
+        RunBytes := 2 * RunLength;
+        if RunBytes > UnpackedSize then begin
           FOverflow := True;
-          RunLength := UnpackedSize;
+          RunBytes := UnpackedSize;
+          RunLength := RunBytes div 2;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
         Dec(PackedSize);
@@ -563,25 +566,28 @@ begin
         else
         begin
           Inc(SourcePtr);
-          if 2 * RunLength > PackedSize then begin
+          if RunBytes > PackedSize then begin
             FOverflow := True;
-            RunLength := PackedSize div 2;
+            RunBytes := PackedSize;
+            RunLength := RunBytes div 2;
             FDecoderStatus := dsNotEnoughInput;
           end;
-          Move(SourcePtr^, TargetPtr^, 2 * RunLength);
-          Inc(SourcePtr, 2 * RunLength);
-          Inc(TargetPtr, 2 * RunLength);
-          Dec(PackedSize, 2 * RunLength);
+          Move(SourcePtr^, TargetPtr^, RunBytes);
+          Inc(SourcePtr, RunBytes);
+          Inc(TargetPtr, RunBytes);
+          Dec(PackedSize, RunBytes);
         end;
-        Dec(UnpackedSize, RunLength);
+        Dec(UnpackedSize, RunBytes);
       end;
     24:
       while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
-        if RunLength > UnpackedSize then begin
+        RunBytes := 3 * RunLength;
+        if RunBytes > UnpackedSize then begin
           FOverflow := True;
-          RunLength := UnpackedSize;
+          RunBytes := UnpackedSize;
+          RunLength := RunBytes div 3;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
         Dec(PackedSize);
@@ -612,25 +618,28 @@ begin
         else
         begin
           Inc(SourcePtr);
-          if 3 * RunLength > PackedSize then begin
+          if RunBytes > PackedSize then begin
             FOverflow := True;
-            RunLength := PackedSize div 3;
+            RunBytes := PackedSize;
+            //RunLength := RunBytes div 3;
             FDecoderStatus := dsNotEnoughInput;
           end;
-          Move(SourcePtr^, TargetPtr^, 3 * RunLength);
-          Inc(SourcePtr, 3 * RunLength);
-          Inc(TargetPtr, 3 * RunLength);
-          Dec(PackedSize, 3 * RunLength);
+          Move(SourcePtr^, TargetPtr^, RunBytes);
+          Inc(SourcePtr, RunBytes);
+          Inc(TargetPtr, RunBytes);
+          Dec(PackedSize, RunBytes);
         end;
-        Dec(UnpackedSize, RunLength);
+        Dec(UnpackedSize, RunBytes);
       end;
     32:
       while (UnpackedSize > 0) and (PackedSize > 0) do
       begin
         RunLength := 1 + (SourcePtr^ and $7F);
-        if RunLength > UnpackedSize then begin
+        RunBytes := 4 * RunLength;
+        if RunBytes > UnpackedSize then begin
           FOverflow := True;
-          RunLength := UnpackedSize;
+          RunBytes := UnpackedSize;
+          RunLength := RunBytes div 4;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
         Dec(PackedSize);
@@ -647,24 +656,25 @@ begin
           for I := 0 to RunLength - 1 do
             PCardinalArray(TargetPtr)^[I] := SourceCardinal;
 
-          Inc(TargetPtr, 4 * RunLength);
+          Inc(TargetPtr, RunBytes);
           Inc(SourcePtr, 4);
           Dec(PackedSize, 4);
         end
         else
         begin
           Inc(SourcePtr);
-          if 4 * RunLength > PackedSize then begin
+          if RunBytes > PackedSize then begin
             FOverflow := True;
-            RunLength := PackedSize div 4;
+            RunBytes := PackedSize;
+            RunLength := RunBytes div 4;
             FDecoderStatus := dsNotEnoughInput;
           end;
-          Move(SourcePtr^, TargetPtr^, 4 * RunLength);
-          Inc(SourcePtr, 4 * RunLength);
-          Inc(TargetPtr, 4 * RunLength);
-          Dec(PackedSize, 4 * RunLength);
+          Move(SourcePtr^, TargetPtr^, RunBytes);
+          Inc(SourcePtr, RunBytes);
+          Inc(TargetPtr, RunBytes);
+          Dec(PackedSize, RunBytes);
         end;
-        Dec(UnpackedSize, RunLength);
+        Dec(UnpackedSize, RunBytes);
       end;
   else
     FDecoderStatus := dsInitializationError;

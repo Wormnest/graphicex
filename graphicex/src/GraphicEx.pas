@@ -3588,7 +3588,7 @@ begin
               // Only thing we can do is make sure it doesn't go beyond the size of the image
               Decoder.Decode(Pointer(Source), Pointer(Buffer),
                 Size - (NativeUInt(Source)-NativeUInt(Memory)),
-                Height * Width);
+                Height * LineSize);
 
               // Finally put data into the image.
               for I := 0 to Height - 1 do
