@@ -58,10 +58,10 @@ uses SysUtils, Classes, Forms,
   {$IFDEF HEAPTRC_LOG}
   heaptrc,
   {$ENDIF}
+  TestSettings,
   GraphicStrings;
 
 const
-  ImagesBasePath = 'E:\Delphi\Projects\Transcript\test-images\';
   XmlConfig_FileName = 'unit-tests.xml';
 
 var
@@ -432,12 +432,9 @@ var
   ImageReadingTestsClass: TImageReadingTestsClass;
 
 initialization
-  if not DirectoryExists(ImagesBasePath) then
-    MessageBox(0, 'Path to test images does not exist!'#13#10+
-      'Please set ImagesBasePath to a correct location with test images.'#13#10+
-      'Beware that you also need to initialize the unit-tests.xml files in each image folder!',
-      'ImageReader Tests', mb_iconhand + mb_ok);
-  ImageReadingTestsClass := TImageReadingTests;
-  AddImageReaderTests('Test Loading Image Formats', ImagesBasePath,
-    XmlConfig_FileName, ImageReadingTestsClass);
+  if ImagesBasePath <> '' then begin
+    ImageReadingTestsClass := TImageReadingTests;
+    AddImageReaderTests('Test Loading Image Formats', ImagesBasePath,
+      XmlConfig_FileName, ImageReadingTestsClass);
+  end;
 end.

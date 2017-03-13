@@ -30,13 +30,12 @@ type
 
 implementation
 
-uses GraphicEx, gexJpeg;
+uses GraphicEx, gexJpeg, TestSettings;
 
-const // For now hardcode some test images
-  ImagesBasePath = 'e:\Delphi\Projects\Transcript\test-images\jpg\';
-  Test1 = ImagesBasePath + 'nuke-symbol.jpg';      // normal jpg
-  Test2 = ImagesBasePath + 'unit-tests.xml';       // not a jpg
-  Test3 = ImagesBasePath + 'wrong-extension.bmp';  // jpg with bmp extension
+var
+  Test1,
+  Test2,
+  Test3: string; // Location of test images.
 
 procedure TgexJpegImageTests.SetUp;
 var gr: TGraphicClass;
@@ -111,10 +110,15 @@ begin
 end;
 
 initialization
-if not FileExists(Test1) or not FileExists(Test2) or not FileExists(Test3) then
-  MessageBox(0, 'At least one of the test images does not exist!'#13#10+
-    'Please change the hardcoded test files to something valid for your system.',
-    'Jpeg Tests', mb_iconhand + mb_ok);
-  RegisterTest(TgexJpegImageTests{$IFNDEF FPC}.Suite{$ENDIF});
+  // Set the location of our jpg test images.
+  Test1 := ImagesBasePath + 'jpg\nuke-symbol.jpg';      // normal jpg
+  Test2 := ImagesBasePath + 'jpg\unit-tests.xml';       // not a jpg
+  Test3 := ImagesBasePath + 'jpg\wrong-extension.bmp';  // jpg with bmp extension
+  if not FileExists(Test1) or not FileExists(Test2) or not FileExists(Test3) then
+    MessageBox(0, 'At least one of the jpg test images does not exist!'#13#10+
+      'Please change the name of the basepath or the test files to something valid for your system.',
+      'Jpeg Tests', mb_iconhand + mb_ok)
+  else
+    RegisterTest(TgexJpegImageTests{$IFNDEF FPC}.Suite{$ENDIF});
 end.
 
