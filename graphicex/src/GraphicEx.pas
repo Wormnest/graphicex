@@ -4325,6 +4325,7 @@ begin
     Header := Memory;
     if Header.FileID in [$0A, $CD] then
     begin
+      FImageProperties.Version := Header.Version;
       FImageProperties.Width := Header.XMax - Header.XMin + 1;
       FImageProperties.Height := Header.YMax - Header.YMin + 1;
 
