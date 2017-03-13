@@ -55,11 +55,6 @@ type
     procedure TestDecompressFill24Bits;
     procedure TestDecompressMove32Bits;
     procedure TestDecompressFill32Bits;
-    {procedure TestDecompress2Bytes;
-    procedure TestDecompress3Bytes;
-    procedure TestDecompressOutputMove;
-    procedure TestDecompressOutputFill;
-    procedure TestDecompressOutputMixed;}
   end;
 
   TPSPRLEDecoderTests = class(TCompressionTestsBase)
