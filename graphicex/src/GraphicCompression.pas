@@ -498,6 +498,7 @@ begin
           RunLength := UnpackedSize;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
+        Dec(PackedSize);
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -537,6 +538,7 @@ begin
           RunLength := UnpackedSize;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
+        Dec(PackedSize);
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -582,6 +584,7 @@ begin
           RunLength := UnpackedSize;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
+        Dec(PackedSize);
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -630,6 +633,7 @@ begin
           RunLength := UnpackedSize;
           FDecoderStatus := dsOutputBufferTooSmall;
         end;
+        Dec(PackedSize);
         if SourcePtr^ > $7F then
         begin
           Inc(SourcePtr);
@@ -658,7 +662,7 @@ begin
           Move(SourcePtr^, TargetPtr^, 4 * RunLength);
           Inc(SourcePtr, 4 * RunLength);
           Inc(TargetPtr, 4 * RunLength);
-          Dec(PackedSize, 4);
+          Dec(PackedSize, 4 * RunLength);
         end;
         Dec(UnpackedSize, RunLength);
       end;
