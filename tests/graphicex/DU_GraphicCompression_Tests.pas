@@ -327,7 +327,7 @@ begin
     [FDecoder.DecompressedBytes]));
   Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
     [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
-  for i := 0 to 12 do
+  for i := 0 to 11 do
     Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
       Format('We expected %d but got %d at position %d',
       [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
