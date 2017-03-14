@@ -381,6 +381,7 @@ type
     procedure ConvertHam(Source, Target: Pointer; Count: Cardinal; HamPlanes: Cardinal;
       TransParentColorIndex: Integer; ExtraPal: PByte = nil);
 
+    function CreateCGAColorPalette(ABackground: Byte; AColor: Boolean; AGreenRedBrown: Boolean; ALight: Boolean): HPALETTE;
     function CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat; ColorCount: Cardinal;
       RGB: Boolean = True): HPALETTE;
     function CreateGrayscalePalette(MinimumIsWhite: Boolean): HPALETTE;
@@ -8701,6 +8702,75 @@ begin
   end;
 end;
 
+// Table with all 16 possible colors for CGA screens
+const CGA_COLORS: array [0..15] of tagPALETTEENTRY = (
+      (peRed: $00; peGreen: $00; peBlue: $00; peFlags: 0),  //  0 = Black #000000
+      (peRed: $00; peGreen: $00; peBlue: $aa; peFlags: 0),  //  1 = Blue  #0000AA
+      (peRed: $00; peGreen: $aa; peBlue: $00; peFlags: 0),  //  2 = Green #00AA00
+      (peRed: $00; peGreen: $aa; peBlue: $aa; peFlags: 0),  //  3 = Cyan  #00AAAA
+      (peRed: $aa; peGreen: $00; peBlue: $00; peFlags: 0),  //  4 = Red   #AA0000
+      (peRed: $aa; peGreen: $00; peBlue: $aa; peFlags: 0),  //  5 = Magenta # AA00AA
+      (peRed: $aa; peGreen: $55; peBlue: $00; peFlags: 0),  //  6 = Brown #AA5500
+      (peRed: $aa; peGreen: $aa; peBlue: $aa; peFlags: 0),  //  7 = Light Gray  #AAAAAA
+      (peRed: $55; peGreen: $55; peBlue: $55; peFlags: 0),  //  8 = Gray  #555555
+      (peRed: $55; peGreen: $55; peBlue: $ff; peFlags: 0),  //  9 = Light Blue  #5555FF
+      (peRed: $55; peGreen: $ff; peBlue: $55; peFlags: 0),  // 10 = Light Green #55FF55
+      (peRed: $55; peGreen: $ff; peBlue: $ff; peFlags: 0),  // 11 = Light Cyan  #55FFFF
+      (peRed: $ff; peGreen: $55; peBlue: $55; peFlags: 0),  // 12 = Light Red   #FF5555
+      (peRed: $ff; peGreen: $55; peBlue: $ff; peFlags: 0),  // 13 = Light Magenta #FF55FF
+      (peRed: $ff; peGreen: $ff; peBlue: $55; peFlags: 0),  // 14 = Yellow #FFFF55
+      (peRed: $ff; peGreen: $ff; peBlue: $ff; peFlags: 0)   // 15 = White  #FFFFFF
+  );
+
+function TColorManager.CreateCGAColorPalette(ABackground: Byte; AColor: Boolean; AGreenRedBrown: Boolean; ALight: Boolean): HPALETTE;
+var
+  LogPalette: TMaxLogPalette;
+begin
+  FillChar(LogPalette, SizeOf(LogPalette), 0);
+  LogPalette.palVersion := $300;
+  LogPalette.palNumEntries := 4;
+  // See https://en.wikipedia.org/wiki/Color_Graphics_Adapter
+  LogPalette.palPalEntry[0] := CGA_COLORS[ABackground];
+  if not AColor then begin
+    if ALight then begin // Default, Cyan, Red, Light Gray
+      LogPalette.palPalEntry[1] := CGA_COLORS[11];
+      LogPalette.palPalEntry[2] := CGA_COLORS[12];
+      LogPalette.palPalEntry[3] := CGA_COLORS[15];
+    end
+    else begin // Default, Light Cyan, Light Red, White
+      LogPalette.palPalEntry[1] := CGA_COLORS[3];
+      LogPalette.palPalEntry[2] := CGA_COLORS[4];
+      LogPalette.palPalEntry[3] := CGA_COLORS[7];
+    end;
+  end
+  else if AGreenRedBrown then begin
+    if ALight then begin // Default, light green, light red, yellow
+      LogPalette.palPalEntry[1] := CGA_COLORS[10];
+      LogPalette.palPalEntry[2] := CGA_COLORS[12];
+      LogPalette.palPalEntry[3] := CGA_COLORS[14];
+    end
+    else begin // Default, green, red, brown
+      LogPalette.palPalEntry[1] := CGA_COLORS[2];
+      LogPalette.palPalEntry[2] := CGA_COLORS[4];
+      LogPalette.palPalEntry[3] := CGA_COLORS[6];
+    end;
+  end
+  else begin
+    if ALight then begin // Default, light cyan, light magenta, white
+      LogPalette.palPalEntry[1] := CGA_COLORS[11];
+      LogPalette.palPalEntry[2] := CGA_COLORS[13];
+      LogPalette.palPalEntry[3] := CGA_COLORS[15];
+    end
+    else begin // Default, cyan, magenta, light gray
+      LogPalette.palPalEntry[1] := CGA_COLORS[3];
+      LogPalette.palPalEntry[2] := CGA_COLORS[5];
+      LogPalette.palPalEntry[3] := CGA_COLORS[7];
+    end;
+  end;
+  // Finally create palette
+  Result := CreatePalette(PLogPalette(@LogPalette)^);
+end;
+
 function TColorManager.CreateColorPalette(Data: array of Pointer; DataFormat: TRawPaletteFormat;
   ColorCount: Cardinal; RGB: Boolean = True): HPALETTE;
 
@@ -8733,7 +8803,7 @@ var
   RunB16: PWord;
   Convert8: function(Value: Byte): Byte of object;
   Convert16: function(Value: Word): Byte of object;
-  
+
 begin
   FillChar(LogPalette, SizeOf(LogPalette), 0);
   LogPalette.palVersion := $300;
