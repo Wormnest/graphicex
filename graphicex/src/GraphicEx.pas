@@ -3961,7 +3961,10 @@ var
 
   var
     PaletteData: PByte;
-
+    bgIndex: Byte;
+    UseColor: Boolean;
+    UseGreenRedBrown: Boolean;
+    IsLight: Boolean;
   begin
     if (Header.Version <> 3) or (APixelFormat = pf1Bit) then
     begin
@@ -3971,6 +3974,29 @@ var
         pf4Bit:
           if Header.paletteType = 2 then
             Palette := ColorManager.CreateGrayScalePalette(False)
+          else if (Header.BitsPerPixel = 2) and
+            // Just a guess why CGA_FSD.PCX has a palette and not CGA mode byte and background byte
+            not ((Header.Version = 5) and (Header.VscreenSize = 1)) then begin
+            // CGA Palette
+            // Get the CGA background color (0-15)
+            bgIndex := Header.ColorMap[0].R shr 4;
+            if ((Header.Version = 5) and (Header.VscreenSize = 201)) then begin
+              // Settings that seem to work for CGA_TST1.PCX and CGA_RGBI.PCX
+              // No documentation found for this nor any other pcx images to test.
+              UseColor := Header.ColorMap[1].R and $08 = 0;
+              UseGreenRedBrown := Header.ColorMap[1].R and $10 = 0;
+              IsLight := Header.ColorMap[1].R and $04 <> 0;
+            end
+            else begin
+              // Bits according to the PCX specs checked below.
+              // However according to the text file accompanying CGA_TST1.PCX and CGA_RGBI.PCX
+              // These seem to be wrong.
+              UseColor := Header.ColorMap[1].R and $80 = 0;
+              UseGreenRedBrown := Header.ColorMap[1].R and $40 = 0;
+              IsLight := Header.ColorMap[1].R and $20 <> 0;
+            end;
+            Palette := ColorManager.CreateCGAColorPalette(bgIndex, UseColor, UseGreenRedBrown, IsLight);
+          end
           else begin
             Palette := ColorManager.CreateColorPalette([@Header.ColorMap], pfInterlaced8Triple, 16);
             {$IFDEF FPC}
