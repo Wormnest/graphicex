@@ -4126,8 +4126,6 @@ begin
     // Set image pixel format
     PixelFormat := ColorManager.TargetPixelFormat;
 
-    // 256 colors palette is appended to the actual PCX data.
-    PCXSize := Size;
     // Since TBitmap can change PixelFormat internally to what it accepts,
     // we cannot use it since we need source format to determine if we need
     // to add palette data.
@@ -4137,6 +4135,8 @@ begin
        (FImageProperties.SamplesPerPixel = 4) then
       TempPixelFormat := pf4Bit;
 
+    PCXSize := Size - SizeOf(Header);
+    // 256 colors palette can be appended to the actual PCX data.
     if TempPixelFormat = pf8Bit then
       Dec(PCXSize, 769);
     if TempPixelFormat in [pf1Bit, pf4Bit, pf8Bit] then
@@ -4157,6 +4157,9 @@ begin
       with TPCXRLEDecoder.Create do
       try
         Decode(Pointer(Run), DecodeBuffer, PCXSize, DataSize);
+        // Note that we currently have 2 images that cause an error status
+        // gmarbles.pcx and mother.pcx. However both of them can be shown fine
+        // so we won't generate an error here. Maybe in the future a warning.
       finally
         Free;
       end;
