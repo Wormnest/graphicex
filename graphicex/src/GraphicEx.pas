@@ -1978,185 +1978,178 @@ begin
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
     Run := Memory;
-    with FImageProperties do
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+
+    // Read header again. We need some additional information.
+    Move(Run^, Header, SizeOf(TSGIHeader));
+    Inc(Run, SizeOf(TSGIHeader));
+
+    // SGI images are always stored in big endian style
+    ColorManager.SourceOptions := [coNeedByteSwap];
+    Header.ColorMap := SwapEndian(Header.ColorMap);
+
+    if FImageProperties.Compression = ctRLE then
     begin
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+      Count := FImageProperties.Height * FImageProperties.SamplesPerPixel;
+      SetLength(FRowStart, Count);
+      SetLength(FRowSize, Count);
+      // Convert line starts and sizes.
+      Move(Run^, Pointer(FRowStart)^, Count * SizeOf(Cardinal));
+      SwapCardinalArrayEndian(PCardinal(FRowStart), Count);
+      Move(Run^, Pointer(FRowSize)^, Count * SizeOf(Cardinal));
+      SwapCardinalArrayEndian(PCardinal(FRowSize), Count);
+      Decoder := TSGIRLEDecoder.Create(FImageProperties.BitsPerSample);
+    end
+    else
+      Decoder := nil;
 
-      // Read header again. We need some additional information.
-      Move(Run^, Header, SizeOf(TSGIHeader));
-      Inc(Run, SizeOf(TSGIHeader));
+    // Set pixel format before size to avoid possibly large conversion operation.
+    ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+    ColorManager.TargetBitsPerSample := 8;
+    ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+    case FImageProperties.ColorScheme of
+      csRGBA:
+        ColorManager.TargetColorScheme := csBGRA;
+      csRGB:
+        ColorManager.TargetColorScheme := csBGR;
+    else
+      {$IFNDEF FPC}
+      ColorManager.TargetColorScheme := csIndexed;
+      {$ELSE}
+      ColorManager.SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
+      ColorManager.TargetColorScheme := csBGR;
+      ColorManager.TargetSamplesPerPixel := 3
+      {$ENDIF}
+    end;
+    PixelFormat := ColorManager.TargetPixelFormat;
+    // Uses separate channels thus we need to set that in source options.
+    // Grayscale will only be 1 channel but it's not using the ColorManger for conversion.
+    ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+    Self.Width := FImageProperties.Width;
+    Self.Height := FImageProperties.Height;
 
-      // SGI images are always stored in big endian style
-      ColorManager.SourceOptions := [coNeedByteSwap];
-      with Header do
-        ColorMap := SwapEndian(ColorMap);
+    Progress(Self, psEnding, 100, True, FProgressRect, '');
 
-      if Compression = ctRLE then
-      begin
-        Count := Height * SamplesPerPixel;
-        SetLength(FRowStart, Count);
-        SetLength(FRowSize, Count);
-        // Convert line starts and sizes.
-        Move(Run^, Pointer(FRowStart)^, Count * SizeOf(Cardinal));
-        SwapCardinalArrayEndian(PCardinal(FRowStart), Count);
-        Move(Run^, Pointer(FRowSize)^, Count * SizeOf(Cardinal));
-        SwapCardinalArrayEndian(PCardinal(FRowSize), Count);
-        Decoder := TSGIRLEDecoder.Create(BitsPerSample);
-      end
-      else
-        Decoder := nil;
-
-      // Set pixel format before size to avoid possibly large conversion operation.
-      with ColorManager do
-      begin
-        SourceBitsPerSample := BitsPerSample;
-        TargetBitsPerSample := 8;
-        SourceSamplesPerPixel := SamplesPerPixel;
-        TargetSamplesPerPixel := SamplesPerPixel;
-        SourceColorScheme := ColorScheme;
-        case ColorScheme of
-          csRGBA:
-            TargetColorScheme := csBGRA;
-          csRGB:
-            TargetColorScheme := csBGR;
-        else
-          {$IFNDEF FPC}
-          TargetColorScheme := csIndexed;
-          {$ELSE}
-          SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
-          TargetColorScheme := csBGR;
-          TargetSamplesPerPixel := 3
-          {$ENDIF}
-        end;
-        PixelFormat := TargetPixelFormat;
-        // Uses separate channels thus we need to set that in source options.
-        // Grayscale will only be 1 channel but it's not using the ColorManger for conversion.
-        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-      end;
-      Self.Width := Width;
-      Self.Height := Height;
-
-      Progress(Self, psEnding, 100, True, FProgressRect, '');
-
-      Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
-      try
-        Count := (BitsPerPixel div 8) * Width;
-        // read lines and put them into the bitmap
-        case ColorScheme of
-          csRGBA:
-            if Decoder = nil then
-            begin
-              // Uncompressed storage.
-              for  Y := 0 to Height - 1 do
-              begin
-                GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
-                ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], ScanLine[Height - Y - 1],
-                  Width, $FF);
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            end
-            else
-            begin
-              GetMem(RedBuffer, Count);
-              GetMem(GreenBuffer, Count);
-              GetMem(BlueBuffer, Count);
-              GetMem(AlphaBuffer, Count);
-              try
-                for  Y := 0 to Height - 1 do
-                begin
-                  ReadAndDecode(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y, Header.BPC);
-                  ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], ScanLine[Height - Y - 1],
-                    Width, $FF);
-                  Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                  OffsetRect(FProgressRect, 0, 1);
-                end;
-              finally
-                FreeMem(RedBuffer);
-                FreeMem(GreenBuffer);
-                FreeMem(BlueBuffer);
-                FreeMem(AlphaBuffer);
-              end;
-            end;
-          csRGB:
-            if Decoder = nil then
-            begin
-              // Uncompressed storage.
-              for  Y := 0 to Height - 1 do
-              begin
-                GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
-                ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], ScanLine[Height - Y - 1], Width, $FF);
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            end
-            else
-            begin
-              GetMem(RedBuffer, Count);
-              GetMem(GreenBuffer, Count);
-              GetMem(BlueBuffer, Count);
-              try
-                for  Y := 0 to Height - 1 do
-                begin
-                  ReadAndDecode(Memory, RedBuffer, GreenBuffer, BlueBuffer, nil, Y, Header.BPC);
-                  ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], ScanLine[Height - Y - 1], Width, $FF);
-                  Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                  OffsetRect(FProgressRect, 0, 1);
-                end;
-              finally
-                FreeMem(RedBuffer);
-                FreeMem(GreenBuffer);
-                FreeMem(BlueBuffer);
-              end;
-            end;
-        else
-          // Any other format is interpreted as being 256 gray scales.
-          Palette := ColorManager.CreateGrayscalePalette(False);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+    try
+      Count := (FImageProperties.BitsPerPixel div 8) * Width;
+      // read lines and put them into the bitmap
+      case FImageProperties.ColorScheme of
+        csRGBA:
           if Decoder = nil then
           begin
             // Uncompressed storage.
             for  Y := 0 to Height - 1 do
             begin
               GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
-              {$IFNDEF FPC}
-              Move(RedBuffer^, ScanLine[Height - Y - 1]^, Width);
-              {$ELSE}
-              ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
-              {$ENDIF}
+              ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], ScanLine[Height - Y - 1],
+                Width, $FF);
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
           end
           else
           begin
-            {$IFNDEF FPC}
-            for  Y := 0 to Height - 1 do
-            begin
-              ReadAndDecode(Memory, ScanLine[Height - Y - 1], nil, nil, nil, Y, Header.BPC);
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
-            {$ELSE}
             GetMem(RedBuffer, Count);
+            GetMem(GreenBuffer, Count);
+            GetMem(BlueBuffer, Count);
+            GetMem(AlphaBuffer, Count);
             try
               for  Y := 0 to Height - 1 do
               begin
-                ReadAndDecode(Memory, RedBuffer, nil, nil, nil, Y, Header.BPC);
-                ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+                ReadAndDecode(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y, Header.BPC);
+                ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], ScanLine[Height - Y - 1],
+                  Width, $FF);
                 Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
                 OffsetRect(FProgressRect, 0, 1);
               end;
             finally
               FreeMem(RedBuffer);
+              FreeMem(GreenBuffer);
+              FreeMem(BlueBuffer);
+              FreeMem(AlphaBuffer);
             end;
-            {$ENDIF}
           end;
+        csRGB:
+          if Decoder = nil then
+          begin
+            // Uncompressed storage.
+            for  Y := 0 to Height - 1 do
+            begin
+              GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
+              ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], ScanLine[Height - Y - 1], Width, $FF);
+              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          end
+          else
+          begin
+            GetMem(RedBuffer, Count);
+            GetMem(GreenBuffer, Count);
+            GetMem(BlueBuffer, Count);
+            try
+              for  Y := 0 to Height - 1 do
+              begin
+                ReadAndDecode(Memory, RedBuffer, GreenBuffer, BlueBuffer, nil, Y, Header.BPC);
+                ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], ScanLine[Height - Y - 1], Width, $FF);
+                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+                OffsetRect(FProgressRect, 0, 1);
+              end;
+            finally
+              FreeMem(RedBuffer);
+              FreeMem(GreenBuffer);
+              FreeMem(BlueBuffer);
+            end;
+          end;
+      else
+        // Any other format is interpreted as being 256 gray scales.
+        Palette := ColorManager.CreateGrayscalePalette(False);
+        if Decoder = nil then
+        begin
+          // Uncompressed storage.
+          for  Y := 0 to Height - 1 do
+          begin
+            GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
+            {$IFNDEF FPC}
+            Move(RedBuffer^, ScanLine[Height - Y - 1]^, Width);
+            {$ELSE}
+            ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+            {$ENDIF}
+            Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+            OffsetRect(FProgressRect, 0, 1);
+          end;
+        end
+        else
+        begin
+          {$IFNDEF FPC}
+          for  Y := 0 to Height - 1 do
+          begin
+            ReadAndDecode(Memory, ScanLine[Height - Y - 1], nil, nil, nil, Y, Header.BPC);
+            Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+            OffsetRect(FProgressRect, 0, 1);
+          end;
+          {$ELSE}
+          GetMem(RedBuffer, Count);
+          try
+            for  Y := 0 to Height - 1 do
+            begin
+              ReadAndDecode(Memory, RedBuffer, nil, nil, nil, Y, Header.BPC);
+              ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
+              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          finally
+            FreeMem(RedBuffer);
+          end;
+          {$ENDIF}
         end;
-      finally
-        Progress(Self, psEnding, 100, True, FProgressRect, '');
-        FreeAndNil(Decoder);
       end;
+    finally
+      Progress(Self, psEnding, 100, True, FProgressRect, '');
+      FreeAndNil(Decoder);
     end;
   end
   else
@@ -2172,36 +2165,34 @@ var
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
-  if Result then
-    with FImageProperties do
+  if Result then begin
+    Move(Memory^, Header, SizeOf(TSGIHeader));
+    if SwapEndian(Header.Magic) = SGIMagic then
     begin
-      Move(Memory^, Header, SizeOf(TSGIHeader));
-      if SwapEndian(Header.Magic) = SGIMagic then
-      begin
-        Options := [ioBigEndian];
-        BitsPerSample := Header.BPC * 8;
-        Width := SwapEndian(Header.XSize);
-        Height := SwapEndian(Header.YSize);
-        SamplesPerPixel := SwapEndian(Header.ZSize);
-        case SamplesPerPixel of
-          4:
-            ColorScheme := csRGBA;
-          3:
-            ColorScheme := csRGB;
-        else
-          // All other is considered as being 8 bit gray scale.
-          ColorScheme := csIndexed;
-        end;
-
-        BitsPerPixel := BitsPerSample * SamplesPerPixel;
-        if Header.Storage = SGI_COMPRESSION_RLE then
-          Compression := ctRLE
-        else
-          Compression := ctNone;
-      end
+      FImageProperties.Options := [ioBigEndian];
+      FImageProperties.BitsPerSample := Header.BPC * 8;
+      FImageProperties.Width := SwapEndian(Header.XSize);
+      FImageProperties.Height := SwapEndian(Header.YSize);
+      FImageProperties.SamplesPerPixel := SwapEndian(Header.ZSize);
+      case FImageProperties.SamplesPerPixel of
+        4:
+          FImageProperties.ColorScheme := csRGBA;
+        3:
+          FImageProperties.ColorScheme := csRGB;
       else
-        Result := False;
-    end;
+        // All other is considered as being 8 bit gray scale.
+        FImageProperties.ColorScheme := csIndexed;
+      end;
+
+      FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample * FImageProperties.SamplesPerPixel;
+      if Header.Storage = SGI_COMPRESSION_RLE then
+        FImageProperties.Compression := ctRLE
+      else
+        FImageProperties.Compression := ctNone;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif SGIGraphic}
