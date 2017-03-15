@@ -1915,6 +1915,10 @@ var
   LineSize: Cardinal;
 
 begin
+  // Note that we have some images that cause decoding errors because there are
+  // bytes to decode left. Since they don't cause any problems and our decoder
+  // is safe against buffer overflow we won't check for Decoder errors for now.
+
   LineSize := Width * BPC;
   if Assigned(Red) then
   begin
@@ -2018,14 +2022,20 @@ begin
         ColorManager.TargetColorScheme := csBGRA;
       csRGB:
         ColorManager.TargetColorScheme := csBGR;
+      csGA:
+        begin
+          ColorManager.SourceColorScheme := csGA; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
+          ColorManager.TargetColorScheme := csBGRA;
+          ColorManager.TargetSamplesPerPixel := 4;
+        end;
+      csG:
+        begin
+          ColorManager.SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.TargetSamplesPerPixel := 3
+        end;
     else
-      {$IFNDEF FPC}
-      ColorManager.TargetColorScheme := csIndexed;
-      {$ELSE}
-      ColorManager.SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
-      ColorManager.TargetColorScheme := csBGR;
-      ColorManager.TargetSamplesPerPixel := 3
-      {$ENDIF}
+      // Don't set anything for other ColorSchemes.
     end;
     PixelFormat := ColorManager.TargetPixelFormat;
     // Uses separate channels thus we need to set that in source options.
@@ -2108,46 +2118,41 @@ begin
             end;
           end;
       else
-        // Any other format is interpreted as being 256 gray scales.
+        // Any other format is interpreted as grayscale, possibly with an alpha channel.
         Palette := ColorManager.CreateGrayscalePalette(False);
         if Decoder = nil then
         begin
           // Uncompressed storage.
+          // Note when we don't need to decoder GetComponents returns pointers inside
+          // our image memory buffer so we don't need to allocate memory for them.
           for  Y := 0 to Height - 1 do
           begin
             GetComponents(Memory, RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer, Y);
-            {$IFNDEF FPC}
-            Move(RedBuffer^, ScanLine[Height - Y - 1]^, Width);
-            {$ELSE}
-            ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
-            {$ENDIF}
+            ColorManager.ConvertRow([RedBuffer, GreenBuffer], ScanLine[Height - Y - 1], Width, $FF);
             Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
             OffsetRect(FProgressRect, 0, 1);
           end;
         end
         else
         begin
-          {$IFNDEF FPC}
-          for  Y := 0 to Height - 1 do
-          begin
-            ReadAndDecode(Memory, ScanLine[Height - Y - 1], nil, nil, nil, Y, Header.BPC);
-            Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-            OffsetRect(FProgressRect, 0, 1);
-          end;
-          {$ELSE}
           GetMem(RedBuffer, Count);
+          if FImageProperties.ColorScheme = csGA then
+            GetMem(GreenBuffer, Count)
+          else
+            GreenBuffer := nil;
           try
             for  Y := 0 to Height - 1 do
             begin
-              ReadAndDecode(Memory, RedBuffer, nil, nil, nil, Y, Header.BPC);
+              ReadAndDecode(Memory, RedBuffer, GreenBuffer, nil, nil, Y, Header.BPC);
               ColorManager.ConvertRow(RedBuffer, ScanLine[Height - Y - 1], Width, $FF);
               Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
           finally
             FreeMem(RedBuffer);
+            if Assigned(GreenBuffer) then
+              FreeMem(GreenBuffer);
           end;
-          {$ENDIF}
         end;
       end;
     finally
@@ -2182,8 +2187,13 @@ begin
           FImageProperties.ColorScheme := csRGBA;
         3:
           FImageProperties.ColorScheme := csRGB;
-        1: // Considered as being 8 bit gray scale.
-          FImageProperties.ColorScheme := csIndexed;
+        2: // Grayscale with alpha
+           // The DevIl test-images has a grayscale with alpha image (although all opaque).
+           // Even though the possibility of this type is not mentioned in the original specification
+           // it's not difficult to support so we are adding this here.
+          FImageProperties.ColorScheme := csGA;
+        1: // Considered as being 8 bit grayscale.
+          FImageProperties.ColorScheme := csG;
       else
         FImageProperties.ColorScheme := csUnknown;
       end;
