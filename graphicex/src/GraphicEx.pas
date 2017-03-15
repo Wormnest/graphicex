@@ -2196,6 +2196,10 @@ begin
       else
         FImageProperties.Compression := ctUnknown;
       FImageProperties.Comment := AnsiString(Header.ImageName);
+      if not (SwapEndian(Header.ColorMap) in [0, 2]) then
+        // We don't support type 1, nor palette only 3.
+        // Supporting type 1 looks doable if we had at least an example.
+        Result := False;
     end
     else
       Result := False;
