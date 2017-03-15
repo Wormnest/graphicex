@@ -1912,34 +1912,36 @@ procedure TSGIGraphic.ReadAndDecode(const Memory: Pointer; Red, Green, Blue, Alp
 var
   Count: Cardinal;
   Run: PAnsiChar;
+  LineSize: Cardinal;
 
 begin
+  LineSize := Width * BPC;
   if Assigned(Red) then
   begin
     Run := PAnsiChar(Memory) + FRowStart[Row + 0 * Height];
     Count := BPC * FRowSize[Row + 0 * Height];
-    Decoder.Decode(Pointer(Run), Red, Count, Width);
+    Decoder.Decode(Pointer(Run), Red, Count, LineSize);
   end;
 
   if Assigned(Green) then
   begin
     Run := PAnsiChar(Memory) + FRowStart[Row + 1 * Height];
     Count := BPC * FRowSize[Row + 1 * Height];
-    Decoder.Decode(Pointer(Run), Green, Count, Width);
+    Decoder.Decode(Pointer(Run), Green, Count, LineSize);
   end;
 
   if Assigned(Blue) then
   begin
     Run := PAnsiChar(Memory) + FRowStart[Row + 2 * Height];
     Count := BPC * FRowSize[Row + 2 * Height];
-    Decoder.Decode(Pointer(Run), Blue, Count, Width);
+    Decoder.Decode(Pointer(Run), Blue, Count, LineSize);
   end;
 
   if Assigned(Alpha) then
   begin
     Run := PAnsiChar(Memory) + FRowStart[Row + 3 * Height];
     Count := BPC * FRowSize[Row + 3 * Height];
-    Decoder.Decode(Pointer(Run), Alpha, Count, Width);
+    Decoder.Decode(Pointer(Run), Alpha, Count, LineSize);
   end;
 end;
 
