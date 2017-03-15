@@ -230,6 +230,7 @@ type
     PsdIccEnabled: Boolean;
     ImgStrings: TStringList; // StringList with data depending on image type (currently only used by GIF)
     GifInfo: TGifInfo;       // Extra info for GIF images
+    PcxIsCapture: Boolean;
 
     // Info for bmp type only:
     ImgRealPixelFormat: TPixelFormat;
@@ -1043,6 +1044,11 @@ begin
   sgImgProperties.Cells[1,InfoRow] := ImgThumbData.Name; IncInfoRow;
   sgImgProperties.Cells[0,InfoRow] := 'Image format:';
   sgImgProperties.Cells[1,InfoRow] := cFileTypeNames[ImgThumbData.ImageFormat]; IncInfoRow;
+  if (ImgThumbData.ImageFormat = CgexPCX) and PcxIsCapture then begin
+    sgImgProperties.Cells[0,InfoRow] := 'Format note:';
+    sgImgProperties.Cells[1,InfoRow] := 'Not a normal PCX but a Word for Dos screen capture.'; IncInfoRow;
+  end;
+
   if ImgProperties.Version > 0 then begin
     sgImgProperties.Cells[0,InfoRow] := 'Image format version:';
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.Version); IncInfoRow;
@@ -1588,6 +1594,8 @@ begin
           ImgStrings.Assign(TGIFGraphic(AGraphic).ApplicationExtensions);
           GifInfo := TGIFGraphic(AGraphic).GifInformation;
         end;
+      CgexPCX:
+        PcxIsCapture := TPCXGraphic(AGraphic).ScreenCapture;
       {$IFDEF USE_AMIGAIFF}
       CgexAmigaIff: ImgIffData := TAmigaIffGraphic(AGraphic).IffProperties;
       {$ENDIF}
@@ -1729,6 +1737,7 @@ begin
           // Now using our GraphicEx Bmp wrapper.
           AGraphic := TgexBmpGraphic.Create;
           try
+            TGraphicExGraphic(AGraphic).ReadImageProperties(ImgFile, ImgPage);
             // Now load the first page of our image
             TGraphicExGraphic(AGraphic).LoadFromFileByIndex(ImgFile, ImgPage);
             // Get some basic image info
