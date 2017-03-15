@@ -1348,33 +1348,80 @@ var
   Count: Integer;
   SourcePtr,
   TargetPtr: PByte;
+  DecompressBufSize: Cardinal;
 
 begin
   SourcePtr := Source;
   TargetPtr := Dest;
-  while UnpackedSize > 0 do
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
+  while (PackedSize > 0) and (UnpackedSize > 0) do
   begin
     if (SourcePtr^ and $C0) = $C0 then
     begin
       // RLE-Code
       Count := SourcePtr^ and $3F;
       Inc(SourcePtr);
-      if UnpackedSize < Count then
+      Dec(PackedSize);
+      if PackedSize <= 0 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
+      if UnpackedSize < Count then begin
         Count := UnpackedSize;
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
       FillChar(TargetPtr^, Count, SourcePtr^);
       Inc(SourcePtr);
       Inc(TargetPtr, Count);
       Dec(UnpackedSize, Count);
+      Dec(PackedSize);
     end
     else
     begin
       // not compressed
+      // Since we check both PackedSize and UnpackedSize at the start of the loop
+      // and we will use 1 byte input and output we don't have to check for overflow here.
       TargetPtr^ := SourcePtr^;
       Inc(SourcePtr);
       Inc(TargetPtr);
       Dec(UnpackedSize);
+      Dec(PackedSize);
     end;
   end;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end
+      else begin // > 0
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
