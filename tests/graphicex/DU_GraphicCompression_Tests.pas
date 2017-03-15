@@ -57,6 +57,20 @@ type
     procedure TestDecompressFill32Bits;
   end;
 
+  TPCXRLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TPCXRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte;
+    procedure TestDecompressFill;
+    procedure TestDecompressCopy;
+  end;
+
   TPSPRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TPSPRLEDecoder;
@@ -533,6 +547,98 @@ begin
   TestDecompress(FDecoder32, Source, 1, 512, 0, 0, dsNotEnoughInput, 8);
 end;
 
+// ********** TPCXRLEDecoderTests **********
+
+procedure TPCXRLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder := TPCXRLEDecoder.Create;
+end;
+
+procedure TPCXRLEDecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TPCXRLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TPCXRLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TPCXRLEDecoderTests.TestDecompress1Byte;
+var
+  Source: Pointer;
+  InputBuffer: array [0..0] of byte;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := $c0; // Lower 6 bits is repeat count of the next byte; count = 0
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := $c1; // same but count = 1
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := $ff; // same but count = 63
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+
+  InputBuffer[0] := 0; // Lowest literal byte
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 1, dsNotEnoughInput, 4);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 1, dsNotEnoughInput, 5);
+  InputBuffer[0] := $3f; // Highest literal byte
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 1, dsNotEnoughInput, 6);
+
+  InputBuffer[0] := $c0; // Lower 6 bits is repeat count of the next byte; count = 0
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := $c1; // same but count = 1
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+  InputBuffer[0] := $ff; // same but count = 63
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 9);
+end;
+
+procedure TPCXRLEDecoderTests.TestDecompressFill;
+var
+  Source: Pointer;
+  InputBuffer: array [0..10] of byte;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := $c0; // Lower 6 bits is repeat count of the next byte; count = 0
+  InputBuffer[1] := $c1; // Repeat, count = 1
+  InputBuffer[2] := $12; // Byte to repeatedly fill
+  TestDecompress(FDecoder, Source, 3, BUFSIZE, 0, 1, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder, Source, 3, 1, 0, 1, dsOk, 2);
+  i := 0;
+  Check(PByteArray(FDecompressBuffer)^[i] = $12,
+    Format('Unexpected decompressed data at position %d', [i]));
+
+  InputBuffer[0] := $ff; // count = 63
+  InputBuffer[1] := $ee; // Byte to repeatedly fill
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 63, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder, Source, 2, 63, 0, 63, dsOk, 4);
+  for i := 0 to 30 do
+    Check(PByteArray(FDecompressBuffer)^[i] = $ee,
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder, Source, 2, 62, 0, 62, dsOutputBufferTooSmall, 5);
+end;
+
+procedure TPCXRLEDecoderTests.TestDecompressCopy;
+var
+  Source: Pointer;
+  InputBuffer: array [0..0] of byte;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0; // Lowest literal byte
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 10);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 11);
+  InputBuffer[0] := $3f; // Highest literal byte
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 12);
+end;
+
 // ********** TPSPRLEDecoderTests **********
 
 procedure TPSPRLEDecoderTests.SetUp;
@@ -940,6 +1046,7 @@ initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
     [
       TTGARLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
