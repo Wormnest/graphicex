@@ -1438,6 +1438,10 @@ constructor TSGIRLEDecoder.Create(SampleSize: Byte);
 
 begin
   FSampleSize := SampleSize;
+  if not (FSampleSize in [8, 16]) then
+    FDecoderStatus := dsInitializationError
+  else
+    FDecoderStatus := dsOK;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1451,69 +1455,161 @@ var
   Target16: PWord;
   Pixel: Byte;
   Pixel16: Word;
-  RunLength: Cardinal;
+  RunLength, RunBytes: Cardinal;
+  DecompressBufSize: Cardinal;
 
 begin
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   if FSampleSize = 8 then
   begin
     Source8 := Source;
     Target8 := Dest;
-    while True do
+    while (PackedSize > 0) and (UnpackedSize > 0) do
     begin
       Pixel := Source8^;
       Inc(Source8);
+      Dec(PackedSize);
       RunLength := Pixel and $7F;
       if RunLength = 0 then
         Break;
 
       if (Pixel and $80) <> 0 then
       begin
+        if RunLength > PackedSize then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
+        if RunLength > UnpackedSize then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize;
+        end;
         Move(Source8^, Target8^, RunLength);
         Inc(Target8, RunLength);
         Inc(Source8, RunLength);
+        Dec(PackedSize, RunLength);
+        Dec(UnpackedSize, RunLength);
       end
       else
       begin
+        if PackedSize < 1 then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
+        if RunLength > UnpackedSize then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize;
+        end;
         Pixel := Source8^;
         Inc(Source8);
         FillChar(Target8^, RunLength, Pixel);
         Inc(Target8, RunLength);
+        Dec(PackedSize);
+        Dec(UnpackedSize, RunLength);
       end;
     end;
   end
-  else
+  else if FSampleSize = 16 then
   begin
     // 16 bits per sample
     Source16 := Source;
     Target16 := Dest;
-    while True do
+    while UnpackedSize > 0 do
     begin
+      if PackedSize < 2 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
       // SGI images are stored in big endian style, swap this one repeater value for it
       Pixel16 := Swap(Source16^);
       Inc(Source16);
+      Dec(PackedSize, 2);
       RunLength := Pixel16 and $7F;
       if RunLength = 0 then
         Break;
+      RunBytes := 2 * RunLength;
 
       if (Pixel16 and $80) <> 0 then
       begin
-        Move(Source16^, Target16^, 2 * RunLength);
+        if RunBytes > PackedSize then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
+        if RunBytes > UnpackedSize then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize div 2;
+          RunBytes := RunLength * 2;
+        end;
+        Move(Source16^, Target16^, RunBytes);
         Inc(Source16, RunLength);
         Inc(Target16, RunLength);
+        Dec(PackedSize, RunBytes);
+        Dec(UnpackedSize, RunBytes);
+        if FDecoderStatus <> dsOK then
+          break;  // To make sure we status doesn't get changed.
       end
       else
       begin
+        if PackedSize < 2 then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
         Pixel16 := Source16^;
         Inc(Source16);
+        Dec(PackedSize, 2);
+        if RunBytes > UnpackedSize then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize div 2;
+          RunBytes := RunLength * 2;
+        end;
         while RunLength > 0 do
         begin
           Target16^ := Pixel16;
           Inc(Target16);
           Dec(RunLength);
         end;
+        Dec(UnpackedSize, RunBytes);
+        if FDecoderStatus <> dsOK then
+          break;  // To make sure we status doesn't get changed.
+      end;
+    end;
+  end
+  else
+    FDecoderStatus := dsInitializationError;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end
+      else if PackedSize > FSampleSize div 8 then begin
+        // 1 or 2 bytes can be left since we stop before we read the terminating 0 count.
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
       end;
     end;
   end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
