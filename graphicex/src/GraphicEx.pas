@@ -2179,16 +2179,19 @@ begin
           FImageProperties.ColorScheme := csRGBA;
         3:
           FImageProperties.ColorScheme := csRGB;
+        1: // Considered as being 8 bit gray scale.
+          FImageProperties.ColorScheme := csIndexed;
       else
-        // All other is considered as being 8 bit gray scale.
-        FImageProperties.ColorScheme := csIndexed;
+        FImageProperties.ColorScheme := csUnknown;
       end;
 
       FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample * FImageProperties.SamplesPerPixel;
       if Header.Storage = SGI_COMPRESSION_RLE then
         FImageProperties.Compression := ctRLE
+      else if Header.Storage = SGI_COMPRESSION_VERBATIM then
+        FImageProperties.Compression := ctNone
       else
-        FImageProperties.Compression := ctNone;
+        FImageProperties.Compression := ctUnknown;
       FImageProperties.Comment := AnsiString(Header.ImageName);
     end
     else
