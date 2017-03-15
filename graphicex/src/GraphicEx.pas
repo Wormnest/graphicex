@@ -1997,6 +1997,7 @@ begin
       // Convert line starts and sizes.
       Move(Run^, Pointer(FRowStart)^, Count * SizeOf(Cardinal));
       SwapCardinalArrayEndian(PCardinal(FRowStart), Count);
+      Inc(Run, Count * SizeOf(Cardinal));
       Move(Run^, Pointer(FRowSize)^, Count * SizeOf(Cardinal));
       SwapCardinalArrayEndian(PCardinal(FRowSize), Count);
       Decoder := TSGIRLEDecoder.Create(FImageProperties.BitsPerSample);
