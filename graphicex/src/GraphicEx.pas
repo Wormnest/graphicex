@@ -2189,6 +2189,7 @@ begin
         FImageProperties.Compression := ctRLE
       else
         FImageProperties.Compression := ctNone;
+      FImageProperties.Comment := AnsiString(Header.ImageName);
     end
     else
       Result := False;
