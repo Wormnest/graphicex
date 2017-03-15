@@ -456,10 +456,14 @@ type
   //       color palette as well as the decoding size can only be determined by the size of the image.
   //       Hence the image must be the only one in the stream or the last one.
   TPCXGraphic = class(TGraphicExGraphic)
+  private
+    FScreenCapture: Boolean; // Is this a Word for Dos Screen Capture instead of normal PCX.
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
+
+    property ScreenCapture: Boolean read FScreenCapture;
   end;
   {$endif PCXGraphic}
 
@@ -4354,6 +4358,7 @@ begin
     Header := Memory;
     if Header.FileID in [$0A, $CD] then
     begin
+      FScreenCapture := Header.FileID = $CD;
       FImageProperties.Version := Header.Version;
       FImageProperties.Width := Header.XMax - Header.XMin + 1;
       FImageProperties.Height := Header.YMax - Header.YMin + 1;
