@@ -71,6 +71,24 @@ type
     procedure TestDecompressCopy;
   end;
 
+  TSGIRLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder8: TSGIRLEDecoder;
+    FDecoder16: TSGIRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte8;
+    procedure TestDecompress1Byte16;
+    procedure TestDecompressFill8;
+    procedure TestDecompressFill16;
+    procedure TestDecompressMove8;
+    procedure TestDecompressMove16;
+  end;
+
   TPSPRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TPSPRLEDecoder;
@@ -639,6 +657,226 @@ begin
   TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 12);
 end;
 
+// ********** TSGIRLEDecoderTests **********
+
+procedure TSGIRLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder8 := TSGIRLEDecoder.Create(8);
+  FDecoder16 := TSGIRLEDecoder.Create(16);
+end;
+
+procedure TSGIRLEDecoderTests.TearDown;
+begin
+  FDecoder8.Free;
+  FDecoder16.Free;
+  inherited TearDown;
+end;
+
+procedure TSGIRLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder8);
+  TestCompressedSizeLimits(FDecoder16);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder8);
+  TestDecompressedSizeLimits(FDecoder16);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompress1Byte8;
+var
+  Source: Pointer;
+  InputBuffer: array [0..0] of byte;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0; // 0 is end of input
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := $80; // $80 is a count of 0 is end of input
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 0; // 0 is end of input
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := $80; // $80 is a count of 0 is end of input
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 4);
+
+  InputBuffer[0] := $01; // count = 1; Copy next char 1 times
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := $81; // count = 1; Copy next 1 chars
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := $01; // count = 1; Copy next char 1 times
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+  InputBuffer[0] := $81; // count = 1; Copy next 1 chars
+  TestDecompress(FDecoder8, Source, 1, 1, 0, 0, dsNotEnoughInput, 9);
+
+  InputBuffer[0] := $7f; // count = 127; Copy next char 127 times
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 10);
+  InputBuffer[0] := $7f; // count = 127; Copy next 127 chars
+  TestDecompress(FDecoder8, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 11);
+  InputBuffer[0] := $ff; // count = 127; Copy next char 127 times
+  TestDecompress(FDecoder8, Source, 1, 127, 0, 0, dsNotEnoughInput, 12);
+  InputBuffer[0] := $ff; // count = 127; Copy next 127 chars
+  TestDecompress(FDecoder8, Source, 1, 127, 0, 0, dsNotEnoughInput, 13);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompress1Byte16;
+var
+  Source, Source16: Pointer;
+  InputBuffer: array [0..0] of byte;
+  // BigEndian words needed so we can't just use an array of word
+  InputBuffer16: array [0..2] of byte;
+begin
+  Source := @InputBuffer;
+  Source16 := @InputBuffer16;
+  InputBuffer[0] := 0; // 1 byte isn't enough to even read the length
+  TestDecompress(FDecoder16, Source, 1, 1, 1, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := $80; // same
+  TestDecompress(FDecoder16, Source, 1, 1, 1, 0, dsNotEnoughInput, 2);
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := 0;
+  TestDecompress(FDecoder16, Source16, 2, 1, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := $80;
+  TestDecompress(FDecoder16, Source16, 2, 1, 0, 0, dsNotEnoughInput, 4);
+
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := $01; // Copy next word 1 time
+  TestDecompress(FDecoder16, Source16, 2, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := $81; // Copy next 1 words
+  TestDecompress(FDecoder16, Source16, 2, 1, 0, 0, dsNotEnoughInput, 6);
+
+  // Here we use 1 extra input byte that we don't need to initialize.
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := $01; // Copy next word 1 time
+  TestDecompress(FDecoder16, Source16, 3, 1, 1, 0, dsNotEnoughInput, 7);
+  InputBuffer16[0] := 0;
+  InputBuffer16[1] := $81; // Copy next 1 words
+  TestDecompress(FDecoder16, Source16, 3, 1, 1, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompressFill8;
+var
+  Source: Pointer;
+  InputBuffer: array [0..2] of byte;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := 1; // count = 1
+  InputBuffer[1] := $aa; // Char to be filled.
+  InputBuffer[2] := 0; // 0 is end of input
+  // without 0 byte to end input
+  TestDecompress(FDecoder8, Source, 2, 1, 0, 1, dsOk, 1);
+  // with 0 byte to end input, this byte will not be read
+  TestDecompress(FDecoder8, Source, 3, 1, 1, 1, dsOk, 2);
+
+  // Same but with length 127
+  InputBuffer[0] := $7f; // count = 127
+  TestDecompress(FDecoder8, Source, 2, 127, 0, 127, dsOk, 3);
+  for i := 0 to 126 do
+    Check(PByteArray(FDecompressBuffer)^[i] = $aa,
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder8, Source, 3, 127, 1, 127, dsOk, 4);
+
+  // Output buffer too small test
+  TestDecompress(FDecoder8, Source, 2, 126, 0, 126, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder8, Source, 3, 126, 1, 126, dsOutputBufferTooSmall, 6);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompressFill16;
+var
+  Source: Pointer;
+  InputBuffer: array [0..2] of word;  // Note Big Endian!
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := $0100; // count = 1
+  InputBuffer[1] := $aabb; // Word to be filled.
+  InputBuffer[2] := 0; // 0 is end of input
+  // without 0 word to end input
+  TestDecompress(FDecoder16, Source, 4, 2, 0, 2, dsOk, 1);
+  // with 0 word to end input, this byte will not be read
+  TestDecompress(FDecoder16, Source, 6, 2, 2, 2, dsOk, 2);
+
+  // Same but with length 127
+  InputBuffer[0] := $7f00; // count = 127; bytes = 254
+  TestDecompress(FDecoder16, Source, 4, 254, 0, 254, dsOk, 3);
+  for i := 0 to 126 do
+    Check(PWordArray(FDecompressBuffer)^[i] = $aabb,
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder16, Source, 6, 254, 2, 254, dsOk, 4);
+
+  // Output buffer too small test
+  TestDecompress(FDecoder16, Source, 4, 252, 0, 252, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder16, Source, 6, 252, 2, 252, dsOutputBufferTooSmall, 6);
+  TestDecompress(FDecoder16, Source, 4, 253, 0, 252, dsOutputBufferTooSmall, 7);
+  TestDecompress(FDecoder16, Source, 6, 253, 2, 252, dsOutputBufferTooSmall, 8);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompressMove8;
+var
+  Source: Pointer;
+  InputBuffer: array [0..128] of byte;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := $81; // count = 1
+  InputBuffer[1] := $aa; // Char to be copied.
+  InputBuffer[2] := $00; // 0 is end of input
+  // without 0 byte to end input
+  TestDecompress(FDecoder8, Source, 2, 1, 0, 1, dsOk, 1);
+  // with 0 byte to end input, this byte will not be read
+  TestDecompress(FDecoder8, Source, 3, 1, 1, 1, dsOk, 2);
+
+  // Same but with length 127
+  InputBuffer[0] := $ff; // count = 127
+  for i := 1 to 127 do
+    InputBuffer[i] := 255-i;
+  InputBuffer[128] := 0;
+  TestDecompress(FDecoder8, Source, 128, 127, 0, 127, dsOk, 3);
+  for i := 0 to 126 do
+    Check(PByteArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder8, Source, 129, 127, 1, 127, dsOk, 4);
+
+  // Output buffer too small test
+  TestDecompress(FDecoder8, Source, 128, 126, 1, 126, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder8, Source, 129, 126, 2, 126, dsOutputBufferTooSmall, 6);
+end;
+
+procedure TSGIRLEDecoderTests.TestDecompressMove16;
+var
+  Source: Pointer;
+  InputBuffer: array [0..128] of word;  // Note Big Endian!
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := $8100; // count = 1
+  InputBuffer[1] := $aabb; // Char to be copied.
+  InputBuffer[2] := $0000; // 0 is end of input
+  // without 0 byte to end input
+  TestDecompress(FDecoder16, Source, 4, 2, 0, 2, dsOk, 1);
+  // with 0 byte to end input, this byte will not be read
+  TestDecompress(FDecoder16, Source, 6, 2, 2, 2, dsOk, 2);
+
+  // Same but with length 127
+  InputBuffer[0] := $ff00; // count = 127 = 254 bytes
+  for i := 1 to 127 do
+    InputBuffer[i] := i*8;
+  InputBuffer[128] := 0;
+  TestDecompress(FDecoder16, Source, 256, 254, 0, 254, dsOk, 3);
+  for i := 0 to 126 do
+    Check(PWordArray(FDecompressBuffer)^[i] = InputBuffer[i+1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder16, Source, 258, 254, 2, 254, dsOk, 4);
+
+  // Output buffer too small test
+  TestDecompress(FDecoder16, Source, 256, 252, 2, 252, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder16, Source, 258, 252, 4, 252, dsOutputBufferTooSmall, 6);
+  TestDecompress(FDecoder16, Source, 256, 253, 2, 252, dsOutputBufferTooSmall, 7);
+  TestDecompress(FDecoder16, Source, 258, 253, 4, 252, dsOutputBufferTooSmall, 8);
+end;
+
 // ********** TPSPRLEDecoderTests **********
 
 procedure TPSPRLEDecoderTests.SetUp;
@@ -1047,6 +1285,7 @@ initialization
     [
       TTGARLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
