@@ -4381,8 +4381,10 @@ begin
 
       if Header.Encoding = 1 then
         FImageProperties.Compression := ctRLE
+      else if Header.Encoding = 0 then
+        FImageProperties.Compression := ctNone
       else
-        FImageProperties.Compression := ctNone;
+        FImageProperties.Compression := ctUnknown;
       FImageProperties.XResolution := Header.HRes;
       FImageProperties.YResolution := Header.VRes;
 
