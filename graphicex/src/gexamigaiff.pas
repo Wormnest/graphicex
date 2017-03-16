@@ -800,7 +800,9 @@ begin
                       // more than unpacked size. To be safe we set it to twice PixelLineSize.
                       Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                         NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
-                      if TPackbitsRLEDecoder(Decoder).Overflow then begin
+                      // Note that we can't test Decoder.DecoderStatus because it can return
+                      // a status other than dsOk because we don't have the exact input size!
+                      if Decoder.DecompressedBytes <> AdjustedLineSize then begin
                         // Incorrect LineSize due to broken image compression.
                         // Try again with fixed LineSize unless we already tried that.
                         if AdjustedLineSize = PixelLineSize then begin
@@ -955,7 +957,9 @@ begin
                   // Detect the images that give problems and redo it wiht a correction
                   Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                     NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
-                  if TPackbitsRLEDecoder(Decoder).Overflow then begin
+                  // Note that we can't test Decoder.DecoderStatus because it can return
+                  // a status other than dsOk because we don't have the exact input size!
+                  if Decoder.DecompressedBytes <> AdjustedLineSize then begin
                     // Incorrect LineSize due to broken image compression.
                     // Try again with fixed LineSize unless we already tried that.
                     if AdjustedLineSize = LineSize then begin
@@ -1025,7 +1029,9 @@ begin
                 // more than unpacked size. To be safe we set it to twice PixelLineSize.
                 Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                   NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), PixelLineSize);
-                if TPackbitsRLEDecoder(Decoder).Overflow then
+                // Note that we can't test Decoder.DecoderStatus because it can return
+                // a status other than dsOk because we don't have the exact input size!
+                if Decoder.DecompressedBytes <> PixelLineSize then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
               end
               else if FIffProperties.IffType <> itAcbm then begin
