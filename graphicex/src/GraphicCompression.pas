@@ -112,13 +112,11 @@ type
   private
     FUpdateSource,
     FUpdateDest: Boolean;
-    FOverflow: Boolean;
   public
     procedure DecodeInit; override;
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
-    property Overflow: Boolean read FOverflow;
     property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
@@ -865,11 +863,20 @@ var
   SourcePtr,
   TargetPtr: PByte;
   N: Integer;
+  DecompressBufSize: Cardinal;
 
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
-  FOverflow := False;
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   while (UnpackedSize > 0) and (PackedSize > 0) do
   begin
     N := ShortInt(SourcePtr^);
@@ -879,9 +886,13 @@ begin
     begin
       if N = -128 then
         Continue; // nop
-      N := -N + 1;
+      N := abs(N) + 1;
+      if PackedSize < 1 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
       if N > UnpackedSize then begin
-        FOverflow := True;
+        FDecoderStatus := dsOutputBufferTooSmall;
         N := UnpackedSize;
       end;
       FillChar(TargetPtr^, N, SourcePtr^);
@@ -894,11 +905,11 @@ begin
     begin // copy next N + 1 bytes literally
       Inc(N);
       if N > UnpackedSize then begin
-        FOverflow := True;
+        FDecoderStatus := dsOutputBufferTooSmall;
         N := UnpackedSize;
       end;
       if N > PackedSize then begin
-        FOverflow := True;
+        FDecoderStatus := dsNotEnoughInput;
         N := PackedSize;
       end;
       Move(SourcePtr^, TargetPtr^, N);
@@ -908,9 +919,35 @@ begin
       Dec(UnpackedSize, N);
     end;
   end;
-  if UnpackedSize > 0 then
-    FOverflow := True;
-  // No test for PackedSize because that may not always be valid
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end
+      else begin // > 0
+        // Note that this decoder is also used in Amiga ilbm images where
+        // Packed Size isn't known. In that case we will have to check the
+        // output size because it will incorrectly show the below error.
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
   if FUpdateSource then
     Source := SourcePtr;
   if FUpdateDest then
