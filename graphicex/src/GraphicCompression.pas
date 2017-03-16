@@ -660,7 +660,7 @@ begin
       if PackedSize < 0 then begin
         FDecoderStatus := dsInternalError;
         // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesInputBufferOverflow, ['TGA RLE decoder']));
       end;
       // Can't check for PackedSize > 0 because for TGA we don't know the exact size
       // of the input buffer (but for Maya IFF we do).
@@ -672,7 +672,7 @@ begin
       else begin // < 0
         FDecoderStatus := dsInternalError;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesOutputBufferOverflow, ['TGA RLE decoder']));
       end;
     end;
   end;
@@ -1087,7 +1087,7 @@ begin
       if PackedSize < 0 then begin
         FDecoderStatus := dsInternalError;
         // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesInputBufferOverflow, ['PCX RLE decoder']));
       end
       else begin // > 0
         FDecoderStatus := dsOutputBufferTooSmall;
@@ -1101,7 +1101,7 @@ begin
       else begin // < 0
         FDecoderStatus := dsInternalError;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesOutputBufferOverflow, ['PCX RLE decoder']));
       end;
     end;
   end;
@@ -1274,7 +1274,7 @@ begin
       if PackedSize < 0 then begin
         FDecoderStatus := dsInternalError;
         // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesInputBufferOverflow, ['SGI RLE decoder']));
       end
       else if PackedSize > FSampleSize div 8 then begin
         // 1 or 2 bytes can be left since we stop before we read the terminating 0 count.
@@ -1289,7 +1289,7 @@ begin
       else begin // < 0
         FDecoderStatus := dsInternalError;
       // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+        CompressionError(Format(gesOutputBufferOverflow, ['SGI RLE decoder']));
       end;
     end;
   end;
