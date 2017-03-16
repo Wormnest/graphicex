@@ -6098,7 +6098,7 @@ type
     Num_chan,                          // samples per pixel (usually 3: r, g, b)
     Num_matte,                         // number of matte channels (usually only 1)
     Num_aux,                           // number of auxiliary channels, usually 0
-    Revision: SmallInt;                // always $FFFE
+    Revision: SmallInt;                // $FFFE (version 2) or $FFFD (version 3)
     Gamma: array[0..15] of AnsiChar;       // gamma single value used when writing the image
     Red_pri: array[0..23] of AnsiChar;     // used chromaticity for red channel (typical format: "%7.4f %7.4f")
     Green_pri: array[0..23] of AnsiChar;   // used chromaticity for green channel
@@ -6341,6 +6341,7 @@ begin
 
       // data is always given in big endian order, so swap data which needs this
       SwapHeader(Header);
+      Version := abs(Header.Revision);
       Options := [ioBigEndian];
 
       SampleFormat := Header.Storage_type;
