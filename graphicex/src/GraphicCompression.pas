@@ -1314,30 +1314,86 @@ var
   SourcePtr,
   TargetPtr: PByte;
   N: SmallInt;
+  DecompressBufSize: Cardinal;
 
 begin
   TargetPtr := Dest;
   SourcePtr := Source;
-  while PackedSize > 0 do
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
+  while (PackedSize > 0) and (UnpackedSize > 0) do
   begin
     N := ShortInt(SourcePtr^);
     Inc(SourcePtr);
     Dec(PackedSize);
     if N >= 0 then // replicate next Byte N + 1 times
     begin
-      FillChar(TargetPtr^, N + 1, SourcePtr^);
-      Inc(TargetPtr, N + 1);
+      if PackedSize < 1 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
+      Inc(N); // Count is N+1
+      if N > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        N := UnpackedSize;
+      end;
+      FillChar(TargetPtr^, N, SourcePtr^);
+      Inc(TargetPtr, N);
+      Dec(UnpackedSize, N);
       Inc(SourcePtr);
       Dec(PackedSize);
     end
     else
     begin // copy next -N bytes literally
-      Move(SourcePtr^, TargetPtr^, -N);
-      Inc(TargetPtr, -N);
-      Inc(SourcePtr, -N);
-      Inc(PackedSize, N);
+      N := abs(N);
+      if PackedSize < N then begin
+        FDecoderStatus := dsNotEnoughInput;
+        N := PackedSize;
+      end;
+      if N > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        N := UnpackedSize;
+      end;
+      Move(SourcePtr^, TargetPtr^, N);
+      Inc(TargetPtr, N);
+      Dec(UnpackedSize, N);
+      Inc(SourcePtr, N);
+      Dec(PackedSize, N);
     end;
   end;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['RLA decoder']));
+      end
+      else begin // > 0
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['RLA decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
