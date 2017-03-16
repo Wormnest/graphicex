@@ -106,6 +106,20 @@ type
     procedure TestDecompressMove16;
   end;
 
+  TRLADecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TRLADecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte;
+    procedure TestDecompressFill;
+    procedure TestDecompressMove;
+  end;
+
   TCutRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TCUTRLEDecoder;
@@ -1045,6 +1059,103 @@ begin
   TestDecompress(FDecoder16, Source, 258, 253, 4, 252, dsOutputBufferTooSmall, 8);
 end;
 
+// ********** TRLADecoderTests **********
+
+procedure TRLADecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder := TRLADecoder.Create;
+end;
+
+procedure TRLADecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TRLADecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TRLADecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TRLADecoderTests.TestDecompress1Byte;
+var
+  Source: Pointer;
+  InputBuffer: array [0..0] of ShortInt;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0; // count = 1, fillchar 1 times
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 127; // same but count = 128
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := -1; // count = 1, move 1 chars
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := -128; // same but count = 129, move 129 chars
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+
+  InputBuffer[0] := 0; // count = 1, fillchar 1 times
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 127; // same but count = 128
+  TestDecompress(FDecoder, Source, 1, 128, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := -1; // count = 1, move 1 chars
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := -128; // same but count = 128, move 128 chars
+  TestDecompress(FDecoder, Source, 1, 128, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TRLADecoderTests.TestDecompressFill;
+var
+  Source: Pointer;
+  InputBuffer: array [0..10] of ShortInt;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;  // Fill char 1 time
+  InputBuffer[1] := 17; // Char to fill n times
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 1, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOk, 2);
+  i := 0;
+  Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = 17,
+    Format('Unexpected decompressed data at position %d', [i]));
+
+  InputBuffer[0] := 127; // count = 128
+  InputBuffer[1] := -18; // Byte to repeatedly fill
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 128, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder, Source, 2, 128, 0, 128, dsOk, 4);
+  for i := 0 to 127 do
+    Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = -18,
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 5);
+end;
+
+procedure TRLADecoderTests.TestDecompressMove;
+var
+  Source: Pointer;
+  InputBuffer: array [0..128] of ShortInt;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := -1; // Count = 1. Move next 1 bytes
+  InputBuffer[1] := -127;
+  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOk, 1);
+  i := 0;
+  Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = -127,
+    Format('Unexpected decompressed data at position %d', [i]));
+  InputBuffer[0] := -128;
+  for i := 1 to 128 do
+    InputBuffer[i] := i;
+  TestDecompress(FDecoder, Source, 129, 128, 0, 128, dsOk, 2);
+  for i := 0 to 127 do
+    Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[i+1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder, Source, 129, 127, 1, 127, dsOutputBufferTooSmall , 3);
+end;
+
 // ********** TCutRLEDecoderTests **********
 
 procedure TCutRLEDecoderTests.SetUp;
@@ -1287,6 +1398,7 @@ initialization
       TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TRLADecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
