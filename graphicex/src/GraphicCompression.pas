@@ -17,7 +17,7 @@ unit GraphicCompression;
 // Portions created by Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
 // Portions created by Jacob Boerema are
-// Copyright (C) 2012-2015 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2012-2017 Jacob Boerema. All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
 // This file is part of the image library GraphicEx.
@@ -25,27 +25,6 @@ unit GraphicCompression;
 //
 // GraphicCompression contains various encoder/decoder classes used to handle compressed
 // data in the various image classes.
-//
-// Currently supported methods are:
-// - LZW (Lempel-Ziff-Welch)
-//   + TIF
-//   + GIF
-// - RLE (run length encoding)
-//   + TGA,
-//   + PCX,
-//   + packbits
-//   + SGI
-//   + CUT
-//   + RLA
-//   + PSP
-// - CCITT
-//   + raw G3 (fax T.4)
-//   + modified G3 (CCITT RLE)
-//   + modified G3 w/ word alignment (CCITT RLEW)
-// - LZ77
-// - Thunderscan
-// - JPEG
-// - PCD Huffmann encoding (photo CD)
 //
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -68,8 +47,7 @@ interface
 
 uses
   Windows, Classes, SysUtils, Graphics,
-  //LibJpeg,    // JPEG compression support
-  ZLibDelphi; //GXzLib;  // general inflate/deflate and LZ77 compression support
+  ZLibDelphi; // general inflate/deflate and LZ77 compression support
 
 type
   // Decoding/Encoding status
@@ -113,6 +91,8 @@ type
   // generally, there should be no need to cover the decoder classes by conditional symbols
   // because the image classes which use the decoder classes are already covered and if they
   // aren't compiled then the decoders are also not compiled (more precisely: not linked)
+
+  // Targa is the only class that currently also has an encoder besides a decoder.
   TTargaRLEDecoder = class(TDecoder)
   private
     FColorDepth: Cardinal;
@@ -127,14 +107,7 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
-  // Lempel-Ziff-Welch encoder/decoder class
-  // TIFF LZW compression / decompression is a bit different to the common LZW code
-  TTIFFLZWDecoder = class(TDecoder)
-  public
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
+  // PSD
   TPackbitsRLEDecoder = class(TDecoder)
   private
     FUpdateSource,
@@ -148,6 +121,40 @@ type
     property Overflow: Boolean read FOverflow;
     property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
+  end;
+
+  TPSPRLEDecoder = class(TDecoder)
+  public
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  TPCXRLEDecoder = class(TDecoder)
+  public
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  TSGIRLEDecoder = class(TDecoder)
+  private
+    FSampleSize: Byte; // 8 or 16 bits
+  public
+    constructor Create(SampleSize: Byte);
+
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  TRLADecoder = class(TDecoder)
+  public
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  TCUTRLEDecoder = class(TDecoder)
+  public
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
   TAmigaRGBDecoder = class(TDecoder)
@@ -183,34 +190,6 @@ type
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
 
-  TPCXRLEDecoder = class(TDecoder)
-  public
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
-  TSGIRLEDecoder = class(TDecoder)
-  private
-    FSampleSize: Byte; // 8 or 16 bits
-  public
-    constructor Create(SampleSize: Byte);
-
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
-  TCUTRLEDecoder = class(TDecoder)
-  public
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
-  TPSPRLEDecoder = class(TDecoder)
-  public
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
   // Note: We need a different LZW decoder class for GIF because the bit order is reversed compared to that
   //       of TIFF and the code size increment is handled slightly different.
   TGIFLZWDecoder = class(TDecoder)
@@ -223,19 +202,72 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
-  TRLADecoder = class(TDecoder)
+  // zip using zlib
+  TLZ77Decoder = class(TDecoder)
+  private
+    FStream: RZStream;   // z_stream;
+    FZLibResult,         // contains the return code of the last ZLib operation
+    FFlushMode: Integer; // one of flush constants declard in ZLib.pas
+                         // this is usually Z_FINISH for PSP and Z_PARTIAL_FLUSH for PNG
+    FAutoReset: Boolean; // TIF, PSP and PNG share this decoder, TIF needs a reset for each
+                         // decoder run
+    function GetAvailableInput: Integer;
+    function GetAvailableOutput: Integer;
+
+  public
+    constructor Create(FlushMode: Integer; AutoReset: Boolean);
+
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure DecodeEnd; override;
+    procedure DecodeInit; override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+
+    property AvailableInput: Integer read GetAvailableInput;
+    property AvailableOutput: Integer read GetAvailableOutput;
+    property ZLibResult: Integer read FZLibResult;
+  end;
+
+  TPCDDecoder = class(TDecoder)
+  private
+    FData: PByte;  // decoder must read some data
+  public
+    constructor Create(Raw: Pointer);
+
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  // ********** All decoders below are currently not being used. **********
+
+  // Because the decoders below have not been made safe against buffer overflows
+  // we will disable them by default by using a define.
+
+{$IFDEF UNSAFE_DECODERS}
+  // Lempel-Ziff-Welch encoder/decoder class
+  // TIFF LZW compression / decompression is a bit different to the common LZW code
+  TTIFFLZWDecoder = class(TDecoder)
   public
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
+  TThunderDecoder = class(TDecoder)
+  private
+    FWidth: Cardinal; // width of a scanline in pixels
+  public
+    constructor Create(Width: Cardinal);
+
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
+  {$IFNDEF CPU64}
   TStateEntry = record
     NewState: array[Boolean] of Cardinal;
     RunLength: Integer;
   end;
   TStateArray = array of TStateEntry;
 
-  {$IFNDEF CPU64}
   // For now disabled for 64 bits since it contains some assembler code that we
   // need to figure out. This was also only used in the old TIFF reader before
   // we started using libtiff which means it is currently not used at all by us.
@@ -285,33 +317,9 @@ type
   end;
   {$ENDIF}
 
-  TLZ77Decoder = class(TDecoder)
-  private
-    FStream: RZStream; //z_stream;
-    FZLibResult,         // contains the return code of the last ZLib operation
-    FFlushMode: Integer; // one of flush constants declard in ZLib.pas
-                         // this is usually Z_FINISH for PSP and Z_PARTIAL_FLUSH for PNG
-    FAutoReset: Boolean; // TIF, PSP and PNG share this decoder, TIF needs a reset for each
-                         // decoder run
-    function GetAvailableInput: Integer;
-    function GetAvailableOutput: Integer;
-
-  public
-    constructor Create(FlushMode: Integer; AutoReset: Boolean);
-
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure DecodeEnd; override;
-    procedure DecodeInit; override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-
-    property AvailableInput: Integer read GetAvailableInput;
-    property AvailableOutput: Integer read GetAvailableOutput;
-    property ZLibResult: Integer read FZLibResult;
-  end;
-
   (*
   TTIFFJPEGDecoder = class;
-        
+
   TJPEGGeneral = packed record
     case byte of
       0: (common: jpeg_common_struct);
@@ -355,26 +363,7 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
   *)
-  
-  TThunderDecoder = class(TDecoder)
-  private
-    FWidth: Cardinal; // width of a scanline in pixels
-  public
-    constructor Create(Width: Cardinal);
-
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
-  TPCDDecoder = class(TDecoder)
-  private
-    FData: PByte;  // decoder must read some data
-  public
-    constructor Create(Raw: Pointer);
-
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
+{$ENDIF UNSAFE_DECODERS}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -860,156 +849,6 @@ begin
   end;
 end;
 
-//----------------- TTIFFLZWDecoder ------------------------------------------------------------------------------------
-
-procedure TTIFFLZWDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-var
-  I: Integer;
-  Data,           // current data
-  Bits,           // counter for bit management
-  Code: Cardinal; // current code value
-  SourcePtr: PByte;
-  InCode: Cardinal; // Buffer for passed code
-
-  CodeSize: Cardinal;
-  CodeMask: Cardinal;
-  FreeCode: Cardinal;
-  OldCode: Cardinal;
-  Prefix: array[0..4095] of Cardinal; // LZW prefix
-  Suffix,                             // LZW suffix
-  Stack: array [0..4095] of Byte;     // stack
-  StackPointer: PByte;
-  Target: PByte;
-  FirstChar: Byte;  // Buffer for decoded byte
-  ClearCode,
-  EOICode: Word;
-
-begin
-  Target := Dest;
-  SourcePtr := Source;
-
-  // initialize parameter
-  ClearCode := 1 shl 8;
-  EOICode := ClearCode + 1;
-  FreeCode := ClearCode + 2;
-  OldCode := NoLZWCode;
-  CodeSize := 9;
-  CodeMask := (1 shl CodeSize) - 1; 
-
-  // init code table
-  for I := 0 to ClearCode - 1 do
-  begin
-    Prefix[I] := NoLZWCode;
-    Suffix[I] := I;
-  end;
-
-  // initialize stack
-  StackPointer := @Stack;
-  FirstChar := 0;
-
-  Data := 0;
-  Bits := 0;  
-  while (PackedSize > 0) and (UnpackedSize > 0) do
-  begin
-    // read code from bit stream
-    Inc(Data, Cardinal(SourcePtr^) shl (24 - Bits));
-    Inc(Bits, 8);
-    while Bits >= CodeSize do
-    begin
-      // current code
-      Code := (Data and ($FFFFFFFF - CodeMask)) shr (32 - CodeSize);
-      // mask it
-      Data := Data shl CodeSize;
-      Dec(Bits, CodeSize);
-
-      if Code = EOICode then
-        Exit;
-
-      // handling of clear codes
-      if Code = ClearCode then
-      begin
-        // reset of all variables
-        CodeSize := 9;
-        CodeMask := (1 shl CodeSize) - 1;
-        FreeCode := ClearCode + 2;
-        OldCode := NoLZWCode;
-        Continue;
-      end;
-
-      // check whether it is a valid, already registered code
-      if Code > FreeCode then
-        Break;
-
-      // handling for the first LZW code: print and keep it
-      if OldCode = NoLZWCode then
-      begin
-        FirstChar := Suffix[Code];
-        Target^ := FirstChar;
-        Inc(Target);
-        Dec(UnpackedSize);
-        OldCode := Code;
-        Continue;
-      end;
-
-      // keep the passed LZW code
-      InCode := Code;  
-
-      // the first LZW code is always smaller than FFirstCode
-      if Code = FreeCode then
-      begin
-        StackPointer^ := FirstChar;
-        Inc(StackPointer);
-        Code := OldCode;
-      end;
-
-      // loop to put decoded bytes onto the stack
-      while Code > ClearCode do
-      begin
-        StackPointer^ := Suffix[Code];
-        Inc(StackPointer);
-        Code := Prefix[Code];
-      end;
-
-      // place new code into code table
-      FirstChar := Suffix[Code];
-      StackPointer^ := FirstChar;
-      Inc(StackPointer);
-      Prefix[FreeCode] := OldCode;
-      Suffix[FreeCode] := FirstChar;
-      if FreeCode < 4096 then
-        Inc(FreeCode);
-
-      // increase code size if necessary
-      if (FreeCode = CodeMask) and
-         (CodeSize < 12) then
-      begin
-        Inc(CodeSize);
-        CodeMask := (1 shl CodeSize) - 1;
-      end;
-
-      // put decoded bytes (from the stack) into the target Buffer
-      OldCode := InCode;
-      repeat
-        Dec(StackPointer);
-        Target^ := StackPointer^;
-        Inc(Target);
-        Dec(UnpackedSize);
-      until NativeUInt(StackPointer) <= NativeUInt(@Stack);
-    end;
-    Inc(SourcePtr);
-    Dec(PackedSize);
-  end;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TTIFFLZWDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
-begin
-
-end;
-
 //----------------- TPackbitsRLEDecoder --------------------------------------------------------------------------------
 
 procedure TPackbitsRLEDecoder.DecodeInit;
@@ -1086,258 +925,103 @@ begin
 
 end;
 
-//----------------- TAmigaRGBDecoder -------------------------------------------
+//----------------- TPSPRLEDecoder -------------------------------------------------------------------------------------
 
-// ColorDepth: 16-RGBN; 32=RGB8
-constructor TAmigaRGBDecoder.Create(ColorDepth: Cardinal);
-begin
-  inherited Create;
-  FColorDepth := ColorDepth;
-end;
+procedure TPSPRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 
-procedure TAmigaRGBDecoder.DecodeInit;
-begin
-  FUpdateSource := False;
-  FUpdateDest := False;
-end;
-
-procedure TAmigaRGBDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-const
-  RunMask16 = $0700;
-  RunMask32 = $7f000000;
 var
-  SourcePtr16,
-  TargetPtr16: PWord;
-  SourcePtr32,
-  TargetPtr32: PLongWord;
-  RunLength: Cardinal;
-  Data16: Word;
-  Data32: LongWord;
-  i: Cardinal;
-begin
-  FOverflow := False;
-  case FColorDepth of
-    16:
-    begin
-      TargetPtr16 := Dest;
-      SourcePtr16 := Source;
-      while UnpackedSize > 0 do begin
-        Data16 := SourcePtr16^;
-        Inc(SourcePtr16);
-        RunLength := Data16 and RunMask16;
-        RunLength := RunLength shr 8;
-        if RunLength = 0 then begin
-          // Next BYTE is a repeat count or 0
-          RunLength := PByte(SourcePtr16)^;
-          Inc(PByte(SourcePtr16), 1);
-          if RunLength = 0 then begin
-            // Next WORD is a repeat count
-            RunLength := SourcePtr16^;
-            Inc(SourcePtr16);
-          end
-        end;
-        if RunLength*2 > Cardinal(UnpackedSize) then begin
-          FOverflow := True;
-          Break;
-        end;
-        // TODO: Ideally we would need a FillWord implementation.
-        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
-        // Graphics32 FillLongword in GR32_LowLevel.
-        //FillWord( (TargetPtr^, RunLength, Data);
-        for i := 0 to RunLength-1 do begin
-          TargetPtr16^ := Data16;
-          Inc(TargetPtr16);
-          Dec(UnpackedSize, 2);
-        end;
-      end;
-    end;
-    32:
-    begin
-      TargetPtr32 := Dest;
-      SourcePtr32 := Source;
-      while UnpackedSize > 0 do begin
-        Data32 := SourcePtr32^;
-        Inc(SourcePtr32);
-        // TODO: Just use one byte instead of 4 here then no need to shift
-        RunLength := Data32 and RunMask32;
-        RunLength := RunLength shr 24;
-        if RunLength = 0 then begin
-          // Next BYTE is a repeat count or 0
-          RunLength := PByte(SourcePtr32)^;
-          Inc(PByte(SourcePtr32), 1);
-          if RunLength = 0 then begin
-            // Next WORD is a repeat count
-            RunLength := PWord(SourcePtr32)^;
-            Inc(PByte(SourcePtr32), 2);
-          end
-        end;
-        if RunLength*4 > Cardinal(UnpackedSize) then begin
-          FOverflow := True;
-          Break;
-        end;
-        // TODO: Ideally we would need a FillDWord implementation.
-        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
-        // Graphics32 FillLongword in GR32_LowLevel.
-        //FillWord( (TargetPtr^, RunLength, Data);
-        for i := 0 to RunLength-1 do begin
-          TargetPtr32^ := Data32;
-          Inc(TargetPtr32);
-          Dec(UnpackedSize, 4);
-        end;
-      end;
-    end;
-  end; // case
-  if FUpdateSource then
-    if FColorDepth = 16 then
-      Source := SourcePtr16
-    else
-      Source := SourcePtr32;
-  if FUpdateDest then
-    if FColorDepth = 16 then
-      Dest := TargetPtr16
-    else
-      Dest := TargetPtr32;
-end;
-
-procedure TAmigaRGBDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-begin
-  BytesStored := 0;
-end;
-
-//----------------- TVDATRLEDecoder --------------------------------------------
-
-procedure TVDATRLEDecoder.DecodeInit;
-begin
-  FUpdateSource := False;
-  FUpdateDest := False;
-end;
-
-procedure TVDATRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-var
-  i: Cardinal;
-  SourcePtr: PWord;
+  SourcePtr,
   TargetPtr: PByte;
-  CommandPtr: PByte;
-  CommandCount: Word;
-  aCount: ShortInt;
-  aWordCount: Word;
-  TempVal: Word;
+  RunLength: Cardinal;
+  DecompressBufSize: Integer;
+
 begin
-  FOverflow := False;
-  TargetPtr := Dest;
   SourcePtr := Source;
-  if PackedSize <= 5 then begin
-    FOverflow := True;
+  TargetPtr := Dest;
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
     Exit;
   end;
-  CommandCount := SwapEndian(SourcePtr^) - 2;
-  Inc(SourcePtr);
-  Dec(PackedSize, 2);
-  CommandPtr := PByte(SourcePtr);
-  // Data words come after the command bytes
-  Inc(PByte(SourcePtr), CommandCount);
-  Dec(PackedSize,CommandCount);
-  if PackedSize <= 0 then begin
-    FOverflow := True;
-    Exit;
-  end;
-
-  while (PackedSize > 0) and (UnpackedSize > 0) do begin
-    if CommandCount = 0 then begin
-      FOverflow := True;
-      Exit;
-    end;
-    case CommandPtr^ of
-      0: // read one data word as count; output count literal words from data words.
-        begin
-          if PackedSize < 2 then begin
-            FOverflow := True;
-            Exit;
-          end;
-          aWordCount := SwapEndian(SourcePtr^);
-          Inc(SourcePtr);
-          Dec(PackedSize, 2);
-          if (aWordCount*2 > UnpackedSize) or (aWordCount*2 > PackedSize) then begin
-            FOverflow := True;
-            Exit;
-          end;
-          Dec(UnpackedSize, aWordCount*2);
-          Dec(PackedSize, aWordCount*2);
-          for i := 0 to aWordCount-1 do begin
-            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
-            Inc(SourcePtr);
-            Inc(TargetPtr, 2);
-          end;
-        end;
-      1: // read one command word as count, then one data word as data output data count times
-        begin
-          if PackedSize < 2 then begin
-            FOverflow := True;
-            Exit;
-          end;
-          aWordCount := SwapEndian(SourcePtr^);
-          Inc(SourcePtr);
-          Dec(PackedSize, 2);
-          if (aWordCount*2 > UnpackedSize) or (PackedSize < 2) then begin
-            FOverflow := True;
-            Exit;
-          end;
-          Dec(UnpackedSize, aWordCount*2);
-          Dec(PackedSize, 2);
-          for i := 0 to aWordCount-1 do begin
-            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
-            Inc(TargetPtr, 2);
-          end;
-          Inc(SourcePtr);
-        end;
+  FDecoderStatus := dsOK;
+  while (PackedSize > 0) and (UnpackedSize > 0) do
+  begin
+    RunLength := SourcePtr^;
+    Inc(SourcePtr);
+    Dec(PackedSize);
+    if RunLength < 128 then
+    begin
+      if RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        // We do not fill in remaining possible input because then we would also have to
+        // first check overflow of input buffer which seems overkill for a corrupt image.
+        break;
+      end
+      else if RunLength > PackedSize then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
+      Move(SourcePtr^, TargetPtr^, RunLength);
+      Inc(TargetPtr, RunLength);
+      Inc(SourcePtr, RunLength);
+      Dec(PackedSize, RunLength);
+      Dec(UnpackedSize, RunLength);
+    end
     else
-      aCount := ShortInt(CommandPtr^);
-      if aCount < 0 then begin
-        // <0: -cmd is count, output count words from data words
-        aCount := -aCount;
-        if (aCount*2 > UnpackedSize) or (aCount*2 > PackedSize) then begin
-          FOverflow := True;
-          Exit;
-        end;
-        Dec(UnpackedSize, aCount*2);
-        Dec(PackedSize, aCount*2);
-        for i := 0 to aCount-1 do begin
-          PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
-          Inc(SourcePtr);
-          Inc(TargetPtr, 2);
-        end;
+    begin
+      Dec(RunLength, 128);
+      if RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
+        // We do not fill in remaining possible input because then we would also have to
+        // first check overflow of input buffer which seems overkill for a corrupt image.
+        break;
       end
-      else begin
-        // >2: cmd is count, read one data word as data output data count times
-        // JB: Note that although the info says greater than 2 I'm assuming it
-        // should be greater than or equal to 2.
-        if (aCount*2 > UnpackedSize) or (PackedSize < 2) then begin
-          FOverflow := True;
-          Exit;
-        end;
-        Dec(UnpackedSize, aCount*2);
-        Dec(PackedSize, 2);
-        TempVal := SwapEndian(SourcePtr^);
-        for i := 0 to aCount-1 do begin
-          PWord(TargetPtr)^ := TempVal;
-          Inc(TargetPtr, 2);
-        end;
-        Inc(SourcePtr);
-      end
+      else if PackedSize < 1 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
+      FillChar(TargetPtr^, RunLength, SourcePtr^);
+      Inc(SourcePtr);
+      Inc(TargetPtr, RunLength);
+      Dec(UnpackedSize, RunLength);
+      Dec(PackedSize);
     end;
-    Inc(CommandPtr);
-    Dec(CommandCount);
   end;
-
-  if FUpdateSource then
-    Source := SourcePtr;
-  if FUpdateDest then
-    Dest := TargetPtr;
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
+      end
+      else begin // > 0
+        FDecoderStatus := dsOutputBufferTooSmall;
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
 end;
 
-procedure TVDATRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPSPRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
 begin
-  BytesStored := 0;
 end;
 
 //----------------- TPCXRLEDecoder ---------------------------------------------
@@ -1619,6 +1303,50 @@ procedure TSGIRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var Byte
 begin
 end;
 
+//----------------- TRLADecoder ----------------------------------------------------------------------------------------
+
+procedure TRLADecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+// decodes a simple run-length encoded strip of size PackedSize
+// this is very similar to TPackbitsRLEDecoder
+
+var
+  SourcePtr,
+  TargetPtr: PByte;
+  N: SmallInt;
+
+begin
+  TargetPtr := Dest;
+  SourcePtr := Source;
+  while PackedSize > 0 do
+  begin
+    N := ShortInt(SourcePtr^);
+    Inc(SourcePtr);
+    Dec(PackedSize);
+    if N >= 0 then // replicate next Byte N + 1 times
+    begin
+      FillChar(TargetPtr^, N + 1, SourcePtr^);
+      Inc(TargetPtr, N + 1);
+      Inc(SourcePtr);
+      Dec(PackedSize);
+    end
+    else
+    begin // copy next -N bytes literally
+      Move(SourcePtr^, TargetPtr^, -N);
+      Inc(TargetPtr, -N);
+      Inc(SourcePtr, -N);
+      Inc(PackedSize, N);
+    end;
+  end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TRLADecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
+begin
+end;
+
 //----------------- TCUTRLE --------------------------------------------------------------------------------------------
 
 procedure TCUTRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
@@ -1686,103 +1414,258 @@ procedure TCUTRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var Byte
 begin
 end;
 
-//----------------- TPSPRLEDecoder -------------------------------------------------------------------------------------
+//----------------- TAmigaRGBDecoder -------------------------------------------
 
-procedure TPSPRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-var
-  SourcePtr,
-  TargetPtr: PByte;
-  RunLength: Cardinal;
-  DecompressBufSize: Integer;
-
+// ColorDepth: 16-RGBN; 32=RGB8
+constructor TAmigaRGBDecoder.Create(ColorDepth: Cardinal);
 begin
-  SourcePtr := Source;
-  TargetPtr := Dest;
-  FCompressedBytesAvailable := PackedSize;
-  FDecompressedBytes := 0;
-  DecompressBufSize := UnpackedSize;
-  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
-    FCompressedBytesAvailable := 0;
-    FDecoderStatus := dsInvalidBufferSize;
-    Exit;
-  end;
-  FDecoderStatus := dsOK;
-  while (PackedSize > 0) and (UnpackedSize > 0) do
-  begin
-    RunLength := SourcePtr^;
-    Inc(SourcePtr);
-    Dec(PackedSize);
-    if RunLength < 128 then
-    begin
-      if RunLength > UnpackedSize then begin
-        FDecoderStatus := dsOutputBufferTooSmall;
-        // We do not fill in remaining possible input because then we would also have to
-        // first check overflow of input buffer which seems overkill for a corrupt image.
-        break;
-      end
-      else if RunLength > PackedSize then begin
-        FDecoderStatus := dsNotEnoughInput;
-        break;
-      end;
-      Move(SourcePtr^, TargetPtr^, RunLength);
-      Inc(TargetPtr, RunLength);
-      Inc(SourcePtr, RunLength);
-      Dec(PackedSize, RunLength);
-      Dec(UnpackedSize, RunLength);
-    end
-    else
-    begin
-      Dec(RunLength, 128);
-      if RunLength > UnpackedSize then begin
-        FDecoderStatus := dsOutputBufferTooSmall;
-        // We do not fill in remaining possible input because then we would also have to
-        // first check overflow of input buffer which seems overkill for a corrupt image.
-        break;
-      end
-      else if PackedSize < 1 then begin
-        FDecoderStatus := dsNotEnoughInput;
-        break;
-      end;
-      FillChar(TargetPtr^, RunLength, SourcePtr^);
-      Inc(SourcePtr);
-      Inc(TargetPtr, RunLength);
-      Dec(UnpackedSize, RunLength);
-      Dec(PackedSize);
-    end;
-  end;
-  FCompressedBytesAvailable := PackedSize;
-  if FDecoderStatus = dsOK then begin
-    // Only check if status is ok. If it is not OK we already know something is wrong.
-    if PackedSize <> 0 then begin
-      if PackedSize < 0 then begin
-        FDecoderStatus := dsInternalError;
-        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesInputBufferOverflow, ['PSP RLE decoder']));
-      end
-      else begin // > 0
-        FDecoderStatus := dsOutputBufferTooSmall;
-      end;
-    end;
-    if UnpackedSize <> 0 then begin
-      if UnpackedSize > 0 then
-        // Broken/corrupt image
-        FDecoderStatus := dsNotEnoughInput
-      else begin // < 0
-        FDecoderStatus := dsInternalError;
-      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
-        CompressionError(Format(gesOutputBufferOverflow, ['PSP RLE decoder']));
-      end;
-    end;
-  end;
-  FDecompressedBytes := DecompressBufSize - UnpackedSize;
+  inherited Create;
+  FColorDepth := ColorDepth;
 end;
 
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TPSPRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
+procedure TAmigaRGBDecoder.DecodeInit;
 begin
+  FUpdateSource := False;
+  FUpdateDest := False;
+end;
+
+procedure TAmigaRGBDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+const
+  RunMask16 = $0700;
+  RunMask32 = $7f000000;
+var
+  SourcePtr16,
+  TargetPtr16: PWord;
+  SourcePtr32,
+  TargetPtr32: PLongWord;
+  RunLength: Cardinal;
+  Data16: Word;
+  Data32: LongWord;
+  i: Cardinal;
+begin
+  FOverflow := False;
+  case FColorDepth of
+    16:
+    begin
+      TargetPtr16 := Dest;
+      SourcePtr16 := Source;
+      while UnpackedSize > 0 do begin
+        Data16 := SourcePtr16^;
+        Inc(SourcePtr16);
+        RunLength := Data16 and RunMask16;
+        RunLength := RunLength shr 8;
+        if RunLength = 0 then begin
+          // Next BYTE is a repeat count or 0
+          RunLength := PByte(SourcePtr16)^;
+          Inc(PByte(SourcePtr16), 1);
+          if RunLength = 0 then begin
+            // Next WORD is a repeat count
+            RunLength := SourcePtr16^;
+            Inc(SourcePtr16);
+          end
+        end;
+        if RunLength*2 > Cardinal(UnpackedSize) then begin
+          FOverflow := True;
+          Break;
+        end;
+        // TODO: Ideally we would need a FillWord implementation.
+        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
+        // Graphics32 FillLongword in GR32_LowLevel.
+        //FillWord( (TargetPtr^, RunLength, Data);
+        for i := 0 to RunLength-1 do begin
+          TargetPtr16^ := Data16;
+          Inc(TargetPtr16);
+          Dec(UnpackedSize, 2);
+        end;
+      end;
+    end;
+    32:
+    begin
+      TargetPtr32 := Dest;
+      SourcePtr32 := Source;
+      while UnpackedSize > 0 do begin
+        Data32 := SourcePtr32^;
+        Inc(SourcePtr32);
+        // TODO: Just use one byte instead of 4 here then no need to shift
+        RunLength := Data32 and RunMask32;
+        RunLength := RunLength shr 24;
+        if RunLength = 0 then begin
+          // Next BYTE is a repeat count or 0
+          RunLength := PByte(SourcePtr32)^;
+          Inc(PByte(SourcePtr32), 1);
+          if RunLength = 0 then begin
+            // Next WORD is a repeat count
+            RunLength := PWord(SourcePtr32)^;
+            Inc(PByte(SourcePtr32), 2);
+          end
+        end;
+        if RunLength*4 > Cardinal(UnpackedSize) then begin
+          FOverflow := True;
+          Break;
+        end;
+        // TODO: Ideally we would need a FillDWord implementation.
+        // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
+        // Graphics32 FillLongword in GR32_LowLevel.
+        //FillWord( (TargetPtr^, RunLength, Data);
+        for i := 0 to RunLength-1 do begin
+          TargetPtr32^ := Data32;
+          Inc(TargetPtr32);
+          Dec(UnpackedSize, 4);
+        end;
+      end;
+    end;
+  end; // case
+  if FUpdateSource then
+    if FColorDepth = 16 then
+      Source := SourcePtr16
+    else
+      Source := SourcePtr32;
+  if FUpdateDest then
+    if FColorDepth = 16 then
+      Dest := TargetPtr16
+    else
+      Dest := TargetPtr32;
+end;
+
+procedure TAmigaRGBDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+begin
+  BytesStored := 0;
+end;
+
+//----------------- TVDATRLEDecoder --------------------------------------------
+
+procedure TVDATRLEDecoder.DecodeInit;
+begin
+  FUpdateSource := False;
+  FUpdateDest := False;
+end;
+
+procedure TVDATRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+var
+  i: Cardinal;
+  SourcePtr: PWord;
+  TargetPtr: PByte;
+  CommandPtr: PByte;
+  CommandCount: Word;
+  aCount: ShortInt;
+  aWordCount: Word;
+  TempVal: Word;
+begin
+  FOverflow := False;
+  TargetPtr := Dest;
+  SourcePtr := Source;
+  if PackedSize <= 5 then begin
+    FOverflow := True;
+    Exit;
+  end;
+  CommandCount := SwapEndian(SourcePtr^) - 2;
+  Inc(SourcePtr);
+  Dec(PackedSize, 2);
+  CommandPtr := PByte(SourcePtr);
+  // Data words come after the command bytes
+  Inc(PByte(SourcePtr), CommandCount);
+  Dec(PackedSize,CommandCount);
+  if PackedSize <= 0 then begin
+    FOverflow := True;
+    Exit;
+  end;
+
+  while (PackedSize > 0) and (UnpackedSize > 0) do begin
+    if CommandCount = 0 then begin
+      FOverflow := True;
+      Exit;
+    end;
+    case CommandPtr^ of
+      0: // read one data word as count; output count literal words from data words.
+        begin
+          if PackedSize < 2 then begin
+            FOverflow := True;
+            Exit;
+          end;
+          aWordCount := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Dec(PackedSize, 2);
+          if (aWordCount*2 > UnpackedSize) or (aWordCount*2 > PackedSize) then begin
+            FOverflow := True;
+            Exit;
+          end;
+          Dec(UnpackedSize, aWordCount*2);
+          Dec(PackedSize, aWordCount*2);
+          for i := 0 to aWordCount-1 do begin
+            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+            Inc(SourcePtr);
+            Inc(TargetPtr, 2);
+          end;
+        end;
+      1: // read one command word as count, then one data word as data output data count times
+        begin
+          if PackedSize < 2 then begin
+            FOverflow := True;
+            Exit;
+          end;
+          aWordCount := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Dec(PackedSize, 2);
+          if (aWordCount*2 > UnpackedSize) or (PackedSize < 2) then begin
+            FOverflow := True;
+            Exit;
+          end;
+          Dec(UnpackedSize, aWordCount*2);
+          Dec(PackedSize, 2);
+          for i := 0 to aWordCount-1 do begin
+            PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+            Inc(TargetPtr, 2);
+          end;
+          Inc(SourcePtr);
+        end;
+    else
+      aCount := ShortInt(CommandPtr^);
+      if aCount < 0 then begin
+        // <0: -cmd is count, output count words from data words
+        aCount := -aCount;
+        if (aCount*2 > UnpackedSize) or (aCount*2 > PackedSize) then begin
+          FOverflow := True;
+          Exit;
+        end;
+        Dec(UnpackedSize, aCount*2);
+        Dec(PackedSize, aCount*2);
+        for i := 0 to aCount-1 do begin
+          PWord(TargetPtr)^ := SwapEndian(SourcePtr^);
+          Inc(SourcePtr);
+          Inc(TargetPtr, 2);
+        end;
+      end
+      else begin
+        // >2: cmd is count, read one data word as data output data count times
+        // JB: Note that although the info says greater than 2 I'm assuming it
+        // should be greater than or equal to 2.
+        if (aCount*2 > UnpackedSize) or (PackedSize < 2) then begin
+          FOverflow := True;
+          Exit;
+        end;
+        Dec(UnpackedSize, aCount*2);
+        Dec(PackedSize, 2);
+        TempVal := SwapEndian(SourcePtr^);
+        for i := 0 to aCount-1 do begin
+          PWord(TargetPtr)^ := TempVal;
+          Inc(TargetPtr, 2);
+        end;
+        Inc(SourcePtr);
+      end
+    end;
+    Inc(CommandPtr);
+    Dec(CommandCount);
+  end;
+
+  if FUpdateSource then
+    Source := SourcePtr;
+  if FUpdateDest then
+    Dest := TargetPtr;
+end;
+
+procedure TVDATRLEDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+begin
+  BytesStored := 0;
 end;
 
 //----------------- TGIFLZWDecoder -------------------------------------------------------------------------------------
@@ -2005,46 +1888,607 @@ procedure TGIFLZWDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var Byte
 begin
 end;
 
-//----------------- TRLADecoder ----------------------------------------------------------------------------------------
+//----------------- TLZ77Decoder ---------------------------------------------------------------------------------------
 
-procedure TRLADecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-// decodes a simple run-length encoded strip of size PackedSize
-// this is very similar to TPackbitsRLEDecoder
-
-var
-  SourcePtr,
-  TargetPtr: PByte;
-  N: SmallInt;
+constructor TLZ77Decoder.Create(FlushMode: Integer; AutoReset: Boolean);
 
 begin
-  TargetPtr := Dest;
-  SourcePtr := Source;
-  while PackedSize > 0 do
+  FillChar(FStream, SizeOf(FStream), 0);
+  FFlushMode := FlushMode;
+  FAutoReset := AutoReset;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TLZ77Decoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+begin
+  FStream.NextIn := Source;
+  FStream.AvailIn := PackedSize;
+  if FAutoReset then
+    FZLibResult := InflateReset(FStream);
+  if FZLibResult = Z_OK then
   begin
-    N := ShortInt(SourcePtr^);
-    Inc(SourcePtr);
-    Dec(PackedSize);
-    if N >= 0 then // replicate next Byte N + 1 times
-    begin
-      FillChar(TargetPtr^, N + 1, SourcePtr^);
-      Inc(TargetPtr, N + 1);
-      Inc(SourcePtr);
-      Dec(PackedSize);
-    end
-    else
-    begin // copy next -N bytes literally
-      Move(SourcePtr^, TargetPtr^, -N);
-      Inc(TargetPtr, -N);
-      Inc(SourcePtr, -N);
-      Inc(PackedSize, N);
-    end;
+    FStream.NextOut := Dest;
+    FStream.AvailOut := UnpackedSize;
+    FZLibResult := Inflate(FStream, FFlushMode);
+    // advance pointers so used input can be calculated
+    Source := FStream.NextIn;
+    Dest := FStream.NextOut;
   end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TRLADecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+procedure TLZ77Decoder.DecodeEnd;
+
+begin
+  if InflateEnd(FStream) < 0 then
+    CompressionError(gesLZ77Error);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TLZ77Decoder.DecodeInit;
+
+begin
+  if InflateInit(FStream) < 0 then
+    CompressionError(gesLZ77Error);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TLZ77Decoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
+begin
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+function TLZ77Decoder.GetAvailableInput: Integer;
+
+begin
+  Result := FStream.AvailIn;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+function TLZ77Decoder.GetAvailableOutput: Integer;
+
+begin
+  Result := FStream.AvailOut;
+end;
+
+//----------------- TPCDDecoder ----------------------------------------------------------------------------------------
+
+constructor TPCDDecoder.Create(Raw: Pointer);
+
+begin
+  FData := Raw;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPCDDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+// recovers the Huffman encoded luminance and chrominance deltas
+// Note: This decoder leaves a bit the way like the other decoders work.
+//       Source points to an array of 3 pointers, one for luminance (Y, Luma), one for blue
+//       chrominance (Cb, Chroma1) and one for red chrominance (Cr, Chroma2). These pointers
+//       point to source and target at the same time (in place decoding).
+//       PackedSize contains the width of the current subimage and UnpackedSize its height.
+//       Dest is not used and can be nil.
+
+type
+  PPointerArray = ^TPointerArray;
+  TPointerArray = array[0..2] of Pointer;
+
+  PPCDTable = ^TPCDTable;
+  TPCDTable = record
+    Length: Word;
+    Sequence: Cardinal;
+    Key: Byte;
+    Mask: Integer;
+  end;
+
+  PQuantumArray = ^TQuantumArray;
+  TQuantumArray = array[0..3 * 256 - 1] of Byte;
+
+var
+  Luma,
+  Chroma1,
+  Chroma2: PAnsiChar; // hold the actual pointers, PChar to easy pointer maths
+  Width,
+  Height: Cardinal;
+
+  PCDTable: array[0..2] of PPCDTable;
+  I, J, K: Cardinal;
+  R: PPCDTable;
+  RangeLimit: PQuantumArray;
+  P, Q,
+  Buffer: PAnsiChar;
+  Accumulator,
+  Bits,
+  Length,
+  Plane,
+  Row: Cardinal;
+  PCDLength: array[0..2] of Cardinal;
+
+  //--------------- local function --------------------------------------------
+
+  procedure PCDGetBits(N: Cardinal);
+
+  begin
+    Accumulator := Accumulator shl N;
+    Dec(Bits, N);
+    while Bits <= 24 do
+    begin
+      if P >= (Buffer + $800) then
+      begin
+        Move(FData^, Buffer^, $800);
+        Inc(FData, $800);
+        P := Buffer;
+      end;
+      Accumulator := Accumulator or (Cardinal(P^) shl (24 - Bits));
+      Inc(Bits, 8);
+      Inc(P);
+    end;
+  end;
+
+  //--------------- end local function ----------------------------------------
+
+var
+  Limit: Cardinal;
+
+begin
+  // place the used source values into local variables with proper names to make
+  // their usage clearer
+  Luma := PPointerArray(Source)[0];
+  Chroma1 := PPointerArray(Source)[1];
+  Chroma2 := PPointerArray(Source)[2];
+  Width := PackedSize;
+  Height := UnpackedSize;
+  
+  // initialize Huffman tables
+  ZeroMemory(@PCDTable, SizeOf(PCDTable));
+  GetMem(Buffer, $800);
+  try
+    Accumulator := 0;
+    Bits := 32;
+    P := Buffer + $800;
+    Limit := 1;
+    if Width > 1536 then
+      Limit := 3;
+    for I := 0 to Limit - 1 do
+    begin
+      PCDGetBits(8);
+      Length := (Accumulator and $FF) + 1;
+      GetMem(PCDTable[I], Length * SizeOf(TPCDTable));
+
+      R := PCDTable[I];
+      for J := 0 to Length - 1 do
+      begin
+        PCDGetBits(8);
+        R.Length := (Accumulator and $FF) + 1;
+        if R.Length > 16 then
+        begin
+          for K := 0 to 2 do
+            if Assigned(PCDTable[K]) then
+              FreeMem(PCDTable[K]);
+          Exit;
+        end;
+        PCDGetBits(16);
+        R.Sequence := (Accumulator and $FFFF) shl 16;
+        PCDGetBits(8);
+        R.Key := Accumulator and $FF;
+      R.Mask := not ((1 shl (32 - R.Length)) - 1);
+        {asm
+          // asm implementation to avoid overflow errors and for faster execution
+          MOV EDX, [R]
+          MOV CL, 32
+          SUB CL, [EDX].TPCDTable.Length
+          MOV EAX, 1
+          SHL EAX, CL
+          DEC EAX
+          NOT EAX
+          MOV [EDX].TPCDTable.Mask, EAX
+        end;}
+        Inc(R);
+      end;
+      PCDLength[I] := Length;
+    end;
+
+    // initialize range limits
+    GetMem(RangeLimit, 3 * 256);
+    try
+      for I := 0 to 255 do
+      begin
+        RangeLimit[I] := 0;
+        RangeLimit[I + 256] := I;
+        RangeLimit[I + 2 * 256] := 255;
+      end;
+      Inc(PByte(RangeLimit), 255);
+
+      // search for sync byte
+      PCDGetBits(16);
+      PCDGetBits(16);
+      while (Accumulator and $00FFF000) <> $00FFF000 do
+        PCDGetBits(8);
+      while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
+        PCDGetBits(1);
+
+      // recover the Huffman encoded luminance and chrominance deltas
+      Length := 0;
+      Plane := 0;
+      Q := Luma;
+      repeat
+        if (Accumulator and $FFFFFF00) = $FFFFFE00 then
+        begin
+          // determine plane and row number
+          PCDGetBits(16);
+          Row := (Accumulator shr 9) and $1FFF;
+          if Row = Height then
+            Break;
+          PCDGetBits(8);
+          Plane := Accumulator shr 30;
+          PCDGetBits(16);
+          case Plane of
+            0:
+              Q := Luma + Row * Width;
+            2:
+              begin
+                Q := Chroma1 + (Row shr 1) * Width;
+                Dec(Plane);
+              end;
+            3:
+              begin
+                Q := Chroma2 + (Row shr 1) * Width;
+                Dec(Plane);
+              end;
+          else
+            Abort; // invalid/corrupt image
+          end;
+
+          Length := PCDLength[Plane];
+          Continue;
+        end;
+
+        // decode luminance or chrominance deltas
+        R := PCDTable[Plane];
+        I := 0;
+        while (I < Length) and ((Accumulator and R.Mask) <> R.Sequence) do
+        begin
+          Inc(I);
+          Inc(R);
+        end;
+      
+        if R = nil then
+        begin
+          // corrupt PCD image, skipping to sync byte
+          while (Accumulator and $00FFF000) <> $00FFF000 do
+            PCDGetBits(8);
+          while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
+            PCDGetBits(1);
+          Continue;
+        end;
+
+        if R.Key < 128 then
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
+        else
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
+        Inc(Q);
+        PCDGetBits(R.Length);
+      until False;                                     
+    finally
+      for I := 0 to 2 do
+        if Assigned(PCDTable[I]) then
+          FreeMem(PCDTable[I]);
+      Dec(PByte(RangeLimit), 255);
+      if Assigned(RangeLimit) then
+        FreeMem(RangeLimit);
+    end;
+  finally
+    if Assigned(Buffer) then
+      FreeMem(Buffer);
+  end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPCDDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
+begin
+end;
+
+
+{$IFDEF UNSAFE_DECODERS} // These decoders have not been checked for buffer overflow safety.
+
+//----------------- TTIFFLZWDecoder ------------------------------------------------------------------------------------
+
+procedure TTIFFLZWDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+var
+  I: Integer;
+  Data,           // current data
+  Bits,           // counter for bit management
+  Code: Cardinal; // current code value
+  SourcePtr: PByte;
+  InCode: Cardinal; // Buffer for passed code
+
+  CodeSize: Cardinal;
+  CodeMask: Cardinal;
+  FreeCode: Cardinal;
+  OldCode: Cardinal;
+  Prefix: array[0..4095] of Cardinal; // LZW prefix
+  Suffix,                             // LZW suffix
+  Stack: array [0..4095] of Byte;     // stack
+  StackPointer: PByte;
+  Target: PByte;
+  FirstChar: Byte;  // Buffer for decoded byte
+  ClearCode,
+  EOICode: Word;
+
+begin
+  Target := Dest;
+  SourcePtr := Source;
+
+  // initialize parameter
+  ClearCode := 1 shl 8;
+  EOICode := ClearCode + 1;
+  FreeCode := ClearCode + 2;
+  OldCode := NoLZWCode;
+  CodeSize := 9;
+  CodeMask := (1 shl CodeSize) - 1;
+
+  // init code table
+  for I := 0 to ClearCode - 1 do
+  begin
+    Prefix[I] := NoLZWCode;
+    Suffix[I] := I;
+  end;
+
+  // initialize stack
+  StackPointer := @Stack;
+  FirstChar := 0;
+
+  Data := 0;
+  Bits := 0;
+  while (PackedSize > 0) and (UnpackedSize > 0) do
+  begin
+    // read code from bit stream
+    Inc(Data, Cardinal(SourcePtr^) shl (24 - Bits));
+    Inc(Bits, 8);
+    while Bits >= CodeSize do
+    begin
+      // current code
+      Code := (Data and ($FFFFFFFF - CodeMask)) shr (32 - CodeSize);
+      // mask it
+      Data := Data shl CodeSize;
+      Dec(Bits, CodeSize);
+
+      if Code = EOICode then
+        Exit;
+
+      // handling of clear codes
+      if Code = ClearCode then
+      begin
+        // reset of all variables
+        CodeSize := 9;
+        CodeMask := (1 shl CodeSize) - 1;
+        FreeCode := ClearCode + 2;
+        OldCode := NoLZWCode;
+        Continue;
+      end;
+
+      // check whether it is a valid, already registered code
+      if Code > FreeCode then
+        Break;
+
+      // handling for the first LZW code: print and keep it
+      if OldCode = NoLZWCode then
+      begin
+        FirstChar := Suffix[Code];
+        Target^ := FirstChar;
+        Inc(Target);
+        Dec(UnpackedSize);
+        OldCode := Code;
+        Continue;
+      end;
+
+      // keep the passed LZW code
+      InCode := Code;
+
+      // the first LZW code is always smaller than FFirstCode
+      if Code = FreeCode then
+      begin
+        StackPointer^ := FirstChar;
+        Inc(StackPointer);
+        Code := OldCode;
+      end;
+
+      // loop to put decoded bytes onto the stack
+      while Code > ClearCode do
+      begin
+        StackPointer^ := Suffix[Code];
+        Inc(StackPointer);
+        Code := Prefix[Code];
+      end;
+
+      // place new code into code table
+      FirstChar := Suffix[Code];
+      StackPointer^ := FirstChar;
+      Inc(StackPointer);
+      Prefix[FreeCode] := OldCode;
+      Suffix[FreeCode] := FirstChar;
+      if FreeCode < 4096 then
+        Inc(FreeCode);
+
+      // increase code size if necessary
+      if (FreeCode = CodeMask) and
+         (CodeSize < 12) then
+      begin
+        Inc(CodeSize);
+        CodeMask := (1 shl CodeSize) - 1;
+      end;
+
+      // put decoded bytes (from the stack) into the target Buffer
+      OldCode := InCode;
+      repeat
+        Dec(StackPointer);
+        Target^ := StackPointer^;
+        Inc(Target);
+        Dec(UnpackedSize);
+      until NativeUInt(StackPointer) <= NativeUInt(@Stack);
+    end;
+    Inc(SourcePtr);
+    Dec(PackedSize);
+  end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TTIFFLZWDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
+begin
+
+end;
+
+//----------------- TThunderDecoder ------------------------------------------------------------------------------------
+
+// ThunderScan uses an encoding scheme designed for 4-bit pixel values.  Data is encoded in bytes, with
+// each byte split into a 2-bit code word and a 6-bit data value.  The encoding gives raw data, runs of
+// pixels, or pixel values encoded as a delta from the previous pixel value.  For the latter, either 2-bit
+// or 3-bit delta values are used, with the deltas packed into a single byte.
+
+const
+  THUNDER_DATA = $3F;       // mask for 6-bit data
+  THUNDER_CODE = $C0;       // mask for 2-bit code word
+  // code values
+  THUNDER_RUN = 0;          // run of pixels w/ encoded count
+  THUNDER_2BITDELTAS = $40;	// 3 pixels w/ encoded 2-bit deltas
+    DELTA2_SKIP = 2;        // skip code for 2-bit deltas
+  THUNDER_3BITDELTAS = $80; // 2 pixels w/ encoded 3-bit deltas
+    DELTA3_SKIP = 4;        // skip code for 3-bit deltas
+  THUNDER_RAW = $C0;        // raw data encoded
+
+  TwoBitDeltas: array[0..3] of Integer = (0, 1, 0, -1);
+  ThreeBitDeltas: array[0..7] of Integer = (0, 1, 2, 3, 0, -3, -2, -1);
+
+constructor TThunderDecoder.Create(Width: Cardinal);
+
+begin
+  FWidth := Width;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TThunderDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+var
+  SourcePtr,
+  TargetPtr: PByte;
+  N, Delta: Integer;
+  NPixels: Cardinal;
+  LastPixel: Integer;
+
+  //--------------- local function --------------------------------------------
+
+  procedure SetPixel(Delta: Integer);
+
+  begin
+    Lastpixel := Delta and $0F;
+    if Odd(NPixels) then
+    begin
+      TargetPtr^ := TargetPtr^ or LastPixel;
+      Inc(TargetPtr);
+    end
+    else
+      TargetPtr^ := LastPixel shl 4;
+
+    Inc(NPixels);
+  end;
+
+  //--------------- end local function ----------------------------------------
+
+begin
+  SourcePtr := Source;
+  TargetPtr := Dest;
+  while UnpackedSize > 0 do
+  begin
+    LastPixel := 0;
+    NPixels := 0;
+    // Usually Width represents the byte number of a strip, but the thunder
+    // algo is only defined for 4 bits per pixel formats where 2 pixels take up
+    // one byte.
+    while (PackedSize > 0) and (NPixels < 2 * FWidth) do
+    begin
+      N := SourcePtr^;
+      Inc(SourcePtr);
+      Dec(PackedSize);
+      case N and THUNDER_CODE of
+        THUNDER_RUN:
+          // pixel run, replicate the last pixel n times, where n is the lower-order 6 bits
+          begin
+            if Odd(NPixels) then
+            begin
+              TargetPtr^ := TargetPtr^ or Lastpixel;
+              Lastpixel := TargetPtr^;
+              Inc(TargetPtr);
+              Inc(NPixels);
+              Dec(N);
+            end
+            else
+              LastPixel := LastPixel or LastPixel shl 4;
+
+            Inc(NPixels, N);
+            while N > 0 do
+            begin
+              TargetPtr^ := LastPixel;
+              Inc(TargetPtr);
+              Dec(N, 2);
+            end;
+
+            if N = -1 then
+            begin
+              Dec(TargetPtr);
+              TargetPtr^ := TargetPtr^ and $F0;
+            end;
+
+            LastPixel := LastPixel and $0F;
+          end;
+        THUNDER_2BITDELTAS: // 2-bit deltas
+          begin
+            Delta := (N shr 4) and 3;
+            if Delta <> DELTA2_SKIP then
+              SetPixel(LastPixel + TwoBitDeltas[Delta]);
+            Delta := (N shr 2) and 3;
+            if Delta <> DELTA2_SKIP then
+              SetPixel(LastPixel + TwoBitDeltas[Delta]);
+            Delta := N and 3;
+            if Delta <> DELTA2_SKIP then
+              SetPixel(LastPixel + TwoBitDeltas[Delta]);
+          end;
+        THUNDER_3BITDELTAS: // 3-bit deltas
+          begin
+            Delta := (N shr 3) and 7;
+            if Delta <> DELTA3_SKIP then
+              SetPixel(LastPixel + ThreeBitDeltas[Delta]);
+            Delta := N and 7;
+            if Delta <> DELTA3_SKIP then
+              SetPixel(LastPixel + ThreeBitDeltas[Delta]);
+          end;
+        THUNDER_RAW: // raw data
+          SetPixel(N);
+      end;
+    end;
+
+    Dec(UnpackedSize, FWidth);
+  end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TThunderDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
 
 begin
 end;
@@ -2812,77 +3256,6 @@ begin
 end;
 {$ENDIF}
 
-//----------------- TLZ77Decoder ---------------------------------------------------------------------------------------
-
-constructor TLZ77Decoder.Create(FlushMode: Integer; AutoReset: Boolean);
-
-begin
-  FillChar(FStream, SizeOf(FStream), 0);
-  FFlushMode := FlushMode;
-  FAutoReset := AutoReset;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TLZ77Decoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-begin
-  FStream.NextIn := Source;
-  FStream.AvailIn := PackedSize;
-  if FAutoReset then
-    FZLibResult := InflateReset(FStream);
-  if FZLibResult = Z_OK then
-  begin
-    FStream.NextOut := Dest;
-    FStream.AvailOut := UnpackedSize;
-    FZLibResult := Inflate(FStream, FFlushMode);
-    // advance pointers so used input can be calculated
-    Source := FStream.NextIn;
-    Dest := FStream.NextOut;
-  end;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TLZ77Decoder.DecodeEnd;
-
-begin
-  if InflateEnd(FStream) < 0 then
-    CompressionError(gesLZ77Error);
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TLZ77Decoder.DecodeInit;
-
-begin
-  if InflateInit(FStream) < 0 then
-    CompressionError(gesLZ77Error);
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TLZ77Decoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
-begin
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-function TLZ77Decoder.GetAvailableInput: Integer;
-
-begin
-  Result := FStream.AvailIn;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-function TLZ77Decoder.GetAvailableOutput: Integer;
-
-begin
-  Result := FStream.AvailOut;
-end;
-
 (*
 //----------------- TTIFFJPEGDecoder ---------------------------------------------------------------------------------------
 
@@ -2933,7 +3306,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure std_fill_input_buffer(cinfo: j_decompress_ptr); 
+procedure std_fill_input_buffer(cinfo: j_decompress_ptr);
 
 const
   Dummy_EOI: array[0..1] of JOCTET = ($FF, JPEG_EOI);
@@ -2955,7 +3328,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure std_skip_input_data(cinfo: j_decompress_ptr; num_bytes: Integer); 
+procedure std_skip_input_data(cinfo: j_decompress_ptr; num_bytes: Integer);
 
 var
   State: PJPEGState;
@@ -2980,7 +3353,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure std_term_source(cinfo: j_decompress_ptr); 
+procedure std_term_source(cinfo: j_decompress_ptr);
 
 // No work necessary here.
 
@@ -2996,7 +3369,7 @@ begin
   begin
     // set data source manager
     General.d.src := @SourceManager;
-    
+
     // fill in fields in our data source manager
     SourceManager.init_source := @std_init_source;
     SourceManager.fill_input_buffer := @std_fill_input_buffer;
@@ -3070,7 +3443,7 @@ var
   SegmentHeight: Cardinal;
   Temp: Integer;
   Target: PByte;
-  
+
 begin
 	// Reset decoder state from any previous strip/tile, in case application didn't read the whole strip.
 	jpeg_abort(@FState.General.Common);
@@ -3118,7 +3491,7 @@ begin
 
     if PlanarConfig = PLANARCONFIG_CONTIG then
     begin
-      // component 0 should have expected sampling factors 
+      // component 0 should have expected sampling factors
       if (FState.General.d.comp_info.h_samp_factor <> FState.HSampling) or
          (FState.General.d.comp_info.v_samp_factor <> FState.VSampling) then
         CompressionError(gesJPEGSamplingFactors);
@@ -3138,7 +3511,7 @@ begin
          (FState.General.d.comp_info.v_samp_factor <> 1) then
         CompressionError(gesJPEGSamplingFactors);
     end;
-  
+
     // Since libjpeg can convert YCbCr data to RGB (actually BGR) on the fly I let do
     // it this conversion instead handling it by the color manager.
     if ColorScheme = csYCbCr then FState.General.d.jpeg_color_space := JCS_YCbCr
@@ -3221,7 +3594,7 @@ begin
     if jpeg_read_header(@FState.General, False) <> JPEG_HEADER_TABLES_ONLY then
       CompressionError(gesJPEGBogusTableField);
   end;
-  
+
   Internaljpeg_data_src(FState);
 end;
 
@@ -3232,387 +3605,7 @@ procedure TTIFFJPEGDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var By
 begin
 end;
 *)
-
-//----------------- TThunderDecoder ------------------------------------------------------------------------------------
-
-// ThunderScan uses an encoding scheme designed for 4-bit pixel values.  Data is encoded in bytes, with
-// each byte split into a 2-bit code word and a 6-bit data value.  The encoding gives raw data, runs of
-// pixels, or pixel values encoded as a delta from the previous pixel value.  For the latter, either 2-bit
-// or 3-bit delta values are used, with the deltas packed into a single byte.
-
-const
-  THUNDER_DATA = $3F;       // mask for 6-bit data
-  THUNDER_CODE = $C0;       // mask for 2-bit code word
-  // code values
-  THUNDER_RUN = 0;          // run of pixels w/ encoded count
-  THUNDER_2BITDELTAS = $40;	// 3 pixels w/ encoded 2-bit deltas
-    DELTA2_SKIP = 2;        // skip code for 2-bit deltas
-  THUNDER_3BITDELTAS = $80; // 2 pixels w/ encoded 3-bit deltas
-    DELTA3_SKIP = 4;        // skip code for 3-bit deltas
-  THUNDER_RAW = $C0;        // raw data encoded
-
-  TwoBitDeltas: array[0..3] of Integer = (0, 1, 0, -1);
-  ThreeBitDeltas: array[0..7] of Integer = (0, 1, 2, 3, 0, -3, -2, -1);
-
-constructor TThunderDecoder.Create(Width: Cardinal);
-
-begin
-  FWidth := Width;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TThunderDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-var
-  SourcePtr,
-  TargetPtr: PByte;
-  N, Delta: Integer;
-  NPixels: Cardinal;
-  LastPixel: Integer;
-
-  //--------------- local function --------------------------------------------
-
-  procedure SetPixel(Delta: Integer);
-
-  begin
-    Lastpixel := Delta and $0F;
-    if Odd(NPixels) then
-    begin
-      TargetPtr^ := TargetPtr^ or LastPixel;
-      Inc(TargetPtr);
-    end
-    else
-      TargetPtr^ := LastPixel shl 4;
-
-    Inc(NPixels);
-  end;
-
-  //--------------- end local function ----------------------------------------
-
-begin
-  SourcePtr := Source;
-  TargetPtr := Dest;
-  while UnpackedSize > 0 do
-  begin
-    LastPixel := 0;
-    NPixels := 0;
-    // Usually Width represents the byte number of a strip, but the thunder
-    // algo is only defined for 4 bits per pixel formats where 2 pixels take up
-    // one byte.
-    while (PackedSize > 0) and (NPixels < 2 * FWidth) do
-    begin
-      N := SourcePtr^;
-      Inc(SourcePtr);
-      Dec(PackedSize);
-      case N and THUNDER_CODE of
-        THUNDER_RUN:
-          // pixel run, replicate the last pixel n times, where n is the lower-order 6 bits
-          begin
-            if Odd(NPixels) then
-            begin
-              TargetPtr^ := TargetPtr^ or Lastpixel;
-              Lastpixel := TargetPtr^;
-              Inc(TargetPtr);
-              Inc(NPixels);
-              Dec(N);
-            end
-            else
-              LastPixel := LastPixel or LastPixel shl 4;
-
-            Inc(NPixels, N);
-            while N > 0 do
-            begin
-              TargetPtr^ := LastPixel;
-              Inc(TargetPtr);
-              Dec(N, 2);
-            end;
-
-            if N = -1 then
-            begin
-              Dec(TargetPtr);
-              TargetPtr^ := TargetPtr^ and $F0;
-            end;
-
-            LastPixel := LastPixel and $0F;
-          end;
-        THUNDER_2BITDELTAS: // 2-bit deltas
-          begin
-            Delta := (N shr 4) and 3;
-            if Delta <> DELTA2_SKIP then
-              SetPixel(LastPixel + TwoBitDeltas[Delta]);
-            Delta := (N shr 2) and 3;
-            if Delta <> DELTA2_SKIP then
-              SetPixel(LastPixel + TwoBitDeltas[Delta]);
-            Delta := N and 3;
-            if Delta <> DELTA2_SKIP then
-              SetPixel(LastPixel + TwoBitDeltas[Delta]);
-          end;
-        THUNDER_3BITDELTAS: // 3-bit deltas
-          begin
-            Delta := (N shr 3) and 7;
-            if Delta <> DELTA3_SKIP then
-              SetPixel(LastPixel + ThreeBitDeltas[Delta]);
-            Delta := N and 7;
-            if Delta <> DELTA3_SKIP then
-              SetPixel(LastPixel + ThreeBitDeltas[Delta]);
-          end;
-        THUNDER_RAW: // raw data
-          SetPixel(N);
-      end;
-    end;
-
-    Dec(UnpackedSize, FWidth);
-  end;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TThunderDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
-begin
-end;
-
-//----------------- TPCDDecoder ----------------------------------------------------------------------------------------
-
-constructor TPCDDecoder.Create(Raw: Pointer);
-
-begin
-  FData := Raw;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TPCDDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-// recovers the Huffman encoded luminance and chrominance deltas
-// Note: This decoder leaves a bit the way like the other decoders work.
-//       Source points to an array of 3 pointers, one for luminance (Y, Luma), one for blue
-//       chrominance (Cb, Chroma1) and one for red chrominance (Cr, Chroma2). These pointers
-//       point to source and target at the same time (in place decoding).
-//       PackedSize contains the width of the current subimage and UnpackedSize its height.
-//       Dest is not used and can be nil.
-
-type
-  PPointerArray = ^TPointerArray;
-  TPointerArray = array[0..2] of Pointer;
-
-  PPCDTable = ^TPCDTable;
-  TPCDTable = record
-    Length: Word;
-    Sequence: Cardinal;
-    Key: Byte;
-    Mask: Integer;
-  end;
-
-  PQuantumArray = ^TQuantumArray;
-  TQuantumArray = array[0..3 * 256 - 1] of Byte;
-
-var
-  Luma,
-  Chroma1,
-  Chroma2: PAnsiChar; // hold the actual pointers, PChar to easy pointer maths
-  Width,
-  Height: Cardinal;
-
-  PCDTable: array[0..2] of PPCDTable;
-  I, J, K: Cardinal;
-  R: PPCDTable;
-  RangeLimit: PQuantumArray;
-  P, Q,
-  Buffer: PAnsiChar;
-  Accumulator,
-  Bits,
-  Length,
-  Plane,
-  Row: Cardinal;
-  PCDLength: array[0..2] of Cardinal;
-
-  //--------------- local function --------------------------------------------
-
-  procedure PCDGetBits(N: Cardinal);
-
-  begin
-    Accumulator := Accumulator shl N;
-    Dec(Bits, N);
-    while Bits <= 24 do
-    begin
-      if P >= (Buffer + $800) then
-      begin
-        Move(FData^, Buffer^, $800);
-        Inc(FData, $800);
-        P := Buffer;
-      end;
-      Accumulator := Accumulator or (Cardinal(P^) shl (24 - Bits));
-      Inc(Bits, 8);
-      Inc(P);
-    end;
-  end;
-
-  //--------------- end local function ----------------------------------------
-
-var
-  Limit: Cardinal;
-
-begin
-  // place the used source values into local variables with proper names to make
-  // their usage clearer
-  Luma := PPointerArray(Source)[0];
-  Chroma1 := PPointerArray(Source)[1];
-  Chroma2 := PPointerArray(Source)[2];
-  Width := PackedSize;
-  Height := UnpackedSize;
-  
-  // initialize Huffman tables
-  ZeroMemory(@PCDTable, SizeOf(PCDTable));
-  GetMem(Buffer, $800);
-  try
-    Accumulator := 0;
-    Bits := 32;
-    P := Buffer + $800;
-    Limit := 1;
-    if Width > 1536 then
-      Limit := 3;
-    for I := 0 to Limit - 1 do
-    begin
-      PCDGetBits(8);
-      Length := (Accumulator and $FF) + 1;
-      GetMem(PCDTable[I], Length * SizeOf(TPCDTable));
-
-      R := PCDTable[I];
-      for J := 0 to Length - 1 do
-      begin
-        PCDGetBits(8);
-        R.Length := (Accumulator and $FF) + 1;
-        if R.Length > 16 then
-        begin
-          for K := 0 to 2 do
-            if Assigned(PCDTable[K]) then
-              FreeMem(PCDTable[K]);
-          Exit;
-        end;
-        PCDGetBits(16);
-        R.Sequence := (Accumulator and $FFFF) shl 16;
-        PCDGetBits(8);
-        R.Key := Accumulator and $FF;
-      R.Mask := not ((1 shl (32 - R.Length)) - 1);
-        {asm
-          // asm implementation to avoid overflow errors and for faster execution
-          MOV EDX, [R]
-          MOV CL, 32
-          SUB CL, [EDX].TPCDTable.Length
-          MOV EAX, 1
-          SHL EAX, CL
-          DEC EAX
-          NOT EAX
-          MOV [EDX].TPCDTable.Mask, EAX
-        end;}
-        Inc(R);
-      end;
-      PCDLength[I] := Length;
-    end;
-
-    // initialize range limits
-    GetMem(RangeLimit, 3 * 256);
-    try
-      for I := 0 to 255 do
-      begin
-        RangeLimit[I] := 0;
-        RangeLimit[I + 256] := I;
-        RangeLimit[I + 2 * 256] := 255;
-      end;
-      Inc(PByte(RangeLimit), 255);
-
-      // search for sync byte
-      PCDGetBits(16);
-      PCDGetBits(16);
-      while (Accumulator and $00FFF000) <> $00FFF000 do
-        PCDGetBits(8);
-      while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
-        PCDGetBits(1);
-
-      // recover the Huffman encoded luminance and chrominance deltas
-      Length := 0;
-      Plane := 0;
-      Q := Luma;
-      repeat
-        if (Accumulator and $FFFFFF00) = $FFFFFE00 then
-        begin
-          // determine plane and row number
-          PCDGetBits(16);
-          Row := (Accumulator shr 9) and $1FFF;
-          if Row = Height then
-            Break;
-          PCDGetBits(8);
-          Plane := Accumulator shr 30;
-          PCDGetBits(16);
-          case Plane of
-            0:
-              Q := Luma + Row * Width;
-            2:
-              begin
-                Q := Chroma1 + (Row shr 1) * Width;
-                Dec(Plane);
-              end;
-            3:
-              begin
-                Q := Chroma2 + (Row shr 1) * Width;
-                Dec(Plane);
-              end;
-          else
-            Abort; // invalid/corrupt image
-          end;
-
-          Length := PCDLength[Plane];
-          Continue;
-        end;
-
-        // decode luminance or chrominance deltas
-        R := PCDTable[Plane];
-        I := 0;
-        while (I < Length) and ((Accumulator and R.Mask) <> R.Sequence) do
-        begin
-          Inc(I);
-          Inc(R);
-        end;
-      
-        if R = nil then
-        begin
-          // corrupt PCD image, skipping to sync byte
-          while (Accumulator and $00FFF000) <> $00FFF000 do
-            PCDGetBits(8);
-          while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
-            PCDGetBits(1);
-          Continue;
-        end;
-
-        if R.Key < 128 then
-          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
-        else
-          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
-        Inc(Q);
-        PCDGetBits(R.Length);
-      until False;                                     
-    finally
-      for I := 0 to 2 do
-        if Assigned(PCDTable[I]) then
-          FreeMem(PCDTable[I]);
-      Dec(PByte(RangeLimit), 255);
-      if Assigned(RangeLimit) then
-        FreeMem(RangeLimit);
-    end;
-  finally
-    if Assigned(Buffer) then
-      FreeMem(Buffer);
-  end;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TPCDDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
-begin
-end;
+{$ENDIF UNSAFE_DECODERS}
 
 //----------------------------------------------------------------------------------------------------------------------
 

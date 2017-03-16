@@ -57,6 +57,23 @@ type
     procedure TestDecompressFill32Bits;
   end;
 
+  TPSPRLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TPSPRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte;
+    procedure TestDecompress2Bytes;
+    procedure TestDecompress3Bytes;
+    procedure TestDecompressOutputMove;
+    procedure TestDecompressOutputFill;
+    procedure TestDecompressOutputMixed;
+  end;
+
   TPCXRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TPCXRLEDecoder;
@@ -87,23 +104,6 @@ type
     procedure TestDecompressFill16;
     procedure TestDecompressMove8;
     procedure TestDecompressMove16;
-  end;
-
-  TPSPRLEDecoderTests = class(TCompressionTestsBase)
-  private
-    FDecoder: TPSPRLEDecoder;
-  public
-    procedure SetUp; override;
-    procedure TearDown; override;
-  published
-    procedure TestCompressedSize0;
-    procedure TestDecompressedSize0;
-    procedure TestDecompress1Byte;
-    procedure TestDecompress2Bytes;
-    procedure TestDecompress3Bytes;
-    procedure TestDecompressOutputMove;
-    procedure TestDecompressOutputFill;
-    procedure TestDecompressOutputMixed;
   end;
 
   TCutRLEDecoderTests = class(TCompressionTestsBase)
@@ -565,6 +565,174 @@ begin
   TestDecompress(FDecoder32, Source, 1, 512, 0, 0, dsNotEnoughInput, 8);
 end;
 
+// ********** TPSPRLEDecoderTests **********
+
+procedure TPSPRLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder := TPSPRLEDecoder.Create;
+  FDecoder.DecodeInit; // Not really needed here
+end;
+
+procedure TPSPRLEDecoderTests.TearDown;
+begin
+  FDecoder.DecodeEnd; // Not really needed here
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TPSPRLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompress1Byte;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 0;
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompress2Bytes;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0;
+  InputBuffer[1] := 77;
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := 1;
+  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOK, 2);
+  InputBuffer[0] := 2;
+  TestDecompress(FDecoder, Source, 2, 2, 1, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 128;
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 129;
+  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOK, 5);
+  InputBuffer[0] := 130;
+  TestDecompress(FDecoder, Source, 2, 2, 0, 2, dsOK, 6);
+  TestDecompress(FDecoder, Source, 2, 1, 1, 0, dsOutputBufferTooSmall , 7);
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompress3Bytes;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 2;
+  InputBuffer[1] := 77;
+  InputBuffer[2] := 66;
+  TestDecompress(FDecoder, Source, 3, 2, 0, 2, dsOK, 1);
+  TestDecompress(FDecoder, Source, 3, 1, 2, 0, dsOutputBufferTooSmall, 2);
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompressOutputMove;
+const ExpectedOutput: array [0..4] of byte = (77, 66, 255, 128, 0);
+var InputBuffer: array [0..6] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := 2;
+  InputBuffer[1] := 77;
+  InputBuffer[2] := 66;
+  InputBuffer[3] := 3;
+  InputBuffer[4] := 255;
+  InputBuffer[5] := 128;
+  InputBuffer[6] := 0;
+  FDecoder.Decode(Source, FDecompressBuffer, 7, 5);
+  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
+    [FDecoder.CompressedBytesAvailable]));
+  Check(FDecoder.DecompressedBytes = 5, Format('Decompressed bytes not 5 but %d',
+    [FDecoder.DecompressedBytes]));
+  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
+    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
+  for i := 0 to 4 do
+    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
+      Format('We expected %d but got %d at position %d',
+      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompressOutputFill;
+const ExpectedOutput: array [0..5] of byte = (77, 255, 255, 128, 128, 128);
+var InputBuffer: array [0..5] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := 129;
+  InputBuffer[1] := 77;
+  InputBuffer[2] := 130;
+  InputBuffer[3] := 255;
+  InputBuffer[4] := 131;
+  InputBuffer[5] := 128;
+  FDecoder.Decode(Source, FDecompressBuffer, 6, 6);
+  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
+    [FDecoder.CompressedBytesAvailable]));
+  Check(FDecoder.DecompressedBytes = 6, Format('Decompressed bytes not 6 but %d',
+    [FDecoder.DecompressedBytes]));
+  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
+    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
+  for i := 0 to 5 do
+    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
+      Format('We expected %d but got %d at position %d',
+      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
+end;
+
+procedure TPSPRLEDecoderTests.TestDecompressOutputMixed;
+const ExpectedOutput: array [0..11] of byte = (77, 77, 1, 8, 4, 4, 4, 6, 3, 255, 254, 253);
+var InputBuffer: array [0..12] of byte;
+  Source: Pointer;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+  InputBuffer[0] := 130;
+  InputBuffer[1] := 77;
+  InputBuffer[2] := 2;
+  InputBuffer[3] := 1;
+  InputBuffer[4] := 8;
+  InputBuffer[5] := 131;
+  InputBuffer[6] := 4;
+  InputBuffer[7] := 5;
+  InputBuffer[8] := 6;
+  InputBuffer[9] := 3;
+  InputBuffer[10] := 255;
+  InputBuffer[11] := 254;
+  InputBuffer[12] := 253;
+  FDecoder.Decode(Source, FDecompressBuffer, 13, 12);
+  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
+    [FDecoder.CompressedBytesAvailable]));
+  Check(FDecoder.DecompressedBytes = 12, Format('Decompressed bytes not 12 but %d',
+    [FDecoder.DecompressedBytes]));
+  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
+    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
+  for i := 0 to 11 do
+    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
+      Format('We expected %d but got %d at position %d',
+      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
+end;
+
 // ********** TPCXRLEDecoderTests **********
 
 procedure TPCXRLEDecoderTests.SetUp;
@@ -877,174 +1045,6 @@ begin
   TestDecompress(FDecoder16, Source, 258, 253, 4, 252, dsOutputBufferTooSmall, 8);
 end;
 
-// ********** TPSPRLEDecoderTests **********
-
-procedure TPSPRLEDecoderTests.SetUp;
-begin
-  inherited SetUp;
-  FDecoder := TPSPRLEDecoder.Create;
-  FDecoder.DecodeInit; // Not really needed here
-end;
-
-procedure TPSPRLEDecoderTests.TearDown;
-begin
-  FDecoder.DecodeEnd; // Not really needed here
-  FDecoder.Free;
-  inherited TearDown;
-end;
-
-procedure TPSPRLEDecoderTests.TestCompressedSize0;
-begin
-  TestCompressedSizeLimits(FDecoder);
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompressedSize0;
-begin
-  TestDecompressedSizeLimits(FDecoder);
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompress1Byte;
-var InputBuffer: array [0..1] of byte;
-  Source: Pointer;
-begin
-  Source := @InputBuffer;
-  InputBuffer[0] := 0;
-  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
-  InputBuffer[0] := 128;
-  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
-  InputBuffer[0] := 1;
-  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
-  InputBuffer[0] := 129;
-  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
-  InputBuffer[0] := 0;
-  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 5);
-  InputBuffer[0] := 128;
-  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
-  InputBuffer[0] := 1;
-  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 7);
-  InputBuffer[0] := 129;
-  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompress2Bytes;
-var InputBuffer: array [0..3] of byte;
-  Source: Pointer;
-begin
-  Source := @InputBuffer;
-  InputBuffer[0] := 0;
-  InputBuffer[1] := 77;
-  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
-  InputBuffer[0] := 1;
-  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOK, 2);
-  InputBuffer[0] := 2;
-  TestDecompress(FDecoder, Source, 2, 2, 1, 0, dsNotEnoughInput, 3);
-  InputBuffer[0] := 128;
-  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
-  InputBuffer[0] := 129;
-  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOK, 5);
-  InputBuffer[0] := 130;
-  TestDecompress(FDecoder, Source, 2, 2, 0, 2, dsOK, 6);
-  TestDecompress(FDecoder, Source, 2, 1, 1, 0, dsOutputBufferTooSmall , 7);
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompress3Bytes;
-var InputBuffer: array [0..3] of byte;
-  Source: Pointer;
-begin
-  Source := @InputBuffer;
-  InputBuffer[0] := 2;
-  InputBuffer[1] := 77;
-  InputBuffer[2] := 66;
-  TestDecompress(FDecoder, Source, 3, 2, 0, 2, dsOK, 1);
-  TestDecompress(FDecoder, Source, 3, 1, 2, 0, dsOutputBufferTooSmall, 2);
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompressOutputMove;
-const ExpectedOutput: array [0..4] of byte = (77, 66, 255, 128, 0);
-var InputBuffer: array [0..6] of byte;
-  Source: Pointer;
-  i: Integer;
-begin
-  Source := @InputBuffer[0];
-  InputBuffer[0] := 2;
-  InputBuffer[1] := 77;
-  InputBuffer[2] := 66;
-  InputBuffer[3] := 3;
-  InputBuffer[4] := 255;
-  InputBuffer[5] := 128;
-  InputBuffer[6] := 0;
-  FDecoder.Decode(Source, FDecompressBuffer, 7, 5);
-  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
-    [FDecoder.CompressedBytesAvailable]));
-  Check(FDecoder.DecompressedBytes = 5, Format('Decompressed bytes not 5 but %d',
-    [FDecoder.DecompressedBytes]));
-  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
-    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
-  for i := 0 to 4 do
-    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
-      Format('We expected %d but got %d at position %d',
-      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompressOutputFill;
-const ExpectedOutput: array [0..5] of byte = (77, 255, 255, 128, 128, 128);
-var InputBuffer: array [0..5] of byte;
-  Source: Pointer;
-  i: Integer;
-begin
-  Source := @InputBuffer[0];
-  InputBuffer[0] := 129;
-  InputBuffer[1] := 77;
-  InputBuffer[2] := 130;
-  InputBuffer[3] := 255;
-  InputBuffer[4] := 131;
-  InputBuffer[5] := 128;
-  FDecoder.Decode(Source, FDecompressBuffer, 6, 6);
-  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
-    [FDecoder.CompressedBytesAvailable]));
-  Check(FDecoder.DecompressedBytes = 6, Format('Decompressed bytes not 6 but %d',
-    [FDecoder.DecompressedBytes]));
-  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
-    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
-  for i := 0 to 5 do
-    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
-      Format('We expected %d but got %d at position %d',
-      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
-end;
-
-procedure TPSPRLEDecoderTests.TestDecompressOutputMixed;
-const ExpectedOutput: array [0..11] of byte = (77, 77, 1, 8, 4, 4, 4, 6, 3, 255, 254, 253);
-var InputBuffer: array [0..12] of byte;
-  Source: Pointer;
-  i: Integer;
-begin
-  Source := @InputBuffer[0];
-  InputBuffer[0] := 130;
-  InputBuffer[1] := 77;
-  InputBuffer[2] := 2;
-  InputBuffer[3] := 1;
-  InputBuffer[4] := 8;
-  InputBuffer[5] := 131;
-  InputBuffer[6] := 4;
-  InputBuffer[7] := 5;
-  InputBuffer[8] := 6;
-  InputBuffer[9] := 3;
-  InputBuffer[10] := 255;
-  InputBuffer[11] := 254;
-  InputBuffer[12] := 253;
-  FDecoder.Decode(Source, FDecompressBuffer, 13, 12);
-  Check(FDecoder.CompressedBytesAvailable = 0, Format('Compressed bytes not 0 but %d',
-    [FDecoder.CompressedBytesAvailable]));
-  Check(FDecoder.DecompressedBytes = 12, Format('Decompressed bytes not 12 but %d',
-    [FDecoder.DecompressedBytes]));
-  Check(FDecoder.DecoderStatus = dsOK, Format('Decoding status not dsOK but %s.',
-    [GetDecodingStatusAsString(FDecoder.DecoderStatus)]));
-  for i := 0 to 11 do
-    Check(ExpectedOutput[i] = PByteArray(FDecompressBuffer)^[i],
-      Format('We expected %d but got %d at position %d',
-      [ExpectedOutput[i], PByteArray(FDecompressBuffer)^[i], i]));
-end;
-
 // ********** TCutRLEDecoderTests **********
 
 procedure TCutRLEDecoderTests.SetUp;
@@ -1284,9 +1284,9 @@ initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
     [
       TTGARLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
-      TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
