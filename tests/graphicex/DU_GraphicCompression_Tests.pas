@@ -818,11 +818,11 @@ var
 begin
   Source := @InputBuffer;
   InputBuffer[0] := 0; // Lowest literal byte
-  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 10);
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 1);
   InputBuffer[0] := 1;
-  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 11);
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 2);
   InputBuffer[0] := $3f; // Highest literal byte
-  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 12);
+  TestDecompress(FDecoder, Source, 1, 1, 0, 1, dsOk, 3);
 end;
 
 // ********** TSGIRLEDecoderTests **********
