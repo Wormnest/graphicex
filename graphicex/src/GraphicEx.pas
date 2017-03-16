@@ -6392,7 +6392,29 @@ begin
       else
         Orientation := gexoTopLeft;
 
-      Comment := AnsiString(Header.Desc);
+      Comment := 'Description: ';
+      if Header.Desc[0] <> #0 then
+        Comment := Comment + AnsiString(Header.Desc)
+      else
+        Comment := Comment + '<none>';
+      if Header.Name[0] <> #0 then
+        Comment := Comment + #10'Original Filename: ' + AnsiString(Header.Name);
+      if Header.ProgramName[0] <> #0 then
+        Comment := Comment + #10'Created with: ' + AnsiString(Header.ProgramName);
+      if Header.Machine[0] <> #0 then
+        Comment := Comment + #10'Computer name: ' + AnsiString(Header.Machine);
+      if Header.User[0] <> #0 then
+        Comment := Comment + #10'User name: ' + AnsiString(Header.User);
+      if Header.Date[0] <> #0 then
+        Comment := Comment + #10'Creation date: ' + AnsiString(Header.Date);
+      if Header.Aspect[0] <> #0 then
+        Comment := Comment + #10'Aspect format: ' + AnsiString(Header.Aspect);
+      if Header.Chan[0] <> #0 then
+        Comment := Comment + #10'Color space: ' + AnsiString(Header.Chan);
+      if Header.Time[0] <> #0 then
+        Comment := Comment + #10'Render time: ' + AnsiString(Header.Time);
+      if Header.Filter[0] <> #0 then
+        Comment := Comment + #10'Post processing filter: ' + AnsiString(Header.Filter);
 
       Result := True;
     end;
