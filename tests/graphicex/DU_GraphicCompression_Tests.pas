@@ -57,6 +57,20 @@ type
     procedure TestDecompressFill32Bits;
   end;
 
+  TPackbitsDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TPackbitsRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompress1Byte;
+    procedure TestDecompressFill;
+    procedure TestDecompressMove;
+  end;
+
   TPSPRLEDecoderTests = class(TCompressionTestsBase)
   private
     FDecoder: TPSPRLEDecoder;
@@ -577,6 +591,108 @@ begin
   TestDecompress(FDecoder32, Source, 3, 512, 2, 0, dsNotEnoughInput, 6);
   TestDecompress(FDecoder32, Source, 2, 512, 1, 0, dsNotEnoughInput, 7);
   TestDecompress(FDecoder32, Source, 1, 512, 0, 0, dsNotEnoughInput, 8);
+end;
+
+// ********** TPackbitsDecoderTests **********
+
+procedure TPackbitsDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder := TPackbitsRLEDecoder.Create;
+end;
+
+procedure TPackbitsDecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TPackbitsDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TPackbitsDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TPackbitsDecoderTests.TestDecompress1Byte;
+var
+  Source: Pointer;
+  InputBuffer: array [0..0] of ShortInt;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := -1; // count = 2, fillchar 2 times
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := -127; // same but count = 128
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := -128; // nop
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 0; // count = 1, move 1 chars
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 127; // same but count = 128, move 128 chars
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 5);
+
+  InputBuffer[0] := -1; // count = 2, fillchar 2 times
+  TestDecompress(FDecoder, Source, 1, 2, 0, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := -127; // same but count = 128
+  TestDecompress(FDecoder, Source, 1, 128, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := -128; // nop
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 3);
+  InputBuffer[0] := 0; // count = 1, move 1 chars
+  TestDecompress(FDecoder, Source, 1, 1, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := 127; // same but count = 128, move 128 chars
+  TestDecompress(FDecoder, Source, 1, 127, 0, 0, dsNotEnoughInput, 5);
+end;
+
+procedure TPackbitsDecoderTests.TestDecompressFill;
+var
+  Source: Pointer;
+  InputBuffer: array [0..1] of ShortInt;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := -1; // Fill char 2 times
+  InputBuffer[1] := 71; // Char to fill n times
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 2, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder, Source, 2, 2, 0, 2, dsOk, 2);
+  i := 0;
+  for i := 0 to 1 do
+    Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[1],
+      Format('Unexpected decompressed data at position %d', [i]));
+
+  InputBuffer[0] := -127; // count = 128
+  InputBuffer[1] := -81; // Byte to repeatedly fill
+  TestDecompress(FDecoder, Source, 2, BUFSIZE, 0, 128, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder, Source, 2, 128, 0, 128, dsOk, 4);
+  for i := 0 to 127 do
+    Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 5);
+end;
+
+procedure TPackbitsDecoderTests.TestDecompressMove;
+var
+  Source: Pointer;
+  InputBuffer: array [0..128] of ShortInt;
+  i: Integer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := 0; // Count = 1. Move next 1 bytes.
+  InputBuffer[1] := -99;
+  TestDecompress(FDecoder, Source, 2, 1, 0, 1, dsOk, 1);
+  i := 0;
+  Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[1],
+    Format('Unexpected decompressed data at position %d', [i]));
+  InputBuffer[0] := 127; // Count = 128. Move next 128 bytes.
+  for i := 1 to 128 do
+    InputBuffer[i] := i div 2;
+  TestDecompress(FDecoder, Source, 129, 128, 0, 128, dsOk, 2);
+  for i := 0 to 127 do
+    Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[i+1],
+      Format('Unexpected decompressed data at position %d', [i]));
+  TestDecompress(FDecoder, Source, 129, 127, 1, 127, dsOutputBufferTooSmall , 3);
 end;
 
 // ********** TPSPRLEDecoderTests **********
@@ -1395,6 +1511,7 @@ initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
     [
       TTGARLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TPackbitsDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPSPRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
