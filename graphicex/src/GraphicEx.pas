@@ -6852,7 +6852,6 @@ end;
 procedure TPSDGraphic.CombineChannels(Layer: TPhotoshopLayer);
 
 // Combines all separate channels of the given layer into the layer bitmap.
-// Previously allocated memory is freed here too.
 
   //---------------------------------------------------------------------------
 
@@ -7025,11 +7024,6 @@ begin
           end;
         end;
     end;
-
-    // Finally free all channel data.
-    for Y := 0 to High(Layer.FChannels) do
-      FreeMem(Layer.FChannels[Y].Data);
-    Layer.FChannels := nil;
   end;
 end;
 
@@ -7250,7 +7244,8 @@ begin
     Dec(RemainingSize, 2);
     if (RemainingSize > 0) and not IsIrrelevant then
     begin
-      // Allocate temporary storage for the channel data. This memory is freed in CombineChannels.
+      // Allocate temporary storage for the channel data.
+      // This memory is freed in ReadLayers.
       // A channel is always 8 bit per pixel.
       GetMem(Channel.Data, AWidth * AHeight);
 
@@ -7952,22 +7947,30 @@ begin
       Layer := FLayers[LayerIndex];
       // Each channel might have an individual compression scheme.
       // If the layer contains irrelevant data then tell it the reader method so it skips the data accordingly.
-      for I := 0 to High(Layer.FChannels) do
-        with Layer.Bounds do
-          ReadChannelData(Run, Layer.FChannels[I], Right - Left, Bottom - Top, HasIrrelevantData);
+      try
+        for I := 0 to High(Layer.FChannels) do
+          with Layer.Bounds do
+            ReadChannelData(Run, Layer.FChannels[I], Right - Left, Bottom - Top, HasIrrelevantData);
 
-      if not HasIrrelevantData then
-      begin
-        // Extra layer channels always follow the actual image data so we can limit the maximum
-        // number of channels to use to 5 (CMYKA) without harm.
-        Layer.Image.PixelFormat := SetupColorManager(Min(5, Length(Layer.FChannels)));
-        with Layer, Bounds do
+        if not HasIrrelevantData then
         begin
-          Image.Width := Right - Left;
-          Image.Height := Bottom - Top;
-          Image.Palette := CopyPalette(Palette);
+          // Extra layer channels always follow the actual image data so we can limit the maximum
+          // number of channels to use to 5 (CMYKA) without harm.
+          Layer.Image.PixelFormat := SetupColorManager(Min(5, Length(Layer.FChannels)));
+          with Layer, Bounds do
+          begin
+            Image.Width := Right - Left;
+            Image.Height := Bottom - Top;
+            Image.Palette := CopyPalette(Palette);
+          end;
+          CombineChannels(Layer);
         end;
-        CombineChannels(Layer);
+      finally
+        // Finally free all channel data.
+        for I := 0 to High(Layer.FChannels) do
+          if Layer.FChannels[I].Data <> nil then
+            FreeMem(Layer.FChannels[I].Data);
+        Layer.FChannels := nil;
       end;
 
       FinishProgressSection(True);
