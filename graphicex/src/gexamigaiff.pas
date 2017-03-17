@@ -608,7 +608,7 @@ var
         vSize := SwapEndian(Chunk^.ckSize);
         vSource := @Chunk^.ckType;
         Decoder.Decode(vSource, vPlaneTarget, vSize, HeightPlaneSize);
-        if TVDATRLEDecoder(Decoder).Overflow then
+        if Decoder.DecoderStatus <> dsOk then
           raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
       end
       else

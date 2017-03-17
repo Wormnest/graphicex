@@ -175,13 +175,11 @@ type
   private
     FUpdateSource,
     FUpdateDest: Boolean;
-    FOverflow: Boolean;
   public
     procedure DecodeInit; override;
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
-    property Overflow: Boolean read FOverflow;
     property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
@@ -1716,14 +1714,12 @@ var
   TempVal: Word;
   DecompressBufSize: Cardinal;
 begin
-  FOverflow := False;
   TargetPtr := Dest;
   SourcePtr := Source;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
   DecompressBufSize := UnpackedSize;
   if (PackedSize <= 5) or (UnpackedSize <= 0) then begin
-    FOverflow := True;
     FCompressedBytesAvailable := 0;
     FDecoderStatus := dsInvalidBufferSize;
     Exit;
@@ -1739,14 +1735,12 @@ begin
   if PackedSize <= 0 then begin
     FDecoderStatus := dsInvalidBufferSize;
     FCompressedBytesAvailable := 0;
-    FOverflow := True;
     Exit;
   end;
 
   while (PackedSize > 0) and (UnpackedSize > 0) do begin
     if CommandCount = 0 then begin
       FDecoderStatus := dsNotEnoughInput;
-      FOverflow := True;
       break;
     end;
     case CommandPtr^ of
@@ -1754,7 +1748,6 @@ begin
         begin
           if PackedSize < 2 then begin
             FDecoderStatus := dsNotEnoughInput;
-            FOverflow := True;
             break;
           end;
           aWordCount := SwapEndian(SourcePtr^);
@@ -1762,12 +1755,10 @@ begin
           Dec(PackedSize, 2);
           if (aWordCount*2 > PackedSize) then begin
             FDecoderStatus := dsNotEnoughInput;
-            FOverflow := True;
             break;
           end;
           if (aWordCount*2 > UnpackedSize) then begin
             FDecoderStatus := dsOutputBufferTooSmall;
-            FOverflow := True;
             break;
           end;
           Dec(UnpackedSize, aWordCount*2);
@@ -1783,7 +1774,6 @@ begin
         begin
           if PackedSize < 2 then begin
             FDecoderStatus := dsNotEnoughInput;
-            FOverflow := True;
             break;
           end;
           aWordCount := SwapEndian(SourcePtr^);
@@ -1791,12 +1781,10 @@ begin
           Dec(PackedSize, 2);
           if (PackedSize < 2) then begin
             FDecoderStatus := dsNotEnoughInput;
-            FOverflow := True;
             break;
           end;
           if (aWordCount*2 > UnpackedSize) then begin
             FDecoderStatus := dsOutputBufferTooSmall;
-            FOverflow := True;
             break;
           end;
           Dec(UnpackedSize, aWordCount*2);
@@ -1815,12 +1803,10 @@ begin
         aCount := -aCount;
         if (aCount*2 > PackedSize) then begin
           FDecoderStatus := dsNotEnoughInput;
-          FOverflow := True;
           break;
         end;
         if (aCount*2 > UnpackedSize) then begin
           FDecoderStatus := dsOutputBufferTooSmall;
-          FOverflow := True;
           break;
         end;
         Dec(UnpackedSize, aCount*2);
@@ -1838,12 +1824,10 @@ begin
         // should be greater than or equal to 2.
         if (PackedSize < 2) then begin
           FDecoderStatus := dsNotEnoughInput;
-          FOverflow := True;
           break;
         end;
         if (aCount*2 > UnpackedSize) then begin
           FDecoderStatus := dsOutputBufferTooSmall;
-          FOverflow := True;
           break;
         end;
         Dec(UnpackedSize, aCount*2);
