@@ -1535,41 +1535,71 @@ var
   Data16: Word;
   Data32: LongWord;
   i: Cardinal;
+  DecompressBufSize: Cardinal;
 begin
   FOverflow := False;
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  DecompressBufSize := UnpackedSize;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   case FColorDepth of
     16:
     begin
       TargetPtr16 := Dest;
       SourcePtr16 := Source;
       while UnpackedSize > 0 do begin
+        if PackedSize < 2 then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
         Data16 := SourcePtr16^;
         Inc(SourcePtr16);
+        Dec(PackedSize, 2);
         RunLength := Data16 and RunMask16;
         RunLength := RunLength shr 8;
         if RunLength = 0 then begin
+          if PackedSize < 1 then begin
+            FDecoderStatus := dsNotEnoughInput;
+            break;
+          end;
           // Next BYTE is a repeat count or 0
           RunLength := PByte(SourcePtr16)^;
           Inc(PByte(SourcePtr16), 1);
+          Dec(PackedSize);
           if RunLength = 0 then begin
+            if PackedSize < 2 then begin
+              FDecoderStatus := dsNotEnoughInput;
+              break;
+            end;
             // Next WORD is a repeat count
             RunLength := SourcePtr16^;
             Inc(SourcePtr16);
+            Dec(PackedSize, 2);
           end
         end;
         if RunLength*2 > Cardinal(UnpackedSize) then begin
           FOverflow := True;
-          Break;
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize div 2;
         end;
         // TODO: Ideally we would need a FillWord implementation.
         // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
         // Graphics32 FillLongword in GR32_LowLevel.
         //FillWord( (TargetPtr^, RunLength, Data);
-        for i := 0 to RunLength-1 do begin
+        // We use 1 to RunLength instead of 0 to RunLength-1 because RunLength can be 0!
+        // In case it would be 0 it would cause overflow here.
+        for i := 1 to RunLength do begin
           TargetPtr16^ := Data16;
           Inc(TargetPtr16);
           Dec(UnpackedSize, 2);
         end;
+        if FDecoderStatus <> dsOk then
+          break;
       end;
     end;
     32:
@@ -1577,37 +1607,83 @@ begin
       TargetPtr32 := Dest;
       SourcePtr32 := Source;
       while UnpackedSize > 0 do begin
+        if PackedSize < 4 then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
         Data32 := SourcePtr32^;
         Inc(SourcePtr32);
+        Dec(PackedSize, 4);
         // TODO: Just use one byte instead of 4 here then no need to shift
         RunLength := Data32 and RunMask32;
         RunLength := RunLength shr 24;
         if RunLength = 0 then begin
+          if PackedSize < 1 then begin
+            FDecoderStatus := dsNotEnoughInput;
+            break;
+          end;
           // Next BYTE is a repeat count or 0
           RunLength := PByte(SourcePtr32)^;
           Inc(PByte(SourcePtr32), 1);
+          Dec(PackedSize);
           if RunLength = 0 then begin
+            if PackedSize < 2 then begin
+              FDecoderStatus := dsNotEnoughInput;
+              break;
+            end;
             // Next WORD is a repeat count
             RunLength := PWord(SourcePtr32)^;
             Inc(PByte(SourcePtr32), 2);
+            Dec(PackedSize, 2);
           end
         end;
         if RunLength*4 > Cardinal(UnpackedSize) then begin
           FOverflow := True;
-          Break;
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := UnpackedSize div 4;
         end;
         // TODO: Ideally we would need a FillDWord implementation.
         // Fpc may have one. Delphi 6 doesn't but we may be able to adapt
         // Graphics32 FillLongword in GR32_LowLevel.
         //FillWord( (TargetPtr^, RunLength, Data);
-        for i := 0 to RunLength-1 do begin
+        // We use 1 to RunLength instead of 0 to RunLength-1 because RunLength can be 0!
+        // In case it would be 0 it would cause overflow here.
+        for i := 1 to RunLength do begin
           TargetPtr32^ := Data32;
           Inc(TargetPtr32);
           Dec(UnpackedSize, 4);
         end;
+        if FDecoderStatus <> dsOk then
+          break;
       end;
     end;
   end; // case
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['Amiga RGB decoder']));
+      end
+      else begin // > 0
+        // Do nothing since this format doesn't know the exact compressed size.
+      end;
+    end;
+    if UnpackedSize <> 0 then begin
+      if UnpackedSize > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+      // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['Amiga RGB decoder']));
+      end;
+    end;
+  end;
+  FDecompressedBytes := DecompressBufSize - UnpackedSize;
   if FUpdateSource then
     if FColorDepth = 16 then
       Source := SourcePtr16
