@@ -1524,7 +1524,7 @@ begin
     [FDecoder.DecompressedBytes]));
 end;
 
-// ********** TSGIRLEDecoderTests **********
+// ********** TAmigaRGBDecoderTests **********
 
 procedure TAmigaRGBDecoderTests.SetUp;
 begin
