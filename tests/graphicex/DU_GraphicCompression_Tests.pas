@@ -154,6 +154,23 @@ type
     procedure TestDecompress4Bytes03xxBuffer2;
   end;
 
+  TAmigaRGBDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder16: TAmigaRGBDecoder;
+    FDecoder32: TAmigaRGBDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompressIncomplete16;
+    procedure TestDecompressIncomplete32;
+    procedure TestDecompressFill16;
+    procedure TestDecompressFill32;
+  end;
+
+
 
 implementation
 
@@ -1507,6 +1524,231 @@ begin
     [FDecoder.DecompressedBytes]));
 end;
 
+// ********** TSGIRLEDecoderTests **********
+
+procedure TAmigaRGBDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder16 := TAmigaRGBDecoder.Create(16);
+  FDecoder16.DecodeInit;
+  FDecoder32 := TAmigaRGBDecoder.Create(32);
+  FDecoder32.DecodeInit;
+end;
+
+procedure TAmigaRGBDecoderTests.TearDown;
+begin
+  FDecoder16.Free;
+  FDecoder32.Free;
+  inherited TearDown;
+end;
+
+procedure TAmigaRGBDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder16);
+  TestCompressedSizeLimits(FDecoder32);
+end;
+
+procedure TAmigaRGBDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder16);
+  TestDecompressedSizeLimits(FDecoder32);
+end;
+
+procedure TAmigaRGBDecoderTests.TestDecompressIncomplete16;
+var
+  Source: Pointer;
+  InputBuffer: array [0..3] of byte;
+begin
+  Source := @InputBuffer;
+
+  // Testing incomplete input.
+  // 1 byte input
+  InputBuffer[0] := $ff; // Should be at least a word.
+  TestDecompress(FDecoder16, Source, 1, BUFSIZE, 1, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := $07; // Should be at least a word.
+  TestDecompress(FDecoder16, Source, 1, 2, 1, 0, dsNotEnoughInput, 2);
+
+  // 2 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $00; // second byte runcount 0 means next byte is runlength
+  TestDecompress(FDecoder16, Source, 2, 2, 0, 0, dsNotEnoughInput, 3);
+
+  // 3 bytes input
+  InputBuffer[2] :=  $00; // runlength 0 means next Word is runlength.
+  TestDecompress(FDecoder16, Source, 3, 2, 0, 0, dsNotEnoughInput, 4);
+
+  // 4 bytes input, that should be 5
+  InputBuffer[3] :=  $00;
+  TestDecompress(FDecoder16, Source, 4, 2, 1, 0, dsNotEnoughInput, 5);
+end;
+
+procedure TAmigaRGBDecoderTests.TestDecompressIncomplete32;
+var
+  Source: Pointer;
+  InputBuffer: array [0..6] of byte;
+begin
+  Source := @InputBuffer;
+  // Testing incomplete input.
+  // 1 byte input
+  InputBuffer[0] := $ff; // Should be at least a dword.
+  TestDecompress(FDecoder32, Source, 1, BUFSIZE, 1, 0, dsNotEnoughInput, 1);
+  InputBuffer[0] := $07; // Should be at least a dword.
+  TestDecompress(FDecoder32, Source, 1, 4, 1, 0, dsNotEnoughInput, 2);
+
+  // 2 bytes input, 4 needed
+  InputBuffer[0] := $ff; // Should be at least a dword.
+  InputBuffer[1] := $00;
+  TestDecompress(FDecoder32, Source, 2, BUFSIZE, 2, 0, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder32, Source, 2, 4, 2, 0, dsNotEnoughInput, 4);
+
+  // 3 bytes input, 4 needed
+  InputBuffer[0] := $ff; // Should be at least a dword.
+  InputBuffer[2] := $00;
+  TestDecompress(FDecoder32, Source, 3, BUFSIZE, 3, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder32, Source, 3, 4, 3, 0, dsNotEnoughInput, 6);
+
+  // 4 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[3] := $00; // 4th byte runcount 0 means next byte is runlength
+  TestDecompress(FDecoder32, Source, 4, 4, 0, 0, dsNotEnoughInput, 7);
+
+  // 5 bytes input
+  InputBuffer[4] :=  $00; // runlength 0 means next Word is runlength.
+  TestDecompress(FDecoder32, Source, 5, 4, 0, 0, dsNotEnoughInput, 8);
+
+  // 6 bytes input, that should be 7
+  InputBuffer[5] :=  $00;
+  TestDecompress(FDecoder32, Source, 6, 4, 1, 0, dsNotEnoughInput, 9);
+end;
+
+procedure TAmigaRGBDecoderTests.TestDecompressFill16;
+var
+  Source: Pointer;
+  InputBuffer: array [0..8] of byte;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+
+  // 2 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $01; // combined data and runcount 1: Fill data word in output 1 times
+  TestDecompress(FDecoder16, Source, 2, 2, 0, 2, dsOk, 1);
+  TestDecompress(FDecoder16, Source, 2, 1, 0, 0, dsOutputBufferTooSmall, 2);
+  InputBuffer[1] := $07; // combined data and runcount 7 (highest value): Fill data word in output 7 times
+  TestDecompress(FDecoder16, Source, 2, 14, 0, 14, dsOk, 3);
+  TestDecompress(FDecoder16, Source, 2, 13, 0, 12, dsOutputBufferTooSmall, 4);
+
+  // 3 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $00; // combined data and runcount 0
+  InputBuffer[2] := $01; // RunCount = 1: Fill data word 1 times in output
+  TestDecompress(FDecoder16, Source, 3, 2, 0, 2, dsOk, 5);
+  TestDecompress(FDecoder16, Source, 3, 1, 0, 0, dsOutputBufferTooSmall, 6);
+  InputBuffer[2] := $ff; // RunCount = 255: Fill data word 255 times in output
+  TestDecompress(FDecoder16, Source, 3, 2*255, 0, 2*255, dsOk, 7);
+  TestDecompress(FDecoder16, Source, 3, 2*255-1, 0, 2*255-2, dsOutputBufferTooSmall, 8);
+
+  // 5 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $00; // combined data and runcount 0
+  InputBuffer[2] := $00; // 0: next Word is RunCount
+  InputBuffer[3] := $01; // Low word of count
+  InputBuffer[4] := $00; // High word of count. Count = 1.
+  TestDecompress(FDecoder16, Source, 5, 2, 0, 2, dsOk, 9);
+  TestDecompress(FDecoder16, Source, 5, 1, 0, 0, dsOutputBufferTooSmall, 10);
+  InputBuffer[3] := $80; // Low word of count
+  InputBuffer[4] := $01; // Count = $0180 = 384
+  TestDecompress(FDecoder16, Source, 5, 2*384, 0, 2*384, dsOk, 11);
+  TestDecompress(FDecoder16, Source, 5, 2*384-1, 0, 2*384-2, dsOutputBufferTooSmall, 12);
+
+  // Test 0 RunCount
+  // Since expected output of 0 will already cause decompressing to stop
+  // we first decompress some other valid data.
+  // This copies 1 word to output
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $01; // combined data and runcount 1: Fill data word in output 1 times
+  // Now 5 bytes with in the end a 0 runcount
+  InputBuffer[2] := $aa; // first byte is data
+  InputBuffer[3] := $00; // combined data and runcount 0: next byte is RunCount
+  InputBuffer[4] := $00; // 0 byte RunCount: next Word is RunCount
+  InputBuffer[5] := $00; // Low word of count
+  InputBuffer[6] := $00; // Count = 0
+  // Result here ok since PackedSize > 0 isn't checked because this format doesn't
+  // know the exact input size.
+  TestDecompress(FDecoder16, Source, 7, 2, 5, 2, dsOk, 13);
+  // Same but test with data after the 0 count.
+  InputBuffer[7] := $bb; // first byte is data
+  InputBuffer[8] := $01; // combined data and runcount 1: Fill data word in output 1 times
+  TestDecompress(FDecoder16, Source, 9, 4, 0, 4, dsOk, 14);
+end;
+
+procedure TAmigaRGBDecoderTests.TestDecompressFill32;
+var
+  Source: Pointer;
+  InputBuffer: array [0..14] of byte;
+  i: Integer;
+begin
+  Source := @InputBuffer[0];
+
+  // 4 bytes input
+  InputBuffer[0] := $ff; // first byte is data
+  InputBuffer[1] := $ee; // second byte is data
+  InputBuffer[2] := $dd; // third byte is data
+  InputBuffer[3] := $01; // combined data and runcount 1: Fill data dword in output 1 times
+  TestDecompress(FDecoder32, Source, 4, 4, 0, 4, dsOk, 1);
+  TestDecompress(FDecoder32, Source, 4, 3, 0, 0, dsOutputBufferTooSmall, 2);
+  InputBuffer[3] := $7f; // combined data and runcount $7f = 127 (highest value): Fill data dword in output 127 times
+  TestDecompress(FDecoder32, Source, 4, 127*4, 0, 127*4, dsOk, 3);
+  TestDecompress(FDecoder32, Source, 4, 127*4-1, 0, 127*4-4, dsOutputBufferTooSmall, 4);
+
+  // 5 bytes input
+  InputBuffer[3] := $00; // RunCount 0: next byte = RunCount
+  InputBuffer[4] := $01; // RunCount 1
+  TestDecompress(FDecoder32, Source, 5, 4, 0, 4, dsOk, 5);
+  TestDecompress(FDecoder32, Source, 5, 3, 0, 0, dsOutputBufferTooSmall, 6);
+  InputBuffer[4] := $ff; // RunCount = 255: Fill data dword 255 times in output
+  TestDecompress(FDecoder32, Source, 5, 4*255, 0, 4*255, dsOk, 7);
+  TestDecompress(FDecoder32, Source, 5, 4*255-1, 0, 4*255-4, dsOutputBufferTooSmall, 8);
+
+  // 7 bytes input
+  InputBuffer[4] := $00; // RunCount 0: Next word is RunCount.
+  InputBuffer[5] := $01; // Low word of RunCount.
+  InputBuffer[6] := $00; // High word of RunCount. RunCount = 1.
+  TestDecompress(FDecoder32, Source, 7, 4, 0, 4, dsOk, 9);
+  TestDecompress(FDecoder32, Source, 7, 3, 0, 0, dsOutputBufferTooSmall, 10);
+  InputBuffer[5] := $80; // Low word of count
+  InputBuffer[6] := $00; // Count = $0080 = 128
+  TestDecompress(FDecoder32, Source, 7, 4*128, 0, 4*128, dsOk, 11);
+  TestDecompress(FDecoder32, Source, 7, 4*128-1, 0, 4*128-4, dsOutputBufferTooSmall, 12);
+
+  // Test 0 RunCount
+  // Since expected output of 0 will already cause decompressing to stop
+  // we first decompress some other valid data.
+  // This copies 1 word to output
+  InputBuffer[0] := $ab; // first byte is data
+  InputBuffer[1] := $cd; // second byte is data
+  InputBuffer[2] := $ef; // third byte is data
+  InputBuffer[3] := $01; // combined data and runcount 1: Fill data word in output 1 times
+  // Now 5 bytes with in the end a 0 runcount
+  InputBuffer[4] := $99; // data 1
+  InputBuffer[5] := $88; // data 2
+  InputBuffer[6] := $77; // data 3
+  InputBuffer[7] := $00; // combined data and runcount 0: next byte is RunCount
+  InputBuffer[8] := $00; // 0 byte RunCount: next Word is RunCount
+  InputBuffer[9] := $00; // Low word of count
+  InputBuffer[10] := $00; // Count = 0
+  // Result here ok since PackedSize > 0 isn't checked because this format doesn't
+  // know the exact input size.
+  TestDecompress(FDecoder32, Source, 11, 4, 7, 4, dsOk, 13);
+  // Same but test with data after the 0 count.
+  InputBuffer[11] := $bb; // first byte is data
+  InputBuffer[12] := $bb; // second byte is data
+  InputBuffer[13] := $bb; // third byte is data
+  InputBuffer[14] := $01; // combined data and runcount 1: Fill data word in output 1 times
+  TestDecompress(FDecoder32, Source, 15, 8, 0, 8, dsOk, 14);
+end;
+
+
 initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
     [
@@ -1516,6 +1758,7 @@ initialization
       TPCXRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TRLADecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
-      TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
+      TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TAmigaRGBDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
