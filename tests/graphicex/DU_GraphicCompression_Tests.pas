@@ -430,6 +430,7 @@ begin
       Format('Unexpected decompressed byte at position %d', [i]));
   TestDecompress(FDecoder8, Source, 129, 127, 1, 127, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder8, Source, 128, 128, 0, 127, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder8, Source, 129, 129, 0, 128, dsNotEnoughInput, 6);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressFill8Bits;
@@ -454,6 +455,7 @@ begin
       Format('Unexpected decompressed word at position %d', [i]));
   TestDecompress(FDecoder8, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder8, Source, 1, 128, 0, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder8, Source, 2, 129, 0, 128, dsNotEnoughInput , 6);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressMove16Bits;
@@ -481,6 +483,7 @@ begin
       Format('Unexpected decompressed byte at position %d', [i]));
   TestDecompress(FDecoder16, Source, 257, 255, 1, 255, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder16, Source, 256, 256, 0, 255, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder16, Source, 257, 257, 0, 256, dsNotEnoughInput, 6);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressFill16Bits;
@@ -505,6 +508,7 @@ begin
   TestDecompress(FDecoder16, Source, 3, 255, 0, 255, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder16, Source, 2, 256, 1, 0, dsNotEnoughInput, 5);
   TestDecompress(FDecoder16, Source, 1, 256, 0, 0, dsNotEnoughInput, 6);
+  TestDecompress(FDecoder16, Source, 3, 257, 0, 256, dsNotEnoughInput, 7);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressMove24Bits;
@@ -534,6 +538,7 @@ begin
       Format('Unexpected decompressed byte at position %d', [i]));
   TestDecompress(FDecoder24, Source, 385, 383, 1, 383, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder24, Source, 384, 384, 0, 383, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder24, Source, 385, 385, 0, 384, dsNotEnoughInput, 6);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressFill24Bits;
@@ -560,6 +565,7 @@ begin
   TestDecompress(FDecoder24, Source, 3, 384, 2, 0, dsNotEnoughInput, 5);
   TestDecompress(FDecoder24, Source, 2, 384, 1, 0, dsNotEnoughInput, 6);
   TestDecompress(FDecoder24, Source, 1, 384, 0, 0, dsNotEnoughInput, 7);
+  TestDecompress(FDecoder24, Source, 4, 385, 0, 384, dsNotEnoughInput, 8);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressMove32Bits;
@@ -591,6 +597,7 @@ begin
       Format('Unexpected decompressed byte at position %d', [i]));
   TestDecompress(FDecoder32, Source, 513, 511, 1, 511, dsOutputBufferTooSmall, 4);
   TestDecompress(FDecoder32, Source, 512, 512, 0, 511, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder32, Source, 513, 513, 0, 512, dsNotEnoughInput, 6);
 end;
 
 procedure TTGARLEDecoderTests.TestDecompressFill32Bits;
@@ -619,6 +626,7 @@ begin
   TestDecompress(FDecoder32, Source, 3, 512, 2, 0, dsNotEnoughInput, 6);
   TestDecompress(FDecoder32, Source, 2, 512, 1, 0, dsNotEnoughInput, 7);
   TestDecompress(FDecoder32, Source, 1, 512, 0, 0, dsNotEnoughInput, 8);
+  TestDecompress(FDecoder32, Source, 5, 513, 0, 512, dsNotEnoughInput, 9);
 end;
 
 // ********** TPackbitsDecoderTests **********
@@ -698,6 +706,7 @@ begin
     Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[1],
       Format('Unexpected decompressed data at position %d', [i]));
   TestDecompress(FDecoder, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder, Source, 3, 128, 1, 128, dsOutputBufferTooSmall, 6);
 end;
 
 procedure TPackbitsDecoderTests.TestDecompressMove;
@@ -721,6 +730,7 @@ begin
     Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[i+1],
       Format('Unexpected decompressed data at position %d', [i]));
   TestDecompress(FDecoder, Source, 129, 127, 1, 127, dsOutputBufferTooSmall , 3);
+  TestDecompress(FDecoder, Source, 130, 128, 1, 128, dsOutputBufferTooSmall, 4);
 end;
 
 // ********** TPSPRLEDecoderTests **********
@@ -791,6 +801,7 @@ begin
   InputBuffer[0] := 130;
   TestDecompress(FDecoder, Source, 2, 2, 0, 2, dsOK, 6);
   TestDecompress(FDecoder, Source, 2, 1, 1, 0, dsOutputBufferTooSmall , 7);
+  TestDecompress(FDecoder, Source, 3, 2, 1, 2, dsOutputBufferTooSmall , 8);
 end;
 
 procedure TPSPRLEDecoderTests.TestDecompress3Bytes;
@@ -967,6 +978,7 @@ begin
     Check(PByteArray(FDecompressBuffer)^[i] = $ee,
       Format('Unexpected decompressed data at position %d', [i]));
   TestDecompress(FDecoder, Source, 2, 62, 0, 62, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder, Source, 3, 63, 1, 63, dsOutputBufferTooSmall, 6);
 end;
 
 procedure TPCXRLEDecoderTests.TestDecompressCopy;
@@ -1107,6 +1119,7 @@ begin
   // Output buffer too small test
   TestDecompress(FDecoder8, Source, 2, 126, 0, 126, dsOutputBufferTooSmall, 5);
   TestDecompress(FDecoder8, Source, 3, 126, 1, 126, dsOutputBufferTooSmall, 6);
+  TestDecompress(FDecoder8, Source, 5, 127, 3, 127, dsOutputBufferTooSmall, 7);
 end;
 
 procedure TSGIRLEDecoderTests.TestDecompressFill16;
@@ -1137,6 +1150,7 @@ begin
   TestDecompress(FDecoder16, Source, 6, 252, 2, 252, dsOutputBufferTooSmall, 6);
   TestDecompress(FDecoder16, Source, 4, 253, 0, 252, dsOutputBufferTooSmall, 7);
   TestDecompress(FDecoder16, Source, 6, 253, 2, 252, dsOutputBufferTooSmall, 8);
+  TestDecompress(FDecoder16, Source, 8, 254, 4, 254, dsOutputBufferTooSmall, 9);
 end;
 
 procedure TSGIRLEDecoderTests.TestDecompressMove8;
@@ -1275,6 +1289,7 @@ begin
     Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = -18,
       Format('Unexpected decompressed data at position %d', [i]));
   TestDecompress(FDecoder, Source, 2, 127, 0, 127, dsOutputBufferTooSmall, 5);
+  TestDecompress(FDecoder, Source, 3, 128, 1, 128, dsOutputBufferTooSmall, 6);
 end;
 
 procedure TRLADecoderTests.TestDecompressMove;
@@ -1298,9 +1313,11 @@ begin
     Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[i+1],
       Format('Unexpected decompressed data at position %d', [i]));
   TestDecompress(FDecoder, Source, 129, 127, 1, 127, dsOutputBufferTooSmall , 3);
+  TestDecompress(FDecoder, Source, 130, 128, 1, 128, dsOutputBufferTooSmall, 4);
 end;
 
 // ********** TCutRLEDecoderTests **********
+// TODO: The CUT tests need to be revised.
 
 procedure TCutRLEDecoderTests.SetUp;
 begin
@@ -1671,6 +1688,7 @@ begin
   InputBuffer[4] := $01; // Count = $0180 = 384
   TestDecompress(FDecoder16, Source, 5, 2*384, 0, 2*384, dsOk, 11);
   TestDecompress(FDecoder16, Source, 5, 2*384-1, 0, 2*384-2, dsOutputBufferTooSmall, 12);
+  TestDecompress(FDecoder16, Source, 5, 2*384+1, 0, 2*384, dsNotEnoughInput, 13);
 
   // Test 0 RunCount
   // Since expected output of 0 will already cause decompressing to stop
@@ -1686,11 +1704,11 @@ begin
   InputBuffer[6] := $00; // Count = 0
   // Result here ok since PackedSize > 0 isn't checked because this format doesn't
   // know the exact input size.
-  TestDecompress(FDecoder16, Source, 7, 2, 5, 2, dsOk, 13);
+  TestDecompress(FDecoder16, Source, 7, 2, 5, 2, dsOk, 14);
   // Same but test with data after the 0 count.
   InputBuffer[7] := $bb; // first byte is data
   InputBuffer[8] := $01; // combined data and runcount 1: Fill data word in output 1 times
-  TestDecompress(FDecoder16, Source, 9, 4, 0, 4, dsOk, 14);
+  TestDecompress(FDecoder16, Source, 9, 4, 0, 4, dsOk, 15);
 end;
 
 procedure TAmigaRGBDecoderTests.TestDecompressFill32;
