@@ -1461,17 +1461,23 @@ begin
     if Pixel = 0 then
       Break;
     // Secure against buffer overrun
-    if FCompressedBytesAvailable <= 0 then
+    if FCompressedBytesAvailable <= 0 then begin
+      FDecoderStatus := dsNotEnoughInput;
       Break;
+    end;
 
     RunLength := Pixel and $7F;
     if (Pixel and $80) = 0 then
     begin
       // Secure against buffer overruns
-      if RunLength > FCompressedBytesAvailable then
+      if RunLength > FCompressedBytesAvailable then begin
+        FDecoderStatus := dsNotEnoughInput;
         Break;
-      if FDecompressedBytes + RunLength > UnpackedSize then
+      end;
+      if FDecompressedBytes + RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
         Break;
+      end;
       // Copy RunLength bytes
       Move(Source^, TargetPtr^, RunLength);
       Inc(TargetPtr, RunLength);
@@ -1481,10 +1487,14 @@ begin
     else
     begin
       // Secure against buffer overruns
-      if FCompressedBytesAvailable <= 0 then
+      if FCompressedBytesAvailable <= 0 then begin
+        FDecoderStatus := dsNotEnoughInput;
         Break;
-      if FDecompressedBytes + RunLength > UnpackedSize then
+      end;
+      if FDecompressedBytes + RunLength > UnpackedSize then begin
+        FDecoderStatus := dsOutputBufferTooSmall;
         Break;
+      end;
       // Copy 1 byte RunLength times
       Pixel := PByte(Source)^;
       Inc(PByte(Source));
