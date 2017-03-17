@@ -170,6 +170,17 @@ type
     procedure TestDecompressFill32;
   end;
 
+  TVDATRLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TVDATRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompressCommands;
+  end;
 
 
 implementation
@@ -1748,6 +1759,99 @@ begin
   TestDecompress(FDecoder32, Source, 15, 8, 0, 8, dsOk, 14);
 end;
 
+// ********** TVDATRLEDecoderTests **********
+
+procedure TVDATRLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder := TVDATRLEDecoder.Create;
+end;
+
+procedure TVDATRLEDecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TVDATRLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TVDATRLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TVDATRLEDecoderTests.TestDecompressCommands;
+var
+  Source: Pointer;
+  InputBuffer: array [0..20] of byte;
+begin
+  Source := @InputBuffer;
+
+  // Testing both incomplete and complete input.
+  // Less than 6 bytes input should always result in invalid buffer size
+  // At least 3 at the start and I think 2 at the end.
+  TestDecompress(FDecoder, Source, 1, BUFSIZE, 0, 0, dsInvalidBufferSize, 1);
+  TestDecompress(FDecoder, Source, 5, BUFSIZE, 0, 0, dsInvalidBufferSize, 2);
+
+  // Test incomplete data after commands
+  // First word - 2 is command count, big endian, in this case 1
+  InputBuffer[0] := $00;
+  InputBuffer[1] := $06; // CommandCount big endian = 4 (6-2)
+  // Commands follow here, Data follows after CommandCount bytes
+  InputBuffer[2] := $00; // First command (Move)
+  InputBuffer[3] := $01; // Second command (Fill)
+  InputBuffer[4] := $ff; // Third command (-1 = Move 1 word)
+  InputBuffer[5] := $02; // Fourth command (2 = Fill 2 words)
+  TestDecompress(FDecoder, Source, 6, BUFSIZE, 0, 0, dsInvalidBufferSize, 3);
+
+  // Command 0 - Big endian RunLength word. Output count literal words from data words.
+  InputBuffer[6] := $00;
+  TestDecompress(FDecoder, Source, 7, 2, 1, 0, dsNotEnoughInput, 4);
+  InputBuffer[7] := $01; // RunLength = 1 (= Wordcount needed for input and output)
+  TestDecompress(FDecoder, Source, 8, 2, 0, 0, dsNotEnoughInput, 5);
+  InputBuffer[8] := $01; // Data
+  InputBuffer[9] := $02; // Data
+  TestDecompress(FDecoder, Source, 10, 1, 2, 0, dsOutputBufferTooSmall, 6);
+  TestDecompress(FDecoder, Source, 10, 2, 0, 2, dsOk, 7);
+  TestDecompress(FDecoder, Source, 10, 4, 0, 2, dsNotEnoughInput , 8);
+
+  // Command 1 - Big endian RunLength word. Output one word of data count times.
+  InputBuffer[10] := $00;
+  TestDecompress(FDecoder, Source, 11, 4, 1, 2, dsNotEnoughInput, 9);
+  InputBuffer[11] := $01; // RunLength = 1 (= Wordcount needed for input and output)
+  TestDecompress(FDecoder, Source, 12, 4, 0, 2, dsNotEnoughInput, 10);
+  InputBuffer[12] := $01; // Data
+  InputBuffer[13] := $02; // Data
+  TestDecompress(FDecoder, Source, 14, 3, 2, 2, dsOutputBufferTooSmall, 11);
+  TestDecompress(FDecoder, Source, 14, 4, 0, 4, dsOk, 12);
+  TestDecompress(FDecoder, Source, 14, 6, 0, 4, dsNotEnoughInput , 13);
+
+  // Command < 0. Output abs(Command) as count words from data words
+  InputBuffer[14] := $00; // data
+  TestDecompress(FDecoder, Source, 15, 6, 1, 4, dsNotEnoughInput, 14);
+  InputBuffer[15] := $00; // data
+  TestDecompress(FDecoder, Source, 16, 6, 0, 6, dsOk, 15);
+  TestDecompress(FDecoder, Source, 16, 5, 2, 4, dsOutputBufferTooSmall, 16);
+  TestDecompress(FDecoder, Source, 16, 8, 0, 6, dsNotEnoughInput , 17);
+
+  // Command >= 2. Output Command as count. Read one data word and copy count times to output.
+  // In this case count = 2 = minimum in this case
+  InputBuffer[16] := $ff; // data
+  TestDecompress(FDecoder, Source, 17, 10, 1, 6, dsNotEnoughInput, 18);
+  InputBuffer[17] := $ee; // data
+  // Outputting 2 words = 4 bytes
+  TestDecompress(FDecoder, Source, 18, 10, 0, 10, dsOk, 19);
+  TestDecompress(FDecoder, Source, 18, 9, 2, 6, dsOutputBufferTooSmall, 20);
+  TestDecompress(FDecoder, Source, 18, 12, 0, 10, dsNotEnoughInput , 21);
+
+  // Test CommandCount = 0
+  TestDecompress(FDecoder, Source, 20, 12, 2, 10, dsNotEnoughInput, 22);
+end;
+
+
 
 initialization
   RegisterTests('Test GraphicEx.Unit GraphicCompression',
@@ -1759,6 +1863,7 @@ initialization
       TSGIRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TRLADecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
-      TAmigaRGBDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
+      TAmigaRGBDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TVDATRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
