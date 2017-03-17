@@ -221,16 +221,6 @@ type
     property ZLibResult: Integer read FZLibResult;
   end;
 
-  TPCDDecoder = class(TDecoder)
-  private
-    FData: PByte;  // decoder must read some data
-  public
-    constructor Create(Raw: Pointer);
-
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-  end;
-
   // ********** All decoders below are currently not being used. **********
 
   // Because the decoders below have not been made safe against buffer overflows
@@ -357,6 +347,17 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
   *)
+
+  TPCDDecoder = class(TDecoder)
+  private
+    FData: PByte;  // decoder must read some data
+  public
+    constructor Create(Raw: Pointer);
+
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+  end;
+
 {$ENDIF UNSAFE_DECODERS}
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2183,247 +2184,6 @@ begin
   Result := FStream.AvailOut;
 end;
 
-//----------------- TPCDDecoder ----------------------------------------------------------------------------------------
-
-constructor TPCDDecoder.Create(Raw: Pointer);
-
-begin
-  FData := Raw;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TPCDDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
-
-// recovers the Huffman encoded luminance and chrominance deltas
-// Note: This decoder leaves a bit the way like the other decoders work.
-//       Source points to an array of 3 pointers, one for luminance (Y, Luma), one for blue
-//       chrominance (Cb, Chroma1) and one for red chrominance (Cr, Chroma2). These pointers
-//       point to source and target at the same time (in place decoding).
-//       PackedSize contains the width of the current subimage and UnpackedSize its height.
-//       Dest is not used and can be nil.
-
-type
-  PPointerArray = ^TPointerArray;
-  TPointerArray = array[0..2] of Pointer;
-
-  PPCDTable = ^TPCDTable;
-  TPCDTable = record
-    Length: Word;
-    Sequence: Cardinal;
-    Key: Byte;
-    Mask: Integer;
-  end;
-
-  PQuantumArray = ^TQuantumArray;
-  TQuantumArray = array[0..3 * 256 - 1] of Byte;
-
-var
-  Luma,
-  Chroma1,
-  Chroma2: PAnsiChar; // hold the actual pointers, PChar to easy pointer maths
-  Width,
-  Height: Cardinal;
-
-  PCDTable: array[0..2] of PPCDTable;
-  I, J, K: Cardinal;
-  R: PPCDTable;
-  RangeLimit: PQuantumArray;
-  P, Q,
-  Buffer: PAnsiChar;
-  Accumulator,
-  Bits,
-  Length,
-  Plane,
-  Row: Cardinal;
-  PCDLength: array[0..2] of Cardinal;
-
-  //--------------- local function --------------------------------------------
-
-  procedure PCDGetBits(N: Cardinal);
-
-  begin
-    Accumulator := Accumulator shl N;
-    Dec(Bits, N);
-    while Bits <= 24 do
-    begin
-      if P >= (Buffer + $800) then
-      begin
-        Move(FData^, Buffer^, $800);
-        Inc(FData, $800);
-        P := Buffer;
-      end;
-      Accumulator := Accumulator or (Cardinal(P^) shl (24 - Bits));
-      Inc(Bits, 8);
-      Inc(P);
-    end;
-  end;
-
-  //--------------- end local function ----------------------------------------
-
-var
-  Limit: Cardinal;
-
-begin
-  // place the used source values into local variables with proper names to make
-  // their usage clearer
-  Luma := PPointerArray(Source)[0];
-  Chroma1 := PPointerArray(Source)[1];
-  Chroma2 := PPointerArray(Source)[2];
-  Width := PackedSize;
-  Height := UnpackedSize;
-  
-  // initialize Huffman tables
-  ZeroMemory(@PCDTable, SizeOf(PCDTable));
-  GetMem(Buffer, $800);
-  try
-    Accumulator := 0;
-    Bits := 32;
-    P := Buffer + $800;
-    Limit := 1;
-    if Width > 1536 then
-      Limit := 3;
-    for I := 0 to Limit - 1 do
-    begin
-      PCDGetBits(8);
-      Length := (Accumulator and $FF) + 1;
-      GetMem(PCDTable[I], Length * SizeOf(TPCDTable));
-
-      R := PCDTable[I];
-      for J := 0 to Length - 1 do
-      begin
-        PCDGetBits(8);
-        R.Length := (Accumulator and $FF) + 1;
-        if R.Length > 16 then
-        begin
-          for K := 0 to 2 do
-            if Assigned(PCDTable[K]) then
-              FreeMem(PCDTable[K]);
-          Exit;
-        end;
-        PCDGetBits(16);
-        R.Sequence := (Accumulator and $FFFF) shl 16;
-        PCDGetBits(8);
-        R.Key := Accumulator and $FF;
-      R.Mask := not ((1 shl (32 - R.Length)) - 1);
-        {asm
-          // asm implementation to avoid overflow errors and for faster execution
-          MOV EDX, [R]
-          MOV CL, 32
-          SUB CL, [EDX].TPCDTable.Length
-          MOV EAX, 1
-          SHL EAX, CL
-          DEC EAX
-          NOT EAX
-          MOV [EDX].TPCDTable.Mask, EAX
-        end;}
-        Inc(R);
-      end;
-      PCDLength[I] := Length;
-    end;
-
-    // initialize range limits
-    GetMem(RangeLimit, 3 * 256);
-    try
-      for I := 0 to 255 do
-      begin
-        RangeLimit[I] := 0;
-        RangeLimit[I + 256] := I;
-        RangeLimit[I + 2 * 256] := 255;
-      end;
-      Inc(PByte(RangeLimit), 255);
-
-      // search for sync byte
-      PCDGetBits(16);
-      PCDGetBits(16);
-      while (Accumulator and $00FFF000) <> $00FFF000 do
-        PCDGetBits(8);
-      while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
-        PCDGetBits(1);
-
-      // recover the Huffman encoded luminance and chrominance deltas
-      Length := 0;
-      Plane := 0;
-      Q := Luma;
-      repeat
-        if (Accumulator and $FFFFFF00) = $FFFFFE00 then
-        begin
-          // determine plane and row number
-          PCDGetBits(16);
-          Row := (Accumulator shr 9) and $1FFF;
-          if Row = Height then
-            Break;
-          PCDGetBits(8);
-          Plane := Accumulator shr 30;
-          PCDGetBits(16);
-          case Plane of
-            0:
-              Q := Luma + Row * Width;
-            2:
-              begin
-                Q := Chroma1 + (Row shr 1) * Width;
-                Dec(Plane);
-              end;
-            3:
-              begin
-                Q := Chroma2 + (Row shr 1) * Width;
-                Dec(Plane);
-              end;
-          else
-            Abort; // invalid/corrupt image
-          end;
-
-          Length := PCDLength[Plane];
-          Continue;
-        end;
-
-        // decode luminance or chrominance deltas
-        R := PCDTable[Plane];
-        I := 0;
-        while (I < Length) and ((Accumulator and R.Mask) <> R.Sequence) do
-        begin
-          Inc(I);
-          Inc(R);
-        end;
-      
-        if R = nil then
-        begin
-          // corrupt PCD image, skipping to sync byte
-          while (Accumulator and $00FFF000) <> $00FFF000 do
-            PCDGetBits(8);
-          while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
-            PCDGetBits(1);
-          Continue;
-        end;
-
-        if R.Key < 128 then
-          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
-        else
-          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
-        Inc(Q);
-        PCDGetBits(R.Length);
-      until False;                                     
-    finally
-      for I := 0 to 2 do
-        if Assigned(PCDTable[I]) then
-          FreeMem(PCDTable[I]);
-      Dec(PByte(RangeLimit), 255);
-      if Assigned(RangeLimit) then
-        FreeMem(RangeLimit);
-    end;
-  finally
-    if Assigned(Buffer) then
-      FreeMem(Buffer);
-  end;
-end;
-
-//----------------------------------------------------------------------------------------------------------------------
-
-procedure TPCDDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
-
-begin
-end;
-
 
 {$IFDEF UNSAFE_DECODERS} // These decoders have not been checked for buffer overflow safety.
 
@@ -3829,6 +3589,248 @@ procedure TTIFFJPEGDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var By
 begin
 end;
 *)
+
+//----------------- TPCDDecoder ----------------------------------------------------------------------------------------
+
+constructor TPCDDecoder.Create(Raw: Pointer);
+
+begin
+  FData := Raw;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPCDDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+
+// recovers the Huffman encoded luminance and chrominance deltas
+// Note: This decoder leaves a bit the way like the other decoders work.
+//       Source points to an array of 3 pointers, one for luminance (Y, Luma), one for blue
+//       chrominance (Cb, Chroma1) and one for red chrominance (Cr, Chroma2). These pointers
+//       point to source and target at the same time (in place decoding).
+//       PackedSize contains the width of the current subimage and UnpackedSize its height.
+//       Dest is not used and can be nil.
+
+type
+  PPointerArray = ^TPointerArray;
+  TPointerArray = array[0..2] of Pointer;
+
+  PPCDTable = ^TPCDTable;
+  TPCDTable = record
+    Length: Word;
+    Sequence: Cardinal;
+    Key: Byte;
+    Mask: Integer;
+  end;
+
+  PQuantumArray = ^TQuantumArray;
+  TQuantumArray = array[0..3 * 256 - 1] of Byte;
+
+var
+  Luma,
+  Chroma1,
+  Chroma2: PAnsiChar; // hold the actual pointers, PChar to easy pointer maths
+  Width,
+  Height: Cardinal;
+
+  PCDTable: array[0..2] of PPCDTable;
+  I, J, K: Cardinal;
+  R: PPCDTable;
+  RangeLimit: PQuantumArray;
+  P, Q,
+  Buffer: PAnsiChar;
+  Accumulator,
+  Bits,
+  Length,
+  Plane,
+  Row: Cardinal;
+  PCDLength: array[0..2] of Cardinal;
+
+  //--------------- local function --------------------------------------------
+
+  procedure PCDGetBits(N: Cardinal);
+
+  begin
+    Accumulator := Accumulator shl N;
+    Dec(Bits, N);
+    while Bits <= 24 do
+    begin
+      if P >= (Buffer + $800) then
+      begin
+        Move(FData^, Buffer^, $800);
+        Inc(FData, $800);
+        P := Buffer;
+      end;
+      Accumulator := Accumulator or (Cardinal(P^) shl (24 - Bits));
+      Inc(Bits, 8);
+      Inc(P);
+    end;
+  end;
+
+  //--------------- end local function ----------------------------------------
+
+var
+  Limit: Cardinal;
+
+begin
+  // place the used source values into local variables with proper names to make
+  // their usage clearer
+  Luma := PPointerArray(Source)[0];
+  Chroma1 := PPointerArray(Source)[1];
+  Chroma2 := PPointerArray(Source)[2];
+  Width := PackedSize;
+  Height := UnpackedSize;
+
+  // initialize Huffman tables
+  ZeroMemory(@PCDTable, SizeOf(PCDTable));
+  GetMem(Buffer, $800);
+  try
+    Accumulator := 0;
+    Bits := 32;
+    P := Buffer + $800;
+    Limit := 1;
+    if Width > 1536 then
+      Limit := 3;
+    for I := 0 to Limit - 1 do
+    begin
+      PCDGetBits(8);
+      Length := (Accumulator and $FF) + 1;
+      GetMem(PCDTable[I], Length * SizeOf(TPCDTable));
+
+      R := PCDTable[I];
+      for J := 0 to Length - 1 do
+      begin
+        PCDGetBits(8);
+        R.Length := (Accumulator and $FF) + 1;
+        if R.Length > 16 then
+        begin
+          for K := 0 to 2 do
+            if Assigned(PCDTable[K]) then
+              FreeMem(PCDTable[K]);
+          Exit;
+        end;
+        PCDGetBits(16);
+        R.Sequence := (Accumulator and $FFFF) shl 16;
+        PCDGetBits(8);
+        R.Key := Accumulator and $FF;
+      R.Mask := not ((1 shl (32 - R.Length)) - 1);
+        {asm
+          // asm implementation to avoid overflow errors and for faster execution
+          MOV EDX, [R]
+          MOV CL, 32
+          SUB CL, [EDX].TPCDTable.Length
+          MOV EAX, 1
+          SHL EAX, CL
+          DEC EAX
+          NOT EAX
+          MOV [EDX].TPCDTable.Mask, EAX
+        end;}
+        Inc(R);
+      end;
+      PCDLength[I] := Length;
+    end;
+
+    // initialize range limits
+    GetMem(RangeLimit, 3 * 256);
+    try
+      for I := 0 to 255 do
+      begin
+        RangeLimit[I] := 0;
+        RangeLimit[I + 256] := I;
+        RangeLimit[I + 2 * 256] := 255;
+      end;
+      Inc(PByte(RangeLimit), 255);
+
+      // search for sync byte
+      PCDGetBits(16);
+      PCDGetBits(16);
+      while (Accumulator and $00FFF000) <> $00FFF000 do
+        PCDGetBits(8);
+      while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
+        PCDGetBits(1);
+
+      // recover the Huffman encoded luminance and chrominance deltas
+      Length := 0;
+      Plane := 0;
+      Q := Luma;
+      repeat
+        if (Accumulator and $FFFFFF00) = $FFFFFE00 then
+        begin
+          // determine plane and row number
+          PCDGetBits(16);
+          Row := (Accumulator shr 9) and $1FFF;
+          if Row = Height then
+            Break;
+          PCDGetBits(8);
+          Plane := Accumulator shr 30;
+          PCDGetBits(16);
+          case Plane of
+            0:
+              Q := Luma + Row * Width;
+            2:
+              begin
+                Q := Chroma1 + (Row shr 1) * Width;
+                Dec(Plane);
+              end;
+            3:
+              begin
+                Q := Chroma2 + (Row shr 1) * Width;
+                Dec(Plane);
+              end;
+          else
+            Abort; // invalid/corrupt image
+          end;
+
+          Length := PCDLength[Plane];
+          Continue;
+        end;
+
+        // decode luminance or chrominance deltas
+        R := PCDTable[Plane];
+        I := 0;
+        while (I < Length) and ((Accumulator and R.Mask) <> R.Sequence) do
+        begin
+          Inc(I);
+          Inc(R);
+        end;
+
+        if R = nil then
+        begin
+          // corrupt PCD image, skipping to sync byte
+          while (Accumulator and $00FFF000) <> $00FFF000 do
+            PCDGetBits(8);
+          while (Accumulator and $FFFFFF00) <> $FFFFFE00 do
+            PCDGetBits(1);
+          Continue;
+        end;
+
+        if R.Key < 128 then
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key)])
+        else
+          Q^ := AnsiChar(RangeLimit[ClampByte(Byte(Q^) + R.Key - 256)]);
+        Inc(Q);
+        PCDGetBits(R.Length);
+      until False;
+    finally
+      for I := 0 to 2 do
+        if Assigned(PCDTable[I]) then
+          FreeMem(PCDTable[I]);
+      Dec(PByte(RangeLimit), 255);
+      if Assigned(RangeLimit) then
+        FreeMem(RangeLimit);
+    end;
+  finally
+    if Assigned(Buffer) then
+      FreeMem(Buffer);
+  end;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+procedure TPCDDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+
+begin
+end;
+
 {$ENDIF UNSAFE_DECODERS}
 
 //----------------------------------------------------------------------------------------------------------------------

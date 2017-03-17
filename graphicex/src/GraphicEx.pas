@@ -4458,7 +4458,7 @@ var
   LineBuffer: Pointer;
   Line,
   Run: PBGR;
-  Decoder: TPCDDecoder;
+//  Decoder: TPCDDecoder;
 
   Source: PByte;
 
@@ -4557,7 +4557,7 @@ begin
           begin
             Inc(Y, 3 * (ImageIndex - 3));
 
-            Decoder := TPCDDecoder.Create(Source);
+            //Decoder := TPCDDecoder.Create(Source);
             //SourceDummy := @YCbCrData;
             //DestDummy := nil;
             try
@@ -4594,7 +4594,7 @@ begin
                 end;
               end;
             finally
-              FreeAndNil(Decoder);
+              //FreeAndNil(Decoder);
             end;
           end;
 
