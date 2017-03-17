@@ -877,7 +877,7 @@ begin
               else begin // RGB Compression, RGBN/RGB8 Iff type
                 Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                   NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
-                if TAmigaRGBDecoder(Decoder).Overflow then
+                if Decoder.DecompressedBytes <> AdjustedLineSize then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
 
                 // Now decode/unpack LineBuf to pixels

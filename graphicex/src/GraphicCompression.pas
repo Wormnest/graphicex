@@ -160,7 +160,6 @@ type
     FColorDepth: Cardinal;
     FUpdateSource,
     FUpdateDest: Boolean;
-    FOverflow: Boolean;
   public
     // ColorDepth: 16-RGBN; 32=RGB8
     constructor Create(ColorDepth: Cardinal);
@@ -168,7 +167,6 @@ type
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
 
-    property Overflow: Boolean read FOverflow;
     property UpdateSource: Boolean read FUpdateSource write FUpdateSource default False;
     property UpdateDest: Boolean read FUpdateSource write FUpdateSource default False;
   end;
@@ -1537,7 +1535,6 @@ var
   i: Cardinal;
   DecompressBufSize: Cardinal;
 begin
-  FOverflow := False;
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
   DecompressBufSize := UnpackedSize;
@@ -1583,7 +1580,6 @@ begin
           end
         end;
         if RunLength*2 > Cardinal(UnpackedSize) then begin
-          FOverflow := True;
           FDecoderStatus := dsOutputBufferTooSmall;
           RunLength := UnpackedSize div 2;
         end;
@@ -1638,7 +1634,6 @@ begin
           end
         end;
         if RunLength*4 > Cardinal(UnpackedSize) then begin
-          FOverflow := True;
           FDecoderStatus := dsOutputBufferTooSmall;
           RunLength := UnpackedSize div 4;
         end;
