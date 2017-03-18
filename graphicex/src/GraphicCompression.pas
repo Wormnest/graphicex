@@ -196,6 +196,7 @@ type
     procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
+  // Since LZ77 already has its own error codes we are not using DecoderStatus here.
   // zip using zlib
   TLZ77Decoder = class(TDecoder)
   private
