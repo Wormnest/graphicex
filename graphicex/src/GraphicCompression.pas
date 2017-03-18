@@ -1937,6 +1937,11 @@ var
 begin
   if FDecoderStatus <> dsOK then
     Exit;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
   Target := Dest;
   SourcePtr := Source;
   FDecompressedBytes := UnpackedSize;

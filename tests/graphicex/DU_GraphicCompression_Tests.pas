@@ -182,9 +182,40 @@ type
     procedure TestDecompressCommands;
   end;
 
+  // Only minimal tests here since it's a lot more difficult to manually
+  // prepare test data for this. Instead we use our collection of test images
+  // including fuzzed ones to check for problems in the decoder.
+  TGIFLZWDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TGIFLZWDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+  end;
+
+  // Since LZ77 already has its own error codes it is not using DecoderStatus.
+  // Only minimal tests here since it's a lot more difficult to manually
+  // prepare test data for this. Instead we use our collection of test images
+  // including fuzzed ones to check for problems in the decoder.
+  // We are also using zlib for this which is a well tested library.
+  TLZ77DecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TLZ77Decoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+  end;
+
 
 implementation
 
+uses ZLibDelphi;
 
 const
   BUFSIZE = 1024; // Size of decompression buffer.
@@ -1869,6 +1900,106 @@ begin
   TestDecompress(FDecoder, Source, 20, 12, 2, 10, dsNotEnoughInput, 22);
 end;
 
+// ********** TGIFLZWDecoderTests **********
+
+// Only minimal tests here since it's a lot more difficult to manually
+// prepare test data for this. Instead we use our collection of test images
+// including fuzzed ones to check for problems in the decoder.
+
+procedure TGIFLZWDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  // For now only test starting with a code size of 8.
+  FDecoder := TGIFLZWDecoder.Create(8);
+end;
+
+procedure TGIFLZWDecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TGIFLZWDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TGIFLZWDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+// ********** TLZ77DecoderTests **********
+
+// Since LZ77 already has its own error codes it is not using DecoderStatus.
+// Only minimal tests here since it's a lot more difficult to manually
+// prepare test data for this. Instead we use our collection of test images
+// including fuzzed ones to check for problems in the decoder.
+// We are also using zlib for this which is a well tested library.
+
+procedure TLZ77DecoderTests.SetUp;
+begin
+  inherited SetUp;
+  // For now only test starting with the parameters PSP uses.
+  FDecoder := TLZ77Decoder.Create(Z_FINISH, False);
+  FDecoder.DecodeInit;
+end;
+
+procedure TLZ77DecoderTests.TearDown;
+begin
+  FDecoder.DecodeEnd;
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TLZ77DecoderTests.TestCompressedSize0;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  InputBuffer[0] := 0;
+  Source := @InputBuffer;
+  // Test for zero length input buffer
+  FDecoder.Decode(Source, FDecompressBuffer, 0, 100);
+  Check(TLZ77Decoder(FDecoder).ZLibResult = Z_BUF_ERROR,
+    Format('ZLib dcoding status not Z_BUF_ERROR but %d.',
+    [TLZ77Decoder(FDecoder).ZLibResult]));
+  Check(TLZ77Decoder(FDecoder).AvailableInput = 0, Format('Compressed bytes not 0 but %d',
+    [TLZ77Decoder(FDecoder).AvailableInput]));
+  // Test for negative length input buffer
+  FDecoder.Decode(Source, FDecompressBuffer, -1, 100);
+  Check(TLZ77Decoder(FDecoder).ZLibResult = Z_BUF_ERROR,
+    Format('ZLib dcoding status not Z_BUF_ERROR but %d.',
+    [TLZ77Decoder(FDecoder).ZLibResult]));
+  Check(TLZ77Decoder(FDecoder).AvailableInput = -1, Format('Compressed bytes not -1 but %d',
+    [TLZ77Decoder(FDecoder).AvailableInput]));
+end;
+
+procedure TLZ77DecoderTests.TestDecompressedSize0;
+var InputBuffer: array [0..1] of byte;
+  Source: Pointer;
+begin
+  InputBuffer[0] := 0;
+  Source := @InputBuffer;
+  // Test for zero length input buffer
+  FDecoder.Decode(Source, FDecompressBuffer, 1, 0);
+  Check(TLZ77Decoder(FDecoder).ZLibResult = Z_BUF_ERROR,
+    Format('ZLib dcoding status not Z_BUF_ERROR but %d.',
+    [TLZ77Decoder(FDecoder).ZLibResult]));
+  Check(TLZ77Decoder(FDecoder).AvailableInput = 0, Format('Compressed bytes not 0 but %d',
+    [TLZ77Decoder(FDecoder).AvailableInput]));
+  Check(TLZ77Decoder(FDecoder).AvailableOutput = 0, Format('Decompressed bytes not 0 but %d',
+    [TLZ77Decoder(FDecoder).AvailableOutput]));
+  // Test for negative length input buffer
+  FDecoder.Decode(Source, FDecompressBuffer, 1, -1);
+  Check(TLZ77Decoder(FDecoder).ZLibResult = Z_BUF_ERROR,
+    Format('ZLib dcoding status not Z_BUF_ERROR but %d.',
+    [TLZ77Decoder(FDecoder).ZLibResult]));
+  Check(TLZ77Decoder(FDecoder).AvailableInput = 1, Format('Compressed bytes not 1 but %d',
+    [TLZ77Decoder(FDecoder).AvailableInput]));
+  Check(TLZ77Decoder(FDecoder).AvailableOutput = 0, Format('Decompressed bytes not 0 but %d',
+    [TLZ77Decoder(FDecoder).AvailableOutput]));
+end;
+
 
 
 initialization
@@ -1882,6 +2013,8 @@ initialization
       TRLADecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TCutRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TAmigaRGBDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
-      TVDATRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
+      TVDATRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TGIFLZWDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TLZ77DecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
