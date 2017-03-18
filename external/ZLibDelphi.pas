@@ -10,7 +10,7 @@ uses
   Windows, SysUtils;
 
 const
-  ZLIB_VERSION = '1.2.8'; // for compatibility with versions < 1.0.2
+  ZLIB_VERSION = '1.2.8';
 
   // Constants from zlib.h
   // Flush values.
