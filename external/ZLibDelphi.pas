@@ -10,20 +10,53 @@ uses
   Windows, SysUtils;
 
 const
+  ZLIB_VERSION = '1.2.8'; // for compatibility with versions < 1.0.2
 
-  // jb Note version number and obj files updated from 1.2.1 to 1.2.8.
-  // However other defines etc have not been updated.
-  ZLIB_VERSION = '1.2.8';
-
-  Z_NO_FLUSH = 0;
-  // jb next 3 copied from GXzlib
-  Z_PARTIAL_FLUSH = 1; // will be removed, use Z_SYNC_FLUSH instead
+  // Constants from zlib.h
+  // Flush values.
+  Z_NO_FLUSH      = 0;
+  Z_PARTIAL_FLUSH = 1;
   Z_SYNC_FLUSH    = 2;
   Z_FULL_FLUSH    = 3;
-  Z_FINISH = 4;
+  Z_FINISH        = 4;
+  Z_BLOCK         = 5;
+  Z_TREES         = 6;
 
-  Z_OK = 0;
-  Z_STREAM_END = 1;
+  // Return codes for the compression/decompression functions.
+  // Negative values are errors, positive values are used for special but normal events.
+  Z_OK            =  0;
+  Z_STREAM_END    =  1;
+  Z_NEED_DICT     =  2;
+  Z_ERRNO         = -1;
+  Z_STREAM_ERROR  = -2;
+  Z_DATA_ERROR    = -3;
+  Z_MEM_ERROR     = -4;
+  Z_BUF_ERROR     = -5;
+  Z_VERSION_ERROR = -6;
+
+  // compression levels
+  Z_NO_COMPRESSION      =  0;
+  Z_BEST_SPEED          =  1;
+  Z_BEST_COMPRESSION    =  9;
+  Z_DEFAULT_COMPRESSION = -1;
+
+  // compression strategy
+  Z_FILTERED            = 1;
+  Z_HUFFMAN_ONLY        = 2;
+  Z_RLE                 = 3;
+  Z_FIXED               = 4;
+  Z_DEFAULT_STRATEGY    = 0;
+
+  // Possible values of the data_type field
+  Z_BINARY   = 0;
+  Z_TEXT     = 1;
+  Z_ASCII    = Z_TEXT;   // for compatibility with 1.2.2 and earlier
+  Z_UNKNOWN  = 2;
+
+  // The deflate compression method (the only one supported in this version)
+  Z_DEFLATED = 8;
+
+  Z_NULL     = 0;  // for initializing zalloc, zfree, opaque
 
 type
 
