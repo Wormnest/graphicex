@@ -35,7 +35,7 @@ interface
 {$MINENUMSIZE 4}  // C compatible enums
 
 uses SysUtils, Classes, GraphicEx, GraphicColor,
-  gexLayers, gexXCFTypes, gexXCFBlendModes;
+  gexLayers, gexXCFTypes, gexXCFBlendModes, GraphicCompression;
 
 resourcestring
   gesXCF = 'Gimp XCF images';
@@ -136,10 +136,34 @@ type
     property LastWarning: string read FLastWarning;
   end;
 
+  // Xcf compressed data decoders
+  TXcfDecoder = class(TDecoder)
+  private
+    bpp: Integer;
+  public
+    constructor Create(BytesPerPixel: Cardinal);
+    // Encode is an empty procedure since it's not implemented (yet).
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
+    // To stop warning about combining signed and unsigned we set BytesPerPixel to Integer
+    property BytesPerPixel: Integer read bpp write bpp;
+  end;
+
+  TXcfRLEDecoder = class(TXcfDecoder)
+  public
+    // Currently only UnpackedSize is used/checked: it's the size in pixels of a tile (wxh)
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+  end;
+
+  TXcfNoCompressionDecoder = class(TXcfDecoder)
+  public
+    // Currently only UnpackedSize is used/checked: it's the size in pixels of a tile (wxh)
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+  end;
+
 
 implementation
 
-uses Windows, gexTypes, GraphicStrings, GraphicCompression, gexUtils;
+uses Windows, gexTypes, GraphicStrings, gexUtils;
 
 const gimp_base_id = 'gimp xcf ';
       gimp_id2     = 'file';
@@ -170,30 +194,6 @@ type TXcfHeader = record
    end;
    PXcfImage = ^TXcfImage;
 }
-
-  // Xcf compressed data decoders
-  TXcfDecoder = class(TDecoder)
-  private
-    bpp: Integer;
-  public
-    constructor Create(BytesPerPixel: Cardinal);
-    // Encode is an empty procedure since it's not implemented (yet).
-    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
-    // To stop warning about combining signed and unsigned we set BytesPerPixel to Integer
-    property BytesPerPixel: Integer read bpp write bpp;
-  end;
-
-  TXcfRLEDecoder = class(TXcfDecoder)
-  public
-    // Currently only UnpackedSize is used/checked: it's the size in pixels of a tile (wxh)
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-  end;
-
-  TXcfNoCompressionDecoder = class(TXcfDecoder)
-  public
-    // Currently only UnpackedSize is used/checked: it's the size in pixels of a tile (wxh)
-    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
-  end;
 
 
 //----------------- TXcfDecoder ------------------------------------------------
