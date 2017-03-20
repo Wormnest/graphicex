@@ -201,6 +201,11 @@ type TXcfHeader = record
 constructor TXcfDecoder.Create(BytesPerPixel: Cardinal);
 begin
   bpp := BytesPerPixel;
+  if bpp = 0 then begin
+    // Make sure we don't cause buffer overflows because of incorrect input.
+    bpp := 1;
+    FDecoderStatus := dsInitializationError;
+  end;
 end;
 
 procedure TXcfDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
@@ -218,68 +223,130 @@ var
   DestCopy,
   TargetPtr: PByte;
   Val: Byte;
-  RunLength: Cardinal;
+  RunLength: Integer;
   Size: Integer;
   i, j: Integer;
-  //UnpackedCount: Integer;
+  OutputLeft: Integer;
 begin
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
   SourcePtr := Source;
   DestCopy := Dest; // Don't change the original Dest
-  //UnpackedCount := 0;
   for i := 0 to bpp-1 do begin
+    // Data is compressed per plane
     TargetPtr := DestCopy; Inc(DestCopy);
     Size := UnpackedSize;
     while Size > 0 do begin
-      Val := SourcePtr^;
+      if PackedSize < 1 then begin
+        FDecoderStatus := dsNotEnoughInput;
+        break;
+      end;
+      RunLength := ShortInt(SourcePtr^);
       Inc(SourcePtr);
-      RunLength := Val;
-      if RunLength >= 128 then begin
-        RunLength := 255 - (RunLength-1);
+      Dec(PackedSize);
+      if RunLength < 0 then begin
+        RunLength := abs(RunLength);
         if RunLength = 128 then begin
-          { TODO!!
-          if > datalimit then
-          // error bogus rle
-          }
+          // Next big endian word is RunLength (unsigned).
+          if PackedSize < 2 then begin
+            FDecoderStatus := dsNotEnoughInput;
+            break;
+          end;
           RunLength := SourcePtr^ shl 8; Inc(SourcePtr);
           RunLength := RunLength + SourcePtr^; Inc(SourcePtr);
+          Dec(PackedSize, 2);
+        end;
+        if RunLength > PackedSize then begin
+          FDecoderStatus := dsNotEnoughInput;
+          RunLength := PackedSize;
+        end;
+        if RunLength > Size then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := Size;
         end;
         Dec(Size, RunLength);
-        if Size < 0 then
-          // error: bogus rle
-          Exit;
-        // todo: test that RunLength ...
+        Dec(PackedSize, RunLength);
+        // Move RunLength bytes from Source to Dest pixel plane
         while RunLength > 0 do begin
           TargetPtr^ := SourcePtr^;
           Inc(SourcePtr);
-          Inc(TargetPtr, bpp);
+          Inc(TargetPtr, bpp); // Skip to next pixel
           Dec(RunLength);
         end;
-        Inc(TargetPtr, RunLength);
+        if FDecoderStatus <> dsOk then
+          break;
       end
-      else begin // < 128
+      else begin // >= 0
         Inc(RunLength);
         if RunLength = 128 then begin
-          { TODO!!
-          if > datalimit then
-          // error bogus rle
-          }
+          // Next big endian word is RunLength (unsigned).
+          if PackedSize < 2 then begin
+            FDecoderStatus := dsNotEnoughInput;
+            break;
+          end;
           RunLength := SourcePtr^ shl 8; Inc(SourcePtr);
           RunLength := RunLength + SourcePtr^; Inc(SourcePtr);
+          Dec(PackedSize, 2);
         end;
-        Dec(Size, RunLength);
-        if Size < 0 then
-          // error: bogus rle
-          Exit;
-        // todo: test that RunLength ...
+        // Get Source byte
+        if PackedSize < 1 then begin
+          FDecoderStatus := dsNotEnoughInput;
+          break;
+        end;
         Val := SourcePtr^;
         Inc(SourcePtr);
-        for j := 0 to  RunLength-1 do begin
-          TargetPtr^ := Val;
-          Inc(TargetPtr, bpp);
+        Dec(PackedSize);
+        if RunLength > Size then begin
+          FDecoderStatus := dsOutputBufferTooSmall;
+          RunLength := Size;
         end;
+        Dec(Size, RunLength);
+        // Fill Source byte RunLength times in Dest pixel plane
+        for j := 0 to RunLength-1 do begin
+          TargetPtr^ := Val;
+          Inc(TargetPtr, bpp); // Skip to next pixel
+        end;
+        if FDecoderStatus <> dsOk then
+          break;
       end;
     end; // while
+    Inc(FDecompressedBytes, UnpackedSize-Size);
+    if FDecoderStatus <> dsOk then
+      break;
   end; // for
+  FCompressedBytesAvailable := PackedSize;
+  if FDecoderStatus = dsOK then begin
+    // Only check if status is ok. If it is not OK we already know something is wrong.
+    if PackedSize <> 0 then begin
+      if PackedSize < 0 then begin
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesInputBufferOverflow, ['XCF RLE decoder']));
+      end
+      else begin // > 0
+        // No error here since PackedSize may not be exact in Gimp
+        // (for the last tile next offset is calculated/guessed)
+      end;
+    end;
+    OutputLeft:= UnpackedSize * bpp - FDecompressedBytes;
+    if OutputLeft <> 0 then begin
+      if OutputLeft > 0 then begin
+        // Broken/corrupt image
+        FDecoderStatus := dsNotEnoughInput;
+      end
+      else begin // < 0
+        FDecoderStatus := dsInternalError;
+        // This is a serious flaw: we got buffer overflow that we should have caught. We need to stop right now.
+        CompressionError(Format(gesOutputBufferOverflow, ['XCF RLE decoder']));
+      end;
+    end;
+  end;
 end;
 
 
@@ -289,7 +356,21 @@ end;
 procedure TXcfNoCompressionDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
 begin
   // WARNING: NOT TESTED! (I have no samples where there is no compression.)
-  Move(Source^, Dest^, UnpackedSize * bpp);
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
+  FDecompressedBytes := UnpackedSize * bpp;
+  if FDecompressedBytes > PackedSize then begin
+    FDecompressedBytes := PackedSize;
+    FDecoderStatus := dsNotEnoughInput;
+  end;
+  Dec(FCompressedBytesAvailable, FDecompressedBytes);
+  Move(Source^, Dest^, FDecompressedBytes);
 end;
 
 
