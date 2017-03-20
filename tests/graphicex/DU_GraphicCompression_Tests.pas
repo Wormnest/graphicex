@@ -13,7 +13,8 @@ uses
   {$ELSE}
   fpcunit, testregistry,
   {$ENDIF}
-  GraphicCompression
+  GraphicCompression,
+  gexXCF
   ;
 
 
@@ -211,6 +212,36 @@ type
     procedure TestCompressedSize0;
     procedure TestDecompressedSize0;
   end;
+
+  // Gimp XCF RLE decoder
+  TXcfRLEDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder1: TXcfRLEDecoder;
+    FDecoder4: TXcfRLEDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompressIncomplete1;
+    procedure TestDecompressMove1;
+    procedure TestDecompressFill1;
+  end;
+
+  // Gimp Dummy decoder
+  TXcfNoCompressionDecoderTests = class(TCompressionTestsBase)
+  private
+    FDecoder: TXcfNoCompressionDecoder;
+  public
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestCompressedSize0;
+    procedure TestDecompressedSize0;
+    procedure TestDecompressedMove;
+  end;
+
 
 
 implementation
@@ -2000,6 +2031,180 @@ begin
     [TLZ77Decoder(FDecoder).AvailableOutput]));
 end;
 
+// ********** TXcfRLEDecoderTests **********
+
+procedure TXcfRLEDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  FDecoder1 := TXcfRLEDecoder.Create(1);
+  // RGBA
+  FDecoder4 := TXcfRLEDecoder.Create(4);
+end;
+
+procedure TXcfRLEDecoderTests.TearDown;
+begin
+  FDecoder1.Free;
+  // TODO:
+  FDecoder4.Free;
+  inherited TearDown;
+end;
+
+procedure TXcfRLEDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder1);
+end;
+
+procedure TXcfRLEDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder1);
+end;
+
+procedure TXcfRLEDecoderTests.TestDecompressIncomplete1;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  // Tests for Decoding of 1 bytes per pixel Decoder incomplete data.
+  // Packed Data is loaded per plane.
+
+  // 1 byte input
+  InputBuffer[0] := $80; // -128 --> next big endian word = RunLength
+  TestDecompress(FDecoder1, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder1, Source, 1, 1, 0, 0, dsNotEnoughInput, 2);
+  InputBuffer[0] := $ff; // -1 = move RunLength (1) bytes input to output
+  TestDecompress(FDecoder1, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder1, Source, 1, 1, 0, 0, dsNotEnoughInput, 4);
+  InputBuffer[0] := $7f; // 127 = next big endian word = RunLength
+  TestDecompress(FDecoder1, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 5);
+  TestDecompress(FDecoder1, Source, 1, 1, 0, 0, dsNotEnoughInput, 6);
+  InputBuffer[0] := $0; // 0 = fill 1 byte input RunLength (1) times to output
+  TestDecompress(FDecoder1, Source, 1, BUFSIZE, 0, 0, dsNotEnoughInput, 7);
+  TestDecompress(FDecoder1, Source, 1, 1, 0, 0, dsNotEnoughInput, 8);
+
+  // 2 bytes input
+  InputBuffer[0] := $80; // -128 --> next big endian word = RunLength
+  InputBuffer[1] := $ff; // Incomplete RunLength Word
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 1, 0, dsNotEnoughInput, 9);
+  TestDecompress(FDecoder1, Source, 2, 1, 1, 0, dsNotEnoughInput, 10);
+  InputBuffer[0] := $fe; // -2 = move RunLength (2) bytes input to output
+  InputBuffer[1] := $ff; // Data byte (but we need 2 data bytes)
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 0, 1, dsNotEnoughInput, 11);
+  TestDecompress(FDecoder1, Source, 2, 2, 0, 1, dsNotEnoughInput, 12);
+  InputBuffer[0] := $7f; // 127 = next big endian word = RunLength
+  InputBuffer[1] := $ff; // Incomplete RunLength Word
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 1, 0, dsNotEnoughInput, 13);
+  TestDecompress(FDecoder1, Source, 2, 1, 1, 0, dsNotEnoughInput, 14);
+
+  // more bytes of input
+  InputBuffer[0] := $80; // -128 --> next big endian word = RunLength
+  InputBuffer[1] := $01;
+  InputBuffer[2] := $00; // RunLength 256, but no data bytes follow
+  TestDecompress(FDecoder1, Source, 3, BUFSIZE, 0, 0, dsNotEnoughInput, 15);
+  TestDecompress(FDecoder1, Source, 3, 256, 0, 0, dsNotEnoughInput, 16);
+  InputBuffer[1] := $00;
+  InputBuffer[2] := $02; // RunLength 2, but only 1 data byte follows
+  InputBuffer[3] := $ff; // First and only data byte
+  TestDecompress(FDecoder1, Source, 4, BUFSIZE, 0, 1, dsNotEnoughInput, 17);
+  TestDecompress(FDecoder1, Source, 4, 2, 0, 1, dsNotEnoughInput, 18);
+  InputBuffer[0] := $7f; // 127 = next big endian word = RunLength
+  InputBuffer[1] := $00;
+  InputBuffer[2] := $02; // RunLength = 2 but no data byte follows
+  TestDecompress(FDecoder1, Source, 3, BUFSIZE, 0, 0, dsNotEnoughInput, 19);
+  TestDecompress(FDecoder1, Source, 3, 1, 0, 0, dsNotEnoughInput, 20);
+end;
+
+procedure TXcfRLEDecoderTests.TestDecompressMove1;
+var InputBuffer: array [0..4] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := $80; // -128 --> next big endian word = RunLength
+  InputBuffer[1] := $00;
+  InputBuffer[2] := $01; // RunLength 1. Move 1 data byte to output
+  InputBuffer[3] := $ab; // data byte
+  TestDecompress(FDecoder1, Source, 4, BUFSIZE, 0, 1, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder1, Source, 4, 1, 0, 1, dsOk, 2);
+  InputBuffer[2] := $02; // RunLength 2. Move 2 data bytes to output
+  InputBuffer[3] := $ab; // data byte
+  InputBuffer[4] := $cd; // data byte
+  TestDecompress(FDecoder1, Source, 5, BUFSIZE, 0, 2, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder1, Source, 5, 2, 0, 2, dsOk, 4);
+  TestDecompress(FDecoder1, Source, 5, 1, 1, 1, dsOutputBufferTooSmall, 5);
+
+  InputBuffer[0] := $ff; // RunLength 1. Move 1 data byte to output
+  InputBuffer[1] := $ab; // data byte
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 0, 1, dsNotEnoughInput, 6);
+  TestDecompress(FDecoder1, Source, 2, 1, 0, 1, dsOk, 7);
+  InputBuffer[0] := $fe; // RunLength 2. Move 2 data bytes to output
+  InputBuffer[1] := $ab; // data byte
+  InputBuffer[2] := $ba; // data byte
+  TestDecompress(FDecoder1, Source, 3, BUFSIZE, 0, 2, dsNotEnoughInput, 8);
+  TestDecompress(FDecoder1, Source, 3, 2, 0, 2, dsOk, 9);
+  TestDecompress(FDecoder1, Source, 3, 1, 1, 1, dsOutputBufferTooSmall, 10);
+end;
+
+procedure TXcfRLEDecoderTests.TestDecompressFill1;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer;
+  InputBuffer[0] := $7f; // 128 --> next big endian word = RunLength
+  InputBuffer[1] := $00;
+  InputBuffer[2] := $01; // RunLength 1. Fill data byte 1 times to output
+  InputBuffer[3] := $ab; // data byte
+  TestDecompress(FDecoder1, Source, 4, BUFSIZE, 0, 1, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder1, Source, 4, 1, 0, 1, dsOk, 2);
+  InputBuffer[2] := $02; // RunLength 2. Fil data byte 2 times to output
+  InputBuffer[3] := $ba; // data byte
+  TestDecompress(FDecoder1, Source, 4, BUFSIZE, 0, 2, dsNotEnoughInput, 3);
+  TestDecompress(FDecoder1, Source, 4, 2, 0, 2, dsOk, 4);
+  TestDecompress(FDecoder1, Source, 4, 1, 0, 1, dsOutputBufferTooSmall, 5);
+
+  InputBuffer[0] := $00; // RunLength 1. Fill data byte 1 times to output
+  InputBuffer[1] := $ab; // data byte
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 0, 1, dsNotEnoughInput, 6);
+  TestDecompress(FDecoder1, Source, 2, 1, 0, 1, dsOk, 7);
+  InputBuffer[0] := $01; // RunLength 2. Fill data byte 2 times to output
+  InputBuffer[1] := $ba; // data byte
+  TestDecompress(FDecoder1, Source, 2, BUFSIZE, 0, 2, dsNotEnoughInput, 8);
+  TestDecompress(FDecoder1, Source, 2, 2, 0, 2, dsOk, 9);
+  TestDecompress(FDecoder1, Source, 2, 1, 0, 1, dsOutputBufferTooSmall, 10);
+end;
+
+// ********** TXcfNoCompressionDecoderTests **********
+
+procedure TXcfNoCompressionDecoderTests.SetUp;
+begin
+  inherited SetUp;
+  // For now only test starting with 4 bytes per pixel (RGBA)
+  FDecoder := TXcfNoCompressionDecoder.Create(4);
+end;
+
+procedure TXcfNoCompressionDecoderTests.TearDown;
+begin
+  FDecoder.Free;
+  inherited TearDown;
+end;
+
+procedure TXcfNoCompressionDecoderTests.TestCompressedSize0;
+begin
+  TestCompressedSizeLimits(FDecoder);
+end;
+
+procedure TXcfNoCompressionDecoderTests.TestDecompressedSize0;
+begin
+  TestDecompressedSizeLimits(FDecoder);
+end;
+
+procedure TXcfNoCompressionDecoderTests.TestDecompressedMove;
+var InputBuffer: array [0..3] of byte;
+  Source: Pointer;
+begin
+  Source := @InputBuffer; // Actual data doesn't matter here
+  // Remember UnpackedSize is in pixels but DecompressedBytes is bytes.
+  TestDecompress(FDecoder, Source, 4, BUFSIZE, 0, 4, dsNotEnoughInput, 1);
+  TestDecompress(FDecoder, Source, 4, 1, 0, 4, dsOk, 2);
+end;
 
 
 initialization
@@ -2015,6 +2220,8 @@ initialization
       TAmigaRGBDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TVDATRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
       TGIFLZWDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
-      TLZ77DecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
+      TLZ77DecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TXcfRLEDecoderTests{$IFNDEF FPC}.Suite{$ENDIF},
+      TXcfNoCompressionDecoderTests{$IFNDEF FPC}.Suite{$ENDIF}
     ]);
 end.
