@@ -6176,8 +6176,12 @@ begin
         SourceSamplesPerPixel := SamplesPerPixel;
         TargetSamplesPerPixel := SamplesPerPixel;
 
-        if SampleFormat = 3 then // Floating point
-          ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
+      // According to fileformatinfo a value of 3 should be float.
+      // However according to the samples form OpenImageIO float has a value of 4.
+        if (SampleFormat in [3, 4]) and (BitsPerSample = 32) then begin
+          // Floating point
+          ColorManager.SourceDataFormat := sdfFloat;
+        end;
 
         SourceBitsPerSample := BitsPerSample;
         if BitsPerSample > 8 then
@@ -6344,7 +6348,11 @@ begin
       Version := abs(Header.Revision);
       Options := [ioBigEndian];
 
-      SampleFormat := Header.Storage_type;
+      // According to fileformatinfo a value of 3 should be float.
+      // However according to the samples form OpenImageIO float has a value of 4.
+      if (Header.Storage_type in [3, 4]) and (Header.Chan_bits = 32) then begin
+        SampleFormat := Header.Storage_type;
+      end;
 
       SamplesPerPixel := Header.num_chan;
       if Header.num_matte = 1 then
