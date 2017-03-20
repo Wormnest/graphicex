@@ -197,8 +197,8 @@ type
     // PNG
     FilterMode: Byte;
 
-    // TIFF
-    SampleFormat: Byte;                // DataType of samples (default = 1 = unsigned int)
+    // TIFF, RLA
+    SampleFormat: Byte;                // DataType of samples (for TIFF: default = 1 = unsigned int)
   end;
 
   // This mode is used when creating a file mapping. See TFileMapping.
