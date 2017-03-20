@@ -94,6 +94,13 @@ type
   // because the image classes which use the decoder classes are already covered and if they
   // aren't compiled then the decoders are also not compiled (more precisely: not linked)
 
+  TNoCompressionDecoder = class(TDecoder)
+  public
+    // PackedSize and UnpackedSize should be the same since this Decoder does
+    // not do any decoding but a simple Move of bytes from Source to Dest.
+    procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+  end;
+
   // Targa is the only class that currently also has an encoder besides a decoder.
   TTargaRLEDecoder = class(TDecoder)
   private
@@ -426,6 +433,27 @@ procedure TDecoder.EncodeInit;
 // called before any compression can start
 
 begin
+end;
+
+//----------------- TNoCompressionDecoder -----------------------------------------------------------------------------------
+
+procedure TNoCompressionDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer);
+begin
+  FCompressedBytesAvailable := PackedSize;
+  FDecompressedBytes := 0;
+  if (PackedSize <= 0) or (UnpackedSize <= 0) then begin
+    FCompressedBytesAvailable := 0;
+    FDecoderStatus := dsInvalidBufferSize;
+    Exit;
+  end;
+  FDecoderStatus := dsOK;
+  FDecompressedBytes := UnpackedSize;
+  if FDecompressedBytes > PackedSize then begin
+    FDecompressedBytes := PackedSize;
+    FDecoderStatus := dsNotEnoughInput;
+  end;
+  Dec(FCompressedBytesAvailable, FDecompressedBytes);
+  Move(Source^, Dest^, FDecompressedBytes);
 end;
 
 //----------------- TTargaRLEDecoder -----------------------------------------------------------------------------------
