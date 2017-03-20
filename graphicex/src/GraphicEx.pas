@@ -6206,7 +6206,9 @@ begin
           Include(Options, ioUseGamma);
         end;
         // Uses separate channels thus we need to set that in source options.
-        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+        // Also uses big endian byte order.
+        ColorManager.SourceOptions := ColorManager.SourceOptions +
+          [coSeparatePlanes, coNeedByteSwap];
       end;
 
       // dimension of image, top might be larger than bottom denoting a bottom up image
