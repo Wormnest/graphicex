@@ -67,6 +67,8 @@ type
   // abstract decoder class to define the base functionality of an encoder/decoder
   TDecoder = class
   private
+  protected
+    // protected to make them accessible by descendants in other units
     FCompressedBytesAvailable,
     FDecompressedBytes: Integer;
     FDecoderStatus: TDecoderStatus;
@@ -360,6 +362,9 @@ type
   end;
 
 {$ENDIF UNSAFE_DECODERS}
+
+// For use by decoders in other units.
+procedure CompressionError(ErrorString: String);
 
 //----------------------------------------------------------------------------------------------------------------------
 
