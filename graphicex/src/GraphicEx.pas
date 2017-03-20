@@ -6165,140 +6165,134 @@ begin
 
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
-    with FImageProperties do
-    begin
-      Run := Memory;
+    Run := Memory;
 
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
-      with ColorManager do
-      begin
-        SourceSamplesPerPixel := SamplesPerPixel;
-        TargetSamplesPerPixel := SamplesPerPixel;
+    ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
 
-      // According to fileformatinfo a value of 3 should be float.
-      // However according to the samples form OpenImageIO float has a value of 4.
-        if (SampleFormat in [3, 4]) and (BitsPerSample = 32) then begin
-          // Floating point
-          ColorManager.SourceDataFormat := sdfFloat;
-        end;
-
-        SourceBitsPerSample := BitsPerSample;
-        if BitsPerSample > 8 then
-          TargetBitsPerSample := 8
-        else
-          TargetBitsPerSample := BitsPerSample;
-        SourceColorScheme := ColorScheme;
-        case ColorScheme of
-          csRGBA, csGA: TargetColorScheme := csBGRA;
-          csRGB, csXYZ: TargetColorScheme := csBGR;
-          csG: TargetColorScheme := csBGR;
-        else
-        end;
-
-        PixelFormat := TargetPixelFormat;
-
-        if Abs(FileGamma) >= 0.01 then
-        begin
-          // Gamma is apparently already applied to the image in rla, meaning
-          // we don't need to set it in TargetOptions.
-          Include(Options, ioUseGamma);
-        end;
-        // Uses separate channels thus we need to set that in source options.
-        // Also uses big endian byte order.
-        ColorManager.SourceOptions := ColorManager.SourceOptions +
-          [coSeparatePlanes, coNeedByteSwap];
-      end;
-
-      // dimension of image, top might be larger than bottom denoting a bottom up image
-      Self.Width := Width;
-      Self.Height := Height;
-
-      // Each scanline is organized in RLE compressed strips whose location in the stream
-      // is determined by the offsets table.
-      SetLength(Offsets, Height);
-      Inc(Run, SizeOf(TRLAHeader)); // Offsets are located right after the header
-      Move(Run^, Offsets[0], Height * SizeOf(Cardinal));
-      Inc(Run, Height * SizeOf(Cardinal));
-      SwapCardinalArrayEndian(PCardinal(Offsets), Height);
-
-      // Setup intermediate storage.
-      Decoder := TRLADecoder.Create;
-      RawBuffer := nil;
-      RedBuffer := nil;
-      GreenBuffer := nil;
-      BlueBuffer := nil;
-      AlphaBuffer := nil;
-      BufferSize := (BitsPerSample + 7) div 8 * Width;
-      try
-        GetMem(RedBuffer, BufferSize);
-        GetMem(GreenBuffer, BufferSize);
-        GetMem(BlueBuffer, BufferSize);
-        GetMem(AlphaBuffer, BufferSize);
-
-        // no go for each scanline
-        for Y := 0 to Height - 1 do
-        begin
-          Run := Pointer(PAnsiChar(Memory) + Offsets[Y]);
-          if Orientation = gexoBottomLeft then
-            Line := ScanLine[Height - Y - 1]
-          else // TopLeft
-            Line := ScanLine[Y];
-          // read channel data to decode
-          // red
-          Move(Run^, RLELength, SizeOf(RLELength));
-          Inc(Run, SizeOf(RLELength));
-          RLELength := SwapEndian(RLELength);
-          RawBuffer := Run;
-          Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, RedBuffer, RLELength, BufferSize);
-          // green
-          Move(Run^, RLELength, SizeOf(RLELength));
-          Inc(Run, SizeOf(RLELength));
-          RLELength := SwapEndian(RLELength);
-          RawBuffer := Run;
-          Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, GreenBuffer, RLELength, BufferSize);
-          // blue
-          Move(Run^, RLELength, SizeOf(RLELength));
-          Inc(Run, SizeOf(RLELength));
-          RLELength := SwapEndian(RLELength);
-          RawBuffer := Run;
-          Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, BlueBuffer, RLELength, BufferSize);
-
-          if ColorManager.TargetColorScheme = csBGR then
-          begin
-            ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], Line, Width, $FF);
-          end
-          else
-          begin
-            // alpha
-            Move(Run^, RLELength, SizeOf(RLELength));
-            Inc(Run, SizeOf(RLELength));
-            RLELength := SwapEndian(RLELength);
-            Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, BufferSize);
-
-            ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], Line, Width, $FF);
-          end;
-
-          Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-          OffsetRect(FProgressRect, 0, 1);
-        end;
-      finally
-        if Assigned(RedBuffer) then
-          FreeMem(RedBuffer);
-        if Assigned(GreenBuffer) then
-          FreeMem(GreenBuffer);
-        if Assigned(BlueBuffer) then
-          FreeMem(BlueBuffer);
-        if Assigned(AlphaBuffer) then
-          FreeMem(AlphaBuffer);
-        FreeAndNil(Decoder);
-      end;
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
+  // According to fileformatinfo a value of 3 should be float.
+  // However according to the samples form OpenImageIO float has a value of 4.
+    if (FImageProperties.SampleFormat in [3, 4]) and (FImageProperties.BitsPerSample = 32) then begin
+      // Floating point
+      ColorManager.SourceDataFormat := sdfFloat;
     end;
+
+    ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+    if FImageProperties.BitsPerSample > 8 then
+      ColorManager.TargetBitsPerSample := 8
+    else
+      ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+    case FImageProperties.ColorScheme of
+      csRGBA, csGA: ColorManager.TargetColorScheme := csBGRA;
+      csRGB, csXYZ: ColorManager.TargetColorScheme := csBGR;
+      csG: ColorManager.TargetColorScheme := csBGR;
+    else
+    end;
+
+    PixelFormat := ColorManager.TargetPixelFormat;
+
+    if Abs(FImageProperties.FileGamma) >= 0.01 then
+    begin
+      // Gamma is apparently already applied to the image in rla, meaning
+      // we don't need to set it in TargetOptions.
+      Include(FImageProperties.Options, ioUseGamma);
+    end;
+    // Uses separate channels thus we need to set that in source options.
+    // Also uses big endian byte order.
+    ColorManager.SourceOptions := ColorManager.SourceOptions +
+      [coSeparatePlanes, coNeedByteSwap];
+
+    // dimension of image, top might be larger than bottom denoting a bottom up image
+    Self.Width := FImageProperties.Width;
+    Self.Height := FImageProperties.Height;
+
+    // Each scanline is organized in RLE compressed strips whose location in the stream
+    // is determined by the offsets table.
+    SetLength(Offsets, Height);
+    Inc(Run, SizeOf(TRLAHeader)); // Offsets are located right after the header
+    Move(Run^, Offsets[0], Height * SizeOf(Cardinal));
+    Inc(Run, Height * SizeOf(Cardinal));
+    SwapCardinalArrayEndian(PCardinal(Offsets), Height);
+
+    // Setup intermediate storage.
+    Decoder := TRLADecoder.Create;
+    RawBuffer := nil;
+    RedBuffer := nil;
+    GreenBuffer := nil;
+    BlueBuffer := nil;
+    AlphaBuffer := nil;
+    BufferSize := (FImageProperties.BitsPerSample + 7) div 8 * Width;
+    try
+      GetMem(RedBuffer, BufferSize);
+      GetMem(GreenBuffer, BufferSize);
+      GetMem(BlueBuffer, BufferSize);
+      GetMem(AlphaBuffer, BufferSize);
+
+      // no go for each scanline
+      for Y := 0 to Height - 1 do
+      begin
+        Run := Pointer(PAnsiChar(Memory) + Offsets[Y]);
+        if FImageProperties.Orientation = gexoBottomLeft then
+          Line := ScanLine[Height - Y - 1]
+        else // TopLeft
+          Line := ScanLine[Y];
+        // read channel data to decode
+        // red
+        Move(Run^, RLELength, SizeOf(RLELength));
+        Inc(Run, SizeOf(RLELength));
+        RLELength := SwapEndian(RLELength);
+        RawBuffer := Run;
+        Inc(Run, RLELength);
+        Decoder.Decode(RawBuffer, RedBuffer, RLELength, BufferSize);
+        // green
+        Move(Run^, RLELength, SizeOf(RLELength));
+        Inc(Run, SizeOf(RLELength));
+        RLELength := SwapEndian(RLELength);
+        RawBuffer := Run;
+        Inc(Run, RLELength);
+        Decoder.Decode(RawBuffer, GreenBuffer, RLELength, BufferSize);
+        // blue
+        Move(Run^, RLELength, SizeOf(RLELength));
+        Inc(Run, SizeOf(RLELength));
+        RLELength := SwapEndian(RLELength);
+        RawBuffer := Run;
+        Inc(Run, RLELength);
+        Decoder.Decode(RawBuffer, BlueBuffer, RLELength, BufferSize);
+
+        if ColorManager.TargetColorScheme = csBGR then
+        begin
+          ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer], Line, Width, $FF);
+        end
+        else
+        begin
+          // alpha
+          Move(Run^, RLELength, SizeOf(RLELength));
+          Inc(Run, SizeOf(RLELength));
+          RLELength := SwapEndian(RLELength);
+          Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, BufferSize);
+
+          ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], Line, Width, $FF);
+        end;
+
+        Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+        OffsetRect(FProgressRect, 0, 1);
+      end;
+    finally
+      if Assigned(RedBuffer) then
+        FreeMem(RedBuffer);
+      if Assigned(GreenBuffer) then
+        FreeMem(GreenBuffer);
+      if Assigned(BlueBuffer) then
+        FreeMem(BlueBuffer);
+      if Assigned(AlphaBuffer) then
+        FreeMem(AlphaBuffer);
+      FreeAndNil(Decoder);
+    end;
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
   end;
 end;
 
@@ -6341,95 +6335,93 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      Run := Memory;
-      Move(Run^, Header, SizeOf(Header));
+  if Result then begin
+    Run := Memory;
+    Move(Run^, Header, SizeOf(Header));
 
-      // data is always given in big endian order, so swap data which needs this
-      SwapHeader(Header);
-      Version := abs(Header.Revision);
-      Options := [ioBigEndian];
+    // data is always given in big endian order, so swap data which needs this
+    SwapHeader(Header);
+    FImageProperties.Version := abs(Header.Revision);
+    FImageProperties.Options := [ioBigEndian];
 
-      // According to fileformatinfo a value of 3 should be float.
-      // However according to the samples form OpenImageIO float has a value of 4.
-      if (Header.Storage_type in [3, 4]) and (Header.Chan_bits = 32) then begin
-        SampleFormat := Header.Storage_type;
-      end;
-
-      SamplesPerPixel := Header.num_chan;
-      if Header.num_matte = 1 then
-        Inc(SamplesPerPixel);
-      BitsPerSample := Header.Chan_bits;
-      BitsPerPixel := SamplesPerPixel * BitsPerSample;
-
-      if LowerCase(AnsiString(Header.Chan)) = 'rgb' then
-      begin
-        if Header.num_chan = 3 then begin
-          if Header.num_matte > 0 then
-            ColorScheme := csRGBA
-          else
-            ColorScheme := csRGB;
-        end
-        else if Header.num_chan = 1 then begin
-          if Header.num_matte > 0 then
-            ColorScheme := csGA
-          else
-            ColorScheme := csG;
-        end
-      end
-      else if LowerCase(AnsiString(Header.Chan)) = 'xyz' then
-        ColorScheme := csXYZ
-      else
-        ColorScheme := csUnknown;
-
-      // The description of fileformat.info about gamma says:
-      // Gamma contains an ASCII floating-point number representing the gamma
-      // correction factor applied to the image before it was stored. A value of
-      // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
-      if Header.Gamma[0] <> #0 then begin
-        FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
-        if Abs(FileGamma) >= 0.01 then
-          Include(Options, ioUseGamma);
-      end;
-
-      Compression := ctRLE;
-
-      // dimension of image, top might be larger than bottom denoting a bottom up image
-      Width := Header.Active_window.Right - Header.Active_window.Left + 1;
-      Height := Abs(Header.Active_window.Bottom - Header.Active_window.Top) + 1;
-      if (Header.Active_window.Bottom - Header.Active_window.Top) < 0 then
-        Orientation := gexoBottomLeft
-      else
-        Orientation := gexoTopLeft;
-
-      Comment := 'Description: ';
-      if Header.Desc[0] <> #0 then
-        Comment := Comment + AnsiString(Header.Desc)
-      else
-        Comment := Comment + '<none>';
-      if Header.Name[0] <> #0 then
-        Comment := Comment + #10'Original Filename: ' + AnsiString(Header.Name);
-      if Header.ProgramName[0] <> #0 then
-        Comment := Comment + #10'Created with: ' + AnsiString(Header.ProgramName);
-      if Header.Machine[0] <> #0 then
-        Comment := Comment + #10'Computer name: ' + AnsiString(Header.Machine);
-      if Header.User[0] <> #0 then
-        Comment := Comment + #10'User name: ' + AnsiString(Header.User);
-      if Header.Date[0] <> #0 then
-        Comment := Comment + #10'Creation date: ' + AnsiString(Header.Date);
-      if Header.Aspect[0] <> #0 then
-        Comment := Comment + #10'Aspect format: ' + AnsiString(Header.Aspect);
-      if Header.Chan[0] <> #0 then
-        Comment := Comment + #10'Color space: ' + AnsiString(Header.Chan);
-      if Header.Time[0] <> #0 then
-        Comment := Comment + #10'Render time: ' + AnsiString(Header.Time);
-      if Header.Filter[0] <> #0 then
-        Comment := Comment + #10'Post processing filter: ' + AnsiString(Header.Filter);
-
-      Result := True;
+    // According to fileformatinfo a value of 3 should be float.
+    // However according to the samples form OpenImageIO float has a value of 4.
+    if (Header.Storage_type in [3, 4]) and (Header.Chan_bits = 32) then begin
+      FImageProperties.SampleFormat := Header.Storage_type;
     end;
+
+    FImageProperties.SamplesPerPixel := Header.num_chan;
+    if Header.num_matte = 1 then
+      Inc(FImageProperties.SamplesPerPixel);
+    FImageProperties.BitsPerSample := Header.Chan_bits;
+    FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
+
+    if LowerCase(AnsiString(Header.Chan)) = 'rgb' then
+    begin
+      if Header.num_chan = 3 then begin
+        if Header.num_matte > 0 then
+          FImageProperties.ColorScheme := csRGBA
+        else
+          FImageProperties.ColorScheme := csRGB;
+      end
+      else if Header.num_chan = 1 then begin
+        if Header.num_matte > 0 then
+          FImageProperties.ColorScheme := csGA
+        else
+          FImageProperties.ColorScheme := csG;
+      end
+    end
+    else if LowerCase(AnsiString(Header.Chan)) = 'xyz' then
+      FImageProperties.ColorScheme := csXYZ
+    else
+      FImageProperties.ColorScheme := csUnknown;
+
+    // The description of fileformat.info about gamma says:
+    // Gamma contains an ASCII floating-point number representing the gamma
+    // correction factor applied to the image before it was stored. A value of
+    // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
+    if Header.Gamma[0] <> #0 then begin
+      FImageProperties.FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
+      if Abs(FImageProperties.FileGamma) >= 0.01 then
+        Include(FImageProperties.Options, ioUseGamma);
+    end;
+
+    FImageProperties.Compression := ctRLE;
+
+    // dimension of image, top might be larger than bottom denoting a bottom up image
+    FImageProperties.Width := Header.Active_window.Right - Header.Active_window.Left + 1;
+    FImageProperties.Height := Abs(Header.Active_window.Bottom - Header.Active_window.Top) + 1;
+    if (Header.Active_window.Bottom - Header.Active_window.Top) < 0 then
+      FImageProperties.Orientation := gexoBottomLeft
+    else
+      FImageProperties.Orientation := gexoTopLeft;
+
+    FImageProperties.Comment := 'Description: ';
+    if Header.Desc[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + AnsiString(Header.Desc)
+    else
+      FImageProperties.Comment := FImageProperties.Comment + '<none>';
+    if Header.Name[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Original Filename: ' + AnsiString(Header.Name);
+    if Header.ProgramName[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Created with: ' + AnsiString(Header.ProgramName);
+    if Header.Machine[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Computer name: ' + AnsiString(Header.Machine);
+    if Header.User[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'User name: ' + AnsiString(Header.User);
+    if Header.Date[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Creation date: ' + AnsiString(Header.Date);
+    if Header.Aspect[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Aspect format: ' + AnsiString(Header.Aspect);
+    if Header.Chan[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Color space: ' + AnsiString(Header.Chan);
+    if Header.Time[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Render time: ' + AnsiString(Header.Time);
+    if Header.Filter[0] <> #0 then
+      FImageProperties.Comment := FImageProperties.Comment + #10'Post processing filter: ' + AnsiString(Header.Filter);
+
+    Result := True;
+  end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
