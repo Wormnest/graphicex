@@ -6148,6 +6148,7 @@ var
   RLELength: Word;
   Line: Pointer;
   Y: Integer;
+  BufferSize: Cardinal;
 
   // RLE buffers
   RawBuffer,
@@ -6227,11 +6228,12 @@ begin
       GreenBuffer := nil;
       BlueBuffer := nil;
       AlphaBuffer := nil;
+      BufferSize := (BitsPerSample + 7) div 8 * Width;
       try
-        GetMem(RedBuffer, Width);
-        GetMem(GreenBuffer, Width);
-        GetMem(BlueBuffer, Width);
-        GetMem(AlphaBuffer, Width);
+        GetMem(RedBuffer, BufferSize);
+        GetMem(GreenBuffer, BufferSize);
+        GetMem(BlueBuffer, BufferSize);
+        GetMem(AlphaBuffer, BufferSize);
 
         // no go for each scanline
         for Y := 0 to Height - 1 do
@@ -6248,21 +6250,21 @@ begin
           RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, RedBuffer, RLELength, Width);
+          Decoder.Decode(RawBuffer, RedBuffer, RLELength, BufferSize);
           // green
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
           RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, GreenBuffer, RLELength, Width);
+          Decoder.Decode(RawBuffer, GreenBuffer, RLELength, BufferSize);
           // blue
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
           RLELength := SwapEndian(RLELength);
           RawBuffer := Run;
           Inc(Run, RLELength);
-          Decoder.Decode(RawBuffer, BlueBuffer, RLELength, Width);
+          Decoder.Decode(RawBuffer, BlueBuffer, RLELength, BufferSize);
 
           if ColorManager.TargetColorScheme = csBGR then
           begin
@@ -6274,7 +6276,7 @@ begin
             Move(Run^, RLELength, SizeOf(RLELength));
             Inc(Run, SizeOf(RLELength));
             RLELength := SwapEndian(RLELength);
-            Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, Width);
+            Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, BufferSize);
 
             ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], Line, Width, $FF);
           end;
