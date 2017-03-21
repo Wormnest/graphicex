@@ -508,7 +508,10 @@ function ClampByte(Value: Integer): Byte;
 function MulDiv16(Number, Numerator, Denominator: Word): Word;
 
 function GetBitsMSB(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
-function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
+// Can handle up to 25 bits (NumberOfBits)
+function GetBitsMax25(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+// Can handle up to 32 bits (NumberOfBits) but uses UInt64 as intermediary
+function GetBitsMax32(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
 
 //------------------------------------------------------------------------------
 
@@ -4094,12 +4097,40 @@ begin
   Result := PCardinal(BitData)^;
 end;
 
-function GetBits(BitIndex, NumberOfBits: Cardinal; BitData: PCardinal): Cardinal;
+// Can handle up to 25 bits (NumberOfBits)
+function GetBitsMax25(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+var
+  ValidBytes: Cardinal;
+  TempValue: Cardinal;
 begin
-  // TODO Copy available bytes first so we dont get AV at end of buffer!
-  // Since 10 or more bits can be spread over 3 bytes we use a 4 byte Cardinal
-  // NOT USED CURRENTLY since we found out we need to do it with MSB first (big endian)
-  Result := (BitData^ shr BitIndex) and CBitMask[NumberOfBits];
+  // We need to copy the bytes we need first since the shifting will be done on
+  // a 4 byte Cardinal but the buffer may end before that in which case we could
+  // get an AV trying to use 4 bytes directly.
+  // Compute how many bytes should be valid based on the amount we need.
+  ValidBytes := (BitIndex + NumberOfBits + 7) div 8;
+  TempValue := 0;
+  // Copy the valid bytes
+  Move(BitData^, PByte(@TempValue)^, ValidBytes);
+  // Shift bits so it starts and the first bit and mask out the bits we don't need.
+  Result := (TempValue shr BitIndex) and CBitMask[NumberOfBits];
+end;
+
+// Can handle up to 32 bits (NumberOfBits) but uses UInt64 as intermediary
+function GetBitsMax32(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
+var
+  ValidBytes: Cardinal;
+  TempValue: UInt64;
+begin
+  // We need to copy the bytes we need first since the shifting will be done on
+  // a 8 byte UInt64 but the buffer may end before that in which case we could
+  // get an AV trying to use 8 bytes directly.
+  // Compute how many bytes should be valid based on the amount we need.
+  ValidBytes := (BitIndex + NumberOfBits + 7) div 8;
+  TempValue := 0;
+  // Copy the valid bytes
+  Move(BitData^, PByte(@TempValue)^, ValidBytes);
+  // Shift bits so it starts and the first bit and mask out the bits we don't need.
+  Result := (TempValue shr BitIndex) and CBitMask[NumberOfBits];
 end;
 
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
