@@ -6134,9 +6134,13 @@ class function TRLAGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 begin
   Result := Size > SizeOf(TRLAHeader);
   if Result then
-    with PRLAHeader(Memory)^ do
-      Result := ((Word(Revision) = $FEFF) or (Word(Revision) = $FDFF)) and
+    with PRLAHeader(Memory)^ do begin
+      Result := ((Word(Revision) = $FEFF) or (Word(Revision) = $FDFF) or (Word(Revision) = 0)) and
         ((StrLIComp(Chan, 'rgb', 3) = 0) or (StrLIComp(Chan, 'xyz', 3) = 0));
+      // Check a few more fields to be sure this is RLA (especially when Revision = 0)
+      if Result then
+        Result := (SwapEndian(Storage_type) in [0..4]) and (SwapEndian(Num_chan) in [1..3]);
+    end;
 end;
 
 //------------------------------------------------------------------------------
