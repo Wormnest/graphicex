@@ -268,10 +268,12 @@ type
   TColorManager = class
   private
     FChanged: Boolean;                 // Set if any of the parameters changed
-    FSourceBPS,                        // Bits per sample of source data (allowed values are 1, 2, 4, 8, 16)
-    FTargetBPS,                        // Bits per sample of target data (allowed values are 1, 2, 4, 8, 16)
-    FSourceSPP,                        // Samples per source pixel (allowed values are 1, 3, 4)
-    FTargetSPP: Byte;                  // Samples per target pixel (allowed values are 1, 3, 4)
+    FSourceBPS,                        // Bits per sample of source data
+    FTargetBPS,                        // Bits per sample of target data
+    FSourceExtraBPS,                   // Extra bits per sample that should be ignored in Source
+    FTargetExtraBPS,                   // Extra bits per sample that should be ignored in Target
+    FSourceSPP,                        // Samples per source pixel
+    FTargetSPP: Byte;                  // Samples per target pixel
     FSourceExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a source pixel
     FTargetExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a target pixel
     FSourceMultiBPS: array of Byte;    // Source bits per sample for each channel when not all values are the same (e.g. bmp 565)
@@ -400,6 +402,7 @@ type
     property SourcePixelFormat: TPixelFormat index 0 read GetPixelFormat;
     property SourceSamplesPerPixel: Byte read FSourceSPP write SetSourceSamplesPerPixel;
     property SourceDataFormat: TSampleDataFormat read FSourceDataFormat write SetSourceDataFormat;
+    property SourceExtraBPS: Byte read FSourceExtraBPS write FSourceExtraBPS;
     property SourceExtraBPP: Byte read FSourceExtraBPP write FSourceExtraBPP;
     property TargetBitsPerSample: Byte read FTargetBPS write SetTargetBitsPerSample;
     property TargetColorScheme: TColorScheme read FTargetScheme write SetTargetColorScheme;
@@ -407,6 +410,7 @@ type
     property TargetPixelFormat: TPixelFormat index 1 read GetPixelFormat;
     property TargetSamplesPerPixel: Byte read FTargetSPP write SetTargetSamplesPerPixel;
     property TargetDataFormat: TSampleDataFormat read FTargetDataFormat write SetTargetDataFormat;
+    property TargetExtraBPS: Byte read FTargetExtraBPP write FTargetExtraBPS;
     property TargetExtraBPP: Byte read FTargetExtraBPP write FTargetExtraBPP;
   end;
 
