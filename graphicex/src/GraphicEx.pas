@@ -6089,6 +6089,48 @@ type
     Top: SmallInt;
   end;
 
+  // For the "original" RLA header see: https://github.com/sarnold/urt/blob/master/cnv/rla_header.h
+  // RLB header see: https://github.com/sarnold/urt/blob/master/cnv/rlb_header.h
+  // RLB header is mostly the same as the new RLA header except some fields at the end and the missing Revision
+  TRLBHeader = packed record
+    Window,                            // overall image size
+    Active_window: TRLAWindow;         // size of non-zero portion of image (we use this as actual image size)
+    Frame,                             // frame number if part of a sequence
+    Storage_type,                      // type of image channels (0 - integer data, 1 - float data)
+    Num_chan,                          // samples per pixel (usually 3: r, g, b)
+    Num_matte,                         // number of matte channels (usually only 1)
+    Num_aux,                           // number of auxiliary channels, usually 0
+    Aux_mask: SmallInt;                // Usually 0.
+    Gamma: array[0..15] of AnsiChar;       // gamma single value used when writing the image
+    Red_pri: array[0..23] of AnsiChar;     // used chromaticity for red channel (typical format: "%7.4f %7.4f")
+    Green_pri: array[0..23] of AnsiChar;   // used chromaticity for green channel
+    Blue_pri: array[0..23] of AnsiChar;    // used chromaticity for blue channel
+    White_pt: array[0..23] of AnsiChar;    // used chromaticity for white point
+    Job_num: Integer;                      // rendering speciifc
+    Name: array[0..127] of AnsiChar;       // original file name
+    Desc: array[0..127] of AnsiChar;       // a file description
+    ProgramName: array[0..63] of AnsiChar; // name of program which created the image
+    Machine: array[0..31] of AnsiChar;     // name of computer on which the image was rendered
+    User: array[0..31] of AnsiChar;        // user who ran the creation program of the image
+    Date: array[0..19] of AnsiChar;        // creation data of image (ex: Sep 30 12:29 1993)
+    Aspect: array[0..23] of AnsiChar;      // aspect format of the file (external resource)
+    Aspect_ratio: array[0..7] of AnsiChar; // float number Width /Height
+    Chan: array[0..31] of AnsiChar;        // color space (can be: rgb, xyz, sampled or raw)
+    // All fields below are not present in the original RLA specification (RLA)
+    Field: SmallInt;                       // 0 - non-field rendered data, 1 - field rendered data
+    Filter_type: SmallInt;
+    Magic_number: Integer;
+    Lut_size: Integer;
+    User_space_size: Integer;
+    Wf_space_size: Integer;
+    Lut_type,
+    Mix_type,
+    Encode_type,
+    Padding: SmallInt;
+    Space: array[0..99] of Byte;       // unused
+  end;
+
+  // "New" version RLA header
   PRLAHeader = ^TRLAHeader;
   TRLAHeader = packed record
     Window,                            // overall image size
@@ -6098,6 +6140,7 @@ type
     Num_chan,                          // samples per pixel (usually 3: r, g, b)
     Num_matte,                         // number of matte channels (usually only 1)
     Num_aux,                           // number of auxiliary channels, usually 0
+    // Note: original RLA and RLB spec have aux_mask instead of Revision, which is usually 0.
     Revision: SmallInt;                // $FFFE (version 2) or $FFFD (version 3)
     Gamma: array[0..15] of AnsiChar;       // gamma single value used when writing the image
     Red_pri: array[0..23] of AnsiChar;     // used chromaticity for red channel (typical format: "%7.4f %7.4f")
@@ -6114,6 +6157,7 @@ type
     Aspect: array[0..23] of AnsiChar;      // aspect format of the file (external resource)
     Aspect_ratio: array[0..7] of AnsiChar; // float number Width /Height
     Chan: array[0..31] of AnsiChar;        // color space (can be: rgb, xyz, sampled or raw)
+    // All fields below are not present in the original RLA specification (RLA)
     Field: SmallInt;                       // 0 - non-field rendered data, 1 - field rendered data
     Time: array[0..11] of AnsiChar;        // time needed to create the image (used when rendering)
     Filter: array[0..31] of AnsiChar;      // filter name to post-process image data
@@ -6126,7 +6170,7 @@ type
     Space: array[0..35] of Byte;       // unused
     Next: Integer;                     // offset for next header if multi-frame image
   end;
-  
+
 //------------------------------------------------------------------------------
 
 class function TRLAGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
