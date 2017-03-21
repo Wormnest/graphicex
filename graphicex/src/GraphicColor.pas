@@ -227,7 +227,8 @@ type
     coPaletteBGR,     // Interlaced palette data is in BGR order instead of RGB
     coMinIsWhite,     // Grayscale: Minimum value means white instead of black
     coAlphaPalette,   // Png: A separate alpha palette is specified for indexed images
-    coInvertedCMYK    // Jpeg: CMYK values are inverted (PhotoShop does this)
+    coInvertedCMYK,   // Jpeg: CMYK values are inverted (PhotoShop does this)
+    coBitsLSB2MSB     // Get bits from LSB to MSB instead of the reverse
   );
 
   // Format of the raw data to create a palette from
