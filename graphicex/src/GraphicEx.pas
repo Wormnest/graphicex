@@ -6173,8 +6173,8 @@ begin
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
     ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
 
-  // According to fileformatinfo a value of 3 should be float.
-  // However according to the samples form OpenImageIO float has a value of 4.
+    // According to fileformatinfo a value of 3 should be float.
+    // However according to the samples form OpenImageIO float has a value of 4.
     if (FImageProperties.SampleFormat in [3, 4]) and (FImageProperties.BitsPerSample = 32) then begin
       // Floating point
       ColorManager.SourceDataFormat := sdfFloat;
@@ -6348,9 +6348,7 @@ begin
 
     // According to fileformatinfo a value of 3 should be float.
     // However according to the samples form OpenImageIO float has a value of 4.
-    if (Header.Storage_type in [3, 4]) and (Header.Chan_bits = 32) then begin
-      FImageProperties.SampleFormat := Header.Storage_type;
-    end;
+    FImageProperties.SampleFormat := Header.Storage_type;
 
     FImageProperties.SamplesPerPixel := Header.num_chan;
     if Header.num_matte = 1 then
