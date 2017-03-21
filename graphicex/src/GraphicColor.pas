@@ -5522,6 +5522,8 @@ var
   ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
   ConvertAny32To8: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
   ConvertAny64To8: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
+  // Function to get up to 32 bits
+  GetBits32: function (BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
@@ -6123,7 +6125,12 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        BitIncrement := FSourceBPS;
+        BitIncrement := FSourceBPS + FSourceExtraBPS;
+        if coBitsLSB2MSB in FSourceOptions then
+          // Can handle a maximum of 25 bits since 26 bits and up could be spread over 5 or more bytes
+          GetBits32 := GetBitsMax25
+        else
+          GetBits32 := GetBitsMSB;
         case FTargetBPS of
           8: // ... to 888
             begin
@@ -6143,9 +6150,8 @@ begin
                 BitOffset := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6153,7 +6159,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6161,7 +6167,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6169,7 +6175,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
                     Inc( Source8, BitOffset div 8 );
@@ -6202,9 +6208,8 @@ begin
                 BitOffsetA := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  Bits := GetBits32(BitOffsetR, FSourceBPS, SourceR8);
                   PBGR(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetR, BitIncrement);
@@ -6212,7 +6217,7 @@ begin
                   BitOffsetR := BitOffsetR mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  Bits := GetBits32(BitOffsetG, FSourceBPS, SourceG8);
                   PBGR(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetG, BitIncrement);
@@ -6220,7 +6225,7 @@ begin
                   BitOffsetG := BitOffsetG mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  Bits := GetBits32(BitOffsetB, FSourceBPS, SourceB8);
                   PBGR(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetB, BitIncrement);
@@ -6228,7 +6233,7 @@ begin
                   BitOffsetB := BitOffsetB mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    Bits := GetBits32(BitOffsetA, FSourceBPS, SourceA8);
                     // Update the bit and byte pointers
                     Inc(BitOffsetA, BitIncrement);
                     Inc( SourceA8, BitOffsetA div 8 );
@@ -6255,7 +6260,12 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        BitIncrement := FSourceBPS;
+        BitIncrement := FSourceBPS + FSourceExtraBPS;
+        if coBitsLSB2MSB in FSourceOptions then
+          // Can handle a maximum of 25 bits since 26 bits and up could be spread over 5 or more bytes
+          GetBits32 := GetBitsMax32
+        else
+          GetBits32 := GetBitsMSB;
         case FTargetBPS of
           8: // ... to 888
             begin
@@ -6272,9 +6282,8 @@ begin
                 BitOffset := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6282,7 +6291,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6290,7 +6299,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PBGR(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -6298,7 +6307,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
                     Inc( Source8, BitOffset div 8 );
@@ -6339,9 +6348,8 @@ begin
                 BitOffsetA := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  Bits := GetBits32(BitOffsetR, FSourceBPS, SourceR8);
                   PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetR, BitIncrement);
@@ -6349,7 +6357,7 @@ begin
                   BitOffsetR := BitOffsetR mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  Bits := GetBits32(BitOffsetG, FSourceBPS, SourceG8);
                   PBGR(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetG, BitIncrement);
@@ -6357,7 +6365,7 @@ begin
                   BitOffsetG := BitOffsetG mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  Bits := GetBits32(BitOffsetB, FSourceBPS, SourceB8);
                   PBGR(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetB, BitIncrement);
@@ -6365,7 +6373,7 @@ begin
                   BitOffsetB := BitOffsetB mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    Bits := GetBits32(BitOffsetA, FSourceBPS, SourceA8);
                     // Update the bit and byte pointers
                     Inc(BitOffsetA, BitIncrement);
                     Inc( SourceA8, BitOffsetA div 8 );
@@ -6437,6 +6445,8 @@ var
   ConvertAny16To8: function(Value: Word; BitsPerSampe: Byte): Byte of object;
   ConvertAny32To8: function(Value: LongWord; BitsPerSampe: Byte): Byte of object;
   ConvertAny64To8: function(Value: UInt64; BitsPerSampe: Byte): Byte of object;
+  // Function to get up to 32 bits
+  GetBits32: function (BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
 
   SourceIncrement,
   TargetIncrement: Cardinal;
@@ -7025,7 +7035,12 @@ begin
         end
         else begin
           // General handling of everything else
-          BitIncrement := FSourceBPS;
+          BitIncrement := FSourceBPS + FSourceExtraBPS;
+          if coBitsLSB2MSB in FSourceOptions then
+            // Can handle a maximum of 25 bits since 26 bits and up could be spread over 5 or more bytes
+            GetBits32 := GetBitsMax25
+          else
+            GetBits32 := GetBitsMSB;
           case FTargetBPS of
             8: // ... to 888
               begin
@@ -7045,9 +7060,8 @@ begin
                   BitOffset := 0;
                   while Count > 0 do
                   begin
-                    // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                     // Red
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     PRGB(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
@@ -7055,7 +7069,7 @@ begin
                     BitOffset := BitOffset mod 8;
 
                     // Green
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     PRGB(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
@@ -7063,7 +7077,7 @@ begin
                     BitOffset := BitOffset mod 8;
 
                     // Blue
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     PRGB(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
@@ -7071,7 +7085,7 @@ begin
                     BitOffset := BitOffset mod 8;
 
                     if coAlpha in FSourceOptions then begin
-                      Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                      Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                       // Update the bit and byte pointers
                       Inc(BitOffset, BitIncrement);
                       Inc( Source8, BitOffset div 8 );
@@ -7112,9 +7126,8 @@ begin
                   BitOffsetA := 0;
                   while Count > 0 do
                   begin
-                    // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                     // Red
-                    Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                    Bits := GetBits32(BitOffsetR, FSourceBPS, SourceR8);
                     PRGB(Target8)^.R := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffsetR, BitIncrement);
@@ -7122,7 +7135,7 @@ begin
                     BitOffsetR := BitOffsetR mod 8;
 
                     // Green
-                    Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                    Bits := GetBits32(BitOffsetG, FSourceBPS, SourceG8);
                     PRGB(Target8)^.G := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffsetG, BitIncrement);
@@ -7130,7 +7143,7 @@ begin
                     BitOffsetG := BitOffsetG mod 8;
 
                     // Blue
-                    Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                    Bits := GetBits32(BitOffsetB, FSourceBPS, SourceB8);
                     PRGB(Target8)^.B := ConvertAny16To8(Bits, FSourceBPS);
                     // Update the bit and byte pointers
                     Inc(BitOffsetB, BitIncrement);
@@ -7138,7 +7151,7 @@ begin
                     BitOffsetB := BitOffsetB mod 8;
 
                     if coAlpha in FSourceOptions then begin
-                      Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                      Bits := GetBits32(BitOffsetA, FSourceBPS, SourceA8);
                       // Update the bit and byte pointers
                       Inc(BitOffsetA, BitIncrement);
                       Inc( SourceA8, BitOffsetA div 8 );
@@ -7166,7 +7179,12 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        BitIncrement := FSourceBPS;
+        BitIncrement := FSourceBPS + FSourceExtraBPS;
+        if coBitsLSB2MSB in FSourceOptions then
+          // Can handle a maximum of 25 bits since 26 bits and up could be spread over 5 or more bytes
+          GetBits32 := GetBitsMax32
+        else
+          GetBits32 := GetBitsMSB;
         case FTargetBPS of
           8: // ... to 888
             begin
@@ -7183,9 +7201,8 @@ begin
                 BitOffset := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PRGB(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -7193,7 +7210,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PRGB(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -7201,7 +7218,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                  Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                   PRGB(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffset, BitIncrement);
@@ -7209,7 +7226,7 @@ begin
                   BitOffset := BitOffset mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffset, FSourceBPS, Source8);
+                    Bits := GetBits32(BitOffset, FSourceBPS, Source8);
                     // Update the bit and byte pointers
                     Inc(BitOffset, BitIncrement);
                     Inc( Source8, BitOffset div 8 );
@@ -7242,9 +7259,8 @@ begin
                 BitOffsetA := 0;
                 while Count > 0 do
                 begin
-                  // For now always assuming that bits are in big endian MSB first order!!! (TIF)
                   // Red
-                  Bits := GetBitsMSB(BitOffsetR, FSourceBPS, SourceR8);
+                  Bits := GetBits32(BitOffsetR, FSourceBPS, SourceR8);
                   PBGR(Target8)^.R := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetR, BitIncrement);
@@ -7252,7 +7268,7 @@ begin
                   BitOffsetR := BitOffsetR mod 8;
 
                   // Green
-                  Bits := GetBitsMSB(BitOffsetG, FSourceBPS, SourceG8);
+                  Bits := GetBits32(BitOffsetG, FSourceBPS, SourceG8);
                   PRGB(Target8)^.G := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetG, BitIncrement);
@@ -7260,7 +7276,7 @@ begin
                   BitOffsetG := BitOffsetG mod 8;
 
                   // Blue
-                  Bits := GetBitsMSB(BitOffsetB, FSourceBPS, SourceB8);
+                  Bits := GetBits32(BitOffsetB, FSourceBPS, SourceB8);
                   PRGB(Target8)^.B := ConvertAny32To8(Bits, FSourceBPS);
                   // Update the bit and byte pointers
                   Inc(BitOffsetB, BitIncrement);
@@ -7268,7 +7284,7 @@ begin
                   BitOffsetB := BitOffsetB mod 8;
 
                   if coAlpha in FSourceOptions then begin
-                    Bits := GetBitsMSB(BitOffsetA, FSourceBPS, SourceA8);
+                    Bits := GetBits32(BitOffsetA, FSourceBPS, SourceA8);
                     // Update the bit and byte pointers
                     Inc(BitOffsetA, BitIncrement);
                     Inc( SourceA8, BitOffsetA div 8 );
