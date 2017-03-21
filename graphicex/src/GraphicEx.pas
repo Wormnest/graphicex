@@ -6376,8 +6376,10 @@ begin
     end
     else if LowerCase(AnsiString(Header.Chan)) = 'xyz' then
       FImageProperties.ColorScheme := csXYZ
-    else
+    else begin
       FImageProperties.ColorScheme := csUnknown;
+      Result := False;
+    end;
 
     // The description of fileformat.info about gamma says:
     // Gamma contains an ASCII floating-point number representing the gamma
@@ -6422,8 +6424,6 @@ begin
       FImageProperties.Comment := FImageProperties.Comment + #10'Render time: ' + AnsiString(Header.Time);
     if Header.Filter[0] <> #0 then
       FImageProperties.Comment := FImageProperties.Comment + #10'Post processing filter: ' + AnsiString(Header.Filter);
-
-    Result := True;
   end;
 end;
 
