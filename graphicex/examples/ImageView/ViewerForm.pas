@@ -1047,8 +1047,11 @@ begin
   if (ImgThumbData.ImageFormat = CgexPCX) and PcxIsCapture then begin
     sgImgProperties.Cells[0,InfoRow] := 'Format note:';
     sgImgProperties.Cells[1,InfoRow] := 'Not a normal PCX but a Word for Dos screen capture.'; IncInfoRow;
+  end
+  else if (ImgThumbData.ImageFormat = CgexRLA) and (ImgProperties.Version = 0) then begin
+    sgImgProperties.Cells[0,InfoRow] := 'Format note:';
+    sgImgProperties.Cells[1,InfoRow] := 'Older version original RLA or RLB.'; IncInfoRow;
   end;
-
   if ImgProperties.Version > 0 then begin
     sgImgProperties.Cells[0,InfoRow] := 'Image format version:';
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.Version); IncInfoRow;
