@@ -6141,7 +6141,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TRLAGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); 
+procedure TRLAGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
   Offsets: TCardinalArray;
@@ -6152,13 +6152,54 @@ var
 
   // RLE buffers
   RawBuffer,
+  DecompressBuffer,
   RedBuffer,
   GreenBuffer,
   BlueBuffer,
   AlphaBuffer: Pointer;
-  Decoder: TRLADecoder;
+  Decoder: TDecoder;
 
   Run: PByte;
+
+  {
+    From: http://www.fileformat.info/format/wavefrontrla/egff.htm
+    Image data with a pixel depth of two bytes (nine to 16 bits) is encoded using a similar algorithm,
+    but the actual bytes of pixel data are read in an interleaved fashion. Two separate passes are
+    made over the pixel data in each channel. The first pass run-length encodes the least significant
+    byte of each pixel in the channel; the second pass encodes the most significant byte of each pixel
+    in the channel.
+
+    With image data that contains four bytes (17 to 32 bits) per pixel, a 4-pass process is used,
+    encoding from the least to most significant byte in each pixel. The same algorithm is used for
+    encoding each pass of 2- and 4-byte pixel data as is used for 1-byte pixel data.
+  }
+  // Assumes a valid DecompressBuffer to be used as Source.
+  // Data will be combined in little endian order except for float.
+  // Combined data will be moved to Dest.
+  procedure FixDecodedData(Dest: Pointer);
+  var
+    Planes, iPlane: Cardinal;
+    i: Integer;
+    SrcPtr, DestPtr: PByte;
+  begin
+    Planes := (FImageProperties.BitsPerSample + 7) div 8;
+    SrcPtr := DecompressBuffer;
+    if (Planes = 1) or (ColorManager.SourceDataFormat = sdfFloat) then begin
+      // For 1 plane (8 bits per sample) we do a simple Move.
+      // But float datatype is also not interleaved so we use Move there too.
+      Move(SrcPtr^, Dest^, Width*Planes);
+      Exit;
+    end;
+    for iPlane := Planes-1 downto 0 do begin
+      DestPtr := Dest;
+      Inc(DestPtr, iPlane);
+      for i := 0 to Width-1 do begin
+        DestPtr^ := SrcPtr^;
+        Inc(SrcPtr);
+        Inc(DestPtr, Planes);
+      end;
+    end;
+  end;
 
 begin
   inherited;
@@ -6170,6 +6211,7 @@ begin
     FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
     Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
+    // Setup of conversion parameters.
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
     ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
 
@@ -6178,33 +6220,42 @@ begin
     if (FImageProperties.SampleFormat in [3, 4]) and (FImageProperties.BitsPerSample = 32) then begin
       // Floating point
       ColorManager.SourceDataFormat := sdfFloat;
+    end
+    else begin
+      // RLA uses big endian but not for floats
+      // However we already reorder the data to little endian after decoding so
+      // the ColorManager should not do any byte swapping.
+      // ColorManager.SourceOptions := ColorManager.SourceOptions + [coNeedByteSwap];
     end;
+    // RLA Uses separate channels thus we need to set that in source options.
+    // For the images that don't use the full bytes (e.g. 10 bps) we need to
+    // extract the bits in LSB to MSB order
+    ColorManager.SourceOptions := ColorManager.SourceOptions +
+      [coSeparatePlanes, coBitsLSB2MSB];
 
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-    if FImageProperties.BitsPerSample > 8 then
-      ColorManager.TargetBitsPerSample := 8
+    if FImageProperties.BitsPerSample > 8 then begin
+      ColorManager.TargetBitsPerSample := 8;
+    end
     else
       ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
     case FImageProperties.ColorScheme of
-      csRGBA, csGA: ColorManager.TargetColorScheme := csBGRA;
+      csRGBA, csGA:
+      begin
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.TargetSamplesPerPixel := 4;
+      end;
       csRGB, csXYZ: ColorManager.TargetColorScheme := csBGR;
       csG: ColorManager.TargetColorScheme := csBGR;
-    else
     end;
+    // RLA with uncommon pixel format like 10 bits per sample use 16 bits for storage.
+    // The other bits are unused but do need to be skipped when converting.
+    ColorManager.SourceExtraBPS := ((FImageProperties.BitsPerSample+7) div 8 * 8) -
+      FImageProperties.BitsPerSample;
 
+    // Set pixel format we are going to use.
     PixelFormat := ColorManager.TargetPixelFormat;
-
-    if Abs(FImageProperties.FileGamma) >= 0.01 then
-    begin
-      // Gamma is apparently already applied to the image in rla, meaning
-      // we don't need to set it in TargetOptions.
-      Include(FImageProperties.Options, ioUseGamma);
-    end;
-    // Uses separate channels thus we need to set that in source options.
-    // Also uses big endian byte order.
-    ColorManager.SourceOptions := ColorManager.SourceOptions +
-      [coSeparatePlanes, coNeedByteSwap];
 
     // dimension of image, top might be larger than bottom denoting a bottom up image
     Self.Width := FImageProperties.Width;
@@ -6219,18 +6270,24 @@ begin
     SwapCardinalArrayEndian(PCardinal(Offsets), Height);
 
     // Setup intermediate storage.
-    Decoder := TRLADecoder.Create;
+    if ColorManager.SourceDataFormat = sdfFloat then
+      // Float datatype apparently doesn't use compression
+      Decoder := TNoCompressionDecoder.Create
+    else
+      Decoder := TRLADecoder.Create;
     RawBuffer := nil;
     RedBuffer := nil;
     GreenBuffer := nil;
     BlueBuffer := nil;
     AlphaBuffer := nil;
+    DecompressBuffer := nil;
     BufferSize := (FImageProperties.BitsPerSample + 7) div 8 * Width;
     try
       GetMem(RedBuffer, BufferSize);
       GetMem(GreenBuffer, BufferSize);
       GetMem(BlueBuffer, BufferSize);
       GetMem(AlphaBuffer, BufferSize);
+      GetMem(DecompressBuffer, BufferSize);
 
       // no go for each scanline
       for Y := 0 to Height - 1 do
@@ -6247,21 +6304,24 @@ begin
         RLELength := SwapEndian(RLELength);
         RawBuffer := Run;
         Inc(Run, RLELength);
-        Decoder.Decode(RawBuffer, RedBuffer, RLELength, BufferSize);
+        Decoder.Decode(RawBuffer, DecompressBuffer, RLELength, BufferSize);
+        FixDecodedData(RedBuffer);
         // green
         Move(Run^, RLELength, SizeOf(RLELength));
         Inc(Run, SizeOf(RLELength));
         RLELength := SwapEndian(RLELength);
         RawBuffer := Run;
         Inc(Run, RLELength);
-        Decoder.Decode(RawBuffer, GreenBuffer, RLELength, BufferSize);
+        Decoder.Decode(RawBuffer, DecompressBuffer, RLELength, BufferSize);
+        FixDecodedData(GreenBuffer);
         // blue
         Move(Run^, RLELength, SizeOf(RLELength));
         Inc(Run, SizeOf(RLELength));
         RLELength := SwapEndian(RLELength);
         RawBuffer := Run;
         Inc(Run, RLELength);
-        Decoder.Decode(RawBuffer, BlueBuffer, RLELength, BufferSize);
+        Decoder.Decode(RawBuffer, DecompressBuffer, RLELength, BufferSize);
+        FixDecodedData(BlueBuffer);
 
         if ColorManager.TargetColorScheme = csBGR then
         begin
@@ -6273,7 +6333,8 @@ begin
           Move(Run^, RLELength, SizeOf(RLELength));
           Inc(Run, SizeOf(RLELength));
           RLELength := SwapEndian(RLELength);
-          Decoder.Decode(Pointer(Run), AlphaBuffer, RLELength, BufferSize);
+          Decoder.Decode(Pointer(Run), DecompressBuffer, RLELength, BufferSize);
+          FixDecodedData(AlphaBuffer);
 
           ColorManager.ConvertRow([RedBuffer, GreenBuffer, BlueBuffer, AlphaBuffer], Line, Width, $FF);
         end;
@@ -6290,10 +6351,14 @@ begin
         FreeMem(BlueBuffer);
       if Assigned(AlphaBuffer) then
         FreeMem(AlphaBuffer);
+      if Assigned(DecompressBuffer) then
+        FreeMem(DecompressBuffer);
       FreeAndNil(Decoder);
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
-  end;
+  end
+  else
+    GraphicExError(gesInvalidImage, ['RLA']);
 end;
 
 //------------------------------------------------------------------------------
