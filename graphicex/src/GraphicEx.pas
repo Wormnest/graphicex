@@ -6331,6 +6331,7 @@ function TRLAGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; Ima
 var
   Header: TRLAHeader;
   Run: PByte;
+  OldRla: Boolean;
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
@@ -6342,6 +6343,7 @@ begin
     // data is always given in big endian order, so swap data which needs this
     SwapHeader(Header);
     FImageProperties.Version := abs(Header.Revision);
+    OldRla := FImageProperties.Version = 0; // RLB or even the first RLA format
     FImageProperties.Options := [ioBigEndian];
 
     // According to fileformatinfo a value of 3 should be float.
@@ -6353,7 +6355,10 @@ begin
     FImageProperties.SamplesPerPixel := Header.num_chan;
     if Header.num_matte = 1 then
       Inc(FImageProperties.SamplesPerPixel);
-    FImageProperties.BitsPerSample := Header.Chan_bits;
+    if OldRla then
+      FImageProperties.BitsPerSample := 8
+    else
+      FImageProperties.BitsPerSample := Header.Chan_bits;
     FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
 
     if LowerCase(AnsiString(Header.Chan)) = 'rgb' then
