@@ -4954,29 +4954,28 @@ begin
             ShowError(gesIncorrectPaletteDataCount);
             Exit;
           end;
+          SourceRun8 := Source[0]; // Palette index
+          if Length(Source) = 1 then begin
+            SourceRun8A := SourceRun8; Inc(SourceRun8A);
+          end
+          else begin
+            SourceRun8A := Source[1];
+          end;
+          TargetRun8 := Target;
+
+          // If we have a triple then there are 3 components otherwise 4
+          if FSourcePaletteFormat = pfInterlaced8Triple then
+            Multi := 3
+          else
+            Multi := 4;
+
+          if coApplyGamma in FTargetOptions then
+            ConvertGammaProc8 := ComponentGammaConvert
+          else
+            ConvertGammaProc8 := ComponentNoConvert8;
           case FSourceBPS of
             8:
               begin
-                SourceRun8 := Source[0]; // Palette index
-                if Length(Source) = 1 then begin
-                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
-                end
-                else begin
-                  SourceRun8A := Source[1];
-                end;
-                TargetRun8 := Target;
-
-                // If we have a triple then there are 3 components otherwise 4
-                if FSourcePaletteFormat = pfInterlaced8Triple then
-                  Multi := 3
-                else
-                  Multi := 4;
-
-                if coApplyGamma in FTargetOptions then
-                  ConvertGammaProc8 := ComponentGammaConvert
-                else
-                  ConvertGammaProc8 := ComponentNoConvert8;
-
                 while Count > 0 do
                 begin
                   if Boolean(Mask and BitRun) then
@@ -5024,26 +5023,6 @@ begin
               end;
             1..7, 9..16:
               begin
-                SourceRun8 := Source[0]; // Palette index
-                if Length(Source) = 1 then begin
-                  SourceRun8A := SourceRun8; Inc(SourceRun8A);
-                end
-                else begin
-                  SourceRun8A := Source[1];
-                end;
-                TargetRun8 := Target;
-
-                // If we have a triple then there are 3 components otherwise 4
-                if FSourcePaletteFormat = pfInterlaced8Triple then
-                  Multi := 3
-                else
-                  Multi := 4;
-
-                if coApplyGamma in FTargetOptions then
-                  ConvertGammaProc8 := ComponentGammaConvert
-                else
-                  ConvertGammaProc8 := ComponentNoConvert8;
-
                 BitOffset := 0;
 
                 while Count > 0 do
