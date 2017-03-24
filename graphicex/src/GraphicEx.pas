@@ -4796,233 +4796,231 @@ begin
   begin
     FSource := Memory;
     FRemainingSize := Size;
-    with FImageProperties do
-    begin
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
-      if GetChar <> 'P' then
-        GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
+    if GetChar <> 'P' then
+      GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
 
-      PpmType := StrToInt(String(GetChar));
-      if PpmType in [1..3] then
-        // ASCII format
-        FGetByte := GetByteFromNumber
-      else
-        // Binary format
-        FGetByte := GetByteFromChar;
-      case PpmType of
-        1: // PBM ASCII format (black & white)
-          begin
-            PixelFormat := pf1Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            ColorManager.TargetSamplesPerPixel := 1;
-            ColorManager.TargetBitsPerSample := 1;
-            Palette := ColorManager.CreateGrayScalePalette(True);
-            {$IFDEF FPC}
-            // Fpc seems to not use the palette for deciding which value is black or white.
-            // This means we will have to convert the color scheme.
-            // We could just swap all 0's and 1's but instead we go for BGR.
+    PpmType := StrToInt(String(GetChar));
+    if PpmType in [1..3] then
+      // ASCII format
+      FGetByte := GetByteFromNumber
+    else
+      // Binary format
+      FGetByte := GetByteFromChar;
+    case PpmType of
+      1: // PBM ASCII format (black & white)
+        begin
+          PixelFormat := pf1Bit;
+          Self.Width := GetNumber;
+          Self.Height := GetNumber;
+          ColorManager.TargetSamplesPerPixel := 1;
+          ColorManager.TargetBitsPerSample := 1;
+          Palette := ColorManager.CreateGrayScalePalette(True);
+          {$IFDEF FPC}
+          // Fpc seems to not use the palette for deciding which value is black or white.
+          // This means we will have to convert the color scheme.
+          // We could just swap all 0's and 1's but instead we go for BGR.
 
-            // Needs to be done after creating palette since it uses the values
-            // of TargetBitsPerSample and TargetSamplesPerPixel
-            ColorManager.TargetSamplesPerPixel := 3;
-            ColorManager.TargetBitsPerSample := 8;
-            ColorManager.TargetColorScheme := csBGR;
-            ColorManager.SourceBitsPerSample := 1;
-            ColorManager.SourceSamplesPerPixel := 1;
-            ColorManager.SourceColorScheme := csG;
-            ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
-            PixelFormat := pf24Bit;
+          // Needs to be done after creating palette since it uses the values
+          // of TargetBitsPerSample and TargetSamplesPerPixel
+          ColorManager.TargetSamplesPerPixel := 3;
+          ColorManager.TargetBitsPerSample := 8;
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.SourceBitsPerSample := 1;
+          ColorManager.SourceSamplesPerPixel := 1;
+          ColorManager.SourceColorScheme := csG;
+          ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
+          PixelFormat := pf24Bit;
 
-            GetMem(LineBuf, Width div 8 + 1);
-            try
-            {$ENDIF}
+          GetMem(LineBuf, Width div 8 + 1);
+          try
+          {$ENDIF}
 
-              // read image data
-              for Y := 0 to Height - 1 do
-              begin
-                {$IFNDEF FPC}
-                Line8 := ScanLine[Y];
-                {$ELSE}
-                Line8 := LineBuf;
-                {$ENDIF}
-                Pixel := 0;
-                for X := 1 to Width do
-                begin
-                  Pixel := (Pixel shl 1) or (GetNumber and 1);
-                  if (X mod 8) = 0 then
-                  begin
-                    Line8^ := Pixel;
-                    Inc(Line8);
-                    Pixel := 0;
-                  end;
-                  if (Width mod 8) <> 0 then
-                    Line8^ := Pixel shl (8 - (Width mod 8));
-                end;
-
-                {$IFDEF FPC}
-                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
-                {$ENDIF}
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            {$IFDEF FPC}
-            finally
-              FreeMem(LineBuf);
-            end;
-            {$ENDIF}
-          end;
-        4: // PBM binary format (black & white)
-          begin
-            PixelFormat := pf1Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            ColorManager.TargetSamplesPerPixel := 1;
-            ColorManager.TargetBitsPerSample := 1;
-            Palette := ColorManager.CreateGrayScalePalette(True);
-            {$IFDEF FPC}
-            // Fpc seems to not use the palette for deciding which value is black or white.
-            // This means we will have to convert the color scheme.
-            // We could just swap all 0's and 1's but instead we go for BGR.
-
-            // Needs to be done after creating palette since it uses the values
-            // of TargetBitsPerSample and TargetSamplesPerPixel
-            ColorManager.TargetSamplesPerPixel := 3;
-            ColorManager.TargetBitsPerSample := 8;
-            ColorManager.TargetColorScheme := csBGR;
-            ColorManager.SourceBitsPerSample := 1;
-            ColorManager.SourceSamplesPerPixel := 1;
-            ColorManager.SourceColorScheme := csG;
-            ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
-            PixelFormat := pf24Bit;
-
-            GetMem(LineBuf, Width div 8 + 1);
-            try
-            {$ENDIF}
-
-              // read image data
-              for Y := 0 to Height - 1 do
-              begin
-                {$IFNDEF FPC}
-                Line8 := ScanLine[Y];
-                {$ELSE}
-                Line8 := LineBuf;
-                {$ENDIF}
-                for X := 0 to (Width div 8) - 1 do
-                begin
-                  Line8^ := Byte(GetChar);
-                  Inc(Line8);
-                end;
-                if (Width mod 8) <> 0 then
-                  Line8^ := Byte(GetChar);
-
-                {$IFDEF FPC}
-                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
-                {$ENDIF}
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            {$IFDEF FPC}
-            finally
-              FreeMem(LineBuf);
-            end;
-            {$ENDIF}
-          end;
-        2, // PGM ASCII form (gray scale)
-        5: // PGM binary form (gray scale)
-          begin
-            {$IFNDEF FPC}
-            PixelFormat := pf8Bit;
-            {$ENDIF}
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
-            ColorManager.TargetSamplesPerPixel := 1;
-            ColorManager.TargetBitsPerSample := 8;
-            Palette := ColorManager.CreateGrayScalePalette(False);
-            {$IFDEF FPC}
-            // Needs to be done after creating palette since it uses the values
-            // of TargetBitsPerSample and TargetSamplesPerPixel
-            ColorManager.TargetSamplesPerPixel := 3;
-            ColorManager.TargetColorScheme := csBGR;
-            ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
-            ColorManager.SourceBitsPerSample := BitsPerSample;
-            ColorManager.SourceColorScheme := csG;
-            PixelFormat := pf24Bit;
-
-            GetMem(LineBuf, Width);
-            try
-            {$ENDIF}
-
-              // read image data
-              for Y := 0 to Height - 1 do
-              begin
-                {$IFNDEF FPC}
-                Line8 := ScanLine[Y];
-                {$ELSE}
-                Line8 := LineBuf;
-                {$ENDIF}
-                for X := 0 to Width - 1 do
-                begin
-                  Line8^ := FGetByte();
-                  Inc(Line8);
-                end;
-
-                {$IFDEF FPC}
-                ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
-                {$ENDIF}
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            {$IFDEF FPC}
-            finally
-              FreeMem(LineBuf);
-            end;
-            {$ENDIF}
-          end;
-        3, // PPM ASCII form (true color)
-        6: // PPM binary form (true color)
-          begin
-            PixelFormat := pf24Bit;
-            Self.Width := GetNumber;
-            Self.Height := GetNumber;
-            MaxVal := GetNumber;
-
-            // Pixel values are store linearly (but RGB instead BGR).
-            // There's one allowed white space which will automatically be skipped by the first
-            // GetChar call below
-            // now read the pixels
+            // read image data
             for Y := 0 to Height - 1 do
             begin
-              Line24 := ScanLine[Y];
-              if MaxVal = 255 then
-                for X := 0 to Width - 1 do
+              {$IFNDEF FPC}
+              Line8 := ScanLine[Y];
+              {$ELSE}
+              Line8 := LineBuf;
+              {$ENDIF}
+              Pixel := 0;
+              for X := 1 to Width do
+              begin
+                Pixel := (Pixel shl 1) or (GetNumber and 1);
+                if (X mod 8) = 0 then
                 begin
-                  Line24.R := FGetByte();
-                  Line24.G := FGetByte();
-                  Line24.B := FGetByte();
-                  Inc(Line24);
-                end
-              else if MaxVal < 255 then
-                for X := 0 to Width - 1 do
-                begin
-                  // These floating point calculations are the same as the GIMP's PPM scaling.
-                  // Precomputing 255/MaxVal or using MulDiv both give slightly different results
-                  // due to precision differences.
-                  // Paint Shop Pro's calculations for MaxVal < 255 are screwed up, and I couldn't
-                  // figure out the exact algorithm they're using.
-                  Line24.R := Trunc(FGetByte() * 255 / MaxVal);
-                  Line24.G := Trunc(FGetByte() * 255 / MaxVal);
-                  Line24.B := Trunc(FGetByte() * 255 / MaxVal);
-                  Inc(Line24);
-                end
-              else
-                GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
-                // TODO: PPM does support a MaxVal up to 65535, but I don't have any sample files to test
-                // JB: If we want to implement this we will have to add a FGetWord function variable
+                  Line8^ := Pixel;
+                  Inc(Line8);
+                  Pixel := 0;
+                end;
+                if (Width mod 8) <> 0 then
+                  Line8^ := Pixel shl (8 - (Width mod 8));
+              end;
+
+              {$IFDEF FPC}
+              ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+              {$ENDIF}
+              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          {$IFDEF FPC}
+          finally
+            FreeMem(LineBuf);
+          end;
+          {$ENDIF}
+        end;
+      4: // PBM binary format (black & white)
+        begin
+          PixelFormat := pf1Bit;
+          Self.Width := GetNumber;
+          Self.Height := GetNumber;
+          ColorManager.TargetSamplesPerPixel := 1;
+          ColorManager.TargetBitsPerSample := 1;
+          Palette := ColorManager.CreateGrayScalePalette(True);
+          {$IFDEF FPC}
+          // Fpc seems to not use the palette for deciding which value is black or white.
+          // This means we will have to convert the color scheme.
+          // We could just swap all 0's and 1's but instead we go for BGR.
+
+          // Needs to be done after creating palette since it uses the values
+          // of TargetBitsPerSample and TargetSamplesPerPixel
+          ColorManager.TargetSamplesPerPixel := 3;
+          ColorManager.TargetBitsPerSample := 8;
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.SourceBitsPerSample := 1;
+          ColorManager.SourceSamplesPerPixel := 1;
+          ColorManager.SourceColorScheme := csG;
+          ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
+          PixelFormat := pf24Bit;
+
+          GetMem(LineBuf, Width div 8 + 1);
+          try
+          {$ENDIF}
+
+            // read image data
+            for Y := 0 to Height - 1 do
+            begin
+              {$IFNDEF FPC}
+              Line8 := ScanLine[Y];
+              {$ELSE}
+              Line8 := LineBuf;
+              {$ENDIF}
+              for X := 0 to (Width div 8) - 1 do
+              begin
+                Line8^ := Byte(GetChar);
+                Inc(Line8);
+              end;
+              if (Width mod 8) <> 0 then
+                Line8^ := Byte(GetChar);
+
+              {$IFDEF FPC}
+              ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+              {$ENDIF}
+              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          {$IFDEF FPC}
+          finally
+            FreeMem(LineBuf);
+          end;
+          {$ENDIF}
+        end;
+      2, // PGM ASCII form (gray scale)
+      5: // PGM binary form (gray scale)
+        begin
+          {$IFNDEF FPC}
+          PixelFormat := pf8Bit;
+          {$ENDIF}
+          Self.Width := GetNumber;
+          Self.Height := GetNumber;
+          // skip maximum color value
+          GetNumber;
+          ColorManager.TargetSamplesPerPixel := 1;
+          ColorManager.TargetBitsPerSample := 8;
+          Palette := ColorManager.CreateGrayScalePalette(False);
+          {$IFDEF FPC}
+          // Needs to be done after creating palette since it uses the values
+          // of TargetBitsPerSample and TargetSamplesPerPixel
+          ColorManager.TargetSamplesPerPixel := 3;
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+          ColorManager.SourceBitsPerSample := BitsPerSample;
+          ColorManager.SourceColorScheme := csG;
+          PixelFormat := pf24Bit;
+
+          GetMem(LineBuf, Width);
+          try
+          {$ENDIF}
+
+            // read image data
+            for Y := 0 to Height - 1 do
+            begin
+              {$IFNDEF FPC}
+              Line8 := ScanLine[Y];
+              {$ELSE}
+              Line8 := LineBuf;
+              {$ENDIF}
+              for X := 0 to Width - 1 do
+              begin
+                Line8^ := FGetByte();
+                Inc(Line8);
+              end;
+
+              {$IFDEF FPC}
+              ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+              {$ENDIF}
+              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          {$IFDEF FPC}
+          finally
+            FreeMem(LineBuf);
+          end;
+          {$ENDIF}
+        end;
+      3, // PPM ASCII form (true color)
+      6: // PPM binary form (true color)
+        begin
+          PixelFormat := pf24Bit;
+          Self.Width := GetNumber;
+          Self.Height := GetNumber;
+          MaxVal := GetNumber;
+
+          // Pixel values are store linearly (but RGB instead BGR).
+          // There's one allowed white space which will automatically be skipped by the first
+          // GetChar call below
+          // now read the pixels
+          for Y := 0 to Height - 1 do
+          begin
+            Line24 := ScanLine[Y];
+            if MaxVal = 255 then
+              for X := 0 to Width - 1 do
+              begin
+                Line24.R := FGetByte();
+                Line24.G := FGetByte();
+                Line24.B := FGetByte();
+                Inc(Line24);
+              end
+            else if MaxVal < 255 then
+              for X := 0 to Width - 1 do
+              begin
+                // These floating point calculations are the same as the GIMP's PPM scaling.
+                // Precomputing 255/MaxVal or using MulDiv both give slightly different results
+                // due to precision differences.
+                // Paint Shop Pro's calculations for MaxVal < 255 are screwed up, and I couldn't
+                // figure out the exact algorithm they're using.
+                Line24.R := Trunc(FGetByte() * 255 / MaxVal);
+                Line24.G := Trunc(FGetByte() * 255 / MaxVal);
+                Line24.B := Trunc(FGetByte() * 255 / MaxVal);
+                Inc(Line24);
+              end
+            else
+              GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
+              // TODO: PPM does support a MaxVal up to 65535, but I don't have any sample files to test
+              // JB: If we want to implement this we will have to add a FGetWord function variable
 //                for X := 0 to Width - 1 do
 //                begin
 //                  Line24.R := Trunc(Byte(GetChar) shl 8 + Byte(GetChar), 255, MaxVal);
@@ -5031,15 +5029,14 @@ begin
 //                  Inc(Line24);
 //                end;
 
-              Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-              OffsetRect(FProgressRect, 0, 1);
-            end;
+            Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+            OffsetRect(FProgressRect, 0, 1);
           end;
-        else
-          GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
-      end;
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
+        end;
+      else
+        GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
     end;
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
   else
     GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
@@ -5052,94 +5049,98 @@ function TPPMGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; Ima
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
+  if Result then begin
+    FSource := Memory;
+    FRemainingSize := Size;
+
+    FImageProperties.Compression := ctNone;
+
+    if GetChar = 'P' then
     begin
-      FSource := Memory;
-      FRemainingSize := Size;
+      case StrToInt(String(GetChar)) of
+        1: // PBM ASCII format (black & white)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
 
-      Compression := ctNone;
+            FImageProperties.SamplesPerPixel := 1;
+            FImageProperties.BitsPerSample := 1;
+            FImageProperties.ColorScheme := csIndexed;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+            Include(FImageProperties.Options, ioMinIsWhite);
+          end;
+        2: // PGM ASCII form (gray scale)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
+            // skip maximum color value
+            GetNumber;
 
-      if GetChar = 'P' then
-      begin
-        case StrToInt(String(GetChar)) of
-          1: // PBM ASCII format (black & white)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
+            FImageProperties.SamplesPerPixel := 1;
+            FImageProperties.BitsPerSample := 8;
+            FImageProperties.ColorScheme := csIndexed;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+          end;
+        3: // PPM ASCII form (true color)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
+            // skip maximum color value
+            GetNumber;
 
-              SamplesPerPixel := 1;
-              BitsPerSample := 1;
-              ColorScheme := csIndexed;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-              Include(Options, ioMinIsWhite);
-            end;
-          2: // PGM ASCII form (gray scale)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
-              // skip maximum color value
-              GetNumber;
+            FImageProperties.SamplesPerPixel := 3;
+            FImageProperties.BitsPerSample := 8;
+            FImageProperties.ColorScheme := csRGB;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+          end;
+        4: // PBM binary format (black & white)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
 
-              SamplesPerPixel := 1;
-              BitsPerSample := 8;
-              ColorScheme := csIndexed;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-            end;
-          3: // PPM ASCII form (true color)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
-              // skip maximum color value
-              GetNumber;
+            FImageProperties.SamplesPerPixel := 1;
+            FImageProperties.BitsPerSample := 1;
+            FImageProperties.ColorScheme := csIndexed;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+            Include(FImageProperties.Options, ioMinIsWhite);
+          end;
+        5: // PGM binary form (gray scale)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
+            // skip maximum color value
+            GetNumber;
 
-              SamplesPerPixel := 3;
-              BitsPerSample := 8;
-              ColorScheme := csRGB;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-            end;
-          4: // PBM binary format (black & white)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
+            FImageProperties.SamplesPerPixel := 1;
+            FImageProperties.BitsPerSample := 8;
+            FImageProperties.ColorScheme := csIndexed;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+          end;
+        6: // PPM binary form (true color)
+          begin
+            FImageProperties.Width := GetNumber;
+            FImageProperties.Height := GetNumber;
+            // skip maximum color value
+            GetNumber;
 
-              SamplesPerPixel := 1;
-              BitsPerSample := 1;
-              ColorScheme := csIndexed;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-              Include(Options, ioMinIsWhite);
-            end;
-          5: // PGM binary form (gray scale)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
-              // skip maximum color value
-              GetNumber;
-
-              SamplesPerPixel := 1;
-              BitsPerSample := 8;
-              ColorScheme := csIndexed;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-            end;
-          6: // PPM binary form (true color)
-            begin
-              Width := GetNumber;
-              Height := GetNumber;
-              // skip maximum color value
-              GetNumber;
-
-              SamplesPerPixel := 3;
-              BitsPerSample := 8;
-              ColorScheme := csRGB;
-              BitsPerPixel := SamplesPerPixel * BitsPerSample;
-            end;
-        else
-          Result := False;
-        end;
-      end
+            FImageProperties.SamplesPerPixel := 3;
+            FImageProperties.BitsPerSample := 8;
+            FImageProperties.ColorScheme := csRGB;
+            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+              FImageProperties.BitsPerSample;
+          end;
       else
         Result := False;
-    end;
+      end;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif PortableMapGraphic}
