@@ -621,6 +621,9 @@
 
 {$endif}
 
+{$IFDEF COMPILER_9_UP}
+  {$DEFINE SUPPORTS_INLINE}            // Compiler supports the inline directive (D9+/FPC)
+{$ENDIF}
 
 // RAD Studio XE
 {$ifdef conditionalexpressions}
