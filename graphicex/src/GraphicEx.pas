@@ -3449,135 +3449,163 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-    with FImageProperties do
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+
+    FlipV := FImageProperties.Orientation = gexoTopLeft;
+
+    // skip image ID
+    Source := Pointer(PAnsiChar(Memory) + SizeOf(TTargaHeader) + FTargaHeader.IDLength);
+
+    ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+    ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+    {$IFNDEF FPC}
+    ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
+    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    // To be able to set alpha to opaque we need to check target color scheme
+    // which by default is csBGR. Since for Delphi we don't convert but just
+    // move bytes for 32 bits this is the only reason to set target color scheme for.
+    if ColorManager.TargetSamplesPerPixel = 4 then begin
+      ColorManager.TargetColorScheme := csBGRA;
+    end;
+    {$ELSE}
+    ColorManager.TargetBitsPerSample := 8;
+    if FImageProperties.BitsPerSample = 5 then
+      ColorManager.SourceExtraBPP := 1; // 1 extra bit per pixel
+    if FImageProperties.HasAlpha then begin
+      ColorManager.TargetSamplesPerPixel := 4;
+      ColorManager.TargetColorScheme := csBGRA;
+    end
+    else begin
+      ColorManager.TargetSamplesPerPixel := 3;
+      ColorManager.TargetColorScheme := csBGR;
+    end;
+    {$ENDIF}
+    if ioUseGamma in FImageProperties.Options then begin
+      ColorManager.SetGamma(FImageProperties.FileGamma);
+      ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+    end;
+    PixelFormat := ColorManager.TargetPixelFormat;
+
+    if (FTargaHeader.ColorMapType = TARGA_COLORMAP) or
+       (FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE]) then
     begin
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
-
-      FlipV := Orientation = gexoTopLeft;
-
-      // skip image ID
-      Source := Pointer(PAnsiChar(Memory) + SizeOf(TTargaHeader) + FTargaHeader.IDLength);
-
-      with ColorManager do
+      if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
+        Palette := ColorManager.CreateGrayscalePalette(False)
+      else
       begin
-        SourceSamplesPerPixel := SamplesPerPixel;
-        SourceColorScheme := ColorScheme;
-        SourceBitsPerSample := BitsPerSample;
-        {$IFNDEF FPC}
-        TargetBitsPerSample := BitsPerSample;
-        TargetSamplesPerPixel := SamplesPerPixel;
-        // To be able to set alpha to opaque we need to check target color scheme
-        // which by default is csBGR. Since for Delphi we don't convert but just
-        // move bytes for 32 bits this is the only reason to set target color scheme for.
-        if TargetSamplesPerPixel = 4 then begin
-          TargetColorScheme := csBGRA;
+        // Note that ColorMapBufSize and ColorMapBuffer are currently not used
+        // by 15/16 bits color map entries. However since it is planned to move
+        // that code to the ColorManager to we will leave this as is since it
+        // will be needed there too after the move.
+        ColorMapBufSize := ((FTargaHeader.ColorMapEntrySize + 7) div 8) * FTargaHeader.ColorMapSize;
+        GetMem(ColorMapBuffer, ColorMapBufSize);
+        try
+          Move(Source^, ColorMapBuffer^, ColorMapBufSize);
+          case FTargaHeader.ColorMapEntrySize of
+            32:
+              begin
+                {$IFDEF FPC}
+                ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
+                {$ENDIF}
+                Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
+                  pfInterlaced8Quad, FTargaHeader.ColorMapSize, False {BGR order});
+                Inc(Source, ColorMapBufSize);
+              end;
+            24:
+              begin
+                {$IFDEF FPC}
+                ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
+                {$ENDIF}
+                Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
+                  pfInterlaced8Triple, FTargaHeader.ColorMapSize, False {BGR order});
+                Inc(Source, ColorMapBufSize);
+              end;
+            15, 16:
+              with LogPalette do
+              begin
+                // read palette entries and create a palette
+                ZeroMemory(@LogPalette, SizeOf(LogPalette));
+                palVersion := $300;
+                palNumEntries := FTargaHeader.ColorMapSize;
+
+                // TODO: This Color Palette creation algorithm should be moved to
+                // ColorManager.CreateColorPalette!
+                // 15 and 16 bits per color map entry (handle both like 555 color format
+                // but make 8 bit from 5 bit per color component)
+                for I := 0 to FTargaHeader.ColorMapSize - 1 do
+                begin
+                  palPalEntry[I].peBlue := Byte((PWord(Source)^ and $1F) shl 3);
+                  palPalEntry[I].peGreen := Byte((PWord(Source)^ and $3E0) shr 2);
+                  palPalEntry[I].peRed := Byte((PWord(Source)^ and $7C00) shr 7);
+                  Inc(PWord(Source));
+                end;
+                Palette := CreatePalette(PLogPalette(@LogPalette)^);
+                {$IFDEF FPC}
+                ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+                {$ENDIF}
+              end;
+          else
+            // Other color map entry sizes are not supported
+            GraphicExError(gesInvalidImage, ['TGA']);
+          end;
+        finally
+          if Assigned(ColorMapBuffer) then
+            FreeMem(ColorMapBuffer);
         end;
-        {$ELSE}
-        TargetBitsPerSample := 8;
-        if BitsPerSample = 5 then
-          SourceExtraBPP := 1; // 1 extra bit per pixel
-        if HasAlpha then begin
-          TargetSamplesPerPixel := 4;
-          TargetColorScheme := csBGRA;
-        end
-        else begin
-          TargetSamplesPerPixel := 3;
-          TargetColorScheme := csBGR;
-        end;
-        {$ENDIF}
-        if ioUseGamma in Options then begin
-          SetGamma(FileGamma);
-          ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
-        end;
-        PixelFormat := TargetPixelFormat;
       end;
+    end;
 
-      if (FTargaHeader.ColorMapType = TARGA_COLORMAP) or
-         (FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE]) then
-      begin
-        if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
-          Palette := ColorManager.CreateGrayscalePalette(False)
-        else
+    Self.Width := FTargaHeader.Width;
+    Self.Height := FTargaHeader.Height;
+
+    // Compute size in bytes of one line of the image.
+    LineSize := Width * ((FTargaHeader.PixelSize+7) div 8);
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+    Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+    case FTargaHeader.ImageType of
+      TARGA_EMPTY_IMAGE: // nothing to do here
+        ;
+      TARGA_BW_IMAGE,
+      TARGA_INDEXED_IMAGE,
+      TARGA_TRUECOLOR_IMAGE:
         begin
-          // Note that ColorMapBufSize and ColorMapBuffer are currently not used
-          // by 15/16 bits color map entries. However since it is planned to move
-          // that code to the ColorManager to we will leave this as is since it
-          // will be needed there too after the move.
-          ColorMapBufSize := ((FTargaHeader.ColorMapEntrySize + 7) div 8) * FTargaHeader.ColorMapSize;
-          GetMem(ColorMapBuffer, ColorMapBufSize);
-          try
-            Move(Source^, ColorMapBuffer^, ColorMapBufSize);
-            case FTargaHeader.ColorMapEntrySize of
-              32:
-                begin
-                  {$IFDEF FPC}
-                  ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
-                  {$ENDIF}
-                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Quad, FTargaHeader.ColorMapSize, False {BGR order});
-                  Inc(Source, ColorMapBufSize);
-                end;
-              24:
-                begin
-                  {$IFDEF FPC}
-                  ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
-                  {$ENDIF}
-                  Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
-                    pfInterlaced8Triple, FTargaHeader.ColorMapSize, False {BGR order});
-                  Inc(Source, ColorMapBufSize);
-                end;
-              15, 16:
-                with LogPalette do
-                begin
-                  // read palette entries and create a palette
-                  ZeroMemory(@LogPalette, SizeOf(LogPalette));
-                  palVersion := $300;
-                  palNumEntries := FTargaHeader.ColorMapSize;
-
-                  // TODO: This Color Palette creation algorithm should be moved to
-                  // ColorManager.CreateColorPalette!
-                  // 15 and 16 bits per color map entry (handle both like 555 color format
-                  // but make 8 bit from 5 bit per color component)
-                  for I := 0 to FTargaHeader.ColorMapSize - 1 do
-                  begin
-                    palPalEntry[I].peBlue := Byte((PWord(Source)^ and $1F) shl 3);
-                    palPalEntry[I].peGreen := Byte((PWord(Source)^ and $3E0) shr 2);
-                    palPalEntry[I].peRed := Byte((PWord(Source)^ and $7C00) shr 7);
-                    Inc(PWord(Source));
-                  end;
-                  Palette := CreatePalette(PLogPalette(@LogPalette)^);
-                  {$IFDEF FPC}
-                  ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
-                  {$ENDIF}
-                end;
+          for I := 0 to Height - 1 do
+          begin
+            if FlipV then
+              LineBuffer := ScanLine[I]
             else
-              // Other color map entry sizes are not supported
-              GraphicExError(gesInvalidImage, ['TGA']);
-            end;
-          finally
-            if Assigned(ColorMapBuffer) then
-              FreeMem(ColorMapBuffer);
+              LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
+            {$IFNDEF FPC}
+            Move(Source^, LineBuffer^, LineSize);
+            {$ELSE}
+            ColorManager.ConvertRow([Source], LineBuffer, Width, $FF);
+            {$ENDIF}
+            Inc(Source, LineSize);
+            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+            OffsetRect(FProgressRect, 0, 1);
           end;
         end;
-      end;
+      TARGA_BW_RLE_IMAGE,
+      TARGA_INDEXED_RLE_IMAGE,
+      TARGA_TRUECOLOR_RLE_IMAGE:
+        begin
+          Buffer := nil;
+          Decoder := TTargaRLEDecoder.Create(FTargaHeader.PixelSize);
+          try
+            // Targa RLE is not line oriented. Convert all the RLE data in one rush.
+            GetMem(Buffer, Height * LineSize);
+            Run := Buffer;
+            // Problematic is that we don't know in advance the size of the compressed data
+            // Only thing we can do is make sure it doesn't go beyond the size of the image
+            Decoder.Decode(Pointer(Source), Pointer(Buffer),
+              Size - (NativeUInt(Source)-NativeUInt(Memory)),
+              Height * LineSize);
 
-      Self.Width := FTargaHeader.Width;
-      Self.Height := FTargaHeader.Height;
-
-      // Compute size in bytes of one line of the image.
-      LineSize := Width * ((FTargaHeader.PixelSize+7) div 8);
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
-
-      Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
-      case FTargaHeader.ImageType of
-        TARGA_EMPTY_IMAGE: // nothing to do here
-          ;
-        TARGA_BW_IMAGE,
-        TARGA_INDEXED_IMAGE,
-        TARGA_TRUECOLOR_IMAGE:
-          begin
+            // Finally put data into the image.
             for I := 0 to Height - 1 do
             begin
               if FlipV then
@@ -3585,66 +3613,33 @@ begin
               else
                 LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
               {$IFNDEF FPC}
-              Move(Source^, LineBuffer^, LineSize);
+              Move(Run^, LineBuffer^, LineSize);
               {$ELSE}
-              ColorManager.ConvertRow([Source], LineBuffer, Width, $FF);
+                ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
               {$ENDIF}
-              Inc(Source, LineSize);
+              Inc(Run, LineSize);
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
             end;
+          finally
+            if Assigned(Buffer) then
+              FreeMem(Buffer);
+            FreeAndNil(Decoder);
           end;
-        TARGA_BW_RLE_IMAGE,
-        TARGA_INDEXED_RLE_IMAGE,
-        TARGA_TRUECOLOR_RLE_IMAGE:
-          begin
-            Buffer := nil;
-            Decoder := TTargaRLEDecoder.Create(FTargaHeader.PixelSize);
-            try
-              // Targa RLE is not line oriented. Convert all the RLE data in one rush.
-              GetMem(Buffer, Height * LineSize);
-              Run := Buffer;
-              // Problematic is that we don't know in advance the size of the compressed data
-              // Only thing we can do is make sure it doesn't go beyond the size of the image
-              Decoder.Decode(Pointer(Source), Pointer(Buffer),
-                Size - (NativeUInt(Source)-NativeUInt(Memory)),
-                Height * LineSize);
-
-              // Finally put data into the image.
-              for I := 0 to Height - 1 do
-              begin
-                if FlipV then
-                  LineBuffer := ScanLine[I]
-                else
-                  LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
-                {$IFNDEF FPC}
-                Move(Run^, LineBuffer^, LineSize);
-                {$ELSE}
-                  ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
-                {$ENDIF}
-                Inc(Run, LineSize);
-                Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            finally
-              if Assigned(Buffer) then
-                FreeMem(Buffer);
-              FreeAndNil(Decoder);
-            end;
-          end;
-      else
-        GraphicExError(gesInvalidImage, ['TGA']);
-      end;
-
-      // 32 bit TGA images may not be using the alpha channel, in that case we
-      // replace it by Alpha is 255 or else the image will be invisible
-      if (FTargaHeader.PixelSize = 32) and (ColorManager.TargetColorScheme = csBGRA) then begin
-        if not HasAlpha then
-          for i := 0 to Height-1 do
-            BGRASetAlpha255(ScanLine[i], Width);
-      end;
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
+        end;
+    else
+      GraphicExError(gesInvalidImage, ['TGA']);
     end;
+
+    // 32 bit TGA images may not be using the alpha channel, in that case we
+    // replace it by Alpha is 255 or else the image will be invisible
+    if (FTargaHeader.PixelSize = 32) and (ColorManager.TargetColorScheme = csBGRA) then begin
+      if not FImageProperties.HasAlpha then
+        for i := 0 to Height-1 do
+          BGRASetAlpha255(ScanLine[i], Width);
+    end;
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -3657,121 +3652,120 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      Move(Memory^, FTargaHeader, SizeOf(TTargaHeader));
+  if Result then begin
+    Move(Memory^, FTargaHeader, SizeOf(TTargaHeader));
 
-      Width := FTargaHeader.Width;
-      Height := FTargaHeader.Height;
-      BitsPerSample := 8;
+    FImageProperties.Width := FTargaHeader.Width;
+    FImageProperties.Height := FTargaHeader.Height;
+    FImageProperties.BitsPerSample := 8;
 
-      case FTargaHeader.PixelSize of
-        8:
-          begin
-            if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
-              ColorScheme := csG
-            else
-              ColorScheme := csIndexed;
-            SamplesPerPixel := 1;
-          end;
-        15,
-        16: // actually, 16 bit are meant being 15 bit
-          begin
-            ColorScheme := csBGR;
-            BitsPerSample := 5;
-            SamplesPerPixel := 3;
-            ExtraBits := 1;
-          end;
-        24:
-          begin
-            ColorScheme := csBGR;
-            SamplesPerPixel := 3;
-          end;
-        32:
-          begin
-            ColorScheme := csBGRA;
-            SamplesPerPixel := 4;
-          end;
-      end;
+    case FTargaHeader.PixelSize of
+      8:
+        begin
+          if FTargaHeader.ImageType in [TARGA_BW_IMAGE, TARGA_BW_RLE_IMAGE] then
+            FImageProperties.ColorScheme := csG
+          else
+            FImageProperties.ColorScheme := csIndexed;
+          FImageProperties.SamplesPerPixel := 1;
+        end;
+      15,
+      16: // actually, 16 bit are meant being 15 bit
+        begin
+          FImageProperties.ColorScheme := csBGR;
+          FImageProperties.BitsPerSample := 5;
+          FImageProperties.SamplesPerPixel := 3;
+          FImageProperties.ExtraBits := 1;
+        end;
+      24:
+        begin
+          FImageProperties.ColorScheme := csBGR;
+          FImageProperties.SamplesPerPixel := 3;
+        end;
+      32:
+        begin
+          FImageProperties.ColorScheme := csBGRA;
+          FImageProperties.SamplesPerPixel := 4;
+        end;
+    end;
 
-      BitsPerPixel := SamplesPerPixel * BitsPerSample;
-      if FTargaHeader.ImageType in [TARGA_BW_RLE_IMAGE, TARGA_INDEXED_RLE_IMAGE, TARGA_TRUECOLOR_RLE_IMAGE] then
-        Compression := ctRLE
-      else
-        Compression := ctNone;
+    FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+      FImageProperties.BitsPerSample;
+    if FTargaHeader.ImageType in [TARGA_BW_RLE_IMAGE, TARGA_INDEXED_RLE_IMAGE, TARGA_TRUECOLOR_RLE_IMAGE] then
+      FImageProperties.Compression := ctRLE
+    else
+      FImageProperties.Compression := ctNone;
 
-      // Get image Orientation
-      case ((FTargaHeader.ImageDescriptor and $30) shr 4) of
-        0: Orientation := gexoBottomLeft;
-        1: Orientation := gexoBottomRight;
-        2: Orientation := gexoTopLeft;
-      else // 3
-        Orientation := gexoTopRight;
-      end;
+    // Get image Orientation
+    case ((FTargaHeader.ImageDescriptor and $30) shr 4) of
+      0: FImageProperties.Orientation := gexoBottomLeft;
+      1: FImageProperties.Orientation := gexoBottomRight;
+      2: FImageProperties.Orientation := gexoTopLeft;
+    else // 3
+      FImageProperties.Orientation := gexoTopRight;
+    end;
 
-      // Check for Targa version 1 id field, if present use it as comment
-      if FTargaHeader.IDLength > 0 then begin
-        Run := Memory;
-        Inc(Run, SizeOf(TTargaHeader));
-        SetString(FImageProperties.Comment, PAnsiChar(Run), FTargaHeader.IDLength);
-      end;
+    // Check for Targa version 1 id field, if present use it as comment
+    if FTargaHeader.IDLength > 0 then begin
+      Run := Memory;
+      Inc(Run, SizeOf(TTargaHeader));
+      SetString(FImageProperties.Comment, PAnsiChar(Run), FTargaHeader.IDLength);
+    end;
 
-      FImageProperties.Version := 1;
-      // Check if Targa version 2 Footer is present
-      if (SizeOf(TTargaHeader) + SizeOf(TTargaV2Footer) < Size) then begin
-        Run := Memory;
-        Inc(Run, Size-SizeOf(TTargaV2Footer));
-        Move(Run^, FTargaFooter, SizeOf(TTargaV2Footer));
+    FImageProperties.Version := 1;
+    // Check if Targa version 2 Footer is present
+    if (SizeOf(TTargaHeader) + SizeOf(TTargaV2Footer) < Size) then begin
+      Run := Memory;
+      Inc(Run, Size-SizeOf(TTargaV2Footer));
+      Move(Run^, FTargaFooter, SizeOf(TTargaV2Footer));
 
-        // Does it have the version 2 signature?
-        if CompareStr(FTargaFooter.Signature, TARGA_SIGNATURE) = 0 then begin
-          FImageProperties.Version := 2; // Yes, it is version 2.
+      // Does it have the version 2 signature?
+      if CompareStr(FTargaFooter.Signature, TARGA_SIGNATURE) = 0 then begin
+        FImageProperties.Version := 2; // Yes, it is version 2.
 
-          // Does it have the optional ExtensionArea?
-          if FTargaFooter.ExtAreaOffset > 0 then begin
-            Run := Memory;
-            Inc(Run, FTargaFooter.ExtAreaOffset);
+        // Does it have the optional ExtensionArea?
+        if FTargaFooter.ExtAreaOffset > 0 then begin
+          Run := Memory;
+          Inc(Run, FTargaFooter.ExtAreaOffset);
 
-            // Does the ExtensionArea have the correct size?
-            if PWord(Run)^ = TARGA_V2_EXTENSION_AREA_SIZE then begin // The expected size of ExtensionArea
-              if not Assigned(FExtensionArea) then
-                GetMem(FExtensionArea, SizeOf(TExtensionArea));
-              Move(Run^, FExtensionArea^, SizeOf(TExtensionArea));
-              if FExtensionArea.Comments[0][0] <> '' then begin
-                // Comment present, for now we only copy the first line.
-                FImageProperties.Comment := FExtensionArea.Comments[0];
-              end;
-              if (FExtensionArea.GammaRatioDenominator > 0) and
-                (FExtensionArea.GammaRatioNumerator > 0) then begin
-                // Todo: TGA gamma is in range 0.0 - 10.0, do we need to convert this range?
-                // I don't have any examples where gamma is defined
-                FileGamma := FExtensionArea.GammaRatioDenominator +
-                  FExtensionArea.GammaRatioNumerator / 100;
-                Include(Options, ioUseGamma);
-              end;
-            end
-            else // Unexpected size don't know how to handle.
-              FTargaFooter.ExtAreaOffset := 0;
-          end;
+          // Does the ExtensionArea have the correct size?
+          if PWord(Run)^ = TARGA_V2_EXTENSION_AREA_SIZE then begin // The expected size of ExtensionArea
+            if not Assigned(FExtensionArea) then
+              GetMem(FExtensionArea, SizeOf(TExtensionArea));
+            Move(Run^, FExtensionArea^, SizeOf(TExtensionArea));
+            if FExtensionArea.Comments[0][0] <> '' then begin
+              // Comment present, for now we only copy the first line.
+              FImageProperties.Comment := FExtensionArea.Comments[0];
+            end;
+            if (FExtensionArea.GammaRatioDenominator > 0) and
+              (FExtensionArea.GammaRatioNumerator > 0) then begin
+              // Todo: TGA gamma is in range 0.0 - 10.0, do we need to convert this range?
+              // I don't have any examples where gamma is defined
+              FImageProperties.FileGamma := FExtensionArea.GammaRatioDenominator +
+                FExtensionArea.GammaRatioNumerator / 100;
+              Include(FImageProperties.Options, ioUseGamma);
+            end;
+          end
+          else // Unexpected size don't know how to handle.
+            FTargaFooter.ExtAreaOffset := 0;
         end;
       end;
-
-      HasAlpha := (FTargaHeader.ImageDescriptor and $F > 0);
-      if (FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) then
-        HasAlpha := FExtensionArea.Attributes in [AlphaDataPresent, PreMultipliedAlpha];
-      // Although 16 bits per pixel targa has in theory an alpha channel,
-      // the examples I have seen have all alpha values set to 0 (invisible).
-      // As such it doesn't seem useful to set this until we encounter
-      // a 16 bit tga image that does set non zero values.
-      {if (FTargaHeader.PixelSize = 16) and HasAlpha then begin
-        ColorScheme := csBGRA;
-        // Not sure if we should set SamplesPerPixel to 4 or just use
-        // ColorScheme is csBGRA in combination with ExtrBits = 1 to define this.
-        SamplesPerPixel := 4;
-      end;}
-      Result := True;
     end;
+
+    FImageProperties.HasAlpha := (FTargaHeader.ImageDescriptor and $F > 0);
+    if (FImageProperties.Version = 2) and (FTargaFooter.ExtAreaOffset > 0) then
+      FImageProperties.HasAlpha := FExtensionArea.Attributes in [AlphaDataPresent, PreMultipliedAlpha];
+    // Although 16 bits per pixel targa has in theory an alpha channel,
+    // the examples I have seen have all alpha values set to 0 (invisible).
+    // As such it doesn't seem useful to set this until we encounter
+    // a 16 bit tga image that does set non zero values.
+    {if (FTargaHeader.PixelSize = 16) and HasAlpha then begin
+      ColorScheme := csBGRA;
+      // Not sure if we should set SamplesPerPixel to 4 or just use
+      // ColorScheme is csBGRA in combination with ExtrBits = 1 to define this.
+      SamplesPerPixel := 4;
+    end;}
+    Result := True;
+  end;
 end;
 
 //------------------------------------------------------------------------------
