@@ -13,80 +13,84 @@ Supported image formats
 -----------------------
 
 * **TIFF images (.tif; .tiff)**
+    + RGB(A), Grayscale(A), Indexed(A), CMYK(A), L*a*b*(A), YCbCr, ICCLab, ITULab, CIELog2L, CIELog2Luv
     + 1..64 bits per sample, including 16, 24, 32 and 64 bits floating point
-    + indexed(A), grayscale(A), RGB(A), CMYK(A), L*a*b*(A), ...
-    + uncompressed, packed bits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG
-    + uses libtiff version 4.0.7
+    + Uncompressed, packbits, LZW, CCITT T.4, Thunderscan, Deflate, new and old style JPEG, etc.
+    + Uses libtiff version 4.0.7
 * **Photoshop images (.psd, .pdd)**
-    + 1, 8, 16, 32 bits per sample
-    + indexed, RGB, CMYK, CIE L*a*b*
-    + uncompressed and packed bits
+    + RGB(A), Indexed(A), Grayscale(A), CMYK(A), CIE L*a*b*
+    + 1, 8, 16 bits per sample integer, 32 bits per sample float
+    + Uncompressed, packbits
+	+ Reads the combined image
 	+ color profiles can be read and used except for indexed
 * **Paintshop Pro images (.psp)**
-    + 1, 4, 8 bits per sample
-    + indexed, grayscale, RGB
-    + uncompressed, RLE and LZ77
+    + RGB(A), Indexed, Grayscale
+    + 1, 4, 8, 16 bits per sample
+    + Uncompressed, RLE and LZ77
 * **Gimp XCF images (.xcf)**
+    + RGB(A), Indexed(A), Grayscale(A)
     + 1, 8 bits per sample
-    + indexed(A), grayscale(A), RGB(A)
-    + uncompressed, RLE
+    + Uncompressed, RLE
 * **Jpeg images (.jpeg, .jpg, .jpe, .jfif)**
+    + RGB, Grayscale, CMYK
 	+ 8 bits per sample
-    + grayscale, RGB, CMYK
+	+ Uses libjpeg
 * **Portable network graphic images (.png)**
+    + RGB(A), Indexed(A), Grayscale(A)
     + 1, 2, 4, 8, 16 bits per sample
-    + indexed(A), grayscale(A), RGB(A)
 	+ LZ77 compressed
-	+ color profiles can be read and used except for interlaced images
+	+ Color profiles can be read and used except for interlaced images
 * **Gif images (.gif)**
+	+ Indexed
     + 1, 4, 8 bits per sample
-	+ indexed
 	+ LZW compressed
+	+ All image frames can be read (but not animated)
 * **Truevision images (.tga; .vst; .icb; .vda; .win)**, write support included
+    + 24 bits RGB(A)(888), 15 bits RGB (555), Grayscale, Indexed
     + 5 and 8 bits per sample
-    + grayscale, indexed, 15 bits RGB (555), 24 bits RGB(A)(888)
-    + uncompressed, RLE
+    + Uncompressed, RLE
 * **Kodak Photo-CD images (.pcd)**
     + 8 bits per sample in YCbCr in any resolution (192 x 128 up to 6144 x 4096)
 * **Portable pixel/gray map images (.ppm, .pgm, .pbm)**
+    + RGB, Grayscale, Indexed
     + 1 and 8 bits per sample
-    + grayscale, indexed, RGB
-	+ uncompressed
-* **ZSoft Paintbrush images (.pcx, .pcc; .scr)**
+	+ Uncompressed
+* **ZSoft Paintbrush images (.pcx, .pcc)**
+    + RGB, Indexed (including CGA palette images), Grayscale
     + 1..8 bits per sample
-    + grayscale, indexed, RGB
-    + uncompressed, RLE
+    + Uncompressed, RLE
+	+ Also reads obsolete Word for Dos screen capture images that are very similar to pcx (.scr)
 * **GFI fax images (.fax)**
-	+ uses the Tiff image reading class
+	+ Uses the Tiff image reading class
 * **EPS images (.eps)**
-	+ only .eps images that have embedded pixel graphics in TIF format.
+	+ Only .eps images that have embedded pixel graphics in TIF format.
 * **SGI images (.bw, .rgb, .rgba, .sgi)**
-    + 1..16 bits per sample
-    + indexed, grayscale, RGB(A)
-    + uncompressed, RLE
+    + RGB(A), Grayscale(A)
+    + 8, 16 bits per sample
+    + RLE, uncompressed
 * **SGI Alias/Wavefront images (.rla, .rpf)**
-    + 8 bits per sample
-	+ RGB(A)
-	+ RLE compressed
+	+ RGB(A), Grayscale(A)
+    + 1..16 bits per sample integer, 32 bits per sample float
+	+ RLE compressed, Uncompressed (for float only)
 * **Maya images (.iff)**
-    + 8 bits per sample
 	+ RGB(A)
-	+ RLE, uncompressed
-* **Amiga ilbm and pbm images (.ilbm, .lbm, .pbm, .iff)**
-    + 1-8 bits per sample; 1-8, 24, 32 planes
-	+ RGB(A), Indexed(A), Ham, Extra HalfBrite, Sham, Ctbl
-	+ RLE, uncompressed
-* **Dr. Halo images (.cut, .pal)**
     + 8 bits per sample
-	+ indexed
+	+ RLE, Uncompressed
+* **Amiga ilbm and pbm images (.ilbm, .lbm, .pbm, .iff)**
+	+ RGB(A), Indexed(A), Ham, Extra HalfBrite, Sham, Ctbl, Rgb8, Rgbn
+    + 1-8 bits per sample; 1-8, 24, 32 planes
+	+ RLE, RGBN RLE, Uncompressed
+* **Dr. Halo images (.cut, .pal)**
+	+ Indexed
+    + 8 bits per sample
 	+ RLE compressed
 * **Autodesk Animator images files (.cel; .pic)**, old style only    
+	+ Indexed
     + 8 bits per sample
-	+ indexed
-	+ uncompressed
+	+ Uncompressed
 * **Arts & Letters images (.ged)**
-    + only the embedded thumbnail images can be loaded.
-    + indexed, RGB(A)
+    + Only the embedded thumbnail images can be loaded.
+    + RGB, Indexed
 
 Image formats that can be used via a wrapper class
 --------------------------------------------------
@@ -125,7 +129,7 @@ found elsewhere on the internet.
 extra functionality added by myself.
 * I added a Gimp XCF image loader.
 * Unicode aware fixes have been added, tested in Delphi 10.1 Berlin.
-* LibTiff updated to version 4.0.4, libjpeg 6b, zlib 1.2.8. The C source code
+* LibTiff updated to version 4.0.7, libjpeg 6b, zlib 1.2.8. The C source code
 and necessary MQ patches have also been added to the repository.
 * Delphi 32 bits and Lazarus/Free Pascal 32 and 64 bits Windows compatible.
 * A start has been made with adding color profile support.
@@ -167,6 +171,13 @@ Additions February 2017
 * 32 bit PSD support.
 * Optional handling of included ICC color profiles for most PSD and PNG images.
   However this does need the lcms2.dll.
+
+Additions March 2017
+--------------------
+* All compression decoders now have safety checks against buffer overflows
+  and decoder tests were added to the test suite.
+* Improvements to the GIF, PCX, RLA and SGI image readers.
+* Update libtiff to version 4.0.7.
 
 Todo
 ----
