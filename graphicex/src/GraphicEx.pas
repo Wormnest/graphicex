@@ -5201,72 +5201,68 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
-    begin
-      Source := Pointer(PAnsiChar(Memory) + 6);
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    Source := Pointer(PAnsiChar(Memory) + 6);
 
-      FProgressRect := Rect(0, 0, Width, 0);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 0);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
-      {$IFNDEF FPC}
-      PixelFormat := pf8Bit;
-      {$ELSE}
-      PixelFormat := pf24Bit;
-      ColorManager.SourceBitsPerSample := BitsPerSample;
-      ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
-      ColorManager.SourceColorScheme := csIndexed;
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.TargetSamplesPerPixel := 3;
-      ColorManager.TargetColorScheme := csBGR;
-      {$ENDIF}
-      Self.Width := Width;
-      Self.Height := Height;
-      // TODO: We should first decode the image data and depending on the
-      // amount of palette indexes used determine the palette size and what
-      // to use for what indexes. e.g. I have examples using probably only 2
-      // colors black/white that now get 2 very similar blacks instead of
-      // 1 index black and 1 white.
-      LogPalette := LoadPalette;
+    {$IFNDEF FPC}
+    PixelFormat := pf8Bit;
+    {$ELSE}
+    PixelFormat := pf24Bit;
+    ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+    ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+    ColorManager.SourceColorScheme := csIndexed;
+    ColorManager.TargetBitsPerSample := 8;
+    ColorManager.TargetSamplesPerPixel := 3;
+    ColorManager.TargetColorScheme := csBGR;
+    {$ENDIF}
+    Self.Width := FImageProperties.Width;
+    Self.Height := FImageProperties.Height;
+    // TODO: We should first decode the image data and depending on the
+    // amount of palette indexes used determine the palette size and what
+    // to use for what indexes. e.g. I have examples using probably only 2
+    // colors black/white that now get 2 very similar blacks instead of
+    // 1 index black and 1 white.
+    LogPalette := LoadPalette;
 
-      {$IFDEF FPC}
-      ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
-      GetMem(LineBuf, Width);
-      {$ENDIF}
-      Decoder := TCUTRLEDecoder.Create;
-      try
-        for Y := 0 to Height - 1 do
-        begin
-          {$IFNDEF FPC}
-          Line := ScanLine[Y];
-          {$ELSE}
-          Line := LineBuf;
-          {$ENDIF}
-          // Length in bytes of compressed data.
-          CompressedSize := PWord(Source)^;
-          Inc(Source, 2);
-          // Decode one line.
-          Decoder.Decode(Pointer(Source), Line, CompressedSize, Width);
-          // Check that the correct amount of data got decompressed.
-          if (Decoder.CompressedBytesAvailable <> 0) or (Decoder.DecompressedBytes <> Width) then
-            GraphicExError(gesDecompression, ['CUT']);
-
-          {$IFDEF FPC}
-          ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
-          {$ENDIF}
-          Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-          OffsetRect(FProgressRect, 0, 1);
-        end;
-      finally
-        FreeAndNil(Decoder);
-        {$IFDEF FPC}
-        FreeMem(LineBuf);
+    {$IFDEF FPC}
+    ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+    GetMem(LineBuf, Width);
+    {$ENDIF}
+    Decoder := TCUTRLEDecoder.Create;
+    try
+      for Y := 0 to Height - 1 do
+      begin
+        {$IFNDEF FPC}
+        Line := ScanLine[Y];
+        {$ELSE}
+        Line := LineBuf;
         {$ENDIF}
-      end;
+        // Length in bytes of compressed data.
+        CompressedSize := PWord(Source)^;
+        Inc(Source, 2);
+        // Decode one line.
+        Decoder.Decode(Pointer(Source), Line, CompressedSize, Width);
+        // Check that the correct amount of data got decompressed.
+        if (Decoder.CompressedBytesAvailable <> 0) or (Decoder.DecompressedBytes <> Width) then
+          GraphicExError(gesDecompression, ['CUT']);
 
-      Progress(Self, psEnding, 0, False, FProgressRect, '');
+        {$IFDEF FPC}
+        ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
+        {$ENDIF}
+        Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
+        OffsetRect(FProgressRect, 0, 1);
+      end;
+    finally
+      FreeAndNil(Decoder);
+      {$IFDEF FPC}
+      FreeMem(LineBuf);
+      {$ENDIF}
     end;
+
+    Progress(Self, psEnding, 0, False, FProgressRect, '');
   end;
 end;
 
@@ -5280,22 +5276,21 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      PixelFormat := pf8Bit;
-      Run := Memory;
-      Width := Run^;
-      Inc(Run);
-      Height := Run^;
+  if Result then begin
+    PixelFormat := pf8Bit;
+    Run := Memory;
+    FImageProperties.Width := Run^;
+    Inc(Run);
+    FImageProperties.Height := Run^;
 
-      ColorScheme := csIndexed;
-      BitsPerSample := 8;
-      SamplesPerPixel := 1;
-      BitsPerPixel := BitsPerSample * SamplesPerPixel;
+    FImageProperties.ColorScheme := csIndexed;
+    FImageProperties.BitsPerSample := 8;
+    FImageProperties.SamplesPerPixel := 1;
+    FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample *
+      FImageProperties.SamplesPerPixel;
 
-      Compression := ctRLE;
-    end;
+    FImageProperties.Compression := ctRLE;
+  end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
