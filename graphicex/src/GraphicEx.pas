@@ -1716,14 +1716,17 @@ end;
 type
   PAutodeskHeader = ^TAutodeskHeader;
   TAutodeskHeader = packed record
-    Width,
-    Height,
-    XCoord,
-    YCoord: Word;
-    Depth,
-    Compression: Byte;
-    DataSize: Cardinal;
-    Reserved: array[0..15] of Byte;
+    FileType,              // Always $9119
+    Width,                 // Width of image. Always 320 in a PIC file; may be any value in a CEL file.
+    Height,                // Height of image. Always 200 in a PIC file; may be any value in a CEL file.
+    XCoord,                // X coordinate for upper left corner of the image.
+                           // Always zero in a PIC file; may be non-zero in a CEL file.
+    YCoord: Word;          // Y coordinate for upper left corner of the image.
+                           // Always zero in a PIC file; may be non-zero in a CEL file.
+    Depth,                 // Number of bits per pixel; always 8.
+    Compression: Byte;     // Compression flag; always zero.
+    DataSize: Cardinal;    // Size of the image data in bytes.
+    Reserved: array[0..15] of Byte; // Unused space; set to zeroes.
   end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1735,7 +1738,7 @@ var
 
 begin
   Run := Memory;
-  Result := Size > SizeOf(Word) + SizeOf(TAutodeskHeader);
+  Result := Size > SizeOf(TAutodeskHeader);
   if Result then
   begin
     // Check file ID.
@@ -1743,7 +1746,6 @@ begin
     if Result then
     begin
       // Read image dimensions.
-      Inc(Run, SizeOf(Word));
       with PAutodeskHeader(Run)^ do
         Result := (Depth = 8) and (Compression = 0);
     end;
@@ -1762,15 +1764,14 @@ var
 begin
   inherited;
 
-  Run := Memory;
-  
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
     FProgressRect := Rect(0, 0, Width, 1);
     Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
+    Run := Memory;
     // Skip file ID and header.
-    Inc(Run, 2 + SizeOf(TAutodeskHeader));
+    Inc(Run, SizeOf(TAutodeskHeader));
 
     // Read palette entries and create a palette.
     ZeroMemory(@LogPalette, SizeOf(LogPalette));
@@ -1821,7 +1822,7 @@ begin
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
   else
-    GraphicExError(gesInvalidImage, ['Autodesk']);
+    GraphicExError(gesInvalidImage, ['Autodesk CEL or PIC']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1829,15 +1830,14 @@ end;
 function TAutodeskGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Run: PAnsiChar;
   Header: PAutodeskHeader;
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
   if Result then begin
-    Run := Memory;
-    // Skip file ID. This has been check in the inherited call.
-    Header := Pointer(Run + 2);
+    Header := Pointer(Memory);
+    if Header.FileType <> $9119 then
+      Result := False;
     FImageProperties.ColorScheme := csIndexed;
     FImageProperties.Width := Header.Width;
     FImageProperties.Height := Header.Height;
