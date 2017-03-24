@@ -2393,7 +2393,6 @@ begin
     nPlanes := 1;
     SetLength(PtrArray, 1);
   end;
-  with FImageProperties do
   try
     Y := SetOrientation(tif, Height);
 
@@ -2402,7 +2401,7 @@ begin
       RowsPerStrip := Height;
 
     LineSize := TIFFRasterScanlineSize(tif);  // Take planar into account
-    if (BitsPerPixel = 1) and ((Width mod 8) <> 0) then
+    if (FImageProperties.BitsPerPixel = 1) and ((Width mod 8) <> 0) then
       FromSkew := ((Width + 7) and not 7) - Width
     else
       FromSkew := 0;
@@ -2428,7 +2427,7 @@ begin
 
       Pos := (Row mod RowsPerStrip) * LineSize;
 
-      if ioSeparatePlanes in Options then begin
+      if ioSeparatePlanes in FImageProperties.Options then begin
         // Image data is arrange in separate planes: We need to read a strip
         // for each plane and thus use BitsPerSample for computing Offset/Increment.
         for iPlane := 0 to nPlanes-1 do begin
@@ -2437,13 +2436,13 @@ begin
             (Row mod RowsPerStrip + RowCount) * LineSize);
           PtrArray[iPlane] := PAnsiChar(BufPtr) + Pos;
         end;
-        LineOffset := Ceil(BitsPerSample * (Width + FromSkew) / 8);
+        LineOffset := Ceil(FImageProperties.BitsPerSample * (Width + FromSkew) / 8);
       end
       else begin
         TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, Row, 0), Buffer,
           (Row mod RowsPerStrip + RowSubCount{RowCount}) * LineSize);
         PtrArray[0] := PAnsiChar(Buffer) + Pos;
-        LineOffset := Ceil(BitsPerPixel * (Width + FromSkew) / 8);
+        LineOffset := Ceil(FImageProperties.BitsPerPixel * (Width + FromSkew) / 8);
       end;
 
       Inc(Row, RowCount);
@@ -2499,11 +2498,10 @@ begin
     nPlanes := 1;
     SetLength(PtrArray, 1);
   end;
-  with FImageProperties do
   try
     TIFFGetField(tif, TIFFTAG_TILEWIDTH, @TileWidth);
     TIFFGetField(tif, TIFFTAG_TILELENGTH, @TileHeight);
-    if Ord(Orientation) = ORIENTATION_TOPLEFT then
+    if Ord(FImageProperties.Orientation) = ORIENTATION_TOPLEFT then
       RowInc := 1
     else
       RowInc := -1;
@@ -2522,7 +2520,7 @@ begin
       while Column < Cardinal(Width) do
       begin
         Pos := (Row mod TileHeight) * TileRowSize;
-        if ioSeparatePlanes in Options then begin
+        if ioSeparatePlanes in FImageProperties.Options then begin
           // Image data is arrange in separate planes: We need to read a tile
           // for each plane and thus use BitsPerSample for computing Offset/Increment.
           for iPlane := 0 to nPlanes-1 do begin
@@ -2530,12 +2528,12 @@ begin
             TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, iPlane), BufPtr, TileSize);
             PtrArray[iPlane] := PAnsiChar(BufPtr) + Pos;
           end;
-          TileOffset := Ceil(BitsPerSample * TileWidth / 8);
+          TileOffset := Ceil(FImageProperties.BitsPerSample * TileWidth / 8);
         end
         else begin
           TIFFReadEncodedTile(tif, TIFFComputeTile(tif, Column, Row, 0, 0), Buffer, TileSize);
           PtrArray[0] := PAnsiChar(Buffer) + Pos;
-          TileOffset := Ceil(BitsPerPixel * TileWidth / 8);
+          TileOffset := Ceil(FImageProperties.BitsPerPixel * TileWidth / 8);
         end;
 
         Y := Row;
@@ -2546,10 +2544,10 @@ begin
           // Tile is clipped horizontally.  Calculate visible portion and skewing factors.
           PixelCount := Cardinal(Width) - Column;
           FromSkew := TileWidth - PixelCount;
-          if ioSeparatePlanes in Options then
-            TileOffset := Ceil(BitsPerSample * (PixelCount + FromSkew) / 8)
+          if ioSeparatePlanes in FImageProperties.Options then
+            TileOffset := Ceil(FImageProperties.BitsPerSample * (PixelCount + FromSkew) / 8)
           else
-            TileOffset := Ceil(BitsPerPixel * (PixelCount + FromSkew) / 8);
+            TileOffset := Ceil(FImageProperties.BitsPerPixel * (PixelCount + FromSkew) / 8);
 
           while Counter > 0 do
           begin
@@ -2678,12 +2676,10 @@ begin
   FVertSubSampling := 1;
   FHorSubSampling := 1;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
     try
       // Initialize outermost progress display.
-      InitProgress(Width, 1);
+      InitProgress(FImageProperties.Width, 1);
       StartProgressSection(0, '');
 
       // Initialize sub section for image preparation. We give it a (guessed) value of 1%.
@@ -2692,11 +2688,11 @@ begin
       // First some checks to see if we are able to handle the image
       // Do this after InitProgress since in finally we will finalize the progress
       // and if it hasn't been initialized first it will crash.
-      if Compression = ctUnknown then
+      if FImageProperties.Compression = ctUnknown then
         GraphicExError(gesUnsupportedCompression, ['TIFF']);
-      if ColorScheme = csUnknown then
+      if FImageProperties.ColorScheme = csUnknown then
         GraphicExError(gesColorScheme, ['TIFF']);
-      if (Width <= 0) or (Height <= 0) then
+      if (FImageProperties.Width <= 0) or (FImageProperties.Height <= 0) then
         GraphicExError(gesInvalidDimensions, ['TIFF', Width, Height]);
 
       FMemory := Memory;
@@ -2716,10 +2712,10 @@ begin
         begin
           TIFFSetDirectory(TIFFImage, ImageIndex);
 
-          ColorManager.SourceColorScheme := ColorScheme;
-          ColorManager.SourceDataFormat := TSampleDataFormat(SampleFormat);
+          ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+          ColorManager.SourceDataFormat := TSampleDataFormat(FImageProperties.SampleFormat);
           // If Tiff uses separate planes we need to add that to our source options
-          if ioSeparatePlanes in Options then
+          if ioSeparatePlanes in FImageProperties.Options then
             ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
 
           {$DEFINE YCBCR} // Use this as long as we haven't finished handling YCbCr ourselves
@@ -2729,18 +2725,18 @@ begin
           // Since we can't read these formats anyway there's no need to test
           // for additional limits (BitsPerSample, SamplesPerPixel, ...) to
           // see whether TIFFReadRGBAImage can handle it.
-          if (ColorScheme in [csCIELog2L, csCIELog2Luv{$IFDEF YCBCR}, csYCbCr{$ENDIF}]) then begin
+          if (FImageProperties.ColorScheme in [csCIELog2L, csCIELog2Luv{$IFDEF YCBCR}, csYCbCr{$ENDIF}]) then begin
              // Generic RGBA reading interface
-            if (Height > 0) and (Width > 0) then
+            if (FImageProperties.Height > 0) and (FImageProperties.Width > 0) then
             begin
               // 3 or more samples per pixel are used for RGB(A), CMYK, L*a*b*, YCbCr etc.
               // All of these will be converted to RGBA.
-              if HasAlpha then
+              if FImageProperties.HasAlpha then
                 PixelFormat := pf32Bit
               else
                 PixelFormat := pf24Bit;
-              Self.Width := Width;
-              Self.Height := Height;
+              Self.Width := FImageProperties.Width;
+              Self.Height := FImageProperties.Height;
               // We will always receive RGBA thus we need to reserve space for
               // Width * Height * SizeOf(RGBA)
               Count := Width * Height;
@@ -2756,12 +2752,12 @@ begin
                   for I := Height - 1 downto 0 do
                   begin
                     Line := Scanline[I];
-                    if HasAlpha then
+                    if FImageProperties.HasAlpha then
                       // Change RGBA to BGRA, 1 line at a time
                       RGBAToBGRA(Run, Width, 1)
                     else
                       RGBAToBGR(Run, Width, 1);
-                    Move(Run^, Line^, Width * (3+Ord(HasAlpha)));
+                    Move(Run^, Line^, Width * (3+Ord(FImageProperties.HasAlpha)));
                     Inc(Run, Width * 4);
                     AdvanceProgress(100 / Height, 0, 1, True);
                   end;
@@ -2773,36 +2769,36 @@ begin
             end;
           end
           else begin
-            if (Width = 0) or (Height = 0) then
+            if (FImageProperties.Width = 0) or (FImageProperties.Height = 0) then
               // We can't show broken images where either width or height is 0.
               Exit;
             // Monochrome and indexed with 1-64 bits per pixel including floating point
             // RGB(A) 16, 32, 64 bits including floating point
             // Strip, Tiles, contiguous and planar are all supported
-            ColorManager.SourceBitsPerSample := BitsPerSample;
-            ColorManager.SourceSamplesPerPixel := SamplesPerPixel;
+            ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+            ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
 
-            if ColorScheme in [csG, csGA, csIndexed, csIndexedA] then begin
+            if FImageProperties.ColorScheme in [csG, csGA, csIndexed, csIndexedA] then begin
               // Monochrome images are handled just like indexed images (a gray scale palette is used).
 
               // TargetBitsPerSample needs to correspond to the TargetPixelFormat
               // or else the image will not be painted correctly.
               {$IFNDEF FPC}
-              if (BitsPerSample >= 5) and (BitsPerSample <= 64) then
+              if (FImageProperties.BitsPerSample >= 5) and (FImageProperties.BitsPerSample <= 64) then
                 ColorManager.TargetBitsPerSample := 8
-              else if BitsPerSample in [2, 3, 4] then
+              else if FImageProperties.BitsPerSample in [2, 3, 4] then
                 ColorManager.TargetBitsPerSample := 4
               else // 1 BitsPerSample, or values > 64 which we don't support and will throw an error
-                ColorManager.TargetBitsPerSample := BitsPerSample;
+                ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
 
-              ColorManager.TargetSamplesPerPixel := SamplesPerPixel;
-              if (SamplesPerPixel > 1) and not HasAlpha then begin
+              ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
+              if (FImageProperties.SamplesPerPixel > 1) and not FImageProperties.HasAlpha then begin
                 // There are extra samples but apparently not a normal alpha channel.
                 // We need to make sure these extra samples get skipped.
                 ColorManager.TargetSamplesPerPixel := 1;
               end;
 
-              if (ColorScheme = csGA) and (BitsPerSample = 8) then begin
+              if (FImageProperties.ColorScheme = csGA) and (FImageProperties.BitsPerSample = 8) then begin
                 // Need to convert to BGRA to be able to show alpha
                 ColorManager.TargetColorScheme := csBGRA;
                 ColorManager.TargetSamplesPerPixel := 4;
@@ -2811,7 +2807,7 @@ begin
                 ColorManager.TargetColorScheme := csIndexed;
               {$ELSE}
               ColorManager.TargetBitsPerSample := 8;
-              if HasAlpha then begin
+              if FImageProperties.HasAlpha then begin
                 ColorManager.TargetSamplesPerPixel := 4;
                 ColorManager.TargetColorScheme := csBGRA;
               end
@@ -2820,11 +2816,11 @@ begin
                 ColorManager.TargetColorScheme := csBGR;
               end;
               {$ENDIF}
-              if ioSeparatePlanes in Options then begin
+              if ioSeparatePlanes in FImageProperties.Options then begin
                 // Only possible for Grayscale or Indexed with alpha.
                 ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
               end;
-              if ioMinIsWhite in Options then
+              if ioMinIsWhite in FImageProperties.Options then
                 ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
             end
             else begin
@@ -2836,7 +2832,7 @@ begin
               // since target 1, 4 bits would need palette handling.
               ColorManager.TargetBitsPerSample := 8;
 
-              if HasAlpha then
+              if FImageProperties.HasAlpha then
                 // Note that if we wanted to add alpha where the source doesn't
                 // have alpha we would need to add the next line:
                 // ColorManager.TargetSamplesPerPixel := 4;
@@ -2844,7 +2840,7 @@ begin
               else
                 ColorManager.TargetColorScheme := csBGR;
 
-              case ColorScheme of
+              case FImageProperties.ColorScheme of
                 csYCbCr:
                   begin
                     TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRSUBSAMPLING, @FHorSubSampling, @FVertSubSampling);
@@ -2853,7 +2849,7 @@ begin
                     // Copy luma
                     Move(Luma^,FLuma,SizeOf(TLuma));
                     ColorManager.SetYCbCrParameters([FLuma.LumaRed, FLuma.LumaGreen, FLuma.LumaBlue], FHorSubSampling, FVertSubSampling);
-                    if (Compression = ctJPEG) and not (ioTiled in Options) then begin
+                    if (FImageProperties.Compression = ctJPEG) and not (ioTiled in FImageProperties.Options) then begin
                       // Let the Jpeg Lib do the conversion from YCbCr to RGB for us
                       TIFFSetField(TIFFImage, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
                       ColorManager.SourceColorScheme := csRGB;
@@ -2863,12 +2859,12 @@ begin
                 csICCLab,
                 csITULab:
                   begin
-                    if SamplesPerPixel >= 3 then begin
-                      ColorManager.TargetSamplesPerPixel := 3 + Ord(HasAlpha);
-                      if ColorScheme = csCIELab then // Not sure about this.
+                    if FImageProperties.SamplesPerPixel >= 3 then begin
+                      ColorManager.TargetSamplesPerPixel := 3 + Ord(FImageProperties.HasAlpha);
+                      if FImageProperties.ColorScheme = csCIELab then // Not sure about this.
                         ColorManager.SourceOptions := ColorManager.SourceOptions +
                           [coLabByteRange]
-                      else if ColorScheme = csICCLab then
+                      else if FImageProperties.ColorScheme = csICCLab then
                         ColorManager.SourceOptions := ColorManager.SourceOptions +
                           [coLabByteRange, coLabChromaOffset]
                     end
@@ -2883,14 +2879,14 @@ begin
                       {$ENDIF}
                       // The one example I have has a range from light=1 to dark= 254
                       // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
-                      Include(Options, ioMinIsWhite);
+                      Include(FImageProperties.Options, ioMinIsWhite);
                       ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
                     end;
                   end;
                 csUnknown: // Do a simple guess what color scheme it could be.
                   begin
-                    if BitsPerSample in [8, 16] then
-                      case SamplesPerPixel of
+                    if FImageProperties.BitsPerSample in [8, 16] then
+                      case FImageProperties.SamplesPerPixel of
                         1:
                           begin
                             ColorManager.SourceColorScheme := csG;
@@ -2912,7 +2908,7 @@ begin
                 // Tiff can have extra samples that are not normal alpha channels.
                 // Catch those so we can interpret it at least partially.
                 // That is the reason that we use explicit numbers here and not SamplesPerPixel.
-                if HasAlpha then
+                if FImageProperties.HasAlpha then
                   ColorManager.TargetSamplesPerPixel := 4
                 else
                   ColorManager.TargetSamplesPerPixel := 3;
@@ -2923,16 +2919,16 @@ begin
             // TIFF can handle sizes larger than Max(Integer) on 32 bits
             // We probably won't be able to handle the amount of memory needed
             // but we will limit the loading to Max(Integer) in these cases.
-            if Width >= 0 then
-              Self.Width := Width
+            if FImageProperties.Width >= 0 then
+              Self.Width := FImageProperties.Width
             else
               Self.Width := MaxInt;
-            if Height >= 0 then
-              Self.Height := Height
+            if FImageProperties.Height >= 0 then
+              Self.Height := FImageProperties.Height
             else
               Self.Height := MaxInt;
 
-            if ColorScheme in [csIndexed, csIndexedA] then
+            if FImageProperties.ColorScheme in [csIndexed, csIndexedA] then
             begin
               {$ifndef DELPHI_6_UP}
                 ExtraInfo.Value1 := @RedMap;
@@ -2946,13 +2942,13 @@ begin
               if GotPalette > 0 then
               begin
                 {$IFNDEF FPC}
-                if BitsPerSample in [9..16] then begin
+                if FImageProperties.BitsPerSample in [9..16] then begin
                 {$ENDIF}
                   // Palette images with more than 8 bits per sample are converted
                   // to RGB since Windows palette can have a maximum of 8 bits (256) entries
                   // and downscaling a palette is very complicated.
                   ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
-                  if not HasAlpha then begin
+                  if not FImageProperties.HasAlpha then begin
                     if ColorManager.TargetColorScheme <> csBGR then begin
                       // Only change if needed since changing PixelFormat might be slow
                       ColorManager.TargetColorScheme := csBGR;
@@ -2975,21 +2971,22 @@ begin
                 end
                 else
                   // Create the palette from the three maps.
-                  Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap], pfPlane16Triple, 1 shl BitsPerPixel, True);
+                  Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap],
+                    pfPlane16Triple, 1 shl FImageProperties.BitsPerPixel, True);
                 {$ENDIF}
               end
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);
             end
-            else if (ColorScheme in [csG, csGA]) or (ColorManager.TargetColorScheme in [csG, csGA]) then
+            else if (FImageProperties.ColorScheme in [csG, csGA]) or (ColorManager.TargetColorScheme in [csG, csGA]) then
             begin
               // Gray scale image data.
               if ColorManager.TargetColorScheme in [csG, csGA, csIndexed, csIndexedA] then
-                Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
+                Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in FImageProperties.Options);
             end;
 
             StartProgressSection(0, gesLoadingData);
-            if ioTiled in Options then
+            if ioTiled in FImageProperties.Options then
               ReadTiled(TIFFImage)
             else
               ReadContiguous(TIFFImage);
@@ -3043,239 +3040,237 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-  begin
-    with FImageProperties do
-    begin
-      FMemory := Memory;
-      FCurrentPointer := Memory;
-      FSize := Size;
+  if Result then begin
+    FMemory := Memory;
+    FCurrentPointer := Memory;
+    FSize := Size;
 
-      // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
-      // Since we are already using a memory mapped file ourselves it is not
-      // necessary to let libtif also use a memory mapped file.
-      TIFFImage := TIFFClientOpen('', 'rm', NativeUInt(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
-        TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
-      if Assigned(TIFFImage) then
+    // OpenMode: r - readmode, (lowercase) m - Don't use memory mapped file
+    // Since we are already using a memory mapped file ourselves it is not
+    // necessary to let libtif also use a memory mapped file.
+    TIFFImage := TIFFClientOpen('', 'rm', NativeUInt(Self), TIFFReadProc, TIFFWriteProc, TIFFSeekProc, TIFFCloseProc,
+      TIFFSizeProc, TIFFMapProc, TIFFUnmapProc);
+    if Assigned(TIFFImage) then
+    try
+      // This version is actually a magic number.
+      FImageProperties.Version := pTIFFHEADER(FMemory).Version;
+      if pTIFFHEADER(FMemory).ByteOrder = TIFF_BIGENDIAN then
+        FImageProperties.Version := SwapEndian(FImageProperties.Version);
       try
-        // This version is actually a magic number.
-        Version := pTIFFHEADER(FMemory).Version;
-        if pTIFFHEADER(FMemory).ByteOrder = TIFF_BIGENDIAN then
-          Version := SwapEndian(Version);
-        try
-          // Account for invalid files.
-          ImageCount := TIFFNumberOfDirectories(TIFFImage);
-        except
-          ImageCount := 1;
-        end;
+        // Account for invalid files.
+        FImageProperties.ImageCount := TIFFNumberOfDirectories(TIFFImage);
+      except
+        FImageProperties.ImageCount := 1;
+      end;
 
-        TIFFSetDirectory(TIFFImage, ImageIndex);
-        TIFFGetField(TIFFImage, TIFFTAG_IMAGEWIDTH, @Width);
-        TIFFGetField(TIFFImage, TIFFTAG_IMAGELENGTH, @Height);
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_ORIENTATION, @TIFFValue);
-        Orientation := TgexOrientation(TIFFValue);
+      TIFFSetDirectory(TIFFImage, ImageIndex);
+      TIFFGetField(TIFFImage, TIFFTAG_IMAGEWIDTH, @FImageProperties.Width);
+      TIFFGetField(TIFFImage, TIFFTAG_IMAGELENGTH, @FImageProperties.Height);
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_ORIENTATION, @TIFFValue);
+      FImageProperties.Orientation := TgexOrientation(TIFFValue);
 
-        // Number of color components per pixel (1 for b&w, 16 and 256 colors, 3 for RGB, 4 for CMYK etc.).
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLESPERPIXEL, @TIFFValue);
-        SamplesPerPixel := TIFFValue;
+      // Number of color components per pixel (1 for b&w, 16 and 256 colors, 3 for RGB, 4 for CMYK etc.).
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLESPERPIXEL, @TIFFValue);
+      FImageProperties.SamplesPerPixel := TIFFValue;
 
-        // Number of bits per color component.
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_BITSPERSAMPLE, @TIFFValue);
-        BitsPerSample := TIFFValue;
+      // Number of bits per color component.
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_BITSPERSAMPLE, @TIFFValue);
+      FImageProperties.BitsPerSample := TIFFValue;
 
-        // Determine whether image is tiled.
-        if TIFFIsTiled(TIFFImage) > 0 then
-          Include(Options, ioTiled);
+      // Determine whether image is tiled.
+      if TIFFIsTiled(TIFFImage) > 0 then
+        Include(FImageProperties.Options, ioTiled);
 
-        // Photometric interpretation determines the color space.
-        TIFFGetField(TIFFImage, TIFFTAG_PHOTOMETRIC, @PhotometricInterpretation);
-        FActualTiffData.TiffPhotometric := PhotometricInterpretation;
-        // Type of extra information for additional samples per pixel.
-        {$ifndef DELPHI_6_UP}
-          ExtraInfo.Value1 := @ExtraSamples;
-          ExtraInfo.Value2 := @SampleInfo;
-          TIFFVGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraInfo);
-        {$else}
-          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraSamples, @SampleInfo);
-        {$endif DELPHI_6_UP}
+      // Photometric interpretation determines the color space.
+      TIFFGetField(TIFFImage, TIFFTAG_PHOTOMETRIC, @PhotometricInterpretation);
+      FActualTiffData.TiffPhotometric := PhotometricInterpretation;
+      // Type of extra information for additional samples per pixel.
+      {$ifndef DELPHI_6_UP}
+        ExtraInfo.Value1 := @ExtraSamples;
+        ExtraInfo.Value2 := @SampleInfo;
+        TIFFVGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraInfo);
+      {$else}
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_EXTRASAMPLES, @ExtraSamples, @SampleInfo);
+      {$endif DELPHI_6_UP}
 
-        // Determine whether extra samples must be considered.
-        HasAlpha := (ExtraSamples >= 1) and
-          (SampleInfo^[0] in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
+      // Determine whether extra samples must be considered.
+      FImageProperties.HasAlpha := (ExtraSamples >= 1) and
+        (SampleInfo^[0] in [EXTRASAMPLE_ASSOCALPHA, EXTRASAMPLE_UNASSALPHA]);
 
-        // SampleFormat determines DataType of samples (default = unsigned int)
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLEFORMAT, @TIFFValue);
-        SampleFormat := TIFFValue;
-        if SampleFormat in [SAMPLEFORMAT_IEEEFP, SAMPLEFORMAT_COMPLEXIEEEFP] then begin
-          // Get min and max pixel values for floating point pixel data
-          // TODO: Proabably we should be prepared to read min/max values for each sample
-          // thus 1 for grayscale, 3 for rgb
-          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMINSAMPLEVALUE, @FMinFloatSample);
-          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMAXSAMPLEVALUE, @FMaxFloatSample);
-        end;
+      // SampleFormat determines DataType of samples (default = unsigned int)
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SAMPLEFORMAT, @TIFFValue);
+      FImageProperties.SampleFormat := TIFFValue;
+      if FImageProperties.SampleFormat in [SAMPLEFORMAT_IEEEFP, SAMPLEFORMAT_COMPLEXIEEEFP] then begin
+        // Get min and max pixel values for floating point pixel data
+        // TODO: Proabably we should be prepared to read min/max values for each sample
+        // thus 1 for grayscale, 3 for rgb
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMINSAMPLEVALUE, @FMinFloatSample);
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_SMAXSAMPLEVALUE, @FMaxFloatSample);
+      end;
 
-        // PlanarConfig needed to determine BitsPerPixel in case its Separate
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_PLANARCONFIG, @TIFFValue);
+      // PlanarConfig needed to determine BitsPerPixel in case its Separate
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_PLANARCONFIG, @TIFFValue);
 
-        // Compute Bits per Pixel
-        if TIFFVALUE = PLANARCONFIG_SEPARATE then begin
-          // separate planes
-          Include(Options, ioSeparatePlanes);
-          BitsPerPixel := BitsPerSample * (SamplesPerPixel-ExtraSamples);
-        end
-        else // bits are contigious
-          BitsPerPixel := BitsPerSample * SamplesPerPixel;
-
-        // Convert compression identifier.
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_COMPRESSION, @TIFFCompression);
-        FActualTiffData.TiffCompression :=  TIFFCompression;
-        case TIFFCompression of
-          COMPRESSION_NONE:
-            Compression := ctNone;
-          COMPRESSION_CCITTRLE:
-            Compression := ctFaxRLE;
-          COMPRESSION_CCITTFAX3:
-            begin
-              TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_T4OPTIONS, @TIFFValue);
-              if (TIFFValue and GROUP3OPT_2DENCODING) <> 0 then
-                Compression := ct2DFax3
-              else
-                Compression := ctFax3;
-            end;
-          COMPRESSION_CCITTFAX4:
-            Compression := ctFax4;
-          COMPRESSION_LZW:
-            Compression := ctLZW;
-          COMPRESSION_OJPEG:
-            Compression := ctOJPEG;
-          COMPRESSION_JPEG:
-            Compression := ctJPEG;
-          {COMPRESSION_T85, - not implemented
-          COMPRESSION_T43   - not implemented}
-          COMPRESSION_NEXT:
-            Compression := ctNext;
-          COMPRESSION_CCITTRLEW:
-            Compression := ctFaxRLEW;
-          COMPRESSION_PACKBITS:
-            Compression := ctPackedBits;
-          COMPRESSION_THUNDERSCAN:
-            Compression := ctThunderscan;
-          COMPRESSION_IT8CTPAD:
-            Compression := ctIT8CTPAD;
-          COMPRESSION_IT8LW:
-            Compression := ctIT8LW;
-          COMPRESSION_IT8MP:
-            Compression := ctIT8MP;
-          COMPRESSION_IT8BL:
-            Compression := ctIT8BL;
-          COMPRESSION_PIXARFILM:
-            Compression := ctPixarFilm;
-          COMPRESSION_PIXARLOG: // also a LZ77 clone
-            Compression := ctPixarLog;
-          COMPRESSION_ADOBE_DEFLATE,
-          COMPRESSION_DEFLATE: 
-            Compression := ctLZ77;
-          COMPRESSION_DCS:
-            Compression := ctDCS;
-          COMPRESSION_JBIG:
-            Compression := ctJBIG;
-          COMPRESSION_SGILOG:
-            Compression := ctSGILog;
-          COMPRESSION_SGILOG24:
-            Compression := ctSGILog24;
-          // COMPRESSION_LEADTOOLS_CMP (34709, LeadTools undocumented)
-          COMPRESSION_JP2000: // LeadTools Jpeg2000
-            Compression := ctJpeg2000;
-          COMPRESSION_LZMA:   // LZMA2
-            Compression := ctLZMA;
-        else
-          Compression := ctUnknown;
-        end;
-
-        case PhotometricInterpretation of
-          PHOTOMETRIC_MINISWHITE:
-            begin
-              if HasAlpha then
-                ColorScheme := csGA
-              else
-                ColorScheme := csG;
-              Include(Options, ioMinIsWhite);
-            end;
-          PHOTOMETRIC_MINISBLACK,
-          PHOTOMETRIC_MASK:      // Mask is long deprecated, try to interpret as grayscale
-            if HasAlpha then
-              ColorScheme := csGA
-            else
-              ColorScheme := csG;
-          PHOTOMETRIC_RGB,
-          // These 2 supposedly are DNG specification color schemes, try to interpret as RGB for now
-          PHOTOMETRIC_CFA,
-          PHOTOMETRIC_LINEAR_RAW:
-            begin
-              if (SamplesPerPixel < 4) then
-                ColorScheme := csRGB
-              else
-                ColorScheme := csRGBA;
-            end;
-          PHOTOMETRIC_PALETTE:
-            if HasAlpha then
-              ColorScheme := csIndexedA
-            else
-              ColorScheme := csIndexed;
-          PHOTOMETRIC_SEPARATED:
-            if HasAlpha then
-              ColorScheme := csCMYKA
-            else
-              ColorScheme := csCMYK;
-          PHOTOMETRIC_YCBCR:
-            ColorScheme := csYCbCr;
-          PHOTOMETRIC_CIELAB:
-            ColorScheme := csCIELab;
-          PHOTOMETRIC_ICCLAB:
-            ColorScheme := csICCLab;
-          PHOTOMETRIC_ITULAB:
-            ColorScheme := csITULab;
-          PHOTOMETRIC_LOGL:
-            ColorScheme := csCIELog2L;
-          PHOTOMETRIC_LOGLUV:
-            ColorScheme := csCIELog2Luv;
-        else
-          ColorScheme := csUnknown;
-        end;
-
-        if ColorScheme in [csCIELAB, csICCLab, csITULAB] then begin
-          TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_WHITEPOINT, @TiffRationals);
-          RefWhiteX := TiffRationals^[0]/TiffRationals^[1] * 100.0;
-          ColorManager.SetWhitePoint(
-            RefWhiteX, 100.0,
-            (1.0 - TiffRationals^[0] - TiffRationals^[1]) / TiffRationals^[1] * RefWhiteX );
-        end;
-
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_XRESOLUTION, @XResolution);
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YRESOLUTION, @YResolution);
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_RESOLUTIONUNIT, @ResUnit);
-        if ResUnit = RESUNIT_CENTIMETER then
-        begin
-          // Resolution is given in centimeters -> convert to inches.
-          XResolution := XResolution * 2.54;
-          YResolution := YResolution * 2.54;
-        end;
-
-        // Determine fill order in bytes
-        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_FILLORDER, @FillOrder);
-        if FillOrder = FILLORDER_LSB2MSB then
-          Include(Options, ioReversed);
-
-        // Get TIFF Image Description (if present)
-        if (TIFFGetField(TIFFImage, TIFFTAG_IMAGEDESCRIPTION, @TiffStringValue) = 1) and
-           (TiffStringValue[0] <> nil) then
-          Comment := TiffStringValue[0];
-      finally
-        TIFFClose(TIFFImage);
+      // Compute Bits per Pixel
+      if TIFFVALUE = PLANARCONFIG_SEPARATE then begin
+        // separate planes
+        Include(FImageProperties.Options, ioSeparatePlanes);
+        FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample *
+          (FImageProperties.SamplesPerPixel-ExtraSamples);
       end
+      else // bits are contigious
+        FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample *
+          FImageProperties.SamplesPerPixel;
+
+      // Convert compression identifier.
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_COMPRESSION, @TIFFCompression);
+      FActualTiffData.TiffCompression :=  TIFFCompression;
+      case TIFFCompression of
+        COMPRESSION_NONE:
+          FImageProperties.Compression := ctNone;
+        COMPRESSION_CCITTRLE:
+          FImageProperties.Compression := ctFaxRLE;
+        COMPRESSION_CCITTFAX3:
+          begin
+            TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_T4OPTIONS, @TIFFValue);
+            if (TIFFValue and GROUP3OPT_2DENCODING) <> 0 then
+              FImageProperties.Compression := ct2DFax3
+            else
+              FImageProperties.Compression := ctFax3;
+          end;
+        COMPRESSION_CCITTFAX4:
+          FImageProperties.Compression := ctFax4;
+        COMPRESSION_LZW:
+          FImageProperties.Compression := ctLZW;
+        COMPRESSION_OJPEG:
+          FImageProperties.Compression := ctOJPEG;
+        COMPRESSION_JPEG:
+          FImageProperties.Compression := ctJPEG;
+        {COMPRESSION_T85, - not implemented
+        COMPRESSION_T43   - not implemented}
+        COMPRESSION_NEXT:
+          FImageProperties.Compression := ctNext;
+        COMPRESSION_CCITTRLEW:
+          FImageProperties.Compression := ctFaxRLEW;
+        COMPRESSION_PACKBITS:
+          FImageProperties.Compression := ctPackedBits;
+        COMPRESSION_THUNDERSCAN:
+          FImageProperties.Compression := ctThunderscan;
+        COMPRESSION_IT8CTPAD:
+          FImageProperties.Compression := ctIT8CTPAD;
+        COMPRESSION_IT8LW:
+          FImageProperties.Compression := ctIT8LW;
+        COMPRESSION_IT8MP:
+          FImageProperties.Compression := ctIT8MP;
+        COMPRESSION_IT8BL:
+          FImageProperties.Compression := ctIT8BL;
+        COMPRESSION_PIXARFILM:
+          FImageProperties.Compression := ctPixarFilm;
+        COMPRESSION_PIXARLOG: // also a LZ77 clone
+          FImageProperties.Compression := ctPixarLog;
+        COMPRESSION_ADOBE_DEFLATE,
+        COMPRESSION_DEFLATE:
+          FImageProperties.Compression := ctLZ77;
+        COMPRESSION_DCS:
+          FImageProperties.Compression := ctDCS;
+        COMPRESSION_JBIG:
+          FImageProperties.Compression := ctJBIG;
+        COMPRESSION_SGILOG:
+          FImageProperties.Compression := ctSGILog;
+        COMPRESSION_SGILOG24:
+          FImageProperties.Compression := ctSGILog24;
+        // COMPRESSION_LEADTOOLS_CMP (34709, LeadTools undocumented)
+        COMPRESSION_JP2000: // LeadTools Jpeg2000
+          FImageProperties.Compression := ctJpeg2000;
+        COMPRESSION_LZMA:   // LZMA2
+          FImageProperties.Compression := ctLZMA;
       else
-        Result := False;
-    end;
+        FImageProperties.Compression := ctUnknown;
+      end;
+
+      case PhotometricInterpretation of
+        PHOTOMETRIC_MINISWHITE:
+          begin
+            if FImageProperties.HasAlpha then
+              FImageProperties.ColorScheme := csGA
+            else
+              FImageProperties.ColorScheme := csG;
+            Include(FImageProperties.Options, ioMinIsWhite);
+          end;
+        PHOTOMETRIC_MINISBLACK,
+        PHOTOMETRIC_MASK:      // Mask is long deprecated, try to interpret as grayscale
+          if FImageProperties.HasAlpha then
+            FImageProperties.ColorScheme := csGA
+          else
+            FImageProperties.ColorScheme := csG;
+        PHOTOMETRIC_RGB,
+        // These 2 supposedly are DNG specification color schemes, try to interpret as RGB for now
+        PHOTOMETRIC_CFA,
+        PHOTOMETRIC_LINEAR_RAW:
+          begin
+            if (FImageProperties.SamplesPerPixel < 4) then
+              FImageProperties.ColorScheme := csRGB
+            else
+              FImageProperties.ColorScheme := csRGBA;
+          end;
+        PHOTOMETRIC_PALETTE:
+          if FImageProperties.HasAlpha then
+            FImageProperties.ColorScheme := csIndexedA
+          else
+            FImageProperties.ColorScheme := csIndexed;
+        PHOTOMETRIC_SEPARATED:
+          if FImageProperties.HasAlpha then
+            FImageProperties.ColorScheme := csCMYKA
+          else
+            FImageProperties.ColorScheme := csCMYK;
+        PHOTOMETRIC_YCBCR:
+          FImageProperties.ColorScheme := csYCbCr;
+        PHOTOMETRIC_CIELAB:
+          FImageProperties.ColorScheme := csCIELab;
+        PHOTOMETRIC_ICCLAB:
+          FImageProperties.ColorScheme := csICCLab;
+        PHOTOMETRIC_ITULAB:
+          FImageProperties.ColorScheme := csITULab;
+        PHOTOMETRIC_LOGL:
+          FImageProperties.ColorScheme := csCIELog2L;
+        PHOTOMETRIC_LOGLUV:
+          FImageProperties.ColorScheme := csCIELog2Luv;
+      else
+        FImageProperties.ColorScheme := csUnknown;
+      end;
+
+      if FImageProperties.ColorScheme in [csCIELAB, csICCLab, csITULAB] then begin
+        TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_WHITEPOINT, @TiffRationals);
+        RefWhiteX := TiffRationals^[0]/TiffRationals^[1] * 100.0;
+        ColorManager.SetWhitePoint(
+          RefWhiteX, 100.0,
+          (1.0 - TiffRationals^[0] - TiffRationals^[1]) / TiffRationals^[1] * RefWhiteX );
+      end;
+
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_XRESOLUTION, @FImageProperties.XResolution);
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YRESOLUTION, @FImageProperties.YResolution);
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_RESOLUTIONUNIT, @ResUnit);
+      if ResUnit = RESUNIT_CENTIMETER then
+      begin
+        // Resolution is given in centimeters -> convert to inches.
+        FImageProperties.XResolution := FImageProperties.XResolution * 2.54;
+        FImageProperties.YResolution := FImageProperties.YResolution * 2.54;
+      end;
+
+      // Determine fill order in bytes
+      TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_FILLORDER, @FillOrder);
+      if FillOrder = FILLORDER_LSB2MSB then
+        Include(FImageProperties.Options, ioReversed);
+
+      // Get TIFF Image Description (if present)
+      if (TIFFGetField(TIFFImage, TIFFTAG_IMAGEDESCRIPTION, @TiffStringValue) = 1) and
+         (TiffStringValue[0] <> nil) then
+        FImageProperties.Comment := TiffStringValue[0];
+    finally
+      TIFFClose(TIFFImage);
+    end
+    else
+      Result := False;
   end;
 end;
 
