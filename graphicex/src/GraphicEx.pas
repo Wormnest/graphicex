@@ -1831,12 +1831,23 @@ function TAutodeskGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64
 
 var
   Header: PAutodeskHeader;
-
+  ExpectedSize, PicDataSize: Cardinal;
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
   if Result then begin
     Header := Pointer(Memory);
     if Header.FileType <> $9119 then
+      Result := False;
+    PicDataSize := Header.Width * Header.Height;
+    // Make sure image data is the expected size
+    if PicDataSize <> Header.DataSize then
+      Result := False;
+    // 3 * 256 is size of palette
+    // Make sure image size is as expected, this way we won't get a buffer overflow
+    ExpectedSize := SizeOf(TAutodeskHeader) + 3*256 + PicDataSize;
+    if ExpectedSize <> Size then
+      Result := False;
+    if Header.Depth <> 8 then
       Result := False;
     FImageProperties.ColorScheme := csIndexed;
     FImageProperties.Width := Header.Width;
