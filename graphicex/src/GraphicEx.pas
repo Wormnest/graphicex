@@ -1834,20 +1834,18 @@ var
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
-  if Result then
-    with FImageProperties do
-    begin
-      Run := Memory;
-      // Skip file ID. This has been check in the inherited call.
-      Header := Pointer(Run + 2);
-      ColorScheme := csIndexed;
-      Width := Header.Width;
-      Height := Header.Height;
-      BitsPerSample := 8;
-      SamplesPerPixel := 1;
-      BitsPerPixel := 8;
-      Compression := ctNone;
-    end;
+  if Result then begin
+    Run := Memory;
+    // Skip file ID. This has been check in the inherited call.
+    Header := Pointer(Run + 2);
+    FImageProperties.ColorScheme := csIndexed;
+    FImageProperties.Width := Header.Width;
+    FImageProperties.Height := Header.Height;
+    FImageProperties.BitsPerSample := 8;
+    FImageProperties.SamplesPerPixel := 1;
+    FImageProperties.BitsPerPixel := 8;
+    FImageProperties.Compression := ctNone;
+  end;
 end;
 
 {$endif AutodeskGraphic}
