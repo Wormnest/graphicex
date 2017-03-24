@@ -105,6 +105,12 @@ type
     constructor Create(AParentForm: TForm; xpThumbs: TrkView; Items: TList);
   end;
 
+  // See https://www.experts-exchange.com/questions/24003128/Delphi-Threads-with-TBItmap-TJpegImage-TGraphics32.html
+  TgexThreadSafeJpegImage = class(TJpegImage)
+  protected
+    procedure Draw(ACanvas: TCanvas; const Rect: TRect); override;
+  end;
+
   // Define a form class that supports the IThumbnail interface
   TgexBaseForm = class(TForm, IThumbnail)
   private
@@ -112,7 +118,7 @@ type
     FMaxThumbSizeW,
     FMaxThumbSizeH: Integer;      // Maximum WxH of Thumb
     FImageFolder: string;         // Current folder with images
-    FThumbJpeg: TJpegImage;
+    FThumbJpeg: TgexThreadSafeJpegImage;
     FThumbView: TrkView;
     FProgressCount,
     FProgressCurrent: Integer;
@@ -129,7 +135,7 @@ type
     function GetSilentThreadException: Boolean;
     procedure SetSilentThreadException(AValue: Boolean);
   protected
-    CellJpeg: TJpegImage;
+    CellJpeg: TgexThreadSafeJpegImage;
     CellScale: Integer;
     CellStyle: Integer;
     ThumbThr: TgexThumbnailThread;
@@ -506,14 +512,27 @@ begin
   GradientFill( DC, @Vertexs, 2, @GRect, 1, GRADIENT_FILL_RECT_V );
 end;
 
+// -----------------------------------------------------------------------------
+//                           TgexThreadSafeJpegImage
+// -----------------------------------------------------------------------------
+
+procedure TgexThreadSafeJpegImage.Draw(ACanvas: TCanvas; const Rect: TRect);
+begin
+  Bitmap.Canvas.Lock;
+  try
+    inherited Draw(ACanvas, Rect);
+  finally
+    Bitmap.Canvas.Unlock;
+  end;
+end;
 
 // -----------------------------------------------------------------------------
 //                           TgexBaseForm
 // -----------------------------------------------------------------------------
 
-function CreateThumbJpeg: TJpegImage;
+function CreateThumbJpeg: TgexThreadSafeJpegImage;
 begin
-  Result := TJpegImage.Create;
+  Result := TgexThreadSafeJpegImage.Create;
   Result.CompressionQuality := 80;
   Result.Performance := jpBestSpeed;
 end;
@@ -531,7 +550,7 @@ begin
   FThumbJpeg := CreateThumbJpeg;
   FMaxThumbSizeW := 256;
   FMaxThumbSizeH := 256;
-  CellJpeg := TJpegImage.Create;
+  CellJpeg := TgexThreadSafeJpegImage.Create;
   CellJpeg.Performance := jpBestSpeed;
   CellStyle := -1;
   CellScale := 0;
