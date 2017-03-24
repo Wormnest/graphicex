@@ -77,6 +77,7 @@ interface
    // fpc
   {$mode Delphi}
   {$ASMMODE INTEL} // Needed for 64 bit assembler
+  {$DEFINE SUPPORTS_INLINE}            // Compiler supports the inline directive (D9+/FPC)
 {$ENDIF}
 
 uses
@@ -618,12 +619,12 @@ end;
 
 
 {$IFNDEF FPC} // Fpc has these already available in unit System
-function RorByte(const AValue: Byte): Byte; overload;
+function RorByte(const AValue: Byte): Byte; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF} overload;
 begin
   Result := (AValue shr 1) or (AValue shl (7));
 end;
 
-function RorByte(const AValue: Byte; const ARotateBits: Byte): Byte; overload;
+function RorByte(const AValue: Byte; const ARotateBits: Byte): Byte; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF} overload;
 begin
   Result := (AValue shr ARotateBits) or (AValue shl (8-ARotateBits));
 end;
@@ -856,7 +857,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32;
+function  ToRGBAColor32(const R, G, B, A: Byte): TRGBAColor32; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 begin
   Result := (A shl 24) or (R shl 16) or (G shl 8) or B;
 end;
@@ -1307,7 +1308,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function MakeHLS(const H, L, S: Byte): THLS;
+function MakeHLS(const H, L, S: Byte): THLS; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 begin
   Result.H := H;
@@ -1317,7 +1318,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function MakeHLS(const H, L, S: Single): THLSFloat;
+function MakeHLS(const H, L, S: Single): THLSFloat; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 begin
   Result.H := H;
@@ -1327,7 +1328,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function MakeRGB(const R, G, B: Byte): TRGB;
+function MakeRGB(const R, G, B: Byte): TRGB; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 begin
   Result.R := R;
@@ -1337,7 +1338,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-function MakeRGB(const R, G, B: Single): TRGBFloat;
+function MakeRGB(const R, G, B: Single): TRGBFloat; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 begin
   Result.R := R;
