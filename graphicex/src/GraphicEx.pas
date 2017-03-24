@@ -4380,245 +4380,238 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
-    begin
-      Source := Memory;
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
-      Columns := 192 shl Min(ImageIndex, 2);
-      Rows := 128 shl Min(ImageIndex, 2);
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    Source := Memory;
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+    Columns := 192 shl Min(ImageIndex, 2);
+    Rows := 128 shl Min(ImageIndex, 2);
 
-      // since row and columns might be swapped because of rotated images
-      // we determine the final dimensions once more
-      Width := 192 shl ImageIndex;
-      Height := 128 shl ImageIndex;
+    // since row and columns might be swapped because of rotated images
+    // we determine the final dimensions once more
+    FImageProperties.Width := 192 shl ImageIndex;
+    FImageProperties.Height := 128 shl ImageIndex;
 
-      ZeroMemory(@YCbCrData, SizeOf(YCbCrData));
-      try
-        GetMem(YCbCrData[0], Width * Height);
-        GetMem(YCbCrData[1], Width * Height);
-        GetMem(YCbCrData[2], Width * Height);
+    ZeroMemory(@YCbCrData, SizeOf(YCbCrData));
+    try
+      GetMem(YCbCrData[0], FImageProperties.Width * FImageProperties.Height);
+      GetMem(YCbCrData[1], FImageProperties.Width * FImageProperties.Height);
+      GetMem(YCbCrData[2], FImageProperties.Width * FImageProperties.Height);
 
-        // advance to image data 
-        Offset := 96;
-        if Overview then
-          Offset := 5
+      // advance to image data
+      Offset := 96;
+      if FImageProperties.Overview then
+        Offset := 5
+      else
+        if ImageIndex = 1 then
+          Offset := 23
         else
-          if ImageIndex = 1 then
-            Offset := 23
-          else
-            if ImageIndex = 0 then
-              Offset := 4;
-        Inc(Source, Offset * $800);
+          if ImageIndex = 0 then
+            Offset := 4;
+      Inc(Source, Offset * $800);
 
-        // color conversion setup
-        with ColorManager do
+      // color conversion setup
+      ColorManager.SourceColorScheme := csPhotoYCC;
+      ColorManager.SourceBitsPerSample := 8;
+      ColorManager.SourceSamplesPerPixel := 3;
+      ColorManager.TargetColorScheme := csBGR;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
+      PixelFormat := pf24Bit;
+      // PhotoYCC format uses CCIR Recommendation 709 coefficients and is subsampled
+      // by factor 2 vertically and horizontally
+      ColorManager.SetYCbCrParameters([0.2125, 0.7154, 0.0721], 2, 2);
+
+      Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+      if FImageProperties.Overview then
+      begin
+        // if Overview then ... no info yet about overview image structure
+      end
+      else
+      begin
+        YY := YCbCrData[0];
+        C1 := YCbCrData[1];
+        C2 := YCbCrData[2];
+        I := 0;
+        Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
+        while I < Rows do
         begin
-          SourceColorScheme := csPhotoYCC;
-          SourceBitsPerSample := 8;
-          SourceSamplesPerPixel := 3;
-          TargetColorScheme := csBGR;
-          TargetBitsPerSample := 8;
-          TargetSamplesPerPixel := 3;
+          Progress(Self, psRunning, MulDiv(I, 100, Rows), False, FProgressRect, '');
+
+          Move(Source^, YY^, Columns);
+          Inc(YY, FImageProperties.Width);
+          Inc(Source, Columns);
+
+          Move(Source^, YY^, Columns);
+          Inc(YY, FImageProperties.Width);
+          Inc(Source, Columns);
+
+          Move(Source^, C1^, Columns shr 1);
+          Inc(C1, FImageProperties.Width);
+          Inc(Source, Columns shr 1);
+
+          Move(Source^, C2^, Columns shr 1);
+          Inc(C2, FImageProperties.Width);
+          Inc(Source, Columns shr 1);
+
+          Inc(I, 2);
         end;
-        PixelFormat := pf24Bit;
-        // PhotoYCC format uses CCIR Recommendation 709 coefficients and is subsampled
-        // by factor 2 vertically and horizontally
-        ColorManager.SetYCbCrParameters([0.2125, 0.7154, 0.0721], 2, 2);
+        Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+        Progress(Self, psStarting, 0, False, FProgressRect, gesUpsampling);
+        // Y stands here for maximum number of upsample calls.
+        Y := 5;
+        if ImageIndex >= 3 then
+        begin
+          Inc(Y, 3 * (ImageIndex - 3));
+
+          //Decoder := TPCDDecoder.Create(Source);
+          //SourceDummy := @YCbCrData;
+          //DestDummy := nil;
+          try
+            // Recover luminance deltas for 1536 x 1024 image.
+            Progress(Self, psRunning, MulDiv(0, 100, Y), False, FProgressRect, '');
+            Upsample(768, 512, FImageProperties.Width, YCbCrData[0]);
+            Progress(Self, psRunning, MulDiv(1, 100, Y), False, FProgressRect, '');
+            Upsample(384, 256, FImageProperties.Width, YCbCrData[1]);
+            Progress(Self, psRunning, MulDiv(2, 100, Y), False, FProgressRect, '');
+            Upsample(384, 256, FImageProperties.Width, YCbCrData[2]);
+
+            // The decoder does not work as expected. Larger resolutions are not loaded but created by scaling.
+            //Decoder.Decode(SourceDummy, DestDummy, FImageProperties.Width, 1024);
+            if ImageIndex >= 4 then
+            begin
+              // recover luminance deltas for 3072 x 2048 image
+              Progress(Self, psRunning, MulDiv(3, 100, Y), False, FProgressRect, '');
+              Upsample(1536, 1024, FImageProperties.Width, YCbCrData[0]);
+              Progress(Self, psRunning, MulDiv(4, 100, Y), False, FProgressRect, '');
+              Upsample(768, 512, FImageProperties.Width, YCbCrData[1]);
+              Progress(Self, psRunning, MulDiv(5, 100, Y), False, FProgressRect, '');
+              Upsample(768, 512, FImageProperties.Width, YCbCrData[2]);
+
+              //Decoder.Decode(SourceDummy, DestDummy, FImageProperties.Width, 2048);
+              if ImageIndex = 5 then
+              begin
+                // recover luminance deltas for 6144 x 4096 image (vaporware)
+                Progress(Self, psRunning, MulDiv(6, 100, Y), False, FProgressRect, '');
+                Upsample(3072, 2048, FImageProperties.Width, YCbCrData[1]);
+                Progress(Self, psRunning, MulDiv(7, 100, Y), False, FProgressRect, '');
+                Upsample(1536, 1024, FImageProperties.Width, YCbCrData[1]);
+                Progress(Self, psRunning, MulDiv(8, 100, Y), False, FProgressRect, '');
+                Upsample(1536, 1024, FImageProperties.Width, YCbCrData[2]);
+              end;
+            end;
+          finally
+            //FreeAndNil(Decoder);
+          end;
+        end;
+
+        Progress(Self, psRunning, MulDiv(Y - 1, 100, Y), False, FProgressRect, '');
+        Upsample(FImageProperties.Width shr 1, FImageProperties.Height shr 1, FImageProperties.Width, YCbCrData[1]);
+        Progress(Self, psRunning, MulDiv(Y, 100, Y), False, FProgressRect, '');
+        Upsample(FImageProperties.Width shr 1, FImageProperties.Height shr 1, FImageProperties.Width, YCbCrData[2]);
 
         Progress(Self, psEnding, 0, False, FProgressRect, '');
 
-        if Overview then
+        Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
+        // transfer luminance and chrominance channels
+        YY := YCbCrData[0];
+        C1 := YCbCrData[1];
+        C2 := YCbCrData[2];
+
+        // For the rotated mode where we need to turn the image by 90°. We can speed up loading
+        // the image by factor 2 by using a local copy of the Scanline pointers.
+        if FImageProperties.Rotate in [1, 3] then
         begin
-          // if Overview then ... no info yet about overview image structure
+          Self.Width := FImageProperties.Height;
+          Self.Height := FImageProperties.Width;
+          FProgressRect.Right := FImageProperties.Height;
+
+          SetLength(ScanLines, FImageProperties.Width);
+          for Y := 0 to FImageProperties.Width - 1 do
+            ScanLines[Y] := ScanLine[Y];
+          GetMem(LineBuffer, 3 * FImageProperties.Width);
         end
         else
         begin
-          YY := YCbCrData[0];
-          C1 := YCbCrData[1];
-          C2 := YCbCrData[2];
-          I := 0;
-          Progress(Self, psStarting, 0, False, FProgressRect, gesLoadingData);
-          while I < Rows do
-          begin
-            Progress(Self, psRunning, MulDiv(I, 100, Rows), False, FProgressRect, '');
-
-            Move(Source^, YY^, Columns);
-            Inc(YY, Width);
-            Inc(Source, Columns);
-
-            Move(Source^, YY^, Columns);
-            Inc(YY, Width);
-            Inc(Source, Columns);
-
-            Move(Source^, C1^, Columns shr 1);
-            Inc(C1, Width);
-            Inc(Source, Columns shr 1);
-
-            Move(Source^, C2^, Columns shr 1);
-            Inc(C2, Width);
-            Inc(Source, Columns shr 1);
-
-            Inc(I, 2);
-          end;
-          Progress(Self, psEnding, 0, False, FProgressRect, '');
-
-          Progress(Self, psStarting, 0, False, FProgressRect, gesUpsampling);
-          // Y stands here for maximum number of upsample calls.
-          Y := 5;
-          if ImageIndex >= 3 then
-          begin
-            Inc(Y, 3 * (ImageIndex - 3));
-
-            //Decoder := TPCDDecoder.Create(Source);
-            //SourceDummy := @YCbCrData;
-            //DestDummy := nil;
-            try
-              // Recover luminance deltas for 1536 x 1024 image.
-              Progress(Self, psRunning, MulDiv(0, 100, Y), False, FProgressRect, '');
-              Upsample(768, 512, Width, YCbCrData[0]);
-              Progress(Self, psRunning, MulDiv(1, 100, Y), False, FProgressRect, '');
-              Upsample(384, 256, Width, YCbCrData[1]);
-              Progress(Self, psRunning, MulDiv(2, 100, Y), False, FProgressRect, '');
-              Upsample(384, 256, Width, YCbCrData[2]);
-
-              // The decoder does not work as expected. Larger resolutions are not loaded but created by scaling.
-              //Decoder.Decode(SourceDummy, DestDummy, Width, 1024);
-              if ImageIndex >= 4 then
-              begin
-                // recover luminance deltas for 3072 x 2048 image
-                Progress(Self, psRunning, MulDiv(3, 100, Y), False, FProgressRect, '');
-                Upsample(1536, 1024, Width, YCbCrData[0]);
-                Progress(Self, psRunning, MulDiv(4, 100, Y), False, FProgressRect, '');
-                Upsample(768, 512, Width, YCbCrData[1]);
-                Progress(Self, psRunning, MulDiv(5, 100, Y), False, FProgressRect, '');
-                Upsample(768, 512, Width, YCbCrData[2]);
-
-                //Decoder.Decode(SourceDummy, DestDummy, Width, 2048);
-                if ImageIndex = 5 then
-                begin
-                  // recover luminance deltas for 6144 x 4096 image (vaporware)
-                  Progress(Self, psRunning, MulDiv(6, 100, Y), False, FProgressRect, '');
-                  Upsample(3072, 2048, Width, YCbCrData[1]);
-                  Progress(Self, psRunning, MulDiv(7, 100, Y), False, FProgressRect, '');
-                  Upsample(1536, 1024, Width, YCbCrData[1]);
-                  Progress(Self, psRunning, MulDiv(8, 100, Y), False, FProgressRect, '');
-                  Upsample(1536, 1024, Width, YCbCrData[2]);
-                end;
-              end;
-            finally
-              //FreeAndNil(Decoder);
-            end;
-          end;
-
-          Progress(Self, psRunning, MulDiv(Y - 1, 100, Y), False, FProgressRect, '');
-          Upsample(Width shr 1, Height shr 1, Width, YCbCrData[1]);
-          Progress(Self, psRunning, MulDiv(Y, 100, Y), False, FProgressRect, '');
-          Upsample(Width shr 1, Height shr 1, Width, YCbCrData[2]);
-
-          Progress(Self, psEnding, 0, False, FProgressRect, '');
-
-          Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
-          // transfer luminance and chrominance channels
-          YY := YCbCrData[0];
-          C1 := YCbCrData[1];
-          C2 := YCbCrData[2];
-
-          // For the rotated mode where we need to turn the image by 90°. We can speed up loading
-          // the image by factor 2 by using a local copy of the Scanline pointers.
-          if Rotate in [1, 3] then
-          begin
-            Self.Width := Height;
-            Self.Height := Width;
-            FProgressRect.Right := Height;
-            
-            SetLength(ScanLines, Width);
-            for Y := 0 to Width - 1 do
-              ScanLines[Y] := ScanLine[Y];
-            GetMem(LineBuffer, 3 * Width);
-          end
-          else
-          begin
-            ScanLines := nil;
-            Self.Width := Width;
-            Self.Height := Height;
-            LineBuffer := nil;
-          end;
-
-          try
-            case Rotate of
-              1: // rotate -90° 
-                begin
-                  for Y := 0 to Height - 1 do
-                  begin
-                    ColorManager.ConvertRow([YY, C1, C2], LineBuffer, Width, $FF);
-                    Inc(YY, Width);
-                    Inc(C1, Width);
-                    Inc(C2, Width);
-
-                    Run := LineBuffer;
-                    for X := 0 to Width - 1 do
-                    begin
-                      PByte(Line) := PByte(PAnsiChar(ScanLines[Width - X - 1]) + Y * 3);
-                      Line^ := Run^;
-                      Inc(Run);
-                    end;
-
-                    Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                    OffsetRect(FProgressRect, 0, 1);
-                  end;
-                end;
-              3: // rotate 90°
-                begin
-                  for Y := 0 to Height - 1 do
-                  begin
-                    ColorManager.ConvertRow([YY, C1, C2], LineBuffer, Width, $FF);
-                    Inc(YY, Width);
-                    Inc(C1, Width);
-                    Inc(C2, Width);
-
-                    Run := LineBuffer;
-                    for X := 0 to Width - 1 do
-                    begin
-                      PByte(Line) := PByte(PAnsiChar(ScanLines[X]) + (Height - Y - 1) * 3);
-                      Line^ := Run^;
-                      Inc(Run);
-                    end;
-
-                    Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                    OffsetRect(FProgressRect, 0, 1);
-                  end;
-                end;
-            else
-              for Y := 0 to Height - 1 do
-              begin
-                ColorManager.ConvertRow([YY, C1, C2], ScanLine[Y], Width, $FF);
-                Inc(YY, Width);
-                Inc(C1, Width);
-                Inc(C2, Width);
-
-                Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
-                OffsetRect(FProgressRect, 0, 1);
-              end;
-            end;
-            Progress(Self, psEnding, 0, False, FProgressRect, '');
-          finally
-            ScanLines := nil;
-            if Assigned(LineBuffer) then
-              FreeMem(LineBuffer);
-          end;
+          ScanLines := nil;
+          Self.Width := FImageProperties.Width;
+          Self.Height := FImageProperties.Height;
+          LineBuffer := nil;
         end;
 
-      finally
-        if Assigned(YCbCrData[2]) then
-          FreeMem(YCbCrData[2]);
-        if Assigned(YCbCrData[1]) then
-          FreeMem(YCbCrData[1]);
-        if Assigned(YCbCrData[0]) then
-          FreeMem(YCbCrData[0]);
+        try
+          case FImageProperties.Rotate of
+            1: // rotate -90°
+              begin
+                for Y := 0 to FImageProperties.Height - 1 do
+                begin
+                  ColorManager.ConvertRow([YY, C1, C2], LineBuffer, FImageProperties.Width, $FF);
+                  Inc(YY, FImageProperties.Width);
+                  Inc(C1, FImageProperties.Width);
+                  Inc(C2, FImageProperties.Width);
+
+                  Run := LineBuffer;
+                  for X := 0 to FImageProperties.Width - 1 do
+                  begin
+                    PByte(Line) := PByte(PAnsiChar(ScanLines[FImageProperties.Width - X - 1]) + Y * 3);
+                    Line^ := Run^;
+                    Inc(Run);
+                  end;
+
+                  Progress(Self, psRunning, MulDiv(Y, 100, FImageProperties.Height), True, FProgressRect, '');
+                  OffsetRect(FProgressRect, 0, 1);
+                end;
+              end;
+            3: // rotate 90°
+              begin
+                for Y := 0 to FImageProperties.Height - 1 do
+                begin
+                  ColorManager.ConvertRow([YY, C1, C2], LineBuffer, FImageProperties.Width, $FF);
+                  Inc(YY, FImageProperties.Width);
+                  Inc(C1, FImageProperties.Width);
+                  Inc(C2, FImageProperties.Width);
+
+                  Run := LineBuffer;
+                  for X := 0 to FImageProperties.Width - 1 do
+                  begin
+                    PByte(Line) := PByte(PAnsiChar(ScanLines[X]) + (FImageProperties.Height - Y - 1) * 3);
+                    Line^ := Run^;
+                    Inc(Run);
+                  end;
+
+                  Progress(Self, psRunning, MulDiv(Y, 100, FImageProperties.Height), True, FProgressRect, '');
+                  OffsetRect(FProgressRect, 0, 1);
+                end;
+              end;
+          else
+            for Y := 0 to FImageProperties.Height - 1 do
+            begin
+              ColorManager.ConvertRow([YY, C1, C2], ScanLine[Y], FImageProperties.Width, $FF);
+              Inc(YY, FImageProperties.Width);
+              Inc(C1, FImageProperties.Width);
+              Inc(C2, FImageProperties.Width);
+
+              Progress(Self, psRunning, MulDiv(Y, 100, FImageProperties.Height), True, FProgressRect, '');
+              OffsetRect(FProgressRect, 0, 1);
+            end;
+          end;
+          Progress(Self, psEnding, 0, False, FProgressRect, '');
+        finally
+          ScanLines := nil;
+          if Assigned(LineBuffer) then
+            FreeMem(LineBuffer);
+        end;
       end;
+
+    finally
+      if Assigned(YCbCrData[2]) then
+        FreeMem(YCbCrData[2]);
+      if Assigned(YCbCrData[1]) then
+        FreeMem(YCbCrData[1]);
+      if Assigned(YCbCrData[0]) then
+        FreeMem(YCbCrData[0]);
     end;
   end
   else
@@ -4638,47 +4631,46 @@ begin
     ImageIndex := 5;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex) and (Size > 3 * $800);
 
-  if Result then
-    with FImageProperties do
+  if Result then begin
+    Header := Memory;
+
+    FImageProperties.Overview := StrLComp(Header, 'PCD_OPA', 7) = 0;
+    // determine if image is a PhotoCD image
+    if FImageProperties.Overview or (StrLComp(Header + $800, 'PCD', 3) = 0) then
     begin
-      Header := Memory;
+      FImageProperties.Rotate := Byte(Header[$0E02]) and 3;
 
-      Overview := StrLComp(Header, 'PCD_OPA', 7) = 0;
-      // determine if image is a PhotoCD image
-      if Overview or (StrLComp(Header + $800, 'PCD', 3) = 0) then
+      // image sizes are fixed, depending on the given image index
+      if FImageProperties.Overview then
+        ImageIndex := 0;
+      FImageProperties.Width := 192 shl ImageIndex;
+      FImageProperties.Height := 128 shl ImageIndex;
+      if (FImageProperties.Rotate = 1) or (FImageProperties.Rotate = 3) then
       begin
-        Rotate := Byte(Header[$0E02]) and 3;
-
-        // image sizes are fixed, depending on the given image index
-        if Overview then
-          ImageIndex := 0;
-        Width := 192 shl ImageIndex;
-        Height := 128 shl ImageIndex;
-        if (Rotate = 1) or (Rotate = 3) then
-        begin
-          Temp := Width;
-          Width := Height;
-          Height := Temp;
-        end;
-        ColorScheme := csPhotoYCC;
-        BitsPerSample := 8;
-        SamplesPerPixel := 3;
-        BitsPerPixel := BitsPerSample * SamplesPerPixel;
-        if ImageIndex > 2 then
-          Compression := ctPCDHuffmann
-        else
-          Compression := ctNone;
-
-        if Overview then
-          ImageCount := (Byte(Header[10]) shl 8) or Byte(Header[11])
-        else
-          ImageCount := 5; // These are the always present image resolutions.
-
-        Result := True;
-      end
+        Temp := FImageProperties.Width;
+        FImageProperties.Width := FImageProperties.Height;
+        FImageProperties.Height := Temp;
+      end;
+      FImageProperties.ColorScheme := csPhotoYCC;
+      FImageProperties.BitsPerSample := 8;
+      FImageProperties.SamplesPerPixel := 3;
+      FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample *
+        FImageProperties.SamplesPerPixel;
+      if ImageIndex > 2 then
+        FImageProperties.Compression := ctPCDHuffmann
       else
-        Result := False;
-    end;
+        FImageProperties.Compression := ctNone;
+
+      if FImageProperties.Overview then
+        FImageProperties.ImageCount := (Byte(Header[10]) shl 8) or Byte(Header[11])
+      else
+        FImageProperties.ImageCount := 5; // These are the always present image resolutions.
+
+      Result := True;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif PCDGraphic}
