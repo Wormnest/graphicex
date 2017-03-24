@@ -3970,9 +3970,9 @@ procedure TPCXGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIn
 var
   Header: TPCXHeader;
   Run: PByte;
+  TempPalette: PByte;
 
   //--------------- local functions -------------------------------------------
-
   procedure MakePalette(APixelFormat: TPixelFormat);
 
   var
@@ -3992,7 +3992,9 @@ var
             Palette := ColorManager.CreateGrayScalePalette(False)
           else if (Header.BitsPerPixel = 2) and
             // Just a guess why CGA_FSD.PCX has a palette and not CGA mode byte and background byte
-            not ((Header.Version = 5) and (Header.VscreenSize = 1)) then begin
+            not ((Header.Version = 5) and
+            ((Header.HscreenSize = 200) and (Header.VscreenSize = 1)) or
+            (Header.HscreenSize = 0) and (Header.VscreenSize = 0)) then begin
             // CGA Palette
             // Get the CGA background color (0-15)
             bgIndex := Header.ColorMap[0].R shr 4;
@@ -4011,11 +4013,18 @@ var
               UseGreenRedBrown := Header.ColorMap[1].R and $40 = 0;
               IsLight := Header.ColorMap[1].R and $20 <> 0;
             end;
-            Palette := ColorManager.CreateCGAColorPalette(bgIndex, UseColor, UseGreenRedBrown, IsLight);
+            TempPalette := GetCGAColorPalette(bgIndex, UseColor, UseGreenRedBrown, IsLight);
+            {$IFNDEF FPC}
+            // CGA only has 4 palette entries
+            Palette := ColorManager.CreateColorPalette([TempPalette], pfInterlaced8Triple, 4);
+            {$ELSE}
+            ColorManager.SetSourcePalette([TempPalette], pfInterlaced8Triple);
+            {$ENDIF}
           end
           else begin
+            {$IFNDEF FPC}
             Palette := ColorManager.CreateColorPalette([@Header.ColorMap], pfInterlaced8Triple, 16);
-            {$IFDEF FPC}
+            {$ELSE}
             ColorManager.SetSourcePalette([@Header.ColorMap], pfInterlaced8Triple);
             {$ENDIF}
           end;
@@ -4033,8 +4042,9 @@ var
             else
             begin
               Inc(PaletteData);
+              {$IFNDEF FPC}
               Palette := ColorManager.CreateColorPalette([PaletteData], pfInterlaced8Triple, 256);
-              {$IFDEF FPC}
+              {$ELSE}
               ColorManager.SetSourcePalette([PaletteData], pfInterlaced8Triple);
               {$ENDIF}
             end;
@@ -4045,7 +4055,12 @@ var
     begin
       // version 2.8 without palette information, just use the system palette
       // 256 colors will not be correct with this assignment...
+      {$IFNDEF FPC}
       Palette := SystemPalette16;
+      {$ELSE}
+      TempPalette := GetEGAColorPalette();
+      ColorManager.SetSourcePalette([TempPalette], pfInterlaced8Triple);
+      {$ENDIF}
     end;
   end;
 
@@ -4068,6 +4083,7 @@ var
   Line: PByte;
   Increment: Integer;
   TempPixelFormat: TPixelFormat;
+  Planes: array of Pointer;
 
 begin
   inherited;
@@ -4080,64 +4096,48 @@ begin
     Run := Memory;
     Move(Run^, Header, SizeOf(Header));
     Inc(Run, SizeOf(Header));
-    if not (Header.FileID in [$0A, $CD]) then
-      GraphicExError(gesInvalidImage, ['PCX, PCC or SCR']);
+    TempPalette := nil;
 
+    // Initialize the ColorManager
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    if FImageProperties.ColorScheme = csIndexed then
-      {$IFNDEF FPC}
-      ColorManager.TargetColorScheme := csIndexed
-      {$ELSE}
-      if FImageProperties.BitsPerSample > 1 then begin
+    if FImageProperties.ColorScheme = csIndexed then begin
+      {$IFNDEF FPC} // Delphi
+      ColorManager.TargetColorScheme := csIndexed;
+      ColorManager.TargetSamplesPerPixel := 1;
+      if FImageProperties.BitsPerSample > 4 then  begin
+        ColorManager.TargetBitsPerSample := 8;
+      end
+      else if (FImageProperties.BitsPerPixel = 1) then  begin
+        ColorManager.TargetBitsPerSample := 1;
+      end
+      else begin
+        ColorManager.TargetBitsPerSample := 4;
+      end;
+      {$ELSE} // Fpc, Lazarus
+      if FImageProperties.BitsPerPixel > 1 then begin
         ColorManager.TargetColorScheme := csBGR;
         ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.TargetBitsPerSample := 8;
       end
       else begin
         ColorManager.TargetColorScheme := csIndexed;
         ColorManager.TargetSamplesPerPixel := 1;
+        ColorManager.TargetBitsPerSample := 1;
       end
       {$ENDIF}
+    end
     else begin
+      // RGB
+      ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
+      ColorManager.TargetBitsPerSample := 8;
       if ColorManager.SourceSamplesPerPixel = 3 then
         ColorManager.TargetColorScheme := csBGR
       else
         ColorManager.TargetColorScheme := csBGRA;
-      ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
     end;
-    if (ColorManager.SourceSamplesPerPixel in [3, 4]) then
-      if FImageProperties.ColorScheme = csIndexed then begin
-        // Should be 1 bits per pixel x 4 planes special PCX case
-        {$IFNDEF FPC}
-        ColorManager.TargetBitsPerSample := 4;
-        ColorManager.TargetSamplesPerPixel := 1;
-        {$ELSE}
-        ColorManager.TargetBitsPerSample := 8;
-        ColorManager.TargetSamplesPerPixel := 3;
-        ColorManager.TargetColorScheme := csBGR;
-        {$ENDIF}
-        // To be able to get a correct palette source bits per sample also needs to be 4.
-        ColorManager.SourceBitsPerSample := 4;
-      end
-      else begin
-        // Use 8 bits per samples since we don't have a converter yet to 5 bits in ColorManager.
-        ColorManager.TargetBitsPerSample := 8;
-        // Separate channels thus we need to set that in source options.
-        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-      end
-    else if FImageProperties.BitsPerPixel = 2 then begin
-      {$IFNDEF FPC}
-      ColorManager.TargetBitsPerSample := 4;
-      {$ELSE}
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.TargetSamplesPerPixel := 3;
-      ColorManager.TargetColorScheme := csBGR;
-      {$ENDIF}
-    end
-    else
-      ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
+    ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
 
     // Set image pixel format
     PixelFormat := ColorManager.TargetPixelFormat;
@@ -4145,11 +4145,12 @@ begin
     // Since TBitmap can change PixelFormat internally to what it accepts,
     // we cannot use it since we need source format to determine if we need
     // to add palette data.
-    TempPixelFormat := ColorManager.SourcePixelFormat;
-    // Since pcx special case 4 samples 1 bit returns pfCustom, we need to fix that
-    if (TempPixelFormat = pfCustom) and (FImageProperties.BitsPerSample = 1) and
-       (FImageProperties.SamplesPerPixel = 4) then
+    if (FImageProperties.BitsPerSample = 1) and (FImageProperties.SamplesPerPixel in [2..4]) then begin
       TempPixelFormat := pf4Bit;
+    end
+    else begin
+      TempPixelFormat := ColorManager.SourcePixelFormat;
+    end;
 
     PCXSize := Size - SizeOf(Header);
     // 256 colors palette can be appended to the actual PCX data.
@@ -4191,102 +4192,22 @@ begin
     try
       Run := DecodeBuffer;
 
-      if (FImageProperties.SamplesPerPixel = 4) and (FImageProperties.BitsPerPixel = 4) then
-      begin
-        // 4 planes with one bit
+      if FImageProperties.ColorScheme = csIndexed then begin
+        // Set up the source planes
+        SetLength(Planes, FImageProperties.SamplesPerPixel);
+        // Planes need to be stored here in reverse order for easier handling in ColorManager.
+        for J := 0 to FImageProperties.SamplesPerPixel-1 do
+          Planes[FImageProperties.SamplesPerPixel-1-J] := PByte(PAnsiChar(Run) + J * Header.BytesPerLine);
+        for I := 0 to Height - 1 do
+        begin
+          Line := ScanLine[I];
+          ColorManager.ConvertRow(Planes, Line, Width, $FF);
+          for J := 0 to FImageProperties.SamplesPerPixel-1 do
+            Inc(PByte(Planes[J]), Increment);
 
-        {$IFDEF FPC}
-        DataSize := (Width * BitsPerPixel + 7) div 8;
-        GetMem(LineBuf, DataSize);
-        try
-        {$ENDIF}
-          for I := 0 to Height - 1 do
-          begin
-            Plane1 := Run;
-            Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
-            Plane3 := PByte(PAnsiChar(Run) + 2 * Header.BytesPerLine);
-            Plane4 := PByte(PAnsiChar(Run) + 3 * Header.BytesPerLine);
-
-            {$IFNDEF FPC}
-            Line := ScanLine[I];
-            {$ELSE}
-            Line := LineBuf;
-            {$ENDIF}
-            // number of bytes to write
-            DataSize := (Width * FImageProperties.BitsPerPixel + 7) div 8;
-            Mask := 0;
-            while DataSize > 0 do
-            begin
-              Value := 0;
-              for J := 0 to 1 do
-              {$IFNDEF CPU64}
-              asm
-                MOV AL, [Value]
-
-                MOV EDX, [Plane4]             // take the 4 MSBs from the 4 runs and build a nibble
-                SHL BYTE PTR [EDX], 1         // read MSB and prepare next run at the same time
-                RCL AL, 1                     // MSB from previous shift is in CF -> move it to AL
-
-                MOV EDX, [Plane3]             // now do the same with the other three runs
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV EDX, [Plane2]
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV EDX, [Plane1]
-                SHL BYTE PTR [EDX], 1
-                RCL AL, 1
-
-                MOV [Value], AL
-              end;
-              {$ELSE}
-              begin
-                Value := Value shl 1; // No effect the first time since Value will be 0
-                if Plane4^ and $80 <> 0 then Value := Value or $01;
-                Value := Value shl 1;
-                Plane4^ := Plane4^ shl 1;
-                if Plane3^ and $80 <> 0 then Value := Value or $01;
-                Value := Value shl 1;
-                Plane3^ := Plane3^ shl 1;
-                if Plane2^ and $80 <> 0 then Value := Value or $01;
-                Value := Value shl 1;
-                Plane2^ := Plane2^ shl 1;
-                if Plane1^ and $80 <> 0 then Value := Value or $01;
-                Plane1^ := Plane1^ shl 1;
-              end;
-              {$ENDIF}
-              Line^ := Value;
-              Inc(Line);
-              Dec(DataSize);
-
-              // two runs above (to construct two nibbles -> one byte), now update marker
-              // to know when to switch to next byte in the planes
-              Mask := (Mask + 2) mod 8;
-              if Mask = 0 then
-              begin
-                Inc(Plane1);
-                Inc(Plane2);
-                Inc(Plane3);
-                Inc(Plane4);
-              end;
-            end;
-            {$IFDEF FPC}
-            ColorManager.SourceBitsPerSample := 4;
-            ColorManager.SourceSamplesPerPixel := 1;
-            ColorManager.ConvertRow([LineBuf], ScanLine[I], Width, $FF);
-            {$ENDIF}
-            Inc(Run, Increment);
-
-            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-            OffsetRect(FProgressRect, 0, 1);
-          end;
-        {$IFDEF FPC}
-        finally
-          FreeMem(LineBuf);
+          Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
+          OffsetRect(FProgressRect, 0, 1);
         end;
-        {$ENDIF}
       end
       else
         case FImageProperties.SamplesPerPixel of
@@ -4315,7 +4236,7 @@ begin
                 OffsetRect(FProgressRect, 0, 1);
               end;
             end;
-          4:  // RGBA 4 planes (most likely never used in PCX)
+          4:  // RGBA 4 planes (most likely never used in PCX but I've read ImageMagick can create these)
             begin
               Plane1 := Run;
               Plane2 := PByte(PAnsiChar(Run) + Header.BytesPerLine);
@@ -4334,20 +4255,12 @@ begin
                 OffsetRect(FProgressRect, 0, 1);
               end;
             end;
-        else // indexed formats
-          for I := 0 to Height - 1 do
-          begin
-            Line := ScanLine[I];
-            ColorManager.ConvertRow([Run], Line, Width, $FF);
-            Inc(Run, Increment);
-
-            Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
-            OffsetRect(FProgressRect, 0, 1);
-          end;
         end;
     finally
       if Assigned(DecodeBuffer) then
         FreeMem(DecodeBuffer);
+      if Assigned(TempPalette) then
+        FreeMem(TempPalette);
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
@@ -4380,8 +4293,12 @@ begin
       FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample * FImageProperties.SamplesPerPixel;
 
       case Header.ColorPlanes of
-        1: FImageProperties.ColorScheme := csIndexed;
-        3: FImageProperties.ColorScheme := csRGB;
+        1, 2: FImageProperties.ColorScheme := csIndexed;
+        3: if (Header.BitsPerPixel = 1) and (Header.Version = 5) then
+             // Special PCX case (e.g. lena6.pcx)
+             FImageProperties.ColorScheme := csIndexed
+           else // Older versions apparently always RGB planes (e.g. eagle.pcx, parrot,pcx)
+             FImageProperties.ColorScheme := csRGB;
         4: if Header.BitsPerPixel = 1 then
              // Special PCX case
              FImageProperties.ColorScheme := csIndexed
