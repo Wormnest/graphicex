@@ -4509,18 +4509,77 @@ var
   TargetBPS: Byte;  // Local copy to ease assembler access
   Done: Cardinal;
   BitOffset: Word;  // Current start bit in source
+  // Multiple planes handling
+  Planes: Cardinal;
+  Src: array [0..3] of PByte;
+  TempValue: Byte;
+  i: Integer;
 
 begin
-  SourceRun := Source[0];
-  TargetRun := Target;
+  if Length(Source) = 1 then begin
+    SourceRun := Source[0];
+    TargetRun := Target;
 
-  if (FSourceBPS = FTargetBPS) and (Mask = $FF) then
-    Move(SourceRun^, TargetRun^, (Count * FSourceBPS + 7) div 8)
-  else
-  begin
-    BitRun := $80;
-    // Make a copy of FTargetBPS from private variable to local variable
-    // to ease access during assembler parts in the code
+    if (FSourceBPS = FTargetBPS) and (Mask = $FF) then
+      Move(SourceRun^, TargetRun^, (Count * FSourceBPS + 7) div 8)
+    else
+    begin
+      BitRun := $80;
+      // Make a copy of FTargetBPS from private variable to local variable
+      // to ease access during assembler parts in the code
+      TargetBPS := FTargetBPS;
+      TargetMask := (1 shl (8 - TargetBPS)) - 1;
+      TargetShift := 8 - TargetBPS;
+      Done := 0;
+      BitOffset := 0;
+      while Done < Count do
+      begin
+        if Boolean(Mask and BitRun) then
+        begin
+          // TODO: Make using MSB big endian bits or not an option.
+          // For now we always assume that bits are in big endian MSB first order! (TIF)
+          // Reason: currently the only image format that we use and that supports
+          // indexed source bits per sample other than 1, 4, 8
+          Value := GetBitsMSB(BitOffset, FSourceBPS, SourceRun);
+          Inc(BitOffset,FSourceBPS);
+          if BitOffset >= 16 then begin
+            BitOffset := BitOffset mod 8;
+            Inc(SourceRun,2);
+          end
+          else if BitOffset >= 8 then begin
+            BitOffset := BitOffset mod 8;
+            Inc(SourceRun);
+          end;
+          TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
+        end;
+
+        BitRun := RorByte(BitRun);
+        TargetMask := RorByte(TargetMask, TargetBPS);
+
+        if TargetShift = 0 then
+          TargetShift := 8 - TargetBPS
+        else
+          Dec(TargetShift, TargetBPS);
+        Inc(Done);
+        // Advance target pointer every (8 div target bit count)
+        if (Done mod (8 div Cardinal(TargetBPS))) = 0 then
+          Inc(TargetRun);
+      end;
+    end;
+  end
+  else begin
+    // Multiple planes for indexed can happen with PCX.
+    // Those planes need to be combined to 1 palette index value (4 or 8 bits target).
+    // We currently only handle 2, 3 or 4 planes.
+    // We don't support BitRun here.
+    // Note that this can also be called indirectly by the Indexed to BGR converter
+    // when converting from planar indexed to BGR.
+    Planes := Length(Source);
+    if Planes > 4 then
+      Exit;
+    TargetRun := Target;
+    for i := 0 to Planes-1 do
+      Src[i] := Source[i];
     TargetBPS := FTargetBPS;
     TargetMask := (1 shl (8 - TargetBPS)) - 1;
     TargetShift := 8 - TargetBPS;
@@ -4528,28 +4587,22 @@ begin
     BitOffset := 0;
     while Done < Count do
     begin
-      if Boolean(Mask and BitRun) then
-      begin
-        // TODO: Make using MSB big endian bits or not an option.
-        // For now we always assume that bits are in big endian MSB first order! (TIF)
-        // Reason: currently the only image format that we use and that supports
-        // indexed source bits per sample other than 1, 4, 8
-        Value := GetBitsMSB(BitOffset, FSourceBPS, SourceRun);
-        Inc(BitOffset,FSourceBPS);
-        if BitOffset >= 16 then begin
-          BitOffset := BitOffset mod 8;
-          Inc(SourceRun,2);
-        end
-        else if BitOffset >= 8 then begin
-          BitOffset := BitOffset mod 8;
-          Inc(SourceRun);
-        end;
-        TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
+      // Get source bits from all planes
+      Value := 0;
+      for i := 0 to Planes-1 do begin
+        TempValue := GetBitsMSB(BitOffset, FSourceBPS, Src[i]);
+        Value := Value shl FSourceBPS or TempValue;
+      end;
+      Inc(BitOffset, FSourceBPS);
+      if BitOffset >= 8 then begin
+        BitOffset := BitOffset mod 8;
+        for i := 0 to Planes-1 do
+          Inc(Src[i]);
       end;
 
-      BitRun := RorByte(BitRun);
+      // Put value in target
+      TargetRun^ := (TargetRun^ and TargetMask) or (Value shl TargetShift);
       TargetMask := RorByte(TargetMask, TargetBPS);
-
       if TargetShift = 0 then
         TargetShift := 8 - TargetBPS
       else
@@ -4742,6 +4795,9 @@ var
   Multi: Cardinal;
   BitRun: Byte;
   ConvertGammaProc8: function(Value: Byte): Byte of object;
+  // For pre computing planar indexed data (PCX)
+  PrecomputedSource8: array of byte;
+  AdjustedBPS: Byte;
 begin
   BitRun := $80;
 
@@ -4927,7 +4983,7 @@ begin
               if Length(Source) = 1 then begin
                 SourceRun8A := SourceRun8; Inc(SourceRun8A);
               end
-              else begin
+              else if coAlpha in FSourceOptions then begin
                 SourceRun8A := Source[1];
               end;
               TargetRun8 := Target;
@@ -4965,11 +5021,27 @@ begin
             Exit;
           end;
           SourceRun8 := Source[0]; // Palette index
+          AdjustedBPS := FSourceBPS;
           if Length(Source) = 1 then begin
             SourceRun8A := SourceRun8; Inc(SourceRun8A);
           end
-          else begin
+          else if coAlpha in FSourceOptions then begin
             SourceRun8A := Source[1];
+          end
+          else begin
+            // Rare case: indexed format with multiple planes that need
+            // to be combined into one index value. Use case: certain PCX images.
+            // We are going to precompute these values into 8 bit indexes for easier handling.
+            // Init open array to hold the result
+            SetLength(PrecomputedSource8, Count);
+            // Let RowConvertIndexed8 do the work
+            RowConvertIndexed8(Source, @PrecomputedSource8[0], Count, Mask);
+            // Set result as our source
+            SourceRun8 := @PrecomputedSource8[0];
+            // Don't use FSourceBPS directly! It will cause the next rows to be converted wrong
+            // unless we changed FSourceBPS back. However it seems better just to use a different var.
+            AdjustedBPS := 8;
+            SourceIncrement := 1;
           end;
           TargetRun8 := Target;
 
@@ -4983,7 +5055,7 @@ begin
             ConvertGammaProc8 := ComponentGammaConvert
           else
             ConvertGammaProc8 := ComponentNoConvert8;
-          case FSourceBPS of
+          case AdjustedBPS of
             8:
               begin
                 while Count > 0 do
@@ -5040,10 +5112,10 @@ begin
                   if Boolean(Mask and BitRun) then
                   begin
                     // Get palette index
-                    PalIndex := GetBitsMSB(BitOffset, FSourceBPS, PByte(SourceRun8));
+                    PalIndex := GetBitsMSB(BitOffset, AdjustedBPS, PByte(SourceRun8));
 
                     // Update the bit and byte pointers
-                    Inc(BitOffset, FSourceBPS);
+                    Inc(BitOffset, AdjustedBPS);
                     Inc( PByte(SourceRun8), BitOffset div 8 );
                     BitOffset := BitOffset mod 8;
 
@@ -8427,7 +8499,8 @@ begin
                 else
                   if FTargetBPS = 16 then
                     FRowConversion := RowConvertIndexedTarget16
-                  else if FSourceSPP = FTargetSPP then begin
+                  else if (FSourceSPP = FTargetSPP) or (coSeparatePlanes in FSourceOptions) then begin
+                    // Also used for PCX indexed with multiple planes that need to be combined to one index value.
                     if FSourceBPS <= FTargetBPS then
                       // Using less bits per sample for target than source doesn't make sense for indexed
                       FRowConversion := RowConvertIndexed8
