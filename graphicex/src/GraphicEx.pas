@@ -8946,9 +8946,9 @@ var
       VisibleWidth := AbsoluteRect.Right - AbsoluteRect.Left;
 
       {$IFDEF FPC}
-      TargetColorScheme := csBGR;
-      TargetBitsPerSample := 8;
-      TargetSamplesPerPixel := 3;
+      ColorManager.TargetColorScheme := csBGR;
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.TargetSamplesPerPixel := 3;
       PixelFormat := pf24Bit;
       {$ENDIF}
       for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
