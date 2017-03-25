@@ -9192,24 +9192,22 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
     Run := Memory;
     RedBuffer := nil;
     GreenBuffer := nil;
     BlueBuffer := nil;
     CompBuffer := nil;
-    with FImageProperties do  // TODO: Remove with
     try
       // Initialize outermost progress display.
-      InitProgress(Width, 1);
+      InitProgress(FImageProperties.Width, 1);
       StartProgressSection(0, '');
 
       // Start of first progress subsection, guessed at 1%
       StartProgressSection(1, gesLoadingData);
 
       // Check for valid BitsPerSample
-      if not (BitsPerSample in [1, 4, 8, 16]) then
+      if not (FImageProperties.BitsPerSample in [1, 4, 8, 16]) then
         GraphicExError(gesInvalidColorFormat, ['PSP']);
 
       Move(Run^, Header, SizeOf(Header));
@@ -9218,7 +9216,7 @@ begin
       // Read general image attribute block.
       ReadBlockHeader;
       LastPosition := PAnsiChar(Run);
-      if Version > 3 then
+      if FImageProperties.Version > 3 then
       begin
         Move(Run^, ChunkSize, SizeOf(ChunkSize));
         Inc(Run, SizeOf(ChunkSize));
@@ -9226,38 +9224,35 @@ begin
       Move(Run^, Image, SizeOf(Image));
       Run := Pointer(LastPosition + TotalBlockLength);
 
-      with ColorManager, Image do // TODO: Remove with
-      begin
-        SourceOptions := [];
-        SourceBitsPerSample := BitsPerSample;
-        if BitsPerSample <= 8 then
-          TargetBitsPerSample := BitsPerSample
-        else
-          TargetBitsPerSample := 8;
-        SourceSamplesPerPixel := SamplesPerPixel;
-        TargetSamplesPerPixel := SamplesPerPixel;
-        SourceColorScheme := ColorScheme;
-        if ColorScheme = csRGB then begin
-          // Even when this is set it doesn't mean we will have an alpha channel
-          // next to our color channels apparently.
-          // This flag is possibly used when the optional "Alpha Bank Block" is present.
-          // The Alpha Bank Block is an optional block that defines alpha channels associated
-          // with the image document. (See 2.4 in psp fileformat specification 7.)
-          // Example: "Marble head.PspImage"
-          {if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
-            // alpha channel present (jb: I haven't encountered this yet, example needed)
-            TargetColorScheme := csBGRA
-          else}
-            TargetColorScheme := csBGR;
-        end
-        else
-          TargetColorScheme := ColorScheme;
+      ColorManager.SourceOptions := [];
+      ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+      if FImageProperties.BitsPerSample <= 8 then
+        ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample
+      else
+        ColorManager.TargetBitsPerSample := 8;
+      ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+      ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
+      ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+      if FImageProperties.ColorScheme = csRGB then begin
+        // Even when this is set it doesn't mean we will have an alpha channel
+        // next to our color channels apparently.
+        // This flag is possibly used when the optional "Alpha Bank Block" is present.
+        // The Alpha Bank Block is an optional block that defines alpha channels associated
+        // with the image document. (See 2.4 in psp fileformat specification 7.)
+        // Example: "Marble head.PspImage"
+        {if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
+          // alpha channel present (jb: I haven't encountered this yet, example needed)
+          TargetColorScheme := csBGRA
+        else}
+          ColorManager.TargetColorScheme := csBGR;
+      end
+      else
+        ColorManager.TargetColorScheme := FImageProperties.ColorScheme;
 
-        PixelFormat := TargetPixelFormat;
-      end;
+      PixelFormat := ColorManager.TargetPixelFormat;
 
-      Self.Width := Width;
-      Self.Height := Height;
+      Self.Width := FImageProperties.Width;
+      Self.Height := FImageProperties.Height;
 
       // Finish first progress subsection
       FinishProgressSection(False);
@@ -9297,7 +9292,7 @@ begin
                 Break;
 
               // layer information chunk
-              if Version > 3 then
+              if FImageProperties.Version > 3 then
               begin
                 LastPosition := PAnsiChar(Run);
                 Move(Run^, ChunkSize, SizeOf(ChunkSize));
@@ -9376,7 +9371,7 @@ begin
           end; // PSP_LAYER_START_BLOCK
           PSP_COLOR_BLOCK:  // color palette block (this is also present for gray scale and b&w images)
             begin
-              if Version > 3 then
+              if FImageProperties.Version > 3 then
               begin
                 Move(Run^, ChunkSize, SizeOf(ChunkSize));
                 Inc(Run, SizeOf(ChunkSize));
@@ -9463,70 +9458,65 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      Run := Memory;
-      Move(Run^, Header, SizeOf(Header));
-      Inc(Run, SizeOf(Header));
+  if Result then begin
+    Run := Memory;
+    Move(Run^, Header, SizeOf(Header));
+    Inc(Run, SizeOf(Header));
 
-      if (StrLIComp(Header.Signature, MagicID, Length(MagicID)) = 0) and
-         (Header.MajorVersion >= 3) and (Header.MajorVersion < 20) then
-      begin
-        Version := Header.MajorVersion;
+    if (StrLIComp(Header.Signature, MagicID, Length(MagicID)) = 0) and
+       (Header.MajorVersion >= 3) and (Header.MajorVersion < 20) then begin
+      FImageProperties.Version := Header.MajorVersion;
 
-        // read general image attribute block
-        ReadBlockHeader;
-        LastPosition := Run;
-        if Header.MajorVersion > 3 then
-        begin
-          Move(Run^, ChunkSize, SizeOf(ChunkSize));
-          Inc(Run, SizeOf(ChunkSize));
-        end;
-        Move(Run^, Image, SizeOf(Image));
-        Run := Pointer(PAnsiChar(LastPosition) + TotalBlockLength);
+      // read general image attribute block
+      ReadBlockHeader;
+      LastPosition := Run;
+      if Header.MajorVersion > 3 then begin
+        Move(Run^, ChunkSize, SizeOf(ChunkSize));
+        Inc(Run, SizeOf(ChunkSize));
+      end;
+      Move(Run^, Image, SizeOf(Image));
+      Run := Pointer(PAnsiChar(LastPosition) + TotalBlockLength);
 
-        if Image.BitDepth >= 24 then
-        begin
-          SamplesPerPixel := 3;
-          BitsPerSample := Image.BitDepth div 3;
-          ColorScheme := csRGB; // an alpha channel might exist, this is determined by the layer's channel count
-        end
-        else
-        begin
-          BitsPerSample := Image.BitDepth;
-          SamplesPerPixel := 1;
-          if Image.GreyscaleFlag then
-            ColorScheme := csG
-          else
-            ColorScheme := csIndexed;
-        end;
-        BitsPerPixel := BitsPerSample * SamplesPerPixel;
-
-        Width := Image.Width;
-        Height := Image.Height;
-
-        case Image.Compression of
-          PSP_COMP_NONE:
-            Compression := ctNone;
-          PSP_COMP_RLE:
-            Compression := ctRLE;
-          PSP_COMP_LZ77:
-            Compression := ctLZ77;
-          {PSP_COMP_JPEG: // This is not valid for the image as a whole, only for composite/thumbnail images.
-            Compression := ctJPEG;}
-        else
-          Compression := ctUnknown;
-        end;
-        XResolution := Image.Resolution;
-        if Image.ResolutionMetric = PSP_METRIC_CM then
-          XResolution := XResolution * 2.54;
-        YResolution := XResolution;
-        Result := True;
+      if Image.BitDepth >= 24 then begin
+        FImageProperties.SamplesPerPixel := 3;
+        FImageProperties.BitsPerSample := Image.BitDepth div 3;
+        FImageProperties.ColorScheme := csRGB; // an alpha channel might exist, this is determined by the layer's channel count
       end
+      else begin
+        FImageProperties.BitsPerSample := Image.BitDepth;
+        FImageProperties.SamplesPerPixel := 1;
+        if Image.GreyscaleFlag then
+          FImageProperties.ColorScheme := csG
+        else
+          FImageProperties.ColorScheme := csIndexed;
+      end;
+      FImageProperties.BitsPerPixel := FImageProperties.BitsPerSample *
+        FImageProperties.SamplesPerPixel;
+
+      FImageProperties.Width := Image.Width;
+      FImageProperties.Height := Image.Height;
+
+      case Image.Compression of
+        PSP_COMP_NONE:
+          FImageProperties.Compression := ctNone;
+        PSP_COMP_RLE:
+          FImageProperties.Compression := ctRLE;
+        PSP_COMP_LZ77:
+          FImageProperties.Compression := ctLZ77;
+        {PSP_COMP_JPEG: // This is not valid for the image as a whole, only for composite/thumbnail images.
+          FImageProperties.Compression := ctJPEG;}
       else
-        Result := False;
-    end;
+        FImageProperties.Compression := ctUnknown;
+      end;
+      FImageProperties.XResolution := Image.Resolution;
+      if Image.ResolutionMetric = PSP_METRIC_CM then
+        FImageProperties.XResolution := FImageProperties.XResolution * 2.54;
+      FImageProperties.YResolution := FImageProperties.XResolution;
+      Result := True;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif PaintshopProGraphic}
