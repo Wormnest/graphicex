@@ -4985,7 +4985,9 @@ begin
               end
               else if coAlpha in FSourceOptions then begin
                 SourceRun8A := Source[1];
-              end;
+              end
+              else
+                SourceRun8A := nil; // Silence warning
               TargetRun8 := Target;
 
               while Count > 0 do
@@ -5029,6 +5031,7 @@ begin
             SourceRun8A := Source[1];
           end
           else begin
+            SourceRun8A := nil; // Silence warning
             // Rare case: indexed format with multiple planes that need
             // to be combined into one index value. Use case: certain PCX images.
             // We are going to precompute these values into 8 bit indexes for easier handling.
