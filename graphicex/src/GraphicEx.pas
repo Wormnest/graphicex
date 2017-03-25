@@ -1008,6 +1008,13 @@ uses
   //gexJpeg,
   {$ENDIF}
   {$ENDIF}
+  {$IFDEF HAS_UNIT_ANSISTRINGS}
+  AnsiStrings,
+  {$ENDIF HAS_UNIT_ANSISTRINGS}
+  StrUtils,
+  {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
+  System.Types,
+  {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
   gexTypes, gexVersion, gexUtils;
 
 type
@@ -1036,6 +1043,20 @@ begin
 end;
 {$ENDIF}
 {$endif}
+
+{$IFDEF HAS_UNIT_ANSISTRINGS}
+// Get rid of annoying warnings that we should use the versions in AnsiStrings.
+// Since we use inline this shouldn't have much of an impact.
+function StrLIComp(const Str1, Str2: PAnsiChar; MaxLen: Cardinal): Integer; inline;
+begin
+  Result := AnsiStrings.StrLIComp(Str1, Str2, MaxLen);
+end;
+
+function StrLComp(const Str1, Str2: PAnsiChar; MaxLen: Cardinal): Integer; inline;
+begin
+  Result := AnsiStrings.StrLComp(Str1, Str2, MaxLen);
+end;
+{$ENDIF HAS_UNIT_ANSISTRINGS}
 
 //------------------------------------------------------------------------------
 
@@ -1928,7 +1949,7 @@ begin
   // bytes to decode left. Since they don't cause any problems and our decoder
   // is safe against buffer overflow we won't check for Decoder errors for now.
 
-  LineSize := Width * BPC;
+  LineSize := Cardinal(Width) * BPC;
   if Assigned(Red) then
   begin
     Run := PAnsiChar(Memory) + FRowStart[Row + 0 * Height];
@@ -2214,7 +2235,7 @@ begin
         FImageProperties.Compression := ctNone
       else
         FImageProperties.Compression := ctUnknown;
-      FImageProperties.Comment := AnsiString(Header.ImageName);
+      FImageProperties.Comment := string(Header.ImageName);
       if not (SwapEndian(Header.ColorMap) in [0, 2]) then
         // We don't support type 1, nor palette only 3.
         // Supporting type 1 looks doable if we had at least an example.
@@ -2353,11 +2374,11 @@ procedure TiffError(const Module, ErrorString: AnsiString);
 begin
   if Length(Module) > 0 then
     if (Length(ErrorString) > 0) and (ErrorString[1] <> ':') then
-      GraphicExError(Module + ': ' + ErrorString)
+      GraphicExError(string(Module + ': ' + ErrorString))
     else
-      GraphicExError(Module + ErrorString)
+      GraphicExError(string(Module + ErrorString))
   else
-    GraphicExError(ErrorString);
+    GraphicExError(string(ErrorString));
 end;
 
 procedure TTIFFGraphic.ReadContiguous(tif: PTIFF);
@@ -3265,7 +3286,7 @@ begin
       // Get TIFF Image Description (if present)
       if (TIFFGetField(TIFFImage, TIFFTAG_IMAGEDESCRIPTION, @TiffStringValue) = 1) and
          (TiffStringValue[0] <> nil) then
-        FImageProperties.Comment := TiffStringValue[0];
+        FImageProperties.Comment := string(TiffStringValue[0]);
     finally
       TIFFClose(TIFFImage);
     end
@@ -3734,7 +3755,7 @@ begin
             Move(Run^, FExtensionArea^, SizeOf(TExtensionArea));
             if FExtensionArea.Comments[0][0] <> '' then begin
               // Comment present, for now we only copy the first line.
-              FImageProperties.Comment := FExtensionArea.Comments[0];
+              FImageProperties.Comment := string(FExtensionArea.Comments[0]);
             end;
             if (FExtensionArea.GammaRatioDenominator > 0) and
               (FExtensionArea.GammaRatioNumerator > 0) then begin
@@ -4075,8 +4096,6 @@ var
   Plane2,
   Plane3,
   Plane4: PByte;
-  Value,
-  Mask: Byte;
   I, J: Integer;
   Line: PByte;
   Increment: Integer;
@@ -5553,7 +5572,7 @@ begin
               Break;
             FMem.GetBytes(Content, Increment);
             Content[Increment] := #0;
-            FImageProperties.Comment := FImageProperties.Comment + Content;
+            FImageProperties.Comment := FImageProperties.Comment + string(Content);
           until False;
         GIF_APPLICATIONEXTENSION:
           begin
@@ -5565,7 +5584,7 @@ begin
                 Break;
               if not GotApp and (Increment = SizeOf(TAppExtensionDescriptor)) then begin
                 FMem.GetBytes(AppExtensionDescriptor, SizeOf(TAppExtensionDescriptor));
-                FApplicationExtensions.Add(AppExtensionDescriptor.AppID);
+                FApplicationExtensions.Add(string(AppExtensionDescriptor.AppID));
                 GotApp := True;
               end
               else
@@ -5637,6 +5656,7 @@ begin
   Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
   if ReadImageProperties(Memory, Size, ImageIndex) then begin
     Transparent := False;
+    TransColor := 0; // Silence a warning
 
     // ReadImageProperties will have set our Memory Access handler
     if not Assigned(FMem) then // However it can't hurt to make sure
@@ -5884,7 +5904,7 @@ begin
     FMem.GetBytes(Header, SizeOf(Header));
     if UpperCase(Header.Signature) = 'GIF' then
     begin
-      FImageProperties.Version := StrToInt(Copy(Header.Version, 1, 2));
+      FImageProperties.Version := StrToInt(string(Copy(Header.Version, 1, 2)));
       FImageProperties.ColorScheme := csIndexed;
       FImageProperties.SamplesPerPixel := 1;
       // might be overwritten
@@ -6129,7 +6149,7 @@ var
   // Combined data will be moved to Dest.
   procedure FixDecodedData(Dest: Pointer);
   var
-    Planes, iPlane: Cardinal;
+    Planes, iPlane: Integer;
     i: Integer;
     SrcPtr, DestPtr: PByte;
   begin
@@ -6402,7 +6422,7 @@ begin
     // correction factor applied to the image before it was stored. A value of
     // 2.2 is considered typical. A value of 0.0 indicates no gamma setting.
     if Header.Gamma[0] <> #0 then begin
-      FImageProperties.FileGamma := StrToFloatDef(ConvertAnsiFloatToString(AnsiString(Header.Gamma)), 1) / 2.2;
+      FImageProperties.FileGamma := StrToFloatDef(ConvertAnsiFloatToString(String(Header.Gamma)), 1) / 2.2;
       if Abs(FImageProperties.FileGamma) >= 0.01 then
         Include(FImageProperties.Options, ioUseGamma);
     end;
@@ -6419,27 +6439,27 @@ begin
 
     FImageProperties.Comment := 'Description: ';
     if Header.Desc[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + AnsiString(Header.Desc)
+      FImageProperties.Comment := FImageProperties.Comment + String(Header.Desc)
     else
       FImageProperties.Comment := FImageProperties.Comment + '<none>';
     if Header.Name[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Original Filename: ' + AnsiString(Header.Name);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Original Filename: ' + String(Header.Name);
     if Header.ProgramName[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Created with: ' + AnsiString(Header.ProgramName);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Created with: ' + String(Header.ProgramName);
     if Header.Machine[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Computer name: ' + AnsiString(Header.Machine);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Computer name: ' + String(Header.Machine);
     if Header.User[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'User name: ' + AnsiString(Header.User);
+      FImageProperties.Comment := FImageProperties.Comment + #10'User name: ' + String(Header.User);
     if Header.Date[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Creation date: ' + AnsiString(Header.Date);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Creation date: ' + String(Header.Date);
     if Header.Aspect[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Aspect format: ' + AnsiString(Header.Aspect);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Aspect format: ' + String(Header.Aspect);
     if Header.Chan[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Color space: ' + AnsiString(Header.Chan);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Color space: ' + String(Header.Chan);
     if Header.Time[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Render time: ' + AnsiString(Header.Time);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Render time: ' + String(Header.Time);
     if Header.Filter[0] <> #0 then
-      FImageProperties.Comment := FImageProperties.Comment + #10'Post processing filter: ' + AnsiString(Header.Filter);
+      FImageProperties.Comment := FImageProperties.Comment + #10'Post processing filter: ' + String(Header.Filter);
   end;
 end;
 
@@ -7448,9 +7468,9 @@ const
         6: // Enumerated
           begin
             ClassID := ReadUnicodeID;
-            KeyID := ReadANSIID;
-            TypeID := ReadANSIID;
-            EnumValue := ReadANSIID;
+            KeyID := string(ReadANSIID);
+            TypeID := string(ReadANSIID);
+            EnumValue := string(ReadANSIID);
           end;
         7: // Integer (undocumented)
           IntValue := Integer(ReadBigEndianCardinal(Run));
@@ -7479,7 +7499,7 @@ const
             ClassID := ReadUnicodeID;
             // Skip ANSI form of the string.
             ReadANSIID;
-            KeyID := ReadANSIID;
+            KeyID := string(ReadANSIID);
           end;
         14: // Offset
           begin
@@ -7494,8 +7514,8 @@ const
           IntValue := Integer(ReadBigEndianCardinal(Run));
         18: // 'enum' (undocumented)
           begin
-            TypeID := ReadANSIID;
-            EnumValue := ReadANSIID;
+            TypeID := string(ReadANSIID);
+            EnumValue := string(ReadANSIID);
           end;
         19: // 'tdta' (undocumented)
           begin
@@ -7522,7 +7542,7 @@ var
 begin
   // Class ID as Unicode string.
   Descriptor.ClassID := ReadBigEndianString(Run);
-  Descriptor.ClassID2 := ReadANSIID;
+  Descriptor.ClassID2 := string(ReadANSIID);
 
   // Now read the items in the descriptor.
   ItemCount := ReadBigEndianCardinal(Run);
@@ -7783,6 +7803,7 @@ var
 begin
   // Skip the layer section size. We are going to read the full section.
   Inc(Run, SizeOf(Cardinal));
+  HasIrrelevantData := False;
 
   LayerCount := SwapEndian(PSmallInt(Run)^);
   // If LayerCount is < 0 then it means the first alpha channel contains the transparency data for the
@@ -7933,7 +7954,7 @@ begin
       // Read the pascal style (ANSI) layer name. This might get overwritten by the Unicode name.
       I := Byte(Run^);
       SetString(S, PAnsiChar(Run) + 1, I);
-      Layer.Name := S;
+      Layer.Name := string(S);
       // The name is padded to a 4 byte boundary.
       Inc(Run, (I + 4) and not 3);
 
@@ -8697,13 +8718,9 @@ var
   GreenBuffer,
   BlueBuffer,
   CompBuffer: Pointer;
-  X, Y,
   Index: Integer;
   AbsoluteRect: TRECT; // Rect holding the position of the current layer within image
-  LayerWidth,
-//  LayerHeight,
-  LayerRowSize,
-  LayerStartOfs: Integer;
+  LayerWidth: Integer;
 
   // other data
   RawPalette: array[0..4 * 256 - 1] of Byte;
@@ -8922,7 +8939,7 @@ var
       end;
 
       // From PSP spec: Each scanline in the image data is stored on a 4 byte boundary.
-      // Therefore we need to make sure LayerRowSize is a multiple of 4.
+      // Therefore we need to make sure RowSize is a multiple of 4.
       // Note: Nowhere do I see any mention that 8 BitsPerSample is being excluded
       // from this but with the sample images we have this seems to be the case.
       if FImageProperties.BitsPerSample <> 8 then
@@ -9085,6 +9102,7 @@ var
     ImageRect: TRect;
   begin
     Result := False;
+    NextBlock := nil;
     // Since all samples of version 4 we have seen only had a smaller scale thumbnail
     // we will only handle composite images for version 5 and up.
     if FImageProperties.Version > 4 then begin
@@ -9357,9 +9375,6 @@ begin
                 LayerInfo.SavedImageRectangle.Top;
               // Saved layer width
               LayerWidth := LayerInfo.SavedImageRectangle.Right - LayerInfo.SavedImageRectangle.Left;
-              // Precompute LayerHeight for use in Progress
-              // Currently not used for progress, progress needs to be revised for multilayer support.
-              //LayerHeight := AbsoluteRect.Bottom - AbsoluteRect.Top;
 
               ConvertRows(LayerWidth, AbsoluteRect, Pointer(LastPosition + ChunkSize));
 
@@ -9904,6 +9919,7 @@ begin
     Move(Run^, Magic, 8);
     Inc(Run, 8);
 
+//    if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then begin
     if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then begin
       // first chunk must be an IHDR chunk
       FCurrentCRC := LoadAndSwapHeader(Run);
@@ -10045,6 +10061,8 @@ var
 begin
   DecompressBuf := nil;
   DecompressedSize := 0;
+  ResultBuffer := nil;
+  finished := False;
   // Since Decoding the ICC works a little different from decoding image data
   // we use a separate decoder instead of reusing the already created one.
   ICCDecoder := TLZ77Decoder.Create(Z_PARTIAL_FLUSH, False);
@@ -10057,7 +10075,6 @@ begin
     ResultMaxSize := MAXBUF;
   GetMem(ResultBuffer, ResultMaxSize);
   try
-    finished := False;
     RemainingSize := CompressedSize;
     ResultSize := 0;
     ResultPos := ResultBuffer;
@@ -10108,14 +10125,15 @@ procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
 var
   ProfileName: PAnsiChar;
   ProfileLength: Cardinal;
-  Compression: Byte;
+  //Compression: Byte;
   CompressedBytes, DecompressedSize: Cardinal;
   LocalBuffer: PByte;
 begin
   ProfileName := PAnsiChar(Source);
   ProfileLength := Length(ProfileName)+1; // +1 to include the null byte
   Inc(Source, ProfileLength); // Skip ProfileName including terminating 0
-  Compression := Source^;
+  // Commented out Compression to silence warning about it not being used.
+  //Compression := Source^;
   // TODO: Only valid Compression type is 0. But we should only warn here not stop.
   //if Compression <> 0 then
   //  GraphicExError(gesDecompression, ['PNG']);
@@ -10380,7 +10398,7 @@ procedure TPNGGraphic.LoadText(var Source: PByte);
 var
   Keyword: AnsiString;
   Offset: Cardinal;
-  Contents: array of AnsiChar;
+  Contents: string;
 
 begin
   ReadDataAndCheckCRC(Source);
@@ -10390,11 +10408,11 @@ begin
     // Only text chunks with the 'Comment', 'Description' and 'Title' keywords are loaded
     Offset := Length(Keyword) + 1;
     SetLength(Contents, FHeader.Length - Offset + 1);
-    StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
+    Contents := AnsiLeftStr(string(PAnsiChar(FRawBuffer) + Offset), FHeader.Length - Offset);
     if FImageProperties.Comment = '' then
-      FImageProperties.Comment := PAnsiChar(Contents)
+      FImageProperties.Comment := Contents
     else // Add NewLine character between multiple comments
-      FImageProperties.Comment := FImageProperties.Comment + #10 + PAnsiChar(Contents);
+      FImageProperties.Comment := FImageProperties.Comment + #10 + Contents;
   end;
 end;
 
@@ -10798,7 +10816,7 @@ begin
       FImageProperties.Compression := ctNone;
 
     FImageProperties.Version := Header^.GedVersion;
-    FImageProperties.Comment := Header^.GedVersionString;
+    FImageProperties.Comment := string(Header^.GedVersionString);
 
     Result := True;
   end;
