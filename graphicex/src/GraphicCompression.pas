@@ -99,6 +99,7 @@ type
     // PackedSize and UnpackedSize should be the same since this Decoder does
     // not do any decoding but a simple Move of bytes from Source to Dest.
     procedure Decode(var Source, Dest: Pointer; PackedSize, UnpackedSize: Integer); override;
+    procedure Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal); override;
   end;
 
   // Targa is the only class that currently also has an encoder besides a decoder.
@@ -454,6 +455,11 @@ begin
   end;
   Dec(FCompressedBytesAvailable, FDecompressedBytes);
   Move(Source^, Dest^, FDecompressedBytes);
+end;
+
+procedure TNoCompressionDecoder.Encode(Source, Dest: Pointer; Count: Cardinal; var BytesStored: Cardinal);
+begin
+  BytesStored := 0;
 end;
 
 //----------------- TTargaRLEDecoder -----------------------------------------------------------------------------------
