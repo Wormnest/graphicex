@@ -621,10 +621,6 @@
 
 {$endif}
 
-{$IFDEF COMPILER_9_UP}
-  {$DEFINE SUPPORTS_INLINE}            // Compiler supports the inline directive (D9+/FPC)
-{$ENDIF}
-
 // RAD Studio XE
 {$ifdef conditionalexpressions}
 	{$if CompilerVersion >= 22}
@@ -663,6 +659,21 @@
 	   {$define DELPHI}
 	 {$endif}
 	{$ifend}
+{$endif}
+
+{$IFDEF COMPILER_9_UP}
+  {$DEFINE SUPPORTS_INLINE}            // Compiler supports the inline directive (D9+/FPC)
+{$ENDIF}
+
+{$IFDEF COMPILER_12_UP}
+  {$DEFINE HAS_UNIT_ANSISTRINGS}       // Unit AnsiStrings exists (D12+)
+{$ENDIF}
+
+// Since we haven't done any defines higher than COMPILER_15_UP we do it like this for newer versions.
+{$ifdef conditionalexpressions}
+	{$if CompilerVersion >= 23} // XE2
+    {$DEFINE HAS_UNIT_SYSTEM_UITYPES}    // Unit System.UITypes is available (D16+), dotted unit names
+  {$endif}
 {$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
