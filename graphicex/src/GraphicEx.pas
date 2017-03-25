@@ -10790,73 +10790,71 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
+  if Result then begin
+    Run := Memory;
+
+    // Skip Arts & Letters ID string.
+    Inc(Run, Length(GEDMagic));
+    // Seek to the start of the tags.
+    Inc(Run, GEDVersionHeader);
+
+    // Get the version number.
+    Move(Run^, Tag, SizeOf(Tag));
+    Inc(Run, SizeOf(Tag));
+    if Tag >= GEDEditorVersion40c then
     begin
-      Run := Memory;
-
-      // Skip Arts & Letters ID string.
-      Inc(Run, Length(GEDMagic));
-      // Seek to the start of the tags.
-      Inc(Run, GEDVersionHeader);
-
-      // Get the version number.
+      // The file description is always first.
       Move(Run^, Tag, SizeOf(Tag));
       Inc(Run, SizeOf(Tag));
-      if Tag >= GEDEditorVersion40c then
+      if Tag = GEDFileDescription then
       begin
-        // The file description is always first.
+        // Skip the description tag.
+        Bytes := Run^;
+        Inc(Run, Bytes + 1);
+
+        // Here we should now find a thumbnail tag.
         Move(Run^, Tag, SizeOf(Tag));
         Inc(Run, SizeOf(Tag));
-        if Tag = GEDFileDescription then
+        if Tag = GEDDibThumbnail then
         begin
-          // Skip the description tag.
-          Bytes := Run^;
-          Inc(Run, Bytes + 1);
+          // skip thumbnail size
+          Move(Run^, ThumbSize, SizeOf(ThumbSize));
+          Inc(Run, SizeOf(ThumbSize));
 
-          // Here we should now find a thumbnail tag.
-          Move(Run^, Tag, SizeOf(Tag));
-          Inc(Run, SizeOf(Tag));
-          if Tag = GEDDibThumbnail then
+          BI := Pointer(Run);
+
+          FImageProperties.Options := [];
+          FImageProperties.Width := BI.biWidth;
+          FImageProperties.Height := BI.biHeight;
+          FImageProperties.BitsPerPixel := BI.biBitCount;
+          if FImageProperties.BitsPerPixel > 8 then
           begin
-            // skip thumbnail size
-            Move(Run^, ThumbSize, SizeOf(ThumbSize));
-            Inc(Run, SizeOf(ThumbSize));
-
-            BI := Pointer(Run);
-
-            Options := [];
-            Width := BI.biWidth;
-            Height := BI.biHeight;
-            BitsPerPixel := BI.biBitCount;
-            if BitsPerPixel > 8 then
-            begin
-              BitsPerSample := BitsPerPixel div 8;
-              SamplesPerPixel := BitsPerPixel mod 8;
-              if SamplesPerPixel = 3 then
-                ColorScheme := csBGR
-              else
-                ColorScheme := csBGRA;
-            end
+            FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel div 8;
+            FImageProperties.SamplesPerPixel := FImageProperties.BitsPerPixel mod 8;
+            if FImageProperties.SamplesPerPixel = 3 then
+              FImageProperties.ColorScheme := csBGR
             else
-            begin
-              BitsPerSample := BitsPerPixel;
-              SamplesPerPixel := 1;
-              ColorScheme := csIndexed;
-            end;
-
-            if BI.biCompression in [BI_RLE8, BI_RLE4] then
-              Compression := ctRLE
-            else
-              Compression := ctNone;
-
-            Result := True;
+              FImageProperties.ColorScheme := csBGRA;
+          end
+          else
+          begin
+            FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel;
+            FImageProperties.SamplesPerPixel := 1;
+            FImageProperties.ColorScheme := csIndexed;
           end;
+
+          if BI.biCompression in [BI_RLE8, BI_RLE4] then
+            FImageProperties.Compression := ctRLE
+          else
+            FImageProperties.Compression := ctNone;
+
+          Result := True;
         end;
-      end
-      else
-        Result := False;
-    end;
+      end;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif ArtsAndLettersGraphic}
