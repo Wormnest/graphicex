@@ -6914,139 +6914,136 @@ var
   ChannelSize: Integer;
 
 begin
-  with Layer.FImage do
-  begin
-    ChannelSize := Width * Height;
-    case PixelFormat of
-      pf8Bit:
+  ChannelSize := Layer.FImage.Width * Layer.FImage.Height;
+  case Layer.FImage.PixelFormat of
+    pf8Bit:
+      begin
+        RunR := GetChannel(0);
+        for Y := 0 to Layer.FImage.Height - 1 do
+        begin
+          {$IFNDEF FPC}
+          Move(RunR^, Layer.FImage.ScanLine[Y]^, Layer.FImage.Width);
+          {$ELSE}
+          ColorManager.ConvertRow([RunR], Layer.FImage.ScanLine[Y], Layer.FImage.Width, $FF);
+          {$ENDIF}
+          Inc(RunR, Layer.FImage.Width);
+        end;
+      end;
+    pf24Bit: // RGB, CMYK or Lab
+      begin
+        // We need to add planar to our source options
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+        if FMode = PSD_CMYK then
+        begin
+          // Photoshop CMYK values are given with 0 for maximum values, but the
+          // (general) CMYK conversion works with 255 as maxium value. Hence we must reverse
+          // all entries in the buffer.
+          RunR := GetChannel(0);
+          RunG := GetChannel(1);
+          RunB := GetChannel(2);
+          RunA := GetChannel(3);
+          for Y := 1 to ChannelSize do
+          begin
+            RunR^ := 255 - RunR^;
+            Inc(RunR);
+            RunG^ := 255 - RunG^;
+            Inc(RunG);
+            RunB^ := 255 - RunB^;
+            Inc(RunB);
+            RunA^ := 255 - RunA^;
+            Inc(RunA);
+          end;
+          RunR := GetChannel(0);
+          RunG := GetChannel(1);
+          RunB := GetChannel(2);
+          RunA := GetChannel(3);
+        end
+        else
         begin
           RunR := GetChannel(0);
-          for Y := 0 to Height - 1 do
-          begin
-            {$IFNDEF FPC}
-            Move(RunR^, ScanLine[Y]^, Width);
-            {$ELSE}
-            ColorManager.ConvertRow([RunR], ScanLine[Y], Width, $FF);
-            {$ENDIF}
-            Inc(RunR, Width);
-          end;
+          RunG := GetChannel(1);
+          RunB := GetChannel(2);
+          RunA := nil;
         end;
-      pf24Bit: // RGB, CMYK or Lab
+        for Y := 0 to Layer.FImage.Height - 1 do
         begin
-          // We need to add planar to our source options
-          ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-          if FMode = PSD_CMYK then
-          begin
-            // Photoshop CMYK values are given with 0 for maximum values, but the
-            // (general) CMYK conversion works with 255 as maxium value. Hence we must reverse
-            // all entries in the buffer.
-            RunR := GetChannel(0);
-            RunG := GetChannel(1);
-            RunB := GetChannel(2);
-            RunA := GetChannel(3);
-            for Y := 1 to ChannelSize do
-            begin
-              RunR^ := 255 - RunR^;
-              Inc(RunR);
-              RunG^ := 255 - RunG^;
-              Inc(RunG);
-              RunB^ := 255 - RunB^;
-              Inc(RunB);
-              RunA^ := 255 - RunA^;
-              Inc(RunA);
-            end;
-            RunR := GetChannel(0);
-            RunG := GetChannel(1);
-            RunB := GetChannel(2);
-            RunA := GetChannel(3);
-          end
-          else
-          begin
-            RunR := GetChannel(0);
-            RunG := GetChannel(1);
-            RunB := GetChannel(2);
-            RunA := nil;
-          end;
-          for Y := 0 to Height - 1 do
-          begin
-            ColorManager.ConvertRow([RunR, RunG, RunB, RunA], ScanLine[Y], Width, $FF);
-            Inc(RunR, Width);
-            Inc(RunG, Width);
-            Inc(RunB, Width);
-          end;
+          ColorManager.ConvertRow([RunR, RunG, RunB, RunA], Layer.FImage.ScanLine[Y], Layer.FImage.Width, $FF);
+          Inc(RunR, Layer.FImage.Width);
+          Inc(RunG, Layer.FImage.Width);
+          Inc(RunB, Layer.FImage.Width);
         end;
-      pf32Bit:
+      end;
+    pf32Bit:
+      begin
+        // TODO: A lot of the conversion stuff below can probably be handled in ColorManager
+        // or is already present there! Remove it here to simplify things.
+        // We should also check for the determined color mode csXXX instead of using FMode.
+        // TODO: Support 16 bit per channel versions. Doing the above will probably solve that.
+        // We need to add planar to our source options
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+        if FMode = PSD_CMYK then
         begin
-          // TODO: A lot of the conversion stuff below can probably be handled in ColorManager
-          // or is already present there! Remove it here to simplify things.
-          // We should also check for the determined color mode csXXX instead of using FMode.
-          // TODO: Support 16 bit per channel versions. Doing the above will probably solve that.
-          // We need to add planar to our source options
-          ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-          if FMode = PSD_CMYK then
+          // Photoshop CMYK values are given with 0 for maximum values, but the
+          // (general) CMYK conversion works with 255 as maxium value. Hence we must reverse
+          // all entries in the buffer.
+          RunR := GetChannel(0);
+          RunG := GetChannel(1);
+          RunB := GetChannel(2);
+          RunA := GetChannel(3);
+          for Y := 1 to ChannelSize do
           begin
-            // Photoshop CMYK values are given with 0 for maximum values, but the
-            // (general) CMYK conversion works with 255 as maxium value. Hence we must reverse
-            // all entries in the buffer.
-            RunR := GetChannel(0);
-            RunG := GetChannel(1);
-            RunB := GetChannel(2);
-            RunA := GetChannel(3);
-            for Y := 1 to ChannelSize do
-            begin
-              RunR^ := 255 - RunR^;
-              Inc(RunR);
-              RunG^ := 255 - RunG^;
-              Inc(RunG);
-              RunB^ := 255 - RunB^;
-              Inc(RunB);
-              RunA^ := 255 - RunA^;
-              Inc(RunA);
-            end;
-            // Getting the pointers to the start of the channels back.
-            {RunR := GetChannel(0);
-            RunG := GetChannel(1);
-            RunB := GetChannel(2);
-            RunA := GetChannel(3);}
-            RunCMYKA := GetChannel(-1);
-            if RunCMYKA = nil then
-              SetLength(RunChannels, 4)
-            else begin // CMYKA
-              SetLength(RunChannels, 5);
-              RunChannels[4] := RunCMYKA;  // A
-            end;
-            RunChannels[0] := GetChannel(0);  // C
-            RunChannels[1] := GetChannel(1);  // M
-            RunChannels[2] := GetChannel(2);  // Y
-            RunChannels[3] := GetChannel(3);  // K
-          end
-          else if FMode in [PSD_GRAYSCALE, PSD_INDEXED] then begin
-            // Gray or Indexed with alpha
-            SetLength(RunChannels, 2);
-            RunChannels[0] := GetChannel(0);  // G/I
-            RunChannels[1] := GetChannel(-1); // A
-          end
-          else
-          begin
-            // Either RGBA or Lab with alpha.
-            SetLength(RunChannels, 4);
-            RunChannels[0] := GetChannel(0);  // R
-            RunChannels[1] := GetChannel(1);  // G
-            RunChannels[2] := GetChannel(2);  // B
-            RunChannels[3] := GetChannel(-1); // A
+            RunR^ := 255 - RunR^;
+            Inc(RunR);
+            RunG^ := 255 - RunG^;
+            Inc(RunG);
+            RunB^ := 255 - RunB^;
+            Inc(RunB);
+            RunA^ := 255 - RunA^;
+            Inc(RunA);
           end;
-          for Y := 0 to Height - 1 do
-          begin
-            ColorManager.ConvertRow(RunChannels, ScanLine[Y], Width, $FF);
-            for i := 0 to High(RunChannels) do
-              Inc(PByte(RunChannels[i]), Width);
-            {Inc(RunR, Width);
-            Inc(RunG, Width);
-            Inc(RunB, Width);
-            Inc(RunA, Width);}
+          // Getting the pointers to the start of the channels back.
+          {RunR := GetChannel(0);
+          RunG := GetChannel(1);
+          RunB := GetChannel(2);
+          RunA := GetChannel(3);}
+          RunCMYKA := GetChannel(-1);
+          if RunCMYKA = nil then
+            SetLength(RunChannels, 4)
+          else begin // CMYKA
+            SetLength(RunChannels, 5);
+            RunChannels[4] := RunCMYKA;  // A
           end;
+          RunChannels[0] := GetChannel(0);  // C
+          RunChannels[1] := GetChannel(1);  // M
+          RunChannels[2] := GetChannel(2);  // Y
+          RunChannels[3] := GetChannel(3);  // K
+        end
+        else if FMode in [PSD_GRAYSCALE, PSD_INDEXED] then begin
+          // Gray or Indexed with alpha
+          SetLength(RunChannels, 2);
+          RunChannels[0] := GetChannel(0);  // G/I
+          RunChannels[1] := GetChannel(-1); // A
+        end
+        else
+        begin
+          // Either RGBA or Lab with alpha.
+          SetLength(RunChannels, 4);
+          RunChannels[0] := GetChannel(0);  // R
+          RunChannels[1] := GetChannel(1);  // G
+          RunChannels[2] := GetChannel(2);  // B
+          RunChannels[3] := GetChannel(-1); // A
         end;
-    end;
+        for Y := 0 to Layer.FImage.Height - 1 do
+        begin
+          ColorManager.ConvertRow(RunChannels, Layer.FImage.ScanLine[Y], Layer.FImage.Width, $FF);
+          for i := 0 to High(RunChannels) do
+            Inc(PByte(RunChannels[i]), Layer.FImage.Width);
+          {Inc(RunR, Width);
+          Inc(RunG, Width);
+          Inc(RunB, Width);
+          Inc(RunA, Width);}
+        end;
+      end;
   end;
 end;
 
@@ -7221,7 +7218,7 @@ begin
           Transform.YY := ReadBigEndianDouble(Run);
           Transform.TX := ReadBigEndianDouble(Run);
           Transform.TY := ReadBigEndianDouble(Run);
-          
+
           // Skip text descriptor version (= 50 for PS 6) and descriptor version (= 16 for PS 6) fields.
           Inc(Run, 6);
           // Read text descriptor.
@@ -7515,7 +7512,7 @@ const
       end;
     end;
   end;
-  
+
   //--------------- end local functions ---------------------------------------
 
 var
@@ -7523,21 +7520,18 @@ var
   ItemCount: Cardinal;
 
 begin
-  with Descriptor do
-  begin
-    // Class ID as Unicode string.
-    ClassID := ReadBigEndianString(Run);
-    ClassID2 := ReadANSIID;
+  // Class ID as Unicode string.
+  Descriptor.ClassID := ReadBigEndianString(Run);
+  Descriptor.ClassID2 := ReadANSIID;
 
-    // Now read the items in the descriptor.
-    ItemCount := ReadBigEndianCardinal(Run);
-    SetLength(Descriptor.Items, ItemCount);
-    for I := 0 to ItemCount - 1 do
-    begin
-      Descriptor.Items[I].Key := ReadANSIID;
-      Descriptor.Items[I].Data.ItemType := ReadOSTypeKey;
-      ReadItem(Descriptor.Items[I].Data);
-    end;
+  // Now read the items in the descriptor.
+  ItemCount := ReadBigEndianCardinal(Run);
+  SetLength(Descriptor.Items, ItemCount);
+  for I := 0 to ItemCount - 1 do
+  begin
+    Descriptor.Items[I].Key := ReadANSIID;
+    Descriptor.Items[I].Data.ItemType := ReadOSTypeKey;
+    ReadItem(Descriptor.Items[I].Data);
   end;
 end;
 
@@ -7759,17 +7753,14 @@ procedure TPSDGraphic.ReadLayers(Run: PByte);
   procedure ReadBlendRanges(var Data: TPSDCompositeGrayBlend);
 
   begin
-    with Data do
-    begin
-      Black1 := Byte(Run^);
-      Inc(Run);
-      Black2 := Byte(Run^);
-      Inc(Run);
-      White1 := Byte(Run^);
-      Inc(Run);
-      White2 := Byte(Run^);
-      Inc(Run);
-    end;
+    Data.Black1 := Byte(Run^);
+    Inc(Run);
+    Data.Black2 := Byte(Run^);
+    Inc(Run);
+    Data.White1 := Byte(Run^);
+    Inc(Run);
+    Data.White2 := Byte(Run^);
+    Inc(Run);
   end;
 
   //--------------- end local functions ---------------------------------------
@@ -7980,12 +7971,9 @@ begin
           // Extra layer channels always follow the actual image data so we can limit the maximum
           // number of channels to use to 5 (CMYKA) without harm.
           Layer.Image.PixelFormat := SetupColorManager(Min(5, Length(Layer.FChannels)));
-          with Layer, Bounds do
-          begin
-            Image.Width := Right - Left;
-            Image.Height := Bottom - Top;
-            Image.Palette := CopyPalette(Palette);
-          end;
+          Layer.Image.Width := Layer.Bounds.Right - Layer.Bounds.Left;
+          Layer.Image.Height := Layer.Bounds.Bottom - Layer.Bounds.Top;
+          Layer.Image.Palette := CopyPalette(Palette);
           CombineChannels(Layer);
         end;
       finally
@@ -8049,22 +8037,21 @@ begin
     Size := ReadBigEndianCardinal(Run);
     case ID of
       GridAndGuides:
-        with FGridSettings do
         begin
           // Skip version number (= 1 for Photoshop 4.0).
           Inc(Run, 4);
           // Numbers here are in 16.16 fix point format.
-          HorizontalCycle := ReadBigEndianCardinal(Run) / 32;
-          VerticalCycle := ReadBigEndianCardinal(Run) / 32;
+          FGridSettings.HorizontalCycle := ReadBigEndianCardinal(Run) / 32;
+          FGridSettings.VerticalCycle := ReadBigEndianCardinal(Run) / 32;
           // Number of guides.
           Size := ReadBigEndianCardinal(Run);
           if Size > 0 then
           begin
-            SetLength(Guides, Size);
+            SetLength(FGridSettings.Guides, Size);
             for I := 0 to Size - 1 do
             begin
-              Guides[I].Location := ReadBigEndianCardinal(Run) / 32;
-              Guides[I].IsHorizontal := Boolean(Run^);
+              FGridSettings.Guides[I].Location := ReadBigEndianCardinal(Run) / 32;
+              FGridSettings.Guides[I].IsHorizontal := Boolean(Run^);
               Inc(Run);
             end;
           end;
@@ -8106,101 +8093,98 @@ var
   CurrentColorScheme: TColorScheme;
 
 begin
-  with FImageProperties, ColorManager do
-  begin
-    // PSD always uses bigendian (even for float values!).
-    SourceOptions := [coNeedByteSwap];
-    SourceBitsPerSample := BitsPerSample;
-    case BitsPerSample of
-      1, 8:
-      begin
-        TargetBitsPerSample := BitsPerSample;
-      end;
-      16:
-      begin
-        TargetBitsPerSample := 8;
-      end;
-      32:
-      begin
-        TargetBitsPerSample := 8;
-        SourceDataFormat := sdfFloat;
-      end;
-    else
-      // On purpose nothing is set here.
-      // Unknown BitsPerSample will raise a bitdepth error.
+  // PSD always uses bigendian (even for float values!).
+  ColorManager.SourceOptions := [coNeedByteSwap];
+  ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
+  case FImageProperties.BitsPerSample of
+    1, 8:
+    begin
+      ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
     end;
-    SourceSamplesPerPixel := Channels;
-
-    CurrentColorScheme := DetermineColorScheme(Channels);
-    SourceColorScheme := CurrentColorScheme;
-    // Always explicitly set TargetSamplesPerPixel because source might have
-    // extra non color channels that we need to ignore if possible.
-    case CurrentColorScheme of
-      csG,
-      csIndexed:
-        begin
-          if ioMinIsWhite in Options then
-            SourceOptions := SourceOptions + [coMinIsWhite];
-          {$IFNDEF FPC}
-          TargetColorScheme := CurrentColorScheme;
-          TargetSamplesPerPixel := 1;
-          {$ELSE}
-          TargetColorScheme := csBGR;
-          TargetSamplesPerPixel := 3;
-          TargetBitsPerSample := 8; // Necessary since it might be different
-          PixelFormat := pf24Bit;
-          {$ENDIF}
-        end;
-      csGA,
-      csIndexedA:
-        begin
-          TargetColorScheme := csBGRA;
-          TargetSamplesPerPixel := 4;
-        end;
-      csRGB:
-        if Channels = 3 then
-        begin
-          TargetColorScheme := csBGR;
-          TargetSamplesPerPixel := 3;
-        end
-        else // 4 or more
-        begin
-          SourceColorScheme := csRGBA;
-          TargetColorScheme := csBGRA;
-          TargetSamplesPerPixel := 4;
-        end;
-      csRGBA:
-        begin
-          TargetColorScheme := csBGRA;
-          TargetSamplesPerPixel := 4;
-        end;
-      csCMYK:
-        begin
-          TargetColorScheme := csBGR;
-          TargetSamplesPerPixel := 3;
-        end;
-      csCMYKA:
-        begin
-          TargetColorScheme := csBGRA;
-          TargetSamplesPerPixel := 4;
-        end;
-      csCIELab:
-        begin
-          SourceColorScheme := CurrentColorScheme;
-          // PSD uses 0..255 for a and b so we need to convert them to -128..127
-          SourceOptions := SourceOptions + [coLabByteRange, coLabChromaOffset];
-          if Channels = 3 then begin
-            TargetColorScheme := csBGR;
-            TargetSamplesPerPixel := 3;
-          end
-          else begin // 4 or more
-            TargetColorScheme := csBGRA;
-            TargetSamplesPerPixel := 4;
-          end;
-        end;
+    16:
+    begin
+      ColorManager.TargetBitsPerSample := 8;
     end;
-    Result := TargetPixelFormat;
+    32:
+    begin
+      ColorManager.TargetBitsPerSample := 8;
+      ColorManager.SourceDataFormat := sdfFloat;
+    end;
+  else
+    // On purpose nothing is set here.
+    // Unknown BitsPerSample will raise a bitdepth error.
   end;
+  ColorManager.SourceSamplesPerPixel := Channels;
+
+  CurrentColorScheme := DetermineColorScheme(Channels);
+  ColorManager.SourceColorScheme := CurrentColorScheme;
+  // Always explicitly set TargetSamplesPerPixel because source might have
+  // extra non color channels that we need to ignore if possible.
+  case CurrentColorScheme of
+    csG,
+    csIndexed:
+      begin
+        if ioMinIsWhite in FImageProperties.Options then
+          ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
+        {$IFNDEF FPC}
+        ColorManager.TargetColorScheme := CurrentColorScheme;
+        ColorManager.TargetSamplesPerPixel := 1;
+        {$ELSE}
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.TargetBitsPerSample := 8; // Necessary since it might be different
+        PixelFormat := pf24Bit;
+        {$ENDIF}
+      end;
+    csGA,
+    csIndexedA:
+      begin
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.TargetSamplesPerPixel := 4;
+      end;
+    csRGB:
+      if Channels = 3 then
+      begin
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.TargetSamplesPerPixel := 3;
+      end
+      else // 4 or more
+      begin
+        ColorManager.SourceColorScheme := csRGBA;
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.TargetSamplesPerPixel := 4;
+      end;
+    csRGBA:
+      begin
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.TargetSamplesPerPixel := 4;
+      end;
+    csCMYK:
+      begin
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.TargetSamplesPerPixel := 3;
+      end;
+    csCMYKA:
+      begin
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.TargetSamplesPerPixel := 4;
+      end;
+    csCIELab:
+      begin
+        ColorManager.SourceColorScheme := CurrentColorScheme;
+        // PSD uses 0..255 for a and b so we need to convert them to -128..127
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coLabByteRange, coLabChromaOffset];
+        if Channels = 3 then begin
+          ColorManager.TargetColorScheme := csBGR;
+          ColorManager.TargetSamplesPerPixel := 3;
+        end
+        else begin // 4 or more
+          ColorManager.TargetColorScheme := csBGRA;
+          ColorManager.TargetSamplesPerPixel := 4;
+        end;
+      end;
+  end;
+  Result := ColorManager.TargetPixelFormat;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -8228,71 +8212,67 @@ begin
   FLayers.Clear;
   Run := Memory;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
-    begin
-      // Initialize outermost progress display.
-      InitProgress(Width, 1);
-      StartProgressSection(0, '');
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    // Initialize outermost progress display.
+    InitProgress(FImageProperties.Width, 1);
+    StartProgressSection(0, '');
 
-      // Initialize sub section for image preparation. We give it a (guessed) value of 1%.
-      StartProgressSection(1, gesPreparing);
+    // Initialize sub section for image preparation. We give it a (guessed) value of 1%.
+    StartProgressSection(1, gesPreparing);
 
-      // Skip the header, image info is already read.
-      Inc(Run, SizeOf(TPSDHeader));
+    // Skip the header, image info is already read.
+    Inc(Run, SizeOf(TPSDHeader));
 
-      PixelFormat := SetupColorManager(SamplesPerPixel);
-      Self.Width := Width;
-      Self.Height := Height;
+    PixelFormat := SetupColorManager(FImageProperties.SamplesPerPixel);
+    Self.Width := FImageProperties.Width;
+    Self.Height := FImageProperties.Height;
 
-      // Read color mode data if present.
-      // Size of palette.
-      Count := ReadBigEndianCardinal(Run);
-      // Setup the palette if necessary.
-      case ColorScheme of
-        csG: // For csGA we don't need to create a palette since we're converting it to BGRA
-          Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in Options);
-        csIndexed:
-          begin
-            {$IFDEF LCMS}
-            // TODO: Figure out how to handle interlaced palette color transform
-            {$ENDIF}
-            Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
-              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count);
-            ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
-              PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
-          end;
-        csIndexedA:
+    // Read color mode data if present.
+    // Size of palette.
+    Count := ReadBigEndianCardinal(Run);
+    // Setup the palette if necessary.
+    case FImageProperties.ColorScheme of
+      csG: // For csGA we don't need to create a palette since we're converting it to BGRA
+        Palette := ColorManager.CreateGrayscalePalette(ioMinIsWhite in FImageProperties.Options);
+      csIndexed:
+        begin
+          {$IFDEF LCMS}
+          // TODO: Figure out how to handle interlaced palette color transform
+          {$ENDIF}
+          Palette := ColorManager.CreateColorPalette([Run, PAnsiChar(Run) + Count div 3,
+            PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple, Count);
           ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
             PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
+        end;
+      csIndexedA:
+        ColorManager.SetSourcePalette([Run, PAnsiChar(Run) + Count div 3,
+          PAnsiChar(Run) + 2 * Count div 3], pfPlane8Triple);
 
-      end;
-      Inc(Run, Count);
-
-      // The preparation part is finished. Finish also progress section (which will step the main progress).
-      FinishProgressSection(False);
-
-      // Read resource section.
-      Count := ReadBigEndianCardinal(Run);
-      if Count > 0 then
-        ReadResources(Run);
-      Inc(Run, Count);
-
-      // Read layers section.
-      Count := ReadBigEndianCardinal(Run);
-      if Count > 0 then
-        ReadLayers(Run);
-
-      // Use +2 in order to skip the following compression value (which we already know).
-      Inc(Run, Count + 2);
-      // Setup the color manager again. It might be changed by the layer loading stuff.
-      if FLayers.Count > 0 then
-        SetupColorManager(SamplesPerPixel);
-      ReadMergedImage(Run, nil, Compression, FChannels);
-
-      FinishProgressSection(False);
     end;
+    Inc(Run, Count);
+
+    // The preparation part is finished. Finish also progress section (which will step the main progress).
+    FinishProgressSection(False);
+
+    // Read resource section.
+    Count := ReadBigEndianCardinal(Run);
+    if Count > 0 then
+      ReadResources(Run);
+    Inc(Run, Count);
+
+    // Read layers section.
+    Count := ReadBigEndianCardinal(Run);
+    if Count > 0 then
+      ReadLayers(Run);
+
+    // Use +2 in order to skip the following compression value (which we already know).
+    Inc(Run, Count + 2);
+    // Setup the color manager again. It might be changed by the layer loading stuff.
+    if FLayers.Count > 0 then
+      SetupColorManager(FImageProperties.SamplesPerPixel);
+    ReadMergedImage(Run, nil, FImageProperties.Compression, FChannels);
+
+    FinishProgressSection(False);
   end
   else
     GraphicExError(gesInvalidImage, ['PSD or PDD']);
@@ -8311,73 +8291,70 @@ var
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      Run := Memory;
-      Inc(Run, SizeOf(TPSDHeader));
+  if Result then begin
+    Run := Memory;
+    Inc(Run, SizeOf(TPSDHeader));
 
-      Move(Memory^, Header, SizeOf(TPSDHeader));
-      if Header.Signature = '8BPS' then
-      begin
-        with Header do
-        begin
-          // PSD files are big endian only.
-          Channels := SwapEndian(Channels);
-          Rows := SwapEndian(Rows);
-          Columns := SwapEndian(Columns);
-          Depth := SwapEndian(Depth);
-          Mode := SwapEndian(Mode);
-        end;
+    Move(Memory^, Header, SizeOf(TPSDHeader));
+    if Header.Signature = '8BPS' then begin
+      with Header do begin
+        // PSD files are big endian only.
+        Channels := SwapEndian(Channels);
+        Rows := SwapEndian(Rows);
+        Columns := SwapEndian(Columns);
+        Depth := SwapEndian(Depth);
+        Mode := SwapEndian(Mode);
+      end;
 
-        Options := [ioBigEndian];
-        // Initialize color manager.
-        BitsPerSample := Header.Depth;
-        FChannels := Header.Channels;
-        // 1..24 channels are supported in PSD files.
-        // 2017-02-21 Current specs say 1..56 channels are supported: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
-        // The documentation states that main image data (rgb(a), cmyk etc.) is always
-        // written with the first channels in their component order.
-        // We accept extra channels but will ignore them unless we know what to do with them.
-        SamplesPerPixel := FChannels;
+      FImageProperties.Options := [ioBigEndian];
+      // Initialize color manager.
+      FImageProperties.BitsPerSample := Header.Depth;
+      FChannels := Header.Channels;
+      // 1..24 channels are supported in PSD files.
+      // 2017-02-21 Current specs say 1..56 channels are supported: https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
+      // The documentation states that main image data (rgb(a), cmyk etc.) is always
+      // written with the first channels in their component order.
+      // We accept extra channels but will ignore them unless we know what to do with them.
+      FImageProperties.SamplesPerPixel := FChannels;
 
-        BitsPerPixel := SamplesPerPixel * BitsPerSample;
+      FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+        FImageProperties.BitsPerSample;
 
-        // color space
-        FMode := Header.Mode;
-        ColorScheme := DetermineColorScheme(SamplesPerPixel);
-        if FMode = PSD_BITMAP then
-          Include(Options, ioMinIsWhite);
+      // color space
+      FMode := Header.Mode;
+      FImageProperties.ColorScheme := DetermineColorScheme(FImageProperties.SamplesPerPixel);
+      if FMode = PSD_BITMAP then
+        Include(FImageProperties.Options, ioMinIsWhite);
 
-        Width := Header.Columns;
-        Height := Header.Rows;
+      FImageProperties.Width := Header.Columns;
+      FImageProperties.Height := Header.Rows;
 
-        // Read the size of the palette.
-        Count := ReadBigEndianCardinal(Run);
-        // Skip palette (count is always given, might be 0 however, e.g. for RGB).
-        Inc(Run, Count);
+      // Read the size of the palette.
+      Count := ReadBigEndianCardinal(Run);
+      // Skip palette (count is always given, might be 0 however, e.g. for RGB).
+      Inc(Run, Count);
 
-        // Skip resourcesection.
-        Count := ReadBigEndianCardinal(Run);
-        Inc(Run, Count);
-        // Layer section: We want to know the number of layers.
-        Count := ReadBigEndianCardinal(Run);
-        if Count > 0 then begin
-          TempRun := Run;
-          Inc(TempRun,4); // Skip Layer Section Size
-          Temp := SwapEndian(PSmallInt(TempRun)^);
-          FLayerCount := Abs(Temp);
-          FMergedTransparencyPresent := Temp < 0;
-        end;
-        // Skip layer section
-        Inc(Run, Count);
+      // Skip resourcesection.
+      Count := ReadBigEndianCardinal(Run);
+      Inc(Run, Count);
+      // Layer section: We want to know the number of layers.
+      Count := ReadBigEndianCardinal(Run);
+      if Count > 0 then begin
+        TempRun := Run;
+        Inc(TempRun,4); // Skip Layer Section Size
+        Temp := SwapEndian(PSmallInt(TempRun)^);
+        FLayerCount := Abs(Temp);
+        FMergedTransparencyPresent := Temp < 0;
+      end;
+      // Skip layer section
+      Inc(Run, Count);
 
-        Compression := ConvertCompression(ReadBigEndianWord(Run));
-        Result := True;
-      end
-      else
-        Result := False;
-    end;
+      FImageProperties.Compression := ConvertCompression(ReadBigEndianWord(Run));
+      Result := True;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 {$endif PhotoshopGraphic}
