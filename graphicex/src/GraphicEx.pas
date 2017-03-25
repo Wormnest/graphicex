@@ -10681,40 +10681,35 @@ end;
 
 const
   GEDMagic = 'A&L-' + #0 + 'ARTS & LETTERS';
+  GEDMagicID = $2D4C2641;    // A&L-
   GEDEditorVersion40c = 133;
   GEDVersionHeader = $1F;
   GEDDibThumbnail = $51;
   GEDFileDescription = $5F;
 
-class function TGEDGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
-var
-  Run: PByte;
-begin
-  Result := (Size > Length(GEDMagic)) and (StrLIComp(PAnsiChar(Memory), PAnsiChar(GEDMagic), Length(GEDMagic)) = 0);
-  if Result then
-  begin
-    Run := Memory;
-    // Skip Arts & Letters ID string.
-    Inc(Run, Length(GEDMagic));
-    // Seek to the start of the tags and check the version number.
-    Inc(Run, GEDVersionHeader);
-
-    Result := Run^ >= GEDEditorVersion40c;
-    if Result then
-    begin
-      Inc(Run, 2);
-      // The file description is always first.
-      Result := Run^ = GEDFileDescription;
-      if Result then
-      begin
-        // Skip the description tag and 1 extra word
-        Inc(Run, 4);
-
-        // Here we should now find a thumbnail tag.
-        Result := Run^ = GEDDibThumbnail;
-      end;
-    end;
+type
+  // Try to make a guess of the image header
+  TGEDHeader = packed record
+    GedMagic: Cardinal;                 // A&L-
+    GedNull: Byte;                      // #0
+    GedVersionString: array [0..44] of AnsiChar;
+    GedVersion: Word;
+    GedFileDescriptionTag: Word;        // Should be $5F
+    GedUnknown1: Word;
+    GedThumbnailTag: Word;              // Should be $51
+    GedThumbnailSize: Cardinal;         // Size of thumbnail data
+    BI: TBitmapInfo;
   end;
+  PGEDHeader = ^TGEDHeader;
+
+class function TGEDGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
+begin
+  Result := (Size > SizeOf(TGEDHeader)) and (PGEDHeader(Memory)^.GedMagic = GEDMagicID);
+  if Result then with PGEDHeader(Memory)^ do
+    Result :=
+      (GedVersion >= GEDEditorVersion40c) and
+      (GedFileDescriptionTag = GEDFileDescription) and
+      (GedThumbnailTag = GEDDibThumbnail);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -10722,58 +10717,35 @@ end;
 procedure TGEDGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 
 var
-  WholeThumbnail: Integer;
-  BI: PBitmapInfo;
+  Header: PGEDHeader;
   TableSize: Integer;
   Bits: Pointer;
-  Tag: Word;
-  Bytes: Byte;
-  Run: PByte;
 
 begin
   inherited;
 
   if ReadImageProperties(Memory, Size, ImageIndex) then
   begin
-    Run := Memory;
-
-    // Skip Arts & Letters ID string.
-    Inc(Run, Length(GEDMagic));
-    // Seek to the start of the tags.
-    Inc(Run, GEDVersionHeader);
-
-    // Get the version number.
-    Move(Run^, Tag, SizeOf(Tag));
-    Inc(Run, SizeOf(Tag));
-
-    // The file description is always first.
-    Move(Run^, Tag, SizeOf(Tag));
-    Inc(Run, SizeOf(Tag));
-
-    // Skip the description tag.
-    Bytes := Run^;
-    Inc(Run, Bytes + 1);
-
-    // Here we should now find a thumbnail tag.
-    Move(Run^, Tag, SizeOf(Tag));
-    Inc(Run, SizeOf(Tag));
-
-    Move(Run^, WholeThumbnail, SizeOf(WholeThumbnail));
-    Inc(Run, SizeOf(WholeThumbnail));
-
-    // Read basic data of the image.
-    BI := Pointer(Run);
-    // Allocate bitmap now...
-    Width := BI.bmiHeader.biWidth;
-    Height := BI.bmiHeader.biHeight;
+    Header := Memory;
+    // Set bitmap size.
+    Width := Header^.BI.bmiHeader.biWidth;
+    Height := Header^.BI.bmiHeader.biHeight;
 
     // Calculate palette size. The image data directly follows the bitmap info.
-    TableSize := (1 shl BI.bmiHeader.biBitCount) * SizeOf(TRGBQuad);
-    Bits := PAnsiChar(BI) + SizeOf(TBitmapInfoHeader) + TableSize;
-    // ... and place them into our bitmap.
-    SetDIBitsToDevice(Canvas.Handle, 0, 0, BI.bmiHeader.biWidth, BI.bmiHeader.biHeight, 0, 0, 0,
-      BI.bmiHeader.biHeight, Bits, BI^, DIB_RGB_COLORS);
-  end;
+    TableSize := (1 shl Header^.BI.bmiHeader.biBitCount) * SizeOf(TRGBQuad);
+    Bits := PAnsiChar(@Header^.BI) + SizeOf(TBitmapInfoHeader) + TableSize;
+    // Load bitmap data, taking care to lock our canvas in case we are used in a thread.
+    Canvas.Lock;
+    try
+      SetDIBitsToDevice(Canvas.Handle, 0, 0,
+        Header^.BI.bmiHeader.biWidth, Header^.BI.bmiHeader.biHeight, 0, 0, 0,
+        Header^.BI.bmiHeader.biHeight, Bits, Header^.BI, DIB_RGB_COLORS);
+    finally
+      Canvas.Unlock;
+    end;
+  end
+  else
+    GraphicExError(gesInvalidImage, ['Arts & Letters GED']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -10781,79 +10753,53 @@ end;
 function TGEDGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 
 var
-  Tag: Word;
-  ThumbSize: Cardinal;
-  Bytes: Byte;
-  BI: PBitmapInfoHeader;
-  Run: PByte;
+  Header: PGEDHeader;
 
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
   if Result then begin
-    Run := Memory;
+    Header := Memory;
+    // Extra security check in case CanLoad wasn't called first.
+    Result := (Size > SizeOf(TGEDHeader)) and (Header^.GedMagic = GEDMagicID) and
+      (Header^.GedVersion >= GEDEditorVersion40c) and
+      (Header^.GedFileDescriptionTag = GEDFileDescription) and
+      (Header^.GedThumbnailTag = GEDDibThumbnail) and
+      // Make sure size is valid
+      (Size > SizeOf(TGEDHeader) + Header^.GedThumbnailSize);
+    if not Result then
+      Exit;
 
-    // Skip Arts & Letters ID string.
-    Inc(Run, Length(GEDMagic));
-    // Seek to the start of the tags.
-    Inc(Run, GEDVersionHeader);
+    // Read thumbnail image info
+    FImageProperties.Options := [];
+    FImageProperties.Width := Header^.BI.bmiHeader.biWidth;
+    FImageProperties.Height := Header^.BI.bmiHeader.biHeight;
+    FImageProperties.BitsPerPixel := Header^.BI.bmiHeader.biBitCount;
 
-    // Get the version number.
-    Move(Run^, Tag, SizeOf(Tag));
-    Inc(Run, SizeOf(Tag));
-    if Tag >= GEDEditorVersion40c then
+    if FImageProperties.BitsPerPixel > 8 then
     begin
-      // The file description is always first.
-      Move(Run^, Tag, SizeOf(Tag));
-      Inc(Run, SizeOf(Tag));
-      if Tag = GEDFileDescription then
-      begin
-        // Skip the description tag.
-        Bytes := Run^;
-        Inc(Run, Bytes + 1);
-
-        // Here we should now find a thumbnail tag.
-        Move(Run^, Tag, SizeOf(Tag));
-        Inc(Run, SizeOf(Tag));
-        if Tag = GEDDibThumbnail then
-        begin
-          // skip thumbnail size
-          Move(Run^, ThumbSize, SizeOf(ThumbSize));
-          Inc(Run, SizeOf(ThumbSize));
-
-          BI := Pointer(Run);
-
-          FImageProperties.Options := [];
-          FImageProperties.Width := BI.biWidth;
-          FImageProperties.Height := BI.biHeight;
-          FImageProperties.BitsPerPixel := BI.biBitCount;
-          if FImageProperties.BitsPerPixel > 8 then
-          begin
-            FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel div 8;
-            FImageProperties.SamplesPerPixel := FImageProperties.BitsPerPixel mod 8;
-            if FImageProperties.SamplesPerPixel = 3 then
-              FImageProperties.ColorScheme := csBGR
-            else
-              FImageProperties.ColorScheme := csBGRA;
-          end
-          else
-          begin
-            FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel;
-            FImageProperties.SamplesPerPixel := 1;
-            FImageProperties.ColorScheme := csIndexed;
-          end;
-
-          if BI.biCompression in [BI_RLE8, BI_RLE4] then
-            FImageProperties.Compression := ctRLE
-          else
-            FImageProperties.Compression := ctNone;
-
-          Result := True;
-        end;
-      end;
+      FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel div 8;
+      FImageProperties.SamplesPerPixel := FImageProperties.BitsPerPixel mod 8;
+      if FImageProperties.SamplesPerPixel = 3 then
+        FImageProperties.ColorScheme := csBGR
+      else
+        FImageProperties.ColorScheme := csBGRA;
     end
     else
-      Result := False;
+    begin
+      FImageProperties.BitsPerSample := FImageProperties.BitsPerPixel;
+      FImageProperties.SamplesPerPixel := 1;
+      FImageProperties.ColorScheme := csIndexed;
+    end;
+
+    if Header^.BI.bmiHeader.biCompression in [BI_RLE8, BI_RLE4] then
+      FImageProperties.Compression := ctRLE
+    else
+      FImageProperties.Compression := ctNone;
+
+    FImageProperties.Comment := Header^.GedVersionString;
+
+    Result := True;
   end;
 end;
 
