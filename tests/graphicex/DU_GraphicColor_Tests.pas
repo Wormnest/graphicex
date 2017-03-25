@@ -168,7 +168,7 @@ var
   BitsResult: Cardinal;
 begin
   pb := @Data;
-  BitsResult := GetBits(BitOffset,BitsPerSample,PCardinal(pb));
+  BitsResult := GetBitsMax25(BitOffset,BitsPerSample,pb);
   Inc(DoTestCounter);
   Check(BitsResult = ExpectedResult, Format('Test %u: BitsResult should be %x but it is %x!',
     [DoTestCounter, ExpectedResult, BitsResult]));
