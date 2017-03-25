@@ -10797,6 +10797,7 @@ begin
     else
       FImageProperties.Compression := ctNone;
 
+    FImageProperties.Version := Header^.GedVersion;
     FImageProperties.Comment := Header^.GedVersionString;
 
     Result := True;
