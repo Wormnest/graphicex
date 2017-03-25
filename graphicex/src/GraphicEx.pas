@@ -9758,140 +9758,128 @@ var
 begin
   inherited;
 
-  if ReadImageProperties(Memory, Size, ImageIndex) then
-  begin
-    with FImageProperties do
-    begin
-      Run := Pointer(PAnsiChar(Memory) + 8); // skip magic
+  if ReadImageProperties(Memory, Size, ImageIndex) then begin
+    Run := Pointer(PAnsiChar(Memory) + 8); // skip magic
 
-      FProgressRect := Rect(0, 0, Width, 1);
-      Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
+    FProgressRect := Rect(0, 0, FImageProperties.Width, 1);
+    Progress(Self, psStarting, 0, False, FProgressRect, gesPreparing);
 
-      PaletteBuf := nil;
-      FPalette := 0;
-      FTransparency := nil;
-      FBackgroundColor := clWhite;
-      FTransparentColor := clNone;
+    PaletteBuf := nil;
+    FPalette := 0;
+    FTransparency := nil;
+    FBackgroundColor := clWhite;
+    FTransparentColor := clNone;
 
-      // First chunk must be an IHDR chunk.
-      FCurrentCRC := LoadAndSwapHeader(Run);
+    // First chunk must be an IHDR chunk.
+    FCurrentCRC := LoadAndSwapHeader(Run);
 
-      FRawBuffer := nil;
-      ColorManager.SourceOptions := [coNeedByteSwap];
-      try
-        // read IHDR chunk
-        ReadDataAndCheckCRC(Run);
-        Move(FRawBuffer^, Description, SizeOf(Description));
-        SwapCardinalArrayEndian(PCardinal(@Description), 2);
+    FRawBuffer := nil;
+    ColorManager.SourceOptions := [coNeedByteSwap];
+    try
+      // read IHDR chunk
+      ReadDataAndCheckCRC(Run);
+      Move(FRawBuffer^, Description, SizeOf(Description));
+      SwapCardinalArrayEndian(PCardinal(@Description), 2);
 
-        // currently only one compression type is supported by PNG (LZ77)
-        if Compression = ctLZ77 then
-        begin
-          Decoder := TLZ77Decoder.Create(Z_PARTIAL_FLUSH, False);
-          Decoder.DecodeInit;
+      // currently only one compression type is supported by PNG (LZ77)
+      if FImageProperties.Compression = ctLZ77 then begin
+        Decoder := TLZ77Decoder.Create(Z_PARTIAL_FLUSH, False);
+        Decoder.DecodeInit;
+      end
+      else
+        GraphicExError(gesUnsupportedFeature, [gesCompressionScheme, 'PNG']);
+
+      // setup is done, now go for the chunks
+      repeat
+        FCurrentCRC := LoadAndSwapHeader(Run);
+        if IsChunk(IDAT) then begin
+          Progress(Self, psEnding, 0, False, FProgressRect, '');
+          LoadIDAT(Run, Description);
+          // After reading the image data the next chunk header has already been loaded
+          // so continue with code below instead trying to load a new chunk header.
         end
-        else
-          GraphicExError(gesUnsupportedFeature, [gesCompressionScheme, 'PNG']);
-
-        // setup is done, now go for the chunks
-        repeat
-          FCurrentCRC := LoadAndSwapHeader(Run);
-          if IsChunk(IDAT) then
-          begin
-            Progress(Self, psEnding, 0, False, FProgressRect, '');
-            LoadIDAT(Run, Description);
-            // After reading the image data the next chunk header has already been loaded
-            // so continue with code below instead trying to load a new chunk header.
-          end
-          else if IsChunk(PLTE) then
-          begin
-            // palette chunk
-            if (FHeader.Length mod 3) <> 0 then
-              GraphicExError(gesInvalidPalette, ['PNG']);
-            ReadDataAndCheckCRC(Run);
-            // load palette only if the image is indexed colors and we
-            // haven't loaded a palette yet. Duplicate palettes isn't
-            // allowed but broken images might still contain one.
-            // Not checking this might cause a memory leak.
-            if (Description.ColorType = 3) and not Assigned(PaletteBuf) then
-            begin
-              // first setup pixel format before actually creating a palette
-              FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
-              {$IFDEF LCMS}
-              // if this PNG contains an ICC profile we will have to convert the palette entries:
-              if (FICCManager <> nil) and FICCTransformEnabled then begin
-                FICCManager.CreateTransformPalette(False, False); // Interlaced thus not Planar; No Alpha.
-                FICCManager.ExecuteTransform(FRawBuffer, FHeader.Length div 3);
-                FICCManager.DestroyTransform();
-              end;
-              {$ENDIF}
-              FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
-              // We need to copy palette from FRawBuffer because FRawBuffer
-              // will be reused...
-              // Always needed for fpc but also in Delphi for Indexed with Alpha.
-              GetMem(PaletteBuf, FHeader.Length);
-              Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
-              ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
+        else if IsChunk(PLTE) then begin
+          // palette chunk
+          if (FHeader.Length mod 3) <> 0 then
+            GraphicExError(gesInvalidPalette, ['PNG']);
+          ReadDataAndCheckCRC(Run);
+          // load palette only if the image is indexed colors and we
+          // haven't loaded a palette yet. Duplicate palettes isn't
+          // allowed but broken images might still contain one.
+          // Not checking this might cause a memory leak.
+          if (Description.ColorType = 3) and not Assigned(PaletteBuf) then begin
+            // first setup pixel format before actually creating a palette
+            FSourceBPP := SetupColorDepth(Description.ColorType, Description.BitDepth);
+            {$IFDEF LCMS}
+            // if this PNG contains an ICC profile we will have to convert the palette entries:
+            if (FICCManager <> nil) and FICCTransformEnabled then begin
+              FICCManager.CreateTransformPalette(False, False); // Interlaced thus not Planar; No Alpha.
+              FICCManager.ExecuteTransform(FRawBuffer, FHeader.Length div 3);
+              FICCManager.DestroyTransform();
             end;
-            Continue;
-          end
-          else if IsChunk(gAMA) then
-          begin
-            ReadDataAndCheckCRC(Run);
-            // The PNG specs say that Gamma should only be handled if there is no ICC profile
-            {$IFDEF LCMS}if FICCManager = nil then begin{$ENDIF}
-              // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-              ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
-              ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
-            {$IFDEF LCMS}end;{$ENDIF}
-            Include(Options, ioUseGamma);
-            Continue;
-          end
-          else if IsChunk(bKGD) then
-          begin
-            LoadBackgroundColor(Run, Description);
-            Continue;
-          end
-          else if IsChunk(tRNS) then
-          begin
-            LoadTransparency(Run, Description);
-            Continue;
-          end
-          else if IsChunk(iCCP) then
-          begin
-            // Gets read in ReadImageProperties. No need to read it twice!
+            {$ENDIF}
+            FPalette := ColorManager.CreateColorPalette([FRawBuffer], pfInterlaced8Triple, FHeader.Length div 3);
+            // We need to copy palette from FRawBuffer because FRawBuffer
+            // will be reused...
+            // Always needed for fpc but also in Delphi for Indexed with Alpha.
+            GetMem(PaletteBuf, FHeader.Length);
+            Move(FRawBuffer^, PaletteBuf^, FHeader.Length);
+            ColorManager.SetSourcePalette([PaletteBuf], pfInterlaced8Triple);
           end;
-
-          // Skip unknown or unsupported chunks (+4 because of always present CRC).
-          // IEND will be skipped as well, but this chunk is empty, so the stream will correctly
-          // end on the first byte after the IEND chunk.
-          Inc(Run, FHeader.Length + 4);
-          if IsChunk(IEND) then
-            Break;
-
-          // Length = 0 should not happen but I have seen a broken png that has
-          // no IEND chunk but does have length = 0
-          // Also make sure a broken png doesn't set Run to illegal offset
-          if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
-            Break;
-
-          // Note: According to the specs an unknown, but as critical marked chunk is a fatal error.
-          if (Byte(FHeader.ChunkType[0]) and CHUNKMASK) = 0 then
-            GraphicExError(gesUnknownCriticalChunk);
-        until False;
-      finally
-        if Assigned(Decoder) then
-          Decoder.DecodeEnd;
-        if Assigned(FRawBuffer) then
-          FreeMem(FRawBuffer);
-        if Assigned(PaletteBuf) then
-          FreeMem(PaletteBuf);
-        if Assigned(FTransparency) then begin
-          FreeMem(FTransparency);
-          FTransparency := nil;
+          Continue;
+        end
+        else if IsChunk(gAMA) then begin
+          ReadDataAndCheckCRC(Run);
+          // The PNG specs say that Gamma should only be handled if there is no ICC profile
+          {$IFDEF LCMS}if FICCManager = nil then begin{$ENDIF}
+            // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
+            ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
+            ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+          {$IFDEF LCMS}end;{$ENDIF}
+          Include(FImageProperties.Options, ioUseGamma);
+          Continue;
+        end
+        else if IsChunk(bKGD) then begin
+          LoadBackgroundColor(Run, Description);
+          Continue;
+        end
+        else if IsChunk(tRNS) then begin
+          LoadTransparency(Run, Description);
+          Continue;
+        end
+        else if IsChunk(iCCP) then begin
+          // Gets read in ReadImageProperties. No need to read it twice!
         end;
-        Progress(Self, psEnding, 0, False, FProgressRect, '');
+
+        // Skip unknown or unsupported chunks (+4 because of always present CRC).
+        // IEND will be skipped as well, but this chunk is empty, so the stream will correctly
+        // end on the first byte after the IEND chunk.
+        Inc(Run, FHeader.Length + 4);
+        if IsChunk(IEND) then
+          Break;
+
+        // Length = 0 should not happen but I have seen a broken png that has
+        // no IEND chunk but does have length = 0
+        // Also make sure a broken png doesn't set Run to illegal offset
+        if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
+          Break;
+
+        // Note: According to the specs an unknown, but as critical marked chunk is a fatal error.
+        if (Byte(FHeader.ChunkType[0]) and CHUNKMASK) = 0 then
+          GraphicExError(gesUnknownCriticalChunk);
+      until False;
+    finally
+      if Assigned(Decoder) then
+        Decoder.DecodeEnd;
+      if Assigned(FRawBuffer) then
+        FreeMem(FRawBuffer);
+      if Assigned(PaletteBuf) then
+        FreeMem(PaletteBuf);
+      if Assigned(FTransparency) then begin
+        FreeMem(FTransparency);
+        FTransparency := nil;
       end;
+      Progress(Self, psEnding, 0, False, FProgressRect, '');
     end;
   end
   else
@@ -9911,124 +9899,117 @@ begin
   FEOF := PAnsiChar(Memory) + Size;
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
-  if Result then
-    with FImageProperties do
-    begin
-      Run := Memory;
-      Move(Run^, Magic, 8);
-      Inc(Run, 8);
+  if Result then begin
+    Run := Memory;
+    Move(Run^, Magic, 8);
+    Inc(Run, 8);
 
-      if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then
-      begin
-        // first chunk must be an IHDR chunk
-        FCurrentCRC := LoadAndSwapHeader(Run);
-        if IsChunk(IHDR) then
-        begin
-          Include(Options, ioBigEndian);
-          // Since ReadDataAndCheckCRC is going to allocate FRawBuffer we
-          // need to add a try finally before it in case we get an exception
-          // which would otherwise cause a memory leak. Note that the crash
-          // could already occur inside ReadDataAndCheckCRC so we have to put
-          // the try before that (in case of a failed CRC check)
-          try
-            // read IHDR chunk
-            ReadDataAndCheckCRC(Run);
-            Move(FRawBuffer^, Description, SizeOf(Description));
-            SwapCardinalArrayEndian(PCardinal(@Description), 2);
+    if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then begin
+      // first chunk must be an IHDR chunk
+      FCurrentCRC := LoadAndSwapHeader(Run);
+      if IsChunk(IHDR) then begin
+        Include(FImageProperties.Options, ioBigEndian);
+        // Since ReadDataAndCheckCRC is going to allocate FRawBuffer we
+        // need to add a try finally before it in case we get an exception
+        // which would otherwise cause a memory leak. Note that the crash
+        // could already occur inside ReadDataAndCheckCRC so we have to put
+        // the try before that (in case of a failed CRC check)
+        try
+          // read IHDR chunk
+          ReadDataAndCheckCRC(Run);
+          Move(FRawBuffer^, Description, SizeOf(Description));
+          SwapCardinalArrayEndian(PCardinal(@Description), 2);
 
-            if (Description.Width = 0) or (Description.Height = 0) then
-              Exit;
+          if (Description.Width = 0) or (Description.Height = 0) then
+            Exit;
 
-            Width := Description.Width;
-            Height := Description.Height;
+          FImageProperties.Width := Description.Width;
+          FImageProperties.Height := Description.Height;
 
-            if Description.Compression = 0 then
-              Compression := ctLZ77
-            else
-              Compression := ctUnknown;
+          if Description.Compression = 0 then
+            FImageProperties.Compression := ctLZ77
+          else
+            FImageProperties.Compression := ctUnknown;
 
-            BitsPerSample := Description.BitDepth;
-            SamplesPerPixel := 1;
-            case Description.ColorType of
-              0:
-                ColorScheme := csG;
-              2:
-                begin
-                  ColorScheme := csRGB;
-                  SamplesPerPixel := 3;
-                end;
-              3:
-                ColorScheme := csIndexed;
-              4:
-                begin
-                  ColorScheme := csGA;
-                  SamplesPerPixel := 2;
-                end;
-              6:
-                begin
-                  ColorScheme := csRGBA;
-                  SamplesPerPixel := 4;
-                end;
-            else
-              ColorScheme := csUnknown;
+          FImageProperties.BitsPerSample := Description.BitDepth;
+          FImageProperties.SamplesPerPixel := 1;
+          case Description.ColorType of
+            0:
+              FImageProperties.ColorScheme := csG;
+            2:
+              begin
+                FImageProperties.ColorScheme := csRGB;
+                FImageProperties.SamplesPerPixel := 3;
+              end;
+            3:
+              FImageProperties.ColorScheme := csIndexed;
+            4:
+              begin
+                FImageProperties.ColorScheme := csGA;
+                FImageProperties.SamplesPerPixel := 2;
+              end;
+            6:
+              begin
+                FImageProperties.ColorScheme := csRGBA;
+                FImageProperties.SamplesPerPixel := 4;
+              end;
+          else
+            FImageProperties.ColorScheme := csUnknown;
+          end;
+
+          FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+            FImageProperties.BitsPerSample;
+          FImageProperties.FilterMode := Description.Filter;
+          FImageProperties.Interlaced := Description.Interlaced <> 0;
+          FImageProperties.HasAlpha := FImageProperties.ColorScheme in [csGA, csRGBA, csBGRA];
+
+          // Find gamma and comment.
+          repeat
+            FCurrentCRC := LoadAndSwapHeader(Run);
+            if IsChunk(gAMA) then begin
+              ReadDataAndCheckCRC(Run);
+              // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
+              FImageProperties.FileGamma := SwapEndian(PCardinal(FRawBuffer)^) / 100000;
+              Include(FImageProperties.Options, ioUseGamma);
+              Continue;
+            end
+            else if IsChunk(tEXt) then begin
+              LoadText(Run);
+              Continue;
+            end
+            else if IsChunk(iCCP) then begin
+              LoadICCProfile(Run);
+              Continue;
+            end
+            else if IsChunk(tRNS) then begin
+              // Transparency chunk present.
+              // Checking presence of this chunk is the only way to detect Indexed with Alpha.
+              // It's a sort of alpha palette in that case so the Samples per Pixel does not change!
+              if TIHDRChunk(Description).ColorType = 3 then begin
+                FImageProperties.ColorScheme := csIndexedA;
+              end;
+              // Don't use continue since we did not read the contents of the chunk!
             end;
 
-            BitsPerPixel := SamplesPerPixel * BitsPerSample;
-            FilterMode := Description.Filter;
-            Interlaced := Description.Interlaced <> 0;
-            HasAlpha := ColorScheme in [csGA, csRGBA, csBGRA];
-
-            // Find gamma and comment.
-            repeat
-              FCurrentCRC := LoadAndSwapHeader(Run);
-              if IsChunk(gAMA) then
-              begin
-                ReadDataAndCheckCRC(Run);
-                // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
-                FileGamma := SwapEndian(PCardinal(FRawBuffer)^) / 100000;
-                Include(Options, ioUseGamma);
-                Continue;
-              end
-              else if IsChunk(tEXt) then
-              begin
-                LoadText(Run);
-                Continue;
-              end
-              else if IsChunk(iCCP) then
-              begin
-                LoadICCProfile(Run);
-                Continue;
-              end
-              else if IsChunk(tRNS) then
-              begin
-                // Transparency chunk present.
-                // Checking presence of this chunk is the only way to detect Indexed with Alpha.
-                // It's a sort of alpha palette in that case so the Samples per Pixel does not change!
-                if TIHDRChunk(Description).ColorType = 3 then begin
-                  ColorScheme := csIndexedA;
-                end;
-                // Don't use continue since we did not read the contents of the chunk!
-              end;
-
-              Inc(Run, FHeader.Length + 4);
-              if IsChunk(IEND) then
-                Break;
-              // Length = 0 should not happen but I have seen a broken png that has
-              // no IEND chunk but does have length = 0
-              // Also make sure a broken png doesn't set Run to illegal offset
-              if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
-                Break;
-            until False;
-          finally
-            if Assigned(FRawBuffer) then
-              Freemem(FRawBuffer);
-          end;
-          Result := True;
+            Inc(Run, FHeader.Length + 4);
+            if IsChunk(IEND) then
+              Break;
+            // Length = 0 should not happen but I have seen a broken png that has
+            // no IEND chunk but does have length = 0
+            // Also make sure a broken png doesn't set Run to illegal offset
+            if (FHeader.Length = 0) or (NativeUInt(Run) >= NativeUInt(PAnsiChar(Memory)+Size)) then
+              Break;
+          until False;
+        finally
+          if Assigned(FRawBuffer) then
+            Freemem(FRawBuffer);
         end;
-      end
-      else
-        Result := False;
-    end;
+        Result := True;
+      end;
+    end
+    else
+      Result := False;
+  end;
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -10403,20 +10384,17 @@ var
 
 begin
   ReadDataAndCheckCRC(Source);
-  with FImageProperties do
+  Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
+  if (Keyword = 'Comment') or (Keyword = 'Description') or (Keyword = 'Title') then
   begin
-    Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
-    if (Keyword = 'Comment') or (Keyword = 'Description') or (Keyword = 'Title') then
-    begin
-      // Only text chunks with the 'Comment', 'Description' and 'Title' keywords are loaded
-      Offset := Length(Keyword) + 1;
-      SetLength(Contents, FHeader.Length - Offset + 1);
-      StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
-      if Comment = '' then
-        Comment := PAnsiChar(Contents)
-      else // Add NewLine character between multiple comments
-        Comment := Comment + #10 + PAnsiChar(Contents);
-    end;
+    // Only text chunks with the 'Comment', 'Description' and 'Title' keywords are loaded
+    Offset := Length(Keyword) + 1;
+    SetLength(Contents, FHeader.Length - Offset + 1);
+    StrLCopy(PAnsiChar(Contents), PAnsiChar(FRawBuffer) + Offset, FHeader.Length - Offset);
+    if FImageProperties.Comment = '' then
+      FImageProperties.Comment := PAnsiChar(Contents)
+    else // Add NewLine character between multiple comments
+      FImageProperties.Comment := FImageProperties.Comment + #10 + PAnsiChar(Contents);
   end;
 end;
 
@@ -10432,61 +10410,58 @@ var
 
 begin
   ReadDataAndCheckCRC(Source);
-  with TIHDRChunk(Description) do
-  begin
-    case ColorType of
-      0: // gray
-        begin
-          case BitDepth of
-            2:
-              R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 15, 3);
-            16:
-              R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 255, 65535);
-          else // 1, 4, 8 bits gray scale
-            R := Byte(SwapEndian(PWord(FRawBuffer)^));
-          end;
-          FTransparentColor := RGB(R, R, R);
+  case TIHDRChunk(Description).ColorType of
+    0: // gray
+      begin
+        case TIHDRChunk(Description).BitDepth of
+          2:
+            R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 15, 3);
+          16:
+            R := MulDiv16(SwapEndian(PWord(FRawBuffer)^), 255, 65535);
+        else // 1, 4, 8 bits gray scale
+          R := Byte(SwapEndian(PWord(FRawBuffer)^));
         end;
-      2:  // RGB
+        FTransparentColor := RGB(R, R, R);
+      end;
+    2:  // RGB
+      begin
+        Run := FRawBuffer;
+        if TIHDRChunk(Description).BitDepth = 16 then
         begin
-          Run := FRawBuffer;
-          if BitDepth = 16 then
-          begin
-            R := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
-            G := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
-            B := MulDiv16(SwapEndian(Run^), 255, 65535);
-          end
-          else
-          begin
-            R := Byte(SwapEndian(Run^)); Inc(Run);
-            G := Byte(SwapEndian(Run^)); Inc(Run);
-            B := Byte(SwapEndian(Run^));
-          end;
-          FTransparentColor := RGB(R, G, B);
+          R := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+          G := MulDiv16(SwapEndian(Run^), 255, 65535); Inc(Run);
+          B := MulDiv16(SwapEndian(Run^), 255, 65535);
+        end
+        else
+        begin
+          R := Byte(SwapEndian(Run^)); Inc(Run);
+          G := Byte(SwapEndian(Run^)); Inc(Run);
+          B := Byte(SwapEndian(Run^));
         end;
-      4, 6:
-        // Formats with full alpha channel, they shouldn't have a transparent color.
-        ;
-    else
-      // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
-      GetMem(FTransparency, 256);
-      // read the values (at most 256)...
-      Move(FRawBuffer^,  FTransparency^, Min(FHeader.Length, 256));
-      // ...and set default values (255, fully opaque) for non-supplied values
-      if FHeader.Length < 256 then
-        FillChar(FTransparency^[FHeader.Length], 256 - FHeader.Length, $FF);
-      // Since we now know that we have an Indexed Scheme with alpha we will
-      // have to change some settings
-      // For both Delphi and Fpc we will have to use BGRA as target
-      FImageProperties.ColorScheme := csIndexedA;
-      ColorManager.SourceColorScheme := csIndexedA;
-      ColorManager.TargetColorScheme := csBGRA;
-      ColorManager.TargetSamplesPerPixel := 4;
-      ColorManager.TargetBitsPerSample := 8; // Needed for Delphi, in Fpc we already have it set to 8 here.
-      PixelFormat := pf32Bit;
-      // Set Alpha Palette in ColorManager
-      ColorManager.SetSourceAlphaPalette(FTransparency);
-    end;
+        FTransparentColor := RGB(R, G, B);
+      end;
+    4, 6:
+      // Formats with full alpha channel, they shouldn't have a transparent color.
+      ;
+  else
+    // Indexed color scheme (3), with at most 256 alpha values (for each palette entry).
+    GetMem(FTransparency, 256);
+    // read the values (at most 256)...
+    Move(FRawBuffer^,  FTransparency^, Min(FHeader.Length, 256));
+    // ...and set default values (255, fully opaque) for non-supplied values
+    if FHeader.Length < 256 then
+      FillChar(FTransparency^[FHeader.Length], 256 - FHeader.Length, $FF);
+    // Since we now know that we have an Indexed Scheme with alpha we will
+    // have to change some settings
+    // For both Delphi and Fpc we will have to use BGRA as target
+    FImageProperties.ColorScheme := csIndexedA;
+    ColorManager.SourceColorScheme := csIndexedA;
+    ColorManager.TargetColorScheme := csBGRA;
+    ColorManager.TargetSamplesPerPixel := 4;
+    ColorManager.TargetBitsPerSample := 8; // Needed for Delphi, in Fpc we already have it set to 8 here.
+    PixelFormat := pf32Bit;
+    // Set Alpha Palette in ColorManager
+    ColorManager.SetSourceAlphaPalette(FTransparency);
   end;
 end;
 
@@ -10593,110 +10568,100 @@ begin
   //       and used in filter calculation.
   case ColorType of
     0: // gray scale (allowed bit depths are: 1, 2, 4, 8, 16 bits)
-      if BitDepth in [1, 2, 4, 8, 16] then
-      with ColorManager do
-      begin
-        SourceColorScheme := csG;
-        SourceSamplesPerPixel := 1;
-        SourceBitsPerSample := BitDepth;
+      if BitDepth in [1, 2, 4, 8, 16] then begin
+        ColorManager.SourceColorScheme := csG;
+        ColorManager.SourceSamplesPerPixel := 1;
+        ColorManager.SourceBitsPerSample := BitDepth;
         {$IFNDEF FPC}
-        TargetColorScheme := csG;
-        TargetSamplesPerPixel := 1;
+        ColorManager.TargetColorScheme := csG;
+        ColorManager.TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         case BitDepth of
           2:
-            TargetBitsPerSample := 4;
+            ColorManager.TargetBitsPerSample := 4;
           16:
-            TargetBitsPerSample := 8;
+            ColorManager.TargetBitsPerSample := 8;
         else
-          TargetBitsPerSample := BitDepth;
+          ColorManager.TargetBitsPerSample := BitDepth;
         end;
         {$ELSE}
-        TargetColorScheme := csBGR;
-        TargetSamplesPerPixel := 3;
-        TargetBitsPerSample := 8;
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.TargetBitsPerSample := 8;
         {$ENDIF}
 
-        PixelFormat := TargetPixelFormat;
-        FPalette := CreateGrayscalePalette(False);
+        PixelFormat := ColorManager.TargetPixelFormat;
+        FPalette := ColorManager.CreateGrayscalePalette(False);
         Result := (BitDepth + 7) div 8;
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
     2: // RGB
-      if BitDepth in [8, 16] then
-      with ColorManager do
-      begin
-        SourceSamplesPerPixel := 3;
-        TargetSamplesPerPixel := 3;
-        SourceColorScheme := csRGB;
-        TargetColorScheme := csBGR;
-        SourceBitsPerSample := BitDepth;
-        TargetBitsPerSample := 8;
+      if BitDepth in [8, 16] then begin
+        ColorManager.SourceSamplesPerPixel := 3;
+        ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.SourceColorScheme := csRGB;
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.SourceBitsPerSample := BitDepth;
+        ColorManager.TargetBitsPerSample := 8;
         PixelFormat := pf24Bit;
         Result := BitDepth * 3 div 8;
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
     3: // palette
-      if BitDepth in [1, 2, 4, 8] then
-      with ColorManager do
-      begin
-        SourceColorScheme := csIndexed;
-        SourceSamplesPerPixel := 1;
-        SourceBitsPerSample := BitDepth;
+      if BitDepth in [1, 2, 4, 8] then begin
+        ColorManager.SourceColorScheme := csIndexed;
+        ColorManager.SourceSamplesPerPixel := 1;
+        ColorManager.SourceBitsPerSample := BitDepth;
         {$IFNDEF FPC}
-        TargetColorScheme := csIndexed;
-        TargetSamplesPerPixel := 1;
+        ColorManager.TargetColorScheme := csIndexed;
+        ColorManager.TargetSamplesPerPixel := 1;
         // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
         if BitDepth = 2 then
-          TargetBitsPerSample := 4
+          ColorManager.TargetBitsPerSample := 4
         else
-          TargetBitsPerSample := BitDepth;
+          ColorManager.TargetBitsPerSample := BitDepth;
         {$ELSE}
         // Convert to BGR since fpc has trouble handling the other bitdepths
         // and indexed mode png might specify a transparency channel in which
         // case we will later change it to BGRA with 4 spp
-        TargetColorScheme := csBGR;
-        TargetSamplesPerPixel := 3;
-        TargetBitsPerSample := 8;
+        ColorManager.TargetColorScheme := csBGR;
+        ColorManager.TargetSamplesPerPixel := 3;
+        ColorManager.TargetBitsPerSample := 8;
         {$ENDIF}
 
         {$IFNDEF FPC}
         // See comment in LoadIDAT for the reason why this is necessary in Delphi
         if BitDepth <> 1 then
         {$ENDIF}
-          PixelFormat := TargetPixelFormat;
+          PixelFormat := ColorManager.TargetPixelFormat;
         Result := 1;
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
     4: // gray scale with alpha, handled by converting to RGBA
-      if BitDepth in [8, 16] then
-      with ColorManager do
-      begin
-        SourceSamplesPerPixel := 2;
-        SourceBitsPerSample := BitDepth;
-        SourceColorScheme := csGA;
-        TargetSamplesPerPixel := 4;
-        TargetBitsPerSample := 8;
-        TargetColorScheme := csBGRA;
-        PixelFormat := TargetPixelFormat;
-        FPalette := CreateGrayScalePalette(False);
+      if BitDepth in [8, 16] then begin
+        ColorManager.SourceSamplesPerPixel := 2;
+        ColorManager.SourceBitsPerSample := BitDepth;
+        ColorManager.SourceColorScheme := csGA;
+        ColorManager.TargetSamplesPerPixel := 4;
+        ColorManager.TargetBitsPerSample := 8;
+        ColorManager.TargetColorScheme := csBGRA;
+        PixelFormat := ColorManager.TargetPixelFormat;
+        FPalette := ColorManager.CreateGrayScalePalette(False);
         Result := 2 * BitDepth div 8;
       end
       else
         GraphicExError(gesInvalidColorFormat, ['PNG']);
     6: // RGB with alpha (8, 16)
-      if BitDepth in [8, 16] then
-      with ColorManager do
-      begin
-        SourceSamplesPerPixel := 4;
-        TargetSamplesPerPixel := 4;
-        SourceColorScheme := csRGBA;
-        TargetColorScheme := csBGRA;
-        SourceBitsPerSample := BitDepth;
-        TargetBitsPerSample := 8;
+      if BitDepth in [8, 16] then begin
+        ColorManager.SourceSamplesPerPixel := 4;
+        ColorManager.TargetSamplesPerPixel := 4;
+        ColorManager.SourceColorScheme := csRGBA;
+        ColorManager.TargetColorScheme := csBGRA;
+        ColorManager.SourceBitsPerSample := BitDepth;
+        ColorManager.TargetBitsPerSample := 8;
         PixelFormat := pf32Bit;
 
         Result := BitDepth * 4 div 8;
