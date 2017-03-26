@@ -21,6 +21,11 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+{$ifdef conditionalexpressions}
+	{$if CompilerVersion >= 23} // XE2
+  System.Types,
+  {$endif}
+{$endif}
   {$IFDEF FPC}
   FpImage,
   {$ENDIF}
@@ -323,13 +328,13 @@ var TiffError: array[0..1000] of Char;
 procedure gexIgnoreTIFFError(const a, b: AnsiString);
 begin
   //ErrorList.Add(a + ':  ' + b);
-  ErrorList.AddObject(a + ':  ' + b, TObject(-2));
-  StrPCopy(TiffError,a + ':  ' + b);
+  ErrorList.AddObject(string(a + ':  ' + b), TObject(-2));
+  StrPCopy(TiffError,string(a + ':  ' + b));
 end;
 
 procedure gexTIFFWarning(const a, b: AnsiString);
 begin
-  ErrorList.AddObject(a + ':  ' + b, TObject(-1));
+  ErrorList.AddObject(string(a + ':  ' + b), TObject(-1));
 end;
 
 // JpegLib error/warning/info message interception

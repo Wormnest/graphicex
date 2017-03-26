@@ -922,7 +922,6 @@ begin
         else // unknown exception class
           FExceptionMessage := 'Error loading image: ' + FName;
         Thumb.Broken := True;
-        fail := True;
       end;
     end;
   end
@@ -1040,6 +1039,9 @@ begin
           New(Entry);
           Entry.Name := SR.Name;
           Entry.Size := SR.Size;
+          // We will keep the warning symbol Time is deprecated because
+          // the replacement TimeStamp is not available in older Delphi versions.
+          // Since I don't know when it was introduced I can't use an ifdef here.
           Entry.Modified := FileDateToDateTime(SR.Time);
           Entry.IWidth := 0;
           Entry.IHeight := 0;
@@ -1463,6 +1465,7 @@ begin
   Cnt := 0;
   Old := XPView.ViewIdx;
   GettingThumb := False;
+  PThumb := nil; // Silence warning
   repeat
     try
       FIThumbnail.ExceptionMessage := '';

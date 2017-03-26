@@ -492,9 +492,9 @@ var
   I: Integer;
   SourcePtr,
   TargetPtr: PByte;
-  RunLength, RunBytes: Cardinal;
+  RunLength, RunBytes: Integer;
   SourceCardinal: Cardinal;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 
 begin
   TargetPtr := Dest;
@@ -583,7 +583,7 @@ begin
           Inc(SourcePtr);
           if RunBytes > PackedSize then begin
             RunBytes := PackedSize;
-            RunLength := RunBytes div 2;
+            //RunLength := RunBytes div 2;
             FDecoderStatus := dsNotEnoughInput;
           end;
           Move(SourcePtr^, TargetPtr^, RunBytes);
@@ -674,7 +674,7 @@ begin
           Inc(SourcePtr);
           if RunBytes > PackedSize then begin
             RunBytes := PackedSize;
-            RunLength := RunBytes div 4;
+            //RunLength := RunBytes div 4;
             FDecoderStatus := dsNotEnoughInput;
           end;
           Move(SourcePtr^, TargetPtr^, RunBytes);
@@ -900,7 +900,7 @@ var
   SourcePtr,
   TargetPtr: PByte;
   N: Integer;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 
 begin
   TargetPtr := Dest;
@@ -1006,7 +1006,7 @@ procedure TPSPRLEDecoder.Decode(var Source, Dest: Pointer; PackedSize, UnpackedS
 var
   SourcePtr,
   TargetPtr: PByte;
-  RunLength: Cardinal;
+  RunLength: Integer;
   DecompressBufSize: Integer;
 
 begin
@@ -1106,7 +1106,7 @@ var
   Count: Integer;
   SourcePtr,
   TargetPtr: PByte;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 
 begin
   SourcePtr := Source;
@@ -1213,8 +1213,8 @@ var
   Target16: PWord;
   Pixel: Byte;
   Pixel16: Word;
-  RunLength, RunBytes: Cardinal;
-  DecompressBufSize: Cardinal;
+  RunLength, RunBytes: Integer;
+  DecompressBufSize: Integer;
 
 begin
   FCompressedBytesAvailable := PackedSize;
@@ -1388,7 +1388,7 @@ var
   SourcePtr,
   TargetPtr: PByte;
   N: SmallInt;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 
 begin
   TargetPtr := Dest;
@@ -1511,11 +1511,11 @@ begin
     if (Pixel and $80) = 0 then
     begin
       // Secure against buffer overruns
-      if RunLength > FCompressedBytesAvailable then begin
+      if Integer(RunLength) > FCompressedBytesAvailable then begin
         FDecoderStatus := dsNotEnoughInput;
         Break;
       end;
-      if FDecompressedBytes + RunLength > UnpackedSize then begin
+      if FDecompressedBytes + Integer(RunLength) > UnpackedSize then begin
         FDecoderStatus := dsOutputBufferTooSmall;
         Break;
       end;
@@ -1532,7 +1532,7 @@ begin
         FDecoderStatus := dsNotEnoughInput;
         Break;
       end;
-      if FDecompressedBytes + RunLength > UnpackedSize then begin
+      if FDecompressedBytes + Integer(RunLength) > UnpackedSize then begin
         FDecoderStatus := dsOutputBufferTooSmall;
         Break;
       end;
@@ -1582,7 +1582,7 @@ var
   Data16: Word;
   Data32: LongWord;
   i: Cardinal;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 begin
   FCompressedBytesAvailable := PackedSize;
   FDecompressedBytes := 0;
@@ -1763,7 +1763,7 @@ var
   aCount: ShortInt;
   aWordCount: Word;
   TempVal: Word;
-  DecompressBufSize: Cardinal;
+  DecompressBufSize: Integer;
 begin
   TargetPtr := Dest;
   SourcePtr := Source;

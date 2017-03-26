@@ -9,6 +9,10 @@ interface
 uses
   Classes, SysUtils;
 
+const
+  // In Delphi XE2 the Classes.MaxListSize is deprecated.
+  MaxListSize = MaxInt div 16;
+
 type
   { TIntList class }
   TIntList = class;

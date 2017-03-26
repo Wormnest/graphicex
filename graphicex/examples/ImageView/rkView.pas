@@ -374,6 +374,12 @@ procedure Register;
 
 implementation
 
+{$ifdef conditionalexpressions}
+	{$if CompilerVersion >= 23} // XE2
+uses  System.Types;
+  {$endif}
+{$endif}
+
 procedure DrawParentImage(Control: TControl; Dest: TCanvas);
 var
   SaveIndex: Integer;
@@ -1001,7 +1007,6 @@ begin
     else
       ScrollOffsetX := 0;
     ViewIdx := Index; // First index in view...
-    bool := false;
     if ViewColumns <= 0 then
       ViewColumns := 1;
     if HeaderVisible then
