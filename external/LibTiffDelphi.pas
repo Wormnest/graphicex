@@ -1205,7 +1205,7 @@ const CLibTiffStart = 'LIBTIFF, Version ';
 var TiffVer: AnsiString;
 begin
   TiffVer := TIFFGetVersion;
-  if AnsiStartsStr(CLibTiffStart, TiffVer) and (Length(TiffVer) >= Length(CLibTiffStart)+5) then
+  if AnsiStartsStr(CLibTiffStart, string(TiffVer)) and (Length(TiffVer) >= Length(CLibTiffStart)+5) then
     Result := Copy(TiffVer, Length(CLibTiffStart)+1, 5)
   else
     Result := '0.0.0';
@@ -1242,7 +1242,7 @@ function CanWeIgnoreError(AString: AnsiString): boolean;
 var TagCode: Integer;
 begin
   // Assume the 5 chars following ErrorStart are a tag number
-  TagCode := StrToIntDef(Copy(AString, Length(ErrorStart)+1, 5), 0);
+  TagCode := StrToIntDef(string(Copy(AString, Length(ErrorStart)+1, 5)), 0);
   case TagCode of
     34022, 34025, 34026, 34031, 32934, 62630: Result := True;
   else
@@ -1268,7 +1268,7 @@ begin
     if (m > 0) and (n[m] = #0) then
       SetLength(n, m-1);
 {$IFDEF ADAPT_TIFF_ERRORS}
-    if AnsiStartsStr(ErrorStart, n) and CanWeIgnoreError(n) then begin
+    if AnsiStartsStr(ErrorStart, string(n)) and CanWeIgnoreError(n) then begin
       if @FLibTiffDelphiWarningHandler <> nil then
         FLibTiffDelphiWarningHandler(Module, n);
     end

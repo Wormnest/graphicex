@@ -103,7 +103,7 @@ end;
 function TICCProfileManager.GetProfileDescription(AProfile: Pointer; ASize: Cardinal): string;
 var
   hp: cmsHPROFILE;
-  SizeNeeded, SizeResult: Cardinal;
+  SizeNeeded{, SizeResult}: Cardinal;
   Buf: Pointer;
 begin
   Result := '';
@@ -116,8 +116,8 @@ begin
     if SizeNeeded > 0 then begin
       GetMem(Buf, SizeNeeded);
       try
-        // Get the description
-        SizeResult := cmsGetProfileInfo(hp, cmsInfoDescription, 'en', 'en', Buf, SizeNeeded);
+        // Get the description, commented out SizeResult to remove hint: value never used.
+        {SizeResult :=} cmsGetProfileInfo(hp, cmsInfoDescription, 'en', 'en', Buf, SizeNeeded);
         Result := PChar(Buf);
       finally
         FreeMem(Buf);
@@ -138,7 +138,6 @@ end;
 function TICCProfileManager.CreateTransformSourceTosRGB(AColorMode: Cardinal): Boolean;
 var
   SourceProfile, DestProfile: cmsHPROFILE;
-  TransformColorMode: Cardinal;
 begin
   // First close previous transform if present
   DestroyTransform();

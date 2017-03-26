@@ -1218,7 +1218,7 @@ begin
     else if (StrLIComp(PXcfHeader(Run)^.gimp_header_part2, gimp_id2, Length(gimp_id2)) = 0) then
       FImageProperties.Version := 0
     else if (PXcfHeader(Run)^.gimp_v = 'v') and (PXcfHeader(Run)^.gimp_version[3] = #0) then
-      FImageProperties.Version := StrToIntDef( PXcfHeader(Run)^.gimp_version, -1)
+      FImageProperties.Version := StrToIntDef( string(PXcfHeader(Run)^.gimp_version), -1)
     else begin
       Result := False;
       Exit;

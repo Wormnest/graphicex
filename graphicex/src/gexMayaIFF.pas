@@ -267,7 +267,7 @@ function TMayaIffGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64;
   ImageIndex: Cardinal): Boolean;
 var
   ChunkInfo: PDataChunk;
-  mWord1, mWord2: Word;
+  //mWord1, mWord2: Word;
   mDatatype: Cardinal;
   CompressionType: Cardinal;
 begin
@@ -301,8 +301,9 @@ begin
           // This is the Header chunk: read image info
           Width  := ReadIffUInt32(@FData);    // Image width
           Height := ReadIffUInt32(@FData);    // Image height
-          mWord1 := ReadIffUInt16(@FData);    // Unknown Word 1
-          mWord2 := ReadIffUInt16(@FData);    // Unknown Word 2
+          // Commented out results to remove hint that result is never used.
+          {mWord1 :=} ReadIffUInt16(@FData);    // Unknown Word 1
+          {mWord2 :=} ReadIffUInt16(@FData);    // Unknown Word 2
           FFlags := ReadIffUInt32(@FData);    // Flags: RGB, Alpha, ZBUFFER bits
           mDatatype := ReadIffUInt16(@FData);
           FTiles  := ReadIffUInt16(@FData);

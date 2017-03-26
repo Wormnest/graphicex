@@ -14,9 +14,15 @@ interface
 
 {$IFDEF FPC}
   {$mode delphi}
+{$ELSE}
+  {$Include Compilers.inc}
 {$ENDIF}
 
-uses Classes, GraphicEx;
+uses Classes,
+  {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
+  System.Types,
+  {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
+  GraphicEx;
 
 type
   // A single layer inside an image

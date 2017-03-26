@@ -1689,7 +1689,7 @@ begin
     Template := cinfo.err.jpeg_message_table[cinfo.err.msg_code];
     {$ELSE}
     // Our Delphi can't interpret PPChar as an array of PChar
-    Template := PArrayOfPChar(cinfo.err.jpeg_message_table)^[cinfo.err.msg_code];
+    Template := string(PArrayOfPChar(cinfo.err.jpeg_message_table)^[cinfo.err.msg_code]);
     {$ENDIF}
     if Pos('%s', Template) > 0 then
       Result := Format(Template, [cinfo.err.msg_parm.s])

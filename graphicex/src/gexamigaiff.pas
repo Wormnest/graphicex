@@ -697,8 +697,9 @@ var
       // TODO: Palette registers 16-31 need updating
       i := ChangeCount32;
       while i > 0 do begin
-        aByte1:= ReadIffUInt8(@PchgData);
-        aByte2:= ReadIffUInt8(@PchgData);
+        // Commented out results to remove hint that they are never used.
+        {aByte1:=} ReadIffUInt8(@PchgData);
+        {aByte2:=} ReadIffUInt8(@PchgData);
         Dec(i);
       end;
       // Update ExtraPal
@@ -802,7 +803,7 @@ begin
                         NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
                       // Note that we can't test Decoder.DecoderStatus because it can return
                       // a status other than dsOk because we don't have the exact input size!
-                      if Decoder.DecompressedBytes <> AdjustedLineSize then begin
+                      if Decoder.DecompressedBytes <> Integer(AdjustedLineSize) then begin
                         // Incorrect LineSize due to broken image compression.
                         // Try again with fixed LineSize unless we already tried that.
                         if AdjustedLineSize = PixelLineSize then begin
@@ -877,7 +878,7 @@ begin
               else begin // RGB Compression, RGBN/RGB8 Iff type
                 Decoder.Decode(Pointer(FData.mdPos), Pointer(LineBuf),
                   NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
-                if Decoder.DecompressedBytes <> AdjustedLineSize then
+                if Decoder.DecompressedBytes <> Integer(AdjustedLineSize) then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
 
                 // Now decode/unpack LineBuf to pixels
@@ -959,7 +960,7 @@ begin
                     NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), AdjustedLineSize);
                   // Note that we can't test Decoder.DecoderStatus because it can return
                   // a status other than dsOk because we don't have the exact input size!
-                  if Decoder.DecompressedBytes <> AdjustedLineSize then begin
+                  if Decoder.DecompressedBytes <> Integer(AdjustedLineSize )then begin
                     // Incorrect LineSize due to broken image compression.
                     // Try again with fixed LineSize unless we already tried that.
                     if AdjustedLineSize = LineSize then begin
@@ -1031,7 +1032,7 @@ begin
                   NativeUInt(FData.mdEnd) - NativeUInt(FData.mdPos), PixelLineSize);
                 // Note that we can't test Decoder.DecoderStatus because it can return
                 // a status other than dsOk because we don't have the exact input size!
-                if Decoder.DecompressedBytes <> PixelLineSize then
+                if Decoder.DecompressedBytes <> Integer(PixelLineSize) then
                   raise EgexInvalidGraphic.CreateFmt(gesDecompression, [IffType]);
               end
               else if FIffProperties.IffType <> itAcbm then begin
@@ -1136,7 +1137,7 @@ begin
                 if PchgMask <> nil then begin
                   // Read PCHG Palette for current line
                   // StartLine is 1-based, while y is 0-base
-                  if y >= FIffProperties.PchgHeader.StartLine-1 then
+                  if Integer(y) >= FIffProperties.PchgHeader.StartLine-1 then
                     GetPchgPal;
                 end
                 else begin
