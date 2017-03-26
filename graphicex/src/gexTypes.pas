@@ -9,10 +9,10 @@
 // specific language governing rights and limitations under the License.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2013-2015 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2013-2017 Jacob Boerema. All Rights Reserved.
 // This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 //
-// Basic types definitions for GraphicEx.
+// Basic type definitions for GraphicEx.
 
 unit gexTypes;
 
@@ -20,6 +20,8 @@ interface
 
 {$IFDEF FPC}
   {$mode delphi}
+{$ELSE}
+  {$I Compilers.inc}
 {$ENDIF}
 
 uses SysUtils;
@@ -32,6 +34,11 @@ type
   EgexGraphicCompressionError = class(EgexBaseException);
   EgexStretchException = class(EgexBaseException);
   EgexMemoryAccessException = class(EgexBaseException);
+
+  // Arrays for easy access to some base types.
+  TCardinalArray = array of Cardinal;
+  TByteArray = array of Byte;
+  TFloatArray = array of Single;
 
   // Compatibility layer
   {$IF NOT Declared(UInt64)}
@@ -46,6 +53,12 @@ type
   {$IF NOT Declared(NativeUInt)}
   NativeUInt = Cardinal;
   {$IFEND}
+
+  {$ifndef COMPILER_6_UP}
+  {$IFNDEF FPC}
+  PCardinal = ^Cardinal;
+  {$ENDIF}
+  {$endif COMPILER_6_UP}
 
 
 // ReturnAddress is used in our Error functions to show a better error location:

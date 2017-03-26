@@ -101,13 +101,9 @@ uses
   {$IFDEF LCMS}
   gexICC, // ICC profile manager
   {$ENDIF}
-  GraphicCompression, GraphicStrings, GraphicColor, gexMemory;
+  gexTypes, GraphicCompression, GraphicStrings, GraphicColor, gexMemory;
 
 type
-  TCardinalArray = array of Cardinal;
-  TByteArray = array of Byte;
-  TFloatArray = array of Single;
-
   TImageOptions = set of (
     ioTiled,       // image consists of tiles not strips (TIF)
     ioBigEndian,   // byte order in values >= words is reversed (TIF, RLA, SGI)
@@ -1015,15 +1011,9 @@ uses
   {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
   System.Types,
   {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
-  gexTypes, gexVersion, gexUtils;
+  gexVersion, gexUtils;
 
 type
-  {$ifndef COMPILER_6_UP}
-  {$IFNDEF FPC}
-  PCardinal = ^Cardinal;
-  {$ENDIF}
-  {$endif COMPILER_6_UP}
-
   // An entry of the progress stack for nested progress sections.
   PProgressSection = ^TProgressSection;
   TProgressSection = record

@@ -26,11 +26,9 @@ interface
 {$ENDIF}
 
 uses Classes, SysUtils,
-  GraphicEx, GraphicCompression, gexIFF;
+  gexTypes, GraphicEx, GraphicCompression, gexIFF;
 
 type
-  TByteArray = array of Byte;
-
   TMayaIffGraphic = class(TIffGraphicBase)
   private
     FImagePropertiesLoaded: Boolean;
@@ -61,7 +59,7 @@ procedure RegisterMayaIff;
 
 implementation
 
-uses Graphics, gexTypes, {$IFNDEF FPC}gexUtils,{$ENDIF} GraphicColor, GraphicStrings;
+uses Graphics, {$IFNDEF FPC}gexUtils,{$ENDIF} GraphicColor, GraphicStrings;
 
 const
   // Maya flags values
