@@ -4469,6 +4469,7 @@ begin
                   Inc(C1, FImageProperties.Width);
                   Inc(C2, FImageProperties.Width);
 
+                  // TODO: This should be moved to the ColorManager since it's output format dependent!
                   Run := LineBuffer;
                   for X := 0 to FImageProperties.Width - 1 do
                   begin
@@ -4490,6 +4491,7 @@ begin
                   Inc(C1, FImageProperties.Width);
                   Inc(C2, FImageProperties.Width);
 
+                  // TODO: This should be moved to the ColorManager since it's output format dependent!
                   Run := LineBuffer;
                   for X := 0 to FImageProperties.Width - 1 do
                   begin
