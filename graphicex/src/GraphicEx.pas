@@ -4638,7 +4638,8 @@ begin
     if Ch = '#' then
     begin
       ReadLine;
-      Ch := GetChar;
+      // Do not get next char here but continue, otherwise we might skip another '#'
+      continue;
     end;
   until Ch in ['0'..'9'];
 
