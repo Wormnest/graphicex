@@ -4682,7 +4682,7 @@ begin
     if Ch in [#13, #10] then
       Break
     else
-      Result := Result + Ch;
+      Result := Result + Ch; // TODO: Copying string is inefficient
   until False;
   // eat #13#10 combination
   if (Ch = #13) and (FSource = #10) then
