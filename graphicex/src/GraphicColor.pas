@@ -403,6 +403,17 @@ type
     procedure SetSourceUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
     procedure SetTargetUnequalSamples(ASampleCount: Byte; ASamples: array of Byte);
 
+    {
+      SelectTarget is a first step towards adding separate descendant classes
+      that can select their own preferred target to convert to.
+      SelectTarget examines all Source settings and based on that determines the
+      best target pixelformat and other target settings.
+      Currently based on a define whether we are using Delphi or Fpc it determines
+      the target pixelformat we will use and sets the target options.
+      In the future this define should be replaced by descendant classes.
+    }
+    procedure SelectTarget;
+
     property SourceBitsPerSample: Byte read FSourceBPS write SetSourceBitsPerSample;
     property SourceColorScheme: TColorScheme read FSourceScheme write SetSourceColorScheme;
     property SourceOptions: TConvertOptions read FSourceOptions write SetSourceOptions;
@@ -8453,6 +8464,113 @@ begin
   else
     Result := pfCustom;
   end;
+end;
+
+//------------------------------------------------------------------------------
+
+{
+  SelectTarget is a first step towards adding separate descendant classes
+  that can select their own preferred target to convert to.
+  SelectTarget examines all Source settings and based on that determines the
+  best target pixelformat and other target settings.
+  Currently based on a define whether we are using Delphi or Fpc it determines
+  the target pixelformat we will use and sets the target options.
+  In the future this define should be replaced by descendant classes.
+}
+procedure TColorManager.SelectTarget;
+begin
+  // By default we expect color scheme to stay the same.
+  FTargetScheme := FSourceScheme;
+  FTargetBPS := FSourceBPS;
+  FTargetSPP := FSourceSPP;
+  if (coApplyGamma in FSourceOptions) then
+    FTargetOptions := FTargetOptions + [coApplyGamma];
+  case FSourceScheme of
+    csIndexed:
+      case FSourceBPS of
+        1: ;
+
+        {$IFNDEF FPC}
+        2..4:
+          begin
+            FTargetBPS := 4;
+          end;
+        5..8:
+          begin
+            FTargetBPS := 8;
+          end;
+        {$ENDIF ~FPC}
+
+      else
+        FTargetScheme := csBGR;
+        FTargetBPS := 8;
+        FTargetSPP := 3;
+      end;
+    csG:
+      case FSourceBPS of
+        1: ;
+        2..8:
+          begin
+            FTargetBPS := 8;
+          end;
+      else
+        FTargetScheme := csBGR;
+        FTargetBPS := 8;
+        FTargetSPP := 3;
+      end;
+    csIndexedA, csGA:
+      begin
+        FTargetScheme := csBGRA;
+        FTargetBPS := 8;
+        FTargetSPP := 4;
+      end;
+    csBGR,
+    csRGB,
+    csCMYK,
+    csCIELab,
+    csITULab,
+    csYCbCr,
+    csPhotoYCC:
+      begin
+        FTargetScheme := csBGR;
+        {$IFNDEF FPC}
+        if (FSourceBPS = 5) and (FSourceSPP = 3) and (FSourceExtraBPP = 1) then begin
+          // 15/16 bits per pixel, pf15Bit
+          FTargetBPS := 5;
+          FTargetExtraBPP := 1;
+        end
+        else
+        {$ENDIF ~FPC}
+          FTargetBPS := 8;
+      end;
+    csBGRA,
+    csRGBA,
+    csCMYKA:
+      begin
+        FTargetScheme := csBGRA;
+        FTargetBPS := 8;
+      end;
+  end;
+  // TODO: possibly other values and options need to be checked for rare variants.
+  // TODO: Do we need to check for optional ICC profile handling here too?
+
+  // Set a flag when source and target scheme are exactly the same.
+  // In that case we can do a simple move instead of a conversion.
+  // Note: If source uses separate planes we may be able to do a simplified
+  // conversion, however it might be too much work for little gain.
+  if (FSourceScheme = FTargetScheme) and (FSourceBPS = FTargetBPS) and
+    (FSourceSPP = FTargetSPP) and (FSourceExtraBPP = FTargetExtraBPP) and
+    (FTargetBPS in [1, 5, 8]) and (FTargetSPP in [1, 3, 4]) and
+    (FSourceOptions * [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
+    coSeparatePlanes, coMinIsWhite, coInvertedCMYK] = []) then
+    FNoConversionNeeded := True
+  else
+    FNoConversionNeeded := False;
+
+  // TODO: This function can maybe be called from GetPixelFormat when
+  // Target PixelFormat is requested. In that case we would not have to call
+  // this function from the conversion routine. Instead it could stay a protected
+  // method inside the ColorManager.
 end;
 
 //------------------------------------------------------------------------------
