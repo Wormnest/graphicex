@@ -3443,35 +3443,18 @@ begin
     // skip image ID
     Source := Pointer(PAnsiChar(Memory) + SizeOf(TTargaHeader) + FTargaHeader.IDLength);
 
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-    {$IFNDEF FPC}
-    ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
-    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    // To be able to set alpha to opaque we need to check target color scheme
-    // which by default is csBGR. Since for Delphi we don't convert but just
-    // move bytes for 32 bits this is the only reason to set target color scheme for.
-    if ColorManager.TargetSamplesPerPixel = 4 then begin
-      ColorManager.TargetColorScheme := csBGRA;
-    end;
-    {$ELSE}
-    ColorManager.TargetBitsPerSample := 8;
-    if FImageProperties.BitsPerSample = 5 then
-      ColorManager.SourceExtraBPP := 1; // 1 extra bit per pixel
-    if FImageProperties.HasAlpha then begin
-      ColorManager.TargetSamplesPerPixel := 4;
-      ColorManager.TargetColorScheme := csBGRA;
-    end
-    else begin
-      ColorManager.TargetSamplesPerPixel := 3;
-      ColorManager.TargetColorScheme := csBGR;
-    end;
-    {$ENDIF}
+    ColorManager.SourceExtraBPP := FImageProperties.ExtraBits;
     if ioUseGamma in FImageProperties.Options then begin
       ColorManager.SetGamma(FImageProperties.FileGamma);
-      ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+      // Set gamma in source, that way SelectTarget can detect that we want gamma applied.
+      ColorManager.SourceOptions := ColorManager.SourceOptions + [coApplyGamma];
     end;
+
+    ColorManager.SelectTarget;
     PixelFormat := ColorManager.TargetPixelFormat;
 
     if (FTargaHeader.ColorMapType = TARGA_COLORMAP) or
@@ -3492,18 +3475,14 @@ begin
           case FTargaHeader.ColorMapEntrySize of
             32:
               begin
-                {$IFDEF FPC}
                 ColorManager.SetSourcePalette([Source], pfInterlaced8Quad, False {BGR order});
-                {$ENDIF}
                 Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
                   pfInterlaced8Quad, FTargaHeader.ColorMapSize, False {BGR order});
                 Inc(Source, ColorMapBufSize);
               end;
             24:
               begin
-                {$IFDEF FPC}
                 ColorManager.SetSourcePalette([Source], pfInterlaced8Triple, False {BGR order});
-                {$ENDIF}
                 Palette := ColorManager.CreateColorPalette([ColorMapBuffer],
                   pfInterlaced8Triple, FTargaHeader.ColorMapSize, False {BGR order});
                 Inc(Source, ColorMapBufSize);
@@ -3528,9 +3507,7 @@ begin
                   Inc(PWord(Source));
                 end;
                 Palette := CreatePalette(PLogPalette(@LogPalette)^);
-                {$IFDEF FPC}
                 ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
-                {$ENDIF}
               end;
           else
             // Other color map entry sizes are not supported
@@ -3564,11 +3541,7 @@ begin
               LineBuffer := ScanLine[I]
             else
               LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
-            {$IFNDEF FPC}
-            Move(Source^, LineBuffer^, LineSize);
-            {$ELSE}
             ColorManager.ConvertRow([Source], LineBuffer, Width, $FF);
-            {$ENDIF}
             Inc(Source, LineSize);
             Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
             OffsetRect(FProgressRect, 0, 1);
@@ -3597,11 +3570,7 @@ begin
                 LineBuffer := ScanLine[I]
               else
                 LineBuffer := ScanLine[FTargaHeader.Height - (I + 1)];
-              {$IFNDEF FPC}
-              Move(Run^, LineBuffer^, LineSize);
-              {$ELSE}
-                ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
-              {$ENDIF}
+              ColorManager.ConvertRow([Run], LineBuffer, Width, $FF);
               Inc(Run, LineSize);
               Progress(Self, psRunning, MulDiv(I, 100, Height), True, FProgressRect, '');
               OffsetRect(FProgressRect, 0, 1);
