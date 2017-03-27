@@ -8495,6 +8495,8 @@ end;
   In the future this define should be replaced by descendant classes.
 }
 procedure TColorManager.SelectTarget;
+var
+ DisallowedOptions: TConvertOptions;
 begin
   // By default we expect color scheme to stay the same.
   FTargetScheme := FSourceScheme;
@@ -8575,11 +8577,15 @@ begin
   // In that case we can do a simple move instead of a conversion.
   // Note: If source uses separate planes we may be able to do a simplified
   // conversion, however it might be too much work for little gain.
+  DisallowedOptions := [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
+    coSeparatePlanes, coMinIsWhite, coInvertedCMYK];
+  if FTargetBPS <= 8 then
+    // No byte swapping needs to be done when all samples are one byte or less.
+    DisallowedOptions := DisallowedOptions - [coNeedByteSwap];
   if (FSourceScheme = FTargetScheme) and (FSourceBPS = FTargetBPS) and
     (FSourceSPP = FTargetSPP) and (FSourceExtraBPP = FTargetExtraBPP) and
     (FTargetBPS in [1, 5, 8]) and (FTargetSPP in [1, 3, 4]) and
-    (FSourceOptions * [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
-    coSeparatePlanes, coMinIsWhite, coInvertedCMYK] = []) then
+    (FSourceOptions * DisallowedOptions = []) then
     FNoConversionNeeded := True
   else
     FNoConversionNeeded := False;
