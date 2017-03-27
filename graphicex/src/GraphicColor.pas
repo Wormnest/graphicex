@@ -8506,13 +8506,38 @@ begin
     FTargetOptions := FTargetOptions + [coApplyGamma];
   case FSourceScheme of
     csIndexed:
-      case FSourceBPS of
-        1: ;
-
-        {$IFNDEF FPC}
-        2..4:
-          begin
-            FTargetBPS := 4;
+      begin
+        if FSourceSPP > 1 then begin
+          // Rare case, e.g. PCX with multiple planes that need to be combined into one index into a palette
+          {$IFNDEF FPC} // Delphi
+          FTargetSPP := 1;
+          if FSourceBPS > 4 then
+            FTargetBPS := 8  // pf8Bit
+          else
+            FTargetBPS := 4; // pf4Bit
+          {$ELSE} // Fpc
+          FTargetScheme := csBGR;
+          FTargetBPS := 8;
+          FTargetSPP := 3;
+          {$ENDIF ~FPC}
+        end
+        else
+          case FSourceBPS of
+            1: ;
+            {$IFNDEF FPC}
+            2..4:
+              begin
+                FTargetBPS := 4;
+              end;
+            5..8:
+              begin
+                FTargetBPS := 8;
+              end;
+            {$ENDIF ~FPC}
+          else
+            FTargetScheme := csBGR;
+            FTargetBPS := 8;
+            FTargetSPP := 3;
           end;
       end;
     csG:
