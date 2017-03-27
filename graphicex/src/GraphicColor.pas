@@ -7083,37 +7083,54 @@ begin
         // Mask parameter not supported here since I'm not sure how to correctly
         // implement it here and no material to test it on.
 
-        if (FSourceBPS = 5) and (FSourceExtraBPP > 0 ) and (Length(Source) = 1) then begin
-          // Special handling needed for 5 bits per sample with 1 extra bit
-          // since it needs special masking
-          Target8 := Target;
-          Source8 := Source[0];
-          if coAlpha in FTargetOptions then
-            AlphaSkip := 1;
-          while Count > 0 do begin
-            // This already includes a scale conversion 5 bits to 8 bits.
-            PRGB(Target8)^.R := Byte((PWord(Source8)^ and $1F) shl 3);
-            PRGB(Target8)^.G := Byte((PWord(Source8)^ and $3E0) shr 2);
-            PRGB(Target8)^.B := Byte((PWord(Source8)^ and $7C00) shr 7);
+        if (FSourceBPS = 5) and (FSourceExtraBPP = 1 ) and (Length(Source) = 1) then begin
+          case FTargetBPS of
+            8:
+              begin
+                // TODO: Gamma handling!
+                // Special handling needed for 5 bits per sample with 1 extra bit
+                // since it needs special masking
+                Target8 := Target;
+                Source8 := Source[0];
+                if coAlpha in FTargetOptions then
+                  AlphaSkip := 1;
+                while Count > 0 do begin
+                  // This already includes a scale conversion 5 bits to 8 bits.
+                  PRGB(Target8)^.R := Byte((PWord(Source8)^ and $1F) shl 3);
+                  PRGB(Target8)^.G := Byte((PWord(Source8)^ and $3E0) shr 2);
+                  PRGB(Target8)^.B := Byte((PWord(Source8)^ and $7C00) shr 7);
 
-            if coAlpha in FSourceOptions then begin
-              if coAlpha in FTargetOptions then
-                // Only need to use alpha if Target has alpha
-                if PWord(Source8)^ and $8000 = $8000 then
-                  // Alpha bit on
-                  PRGBA(Target8)^.A := $FF
-                else // Alpha off
-                  PRGBA(Target8)^.A := 0;
-              end
-            else if coAlpha in FTargetOptions then begin
-              // Source no Alpha, Target: add alpha
-              PRGBA(Target8)^.A := $FF; // opaque
-            end;
+                  if coAlpha in FSourceOptions then begin
+                    if coAlpha in FTargetOptions then
+                      // Only need to use alpha if Target has alpha
+                      if PWord(Source8)^ and $8000 = $8000 then
+                        // Alpha bit on
+                        PRGBA(Target8)^.A := $FF
+                      else // Alpha off
+                        PRGBA(Target8)^.A := 0;
+                    end
+                  else if coAlpha in FTargetOptions then begin
+                    // Source no Alpha, Target: add alpha
+                    PRGBA(Target8)^.A := $FF; // opaque
+                  end;
 
-            // Update Source and Target offsets and count
-            Inc(Source8, 2);
-            Inc(Target8, 3 + AlphaSkip);
-            Dec(Count);
+                  // Update Source and Target offsets and count
+                  Inc(Source8, 2);
+                  Inc(Target8, 3 + AlphaSkip);
+                  Dec(Count);
+                end;
+              end;
+            5:
+              // TODO: Gamma handling!
+              if FTargetExtraBPP = 1 then begin
+                // Assuming for now source and target exactly the same, no need to
+                // switch RGB <-> BGR etc. Do a simple move of all bytes.
+                // Source and Target use 16 bits per pixel = 2 bytes.
+                Move( PByte(Source[0])^, Target^, Count * 2);
+              end;
+              // else: not handling this case for now
+          else
+            // Other BPS not handled currently.
           end;
         end
         else begin
