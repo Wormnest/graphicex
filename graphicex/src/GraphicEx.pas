@@ -4052,43 +4052,9 @@ begin
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    if FImageProperties.ColorScheme = csIndexed then begin
-      {$IFNDEF FPC} // Delphi
-      ColorManager.TargetColorScheme := csIndexed;
-      ColorManager.TargetSamplesPerPixel := 1;
-      if FImageProperties.BitsPerSample > 4 then  begin
-        ColorManager.TargetBitsPerSample := 8;
-      end
-      else if (FImageProperties.BitsPerPixel = 1) then  begin
-        ColorManager.TargetBitsPerSample := 1;
-      end
-      else begin
-        ColorManager.TargetBitsPerSample := 4;
-      end;
-      {$ELSE} // Fpc, Lazarus
-      if FImageProperties.BitsPerPixel > 1 then begin
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-        ColorManager.TargetBitsPerSample := 8;
-      end
-      else begin
-        ColorManager.TargetColorScheme := csIndexed;
-        ColorManager.TargetSamplesPerPixel := 1;
-        ColorManager.TargetBitsPerSample := 1;
-      end
-      {$ENDIF}
-    end
-    else begin
-      // RGB
-      ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-      ColorManager.TargetBitsPerSample := 8;
-      if ColorManager.SourceSamplesPerPixel = 3 then
-        ColorManager.TargetColorScheme := csBGR
-      else
-        ColorManager.TargetColorScheme := csBGRA;
-    end;
     ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
 
+    ColorManager.SelectTarget;
     // Set image pixel format
     PixelFormat := ColorManager.TargetPixelFormat;
 
