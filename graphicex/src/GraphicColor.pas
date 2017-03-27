@@ -269,6 +269,7 @@ type
   TColorManager = class
   private
     FChanged: Boolean;                 // Set if any of the parameters changed
+    FNoConversionNeeded: Boolean;      // Set if conversion is not needed (Source and Target same format), we can use Move instead
     FSourceBPS,                        // Bits per sample of source data
     FTargetBPS,                        // Bits per sample of target data
     FSourceExtraBPS,                   // Extra bits per sample that should be ignored in Source
@@ -1571,6 +1572,7 @@ begin
   FVSubSampling := 1;
 
   FChanged := True;
+  FNoConversionNeeded := False;
 end;
 
 //------------------------------------------------------------------------------
@@ -8466,6 +8468,18 @@ procedure TColorManager.PrepareConversion;
 
 begin
   FRowConversion := nil;
+  if FNoConversionNeeded then begin
+    case FTargetBPS*FTargetSPP + FTargetExtraBPP of
+       8: FRowConversion := RowMove8;
+      16: FRowConversion := RowMove16;
+      24: FRowConversion := RowMove24;
+      32: FRowConversion := RowMove32;
+    else
+      FRowConversion := RowMoveAny;
+    end;
+    FChanged := False;
+    Exit;
+  end;
 
   // Conversion of non indexed to indexed is also not supported.
   if (FTargetScheme in [csIndexed, csIndexedA]) and not (FSourceScheme in [csG, csGA, csIndexed, csIndexedA]) then
