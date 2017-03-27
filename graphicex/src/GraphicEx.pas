@@ -4332,13 +4332,12 @@ begin
       ColorManager.SourceColorScheme := csPhotoYCC;
       ColorManager.SourceBitsPerSample := 8;
       ColorManager.SourceSamplesPerPixel := 3;
-      ColorManager.TargetColorScheme := csBGR;
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.TargetSamplesPerPixel := 3;
-      PixelFormat := pf24Bit;
       // PhotoYCC format uses CCIR Recommendation 709 coefficients and is subsampled
       // by factor 2 vertically and horizontally
       ColorManager.SetYCbCrParameters([0.2125, 0.7154, 0.0721], 2, 2);
+
+      ColorManager.SelectTarget;
+      PixelFormat := pf24Bit;
 
       Progress(Self, psEnding, 0, False, FProgressRect, '');
 
