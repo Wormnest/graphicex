@@ -355,6 +355,12 @@ type
     procedure RowConvertPhotoYCC2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertYCbCr2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertYCbCr2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    // "no conversion" Move routines
+    procedure RowMove8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowMove16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowMove24(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowMove32(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowMoveAny(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
     // Other general routines
     procedure CreateYCbCrLookup;
@@ -8143,6 +8149,36 @@ begin
         end;
       end;
   end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TColorManager.RowMove8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  Move(PByte(Source[0])^, Target^, Count);
+end;
+
+procedure TColorManager.RowMove16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  Move(PByte(Source[0])^, Target^, Count*2);
+end;
+
+procedure TColorManager.RowMove24(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  Move(PByte(Source[0])^, Target^, Count*3);
+end;
+
+procedure TColorManager.RowMove32(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  Move(PByte(Source[0])^, Target^, Count*4);
+end;
+
+procedure TColorManager.RowMoveAny(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+var
+  ByteCount: Cardinal;
+begin
+  ByteCount := ((FTargetBPS * FTargetSPP + FTargetExtraBPP * Count) + 7) div 8;
+  Move(PByte(Source[0])^, Target^, ByteCount);
 end;
 
 //------------------------------------------------------------------------------
