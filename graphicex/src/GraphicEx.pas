@@ -2027,34 +2027,14 @@ begin
 
     // Set pixel format before size to avoid possibly large conversion operation.
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-    ColorManager.TargetBitsPerSample := 8;
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
-    case FImageProperties.ColorScheme of
-      csRGBA:
-        ColorManager.TargetColorScheme := csBGRA;
-      csRGB:
-        ColorManager.TargetColorScheme := csBGR;
-      csGA:
-        begin
-          ColorManager.SourceColorScheme := csGA; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
-          ColorManager.TargetColorScheme := csBGRA;
-          ColorManager.TargetSamplesPerPixel := 4;
-        end;
-      csG:
-        begin
-          ColorManager.SourceColorScheme := csG; // Has a handler for grayscale/indexed while csIndexed doesn't have one (yet)
-          ColorManager.TargetColorScheme := csBGR;
-          ColorManager.TargetSamplesPerPixel := 3
-        end;
-    else
-      // Don't set anything for other ColorSchemes.
-    end;
+
+    // Uses separate channels except for grayscale thus we need to set that in source options.
+    if FImageProperties.SamplesPerPixel > 1 then
+      ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+    ColorManager.SelectTarget;
     PixelFormat := ColorManager.TargetPixelFormat;
-    // Uses separate channels thus we need to set that in source options.
-    // Grayscale will only be 1 channel but it's not using the ColorManger for conversion.
-    ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
     Self.Width := FImageProperties.Width;
     Self.Height := FImageProperties.Height;
 
@@ -2137,7 +2117,7 @@ begin
         if Decoder = nil then
         begin
           // Uncompressed storage.
-          // Note when we don't need to decoder GetComponents returns pointers inside
+          // Note when we don't need to decode GetComponents returns pointers inside
           // our image memory buffer so we don't need to allocate memory for them.
           for  Y := 0 to Height - 1 do
           begin
