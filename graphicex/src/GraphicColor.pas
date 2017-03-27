@@ -8514,16 +8514,6 @@ begin
           begin
             FTargetBPS := 4;
           end;
-        5..8:
-          begin
-            FTargetBPS := 8;
-          end;
-        {$ENDIF ~FPC}
-
-      else
-        FTargetScheme := csBGR;
-        FTargetBPS := 8;
-        FTargetSPP := 3;
       end;
     csG:
       case FSourceBPS of
@@ -8560,7 +8550,10 @@ begin
         end
         else
         {$ENDIF ~FPC}
+        begin
           FTargetBPS := 8;
+          FTargetSPP := 3;
+        end;
       end;
     csBGRA,
     csRGBA,
@@ -8568,6 +8561,7 @@ begin
       begin
         FTargetScheme := csBGRA;
         FTargetBPS := 8;
+        FTargetSPP := 4;
       end;
   end;
   // TODO: possibly other values and options need to be checked for rare variants.
