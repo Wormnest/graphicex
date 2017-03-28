@@ -4221,6 +4221,9 @@ var
   FirstNibble: Boolean;
   GetBits32: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
   GetBits64: function(BitIndex, NumberOfBits: Cardinal; BitData: PByte): UInt64;
+  Temp: Cardinal;
+  Temp8: PByte;
+  Temp16: PWord;
 begin
   BitRun := $80;
   // When this is an image with alpha and not planar we need to skip the alpha bits
@@ -4244,6 +4247,21 @@ begin
           begin
             Source8 := Source[0];
             Target8 := Target;
+
+            if coNeedsScaling in FSourceOptions then begin
+              // Since this is a rarely encountered setting (PNM) we will handle this
+              // outside the main conversion loop to not slow down the general case.
+              // Note this setting does not take Mask into account.
+              // Note: Always assumes big endian words currently.
+              Temp := Count;
+              Temp8 := Source[0];
+              // Scale all values up to use the full 8 bits
+              while Temp > 0 do begin
+                Temp8^ := MulDiv(Temp8^, 255, FSourceMaxValue);
+                Inc(Temp8, 1 + AlphaSkip);
+                Dec(Temp);
+              end;
+            end;
 
             while Count > 0 do
             begin
@@ -4280,6 +4298,22 @@ begin
           begin
             Source16 := Source[0];
             Target8 := Target;
+
+            if coNeedsScaling in FSourceOptions then begin
+              // Since this is a rarely encountered setting (PNM) we will handle this
+              // outside the main conversion loop to not slow down the general case.
+              // Note this setting does not take Mask into account.
+              // Note: Always assumes big endian words currently.
+              Temp := Count;
+              Temp16 := Source[0];
+              // Scale all values up to use the full 8 bits
+              while Temp > 0 do begin
+                Temp16^ := SwapEndian(Word(MulDiv(SwapEndian(Temp16^), 65535, FSourceMaxValue)));
+                Inc(Temp16, 1 + AlphaSkip);
+                Dec(Temp);
+              end;
+            end;
+
             if coNeedByteSwap in FSourceOptions then
               Convert16 := ComponentSwapScaleConvert
             else
@@ -5248,6 +5282,11 @@ var
   BitIncrement: Cardinal;
   BitRun: Byte;
   Bits64: UInt64;
+  Temp: Cardinal;
+  Temp8: PByte;
+  Temp8A: PByte;
+  Temp16: PWord;
+  Temp16A: PWord;
 
 begin
   BitRun := $80;
@@ -5312,6 +5351,26 @@ begin
         end;
         TargetRun8 := Target;
 
+        if coNeedsScaling in FSourceOptions then begin
+          // Since this is a rarely encountered setting (PNM) we will handle this
+          // outside the main conversion loop to not slow down the general case.
+          // Note this setting does not take Mask into account.
+          // Note: Always assumes big endian words currently.
+          Temp := Count;
+          Temp8 := Source[0];
+          Temp8A := SourceAlphaRun8;
+          // Scale all values up to use the full 8 bits
+          while Temp > 0 do begin
+            Temp8^ := MulDiv(Temp8^, 255, FSourceMaxValue);
+            Inc(Temp8, SourceIncrement);
+            if coAlpha in FSourceOptions then begin
+              Temp8^ := MulDiv(Temp8A^, 255, FSourceMaxValue);
+              Inc(Temp8A, SourceIncrement);
+            end;
+            Dec(Temp);
+          end;
+        end;
+
         while Count > 0 do
         begin
           if Boolean(Mask and BitRun) then
@@ -5360,6 +5419,26 @@ begin
         SourceRun8 := Source[0]; // Grayscale source
         SourceAlphaRun8 := SourceRun8; Inc(SourceAlphaRun8, 2);
         TargetRun8 := Target;    // BGR target
+
+        if coNeedsScaling in FSourceOptions then begin
+          // Since this is a rarely encountered setting (PNM) we will handle this
+          // outside the main conversion loop to not slow down the general case.
+          // Note this setting does not take Mask into account.
+          // Note: Always assumes big endian words currently.
+          Temp := Count;
+          Temp16 := Source[0];
+          Temp16A := PWord(SourceAlphaRun8);
+          // Scale all values up to use the full 8 bits
+          while Temp > 0 do begin
+            Temp16^ := SwapEndian(Word(MulDiv(SwapEndian(Temp16^), 65535, FSourceMaxValue)));
+            Inc(Temp16);
+            if coAlpha in FSourceOptions then begin
+              Temp16A^ := SwapEndian(Word(MulDiv(SwapEndian(Temp16A^), 65535, FSourceMaxValue)));
+              Inc(Temp16A);
+            end;
+            Dec(Temp);
+          end;
+        end;
 
         // Assign scale converter
         // Half Float sample data format needs different conversion.
@@ -5641,6 +5720,15 @@ var
   SourceIncrement,
   TargetIncrement: Cardinal;
   CopyAlpha: Boolean;
+  Temp: Cardinal;
+  TempR8: PByte;
+  TempG8: PByte;
+  TempB8: PByte;
+  TempA8: PByte;
+  TempR16: PWord;
+  TempG16: PWord;
+  TempB16: PWord;
+  TempA16: PWord;
 
   Bits,
   BitOffset,
@@ -5706,6 +5794,27 @@ begin
         case FTargetBPS of
           8: // 888 to 888
             begin
+              if coNeedsScaling in FSourceOptions then begin
+                // Since this is a rarely encountered setting (PNM) we will handle this
+                // outside the main conversion loop to not slow down the general case.
+                // Note this setting does not take Mask into account.
+                Temp := Count;
+                TempR8 := SourceR8;
+                TempG8 := SourceG8;
+                TempB8 := SourceB8;
+                TempA8 := SourceA8;
+                // Scale all values up to use the full 8 bits
+                while Temp > 0 do begin
+                  TempR8^ := TempR8^ * 255 div FSourceMaxValue; Inc(TempR8, SourceIncrement);
+                  TempG8^ := TempG8^ * 255 div FSourceMaxValue; Inc(TempG8, SourceIncrement);
+                  TempB8^ := TempB8^ * 255 div FSourceMaxValue; Inc(TempB8, SourceIncrement);
+                  if coAlpha in FSourceOptions then begin
+                    TempA8^ := TempA8^ * 255 div FSourceMaxValue;
+                    Inc(TempA8, SourceIncrement);
+                  end;
+                  Dec(Temp);
+                end;
+              end;
               if coApplyGamma in FTargetOptions then
                 Convert8_8 := ComponentGammaConvert
               else
@@ -5850,6 +5959,31 @@ begin
         case FTargetBPS of
           8: // 161616 to 888
             begin
+              if coNeedsScaling in FSourceOptions then begin
+                // Since this is a rarely encountered setting (PNM) we will handle this
+                // outside the main conversion loop to not slow down the general case.
+                // Note this setting does not take Mask into account.
+                // Note: Always assumes big endian words currently.
+                Temp := Count;
+                TempR16 := SourceR16;
+                TempG16 := SourceG16;
+                TempB16 := SourceB16;
+                TempA16 := SourceA16;
+                // Scale all values up to use the full 8 bits
+                while Temp > 0 do begin
+                  TempR16^ := SwapEndian(Word(MulDiv(SwapEndian(TempR16^), 65535, FSourceMaxValue)));
+                  TempG16^ := SwapEndian(Word(MulDiv(SwapEndian(TempG16^), 65535, FSourceMaxValue)));
+                  TempB16^ := SwapEndian(Word(MulDiv(SwapEndian(TempB16^), 65535, FSourceMaxValue)));
+                  Inc(TempR16, SourceIncrement);
+                  Inc(TempG16, SourceIncrement);
+                  Inc(TempB16, SourceIncrement);
+                  if coAlpha in FSourceOptions then begin
+                    TempA16^ := SwapEndian(Word(MulDiv(SwapEndian(TempA16^), 65536, FSourceMaxValue)));
+                    Inc(TempA16, SourceIncrement);
+                  end;
+                  Dec(Temp);
+                end;
+              end;
               // Half Float sample data format needs separate conversion.
               if FSourceDataFormat = sdfFloat then
                 Convert16_8 := ComponentScaleConvertFloat16To8
