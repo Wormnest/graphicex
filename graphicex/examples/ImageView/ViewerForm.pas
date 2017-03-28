@@ -1049,7 +1049,20 @@ begin
   sgImgProperties.Cells[1,InfoRow] := ImgThumbData.Name; IncInfoRow;
   sgImgProperties.Cells[0,InfoRow] := 'Image format:';
   sgImgProperties.Cells[1,InfoRow] := cFileTypeNames[ImgThumbData.ImageFormat]; IncInfoRow;
-  if (ImgThumbData.ImageFormat = CgexPCX) and PcxIsCapture then begin
+  if (ImgThumbData.ImageFormat = CgexPNM) then begin
+    sgImgProperties.Cells[0,InfoRow] := 'NetPBM type:';
+     if ImgProperties.Version in [1, 3, 5] then
+       Temp := 'Ascii'
+     else
+       Temp := 'Binary';
+     case ImgProperties.Version of
+       1, 4: sgImgProperties.Cells[1,InfoRow] := 'Portable BitMap (PBM) - ' + Temp + ' version.';
+       2, 5: sgImgProperties.Cells[1,InfoRow] := 'Portable GrayMap (PGM) - ' + Temp + ' version.';
+       3, 6: sgImgProperties.Cells[1,InfoRow] := 'Portable PixMap (PPM) - ' + Temp + ' version.';
+     end;
+     IncInfoRow;
+  end
+  else if (ImgThumbData.ImageFormat = CgexPCX) and PcxIsCapture then begin
     sgImgProperties.Cells[0,InfoRow] := 'Format note:';
     sgImgProperties.Cells[1,InfoRow] := 'Not a normal PCX but a Word for Dos screen capture.'; IncInfoRow;
   end
@@ -1245,6 +1258,14 @@ begin
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.BitsPerSample); IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Samples per pixel:';
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.SamplesPerPixel); IncInfoRow;
+    if (ImgThumbData.ImageFormat = CgexPNM) and (ImgProperties.MaxValue > 0) and
+      (ImgProperties.MaxValue <> 255) and (ImgProperties.MaxValue <> 65535) then begin
+      sgImgProperties.Cells[0,InfoRow] := 'PNM maximum sample value:';
+      sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.MaxValue) +
+        ' (' + IntToStr(GraphicColor.GetBitsRequiredToStoreNumber(ImgProperties.MaxValue)) +
+        ' bits per sample used)';
+      IncInfoRow;
+    end;
     if Round(ImgProperties.XResolution) <> 0.0 then begin
       sgImgProperties.Cells[0,InfoRow] := 'X Resolution:';
       sgImgProperties.Cells[1,InfoRow] := FloatToStr(ImgProperties.XResolution) + ' dpi'; IncInfoRow;
