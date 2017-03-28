@@ -51,9 +51,9 @@ Supported image formats
     + Uncompressed, RLE
 * **Kodak Photo-CD images (.pcd)**
     + 8 bits per sample in YCbCr in any resolution (192 x 128 up to 6144 x 4096)
-* **Portable pixel/gray map images (.ppm, .pgm, .pbm)**
-    + RGB, Grayscale, Indexed
-    + 1 and 8 bits per sample
+* **Portable pixel/gray/bw map images (.ppm, .pgm, .pbm)**
+    + RGB, Grayscale, B/W
+    + 1..16 bits per sample
 	+ Uncompressed
 * **ZSoft Paintbrush images (.pcx, .pcc)**
     + RGB, Indexed (including CGA palette images), Grayscale
