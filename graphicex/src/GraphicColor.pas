@@ -229,7 +229,12 @@ type
     coMinIsWhite,     // Grayscale: Minimum value means white instead of black
     coAlphaPalette,   // Png: A separate alpha palette is specified for indexed images
     coInvertedCMYK,   // Jpeg: CMYK values are inverted (PhotoShop does this)
-    coBitsLSB2MSB     // Get bits from LSB to MSB instead of the reverse
+    coBitsLSB2MSB,    // Get bits from LSB to MSB instead of the reverse
+    coNeedsScaling    // Bits need to be scaled up or down, not using the full BitsPerSample
+                      // Note: This is not exactly the same as ExtraBPP since the Max value may
+                      // not be a value that exactly fits in a certain number of bits
+                      // e.g. MaxValue 1000 needs 10 bits but doesn't fill the last bit completely
+                      // so we can't do simple shifting. Used by the PNM formats.
   );
 
   // Format of the raw data to create a palette from
@@ -278,6 +283,8 @@ type
     FTargetSPP: Byte;                  // Samples per target pixel
     FSourceExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a source pixel
     FTargetExtraBPP: Byte;             // Set to > 0 if there are extra (unused) bits in a target pixel
+    FSourceMaxValue: Cardinal;         // If coNeedsScaling is set then this has the maximum value. Range starts at 0.
+    FTargetMaxValue: Cardinal;         // If coNeedsScaling is set then this has the maximum value. Range starts at 0.
     FSourceMultiBPS: array of Byte;    // Source bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FTargetMultiBPS: array of Byte;    // Target bits per sample for each channel when not all values are the same (e.g. bmp 565)
     FMainGamma,                        // Primary gamma value which is usually read from a file (default is 1)
@@ -422,6 +429,7 @@ type
     property SourceDataFormat: TSampleDataFormat read FSourceDataFormat write SetSourceDataFormat;
     property SourceExtraBPS: Byte read FSourceExtraBPS write FSourceExtraBPS;
     property SourceExtraBPP: Byte read FSourceExtraBPP write FSourceExtraBPP;
+    property SourceMaxValue: Cardinal read FSourceMaxValue write FSourceMaxValue;
     property TargetBitsPerSample: Byte read FTargetBPS write SetTargetBitsPerSample;
     property TargetColorScheme: TColorScheme read FTargetScheme write SetTargetColorScheme;
     property TargetOptions: TConvertOptions read FTargetOptions write FTargetOptions;
@@ -430,6 +438,7 @@ type
     property TargetDataFormat: TSampleDataFormat read FTargetDataFormat write SetTargetDataFormat;
     property TargetExtraBPS: Byte read FTargetExtraBPP write FTargetExtraBPS;
     property TargetExtraBPP: Byte read FTargetExtraBPP write FTargetExtraBPP;
+    property TargetMaxValue: Cardinal read FTargetMaxValue write FTargetMaxValue;
   end;
 
 
