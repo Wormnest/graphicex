@@ -183,6 +183,7 @@ type
     ImageCount: Cardinal;              // Number of subimages (PCD, TIF, GIF, MNG).
     Comment: WideString;               // Implemented for PNG and GIF.
     Orientation: TgexOrientation;      // Image orientation (TIFF, Targa, RLA, ...)
+    MaxValue: Cardinal;                // Maximum value of a sample (PNM family)
 
     // TODO: Internal info should be moved to the specific imageformat classes.
     // Informational data, used internally and/or by decoders
