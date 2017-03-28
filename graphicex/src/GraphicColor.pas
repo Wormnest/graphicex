@@ -8573,7 +8573,7 @@ begin
     csG:
       case FSourceBPS of
         1: ;
-        2..8:
+        2..16:
           begin
             FTargetBPS := 8;
           end;
