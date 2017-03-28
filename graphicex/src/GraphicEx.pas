@@ -4648,6 +4648,19 @@ begin
   Result := 0;
   repeat
     Result := 10 * Result + Ord(Ch) - $30;
+    // For type P1 all digits can be without any spaces since one byte already
+    // holds the data for 8 pixels. Thus we need to stop as soon as we have
+    // read one digit, but only concerning the image data.
+    // We abuse FNumberAvailable that otherwise isn't used for this format to
+    // signal that we should stop after the first digit.
+    if (FImageProperties.Version = 1) and FNumberAvailable then
+      break;
+    // Even though the specification tells us there should be a final LF
+    // there are apparently saved images without a last LF. To be able to
+    // correctly read those if only the last number still needs to be read
+    // we check for FRemainingSize = 0 here.
+    if FRemainingSize = 0 then
+      break;
     Ch := GetChar;
   until not (Ch in ['0'..'9']);
 end;
