@@ -37,7 +37,7 @@ https://bitbucket.org/jacobb/graphicex/downloads/lcms2%20version%202.8,%2032bits
 GraphicEx is now also working with Fpc/Lazarus Win32 and Win64. However, you
 will have to compile the libraries yourself for now.
 
-3.include
+3. include
 ---------
 Contains compilers.inc used both in graphicex and external.
 
