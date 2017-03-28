@@ -484,8 +484,11 @@ type
     FSource: PAnsiChar;
     FRemainingSize: Int64;
     FGetByte: TGetByteMethod;
+    FNumber: Word;              // Note: Must be a Word since it will be Endian swapped!
+    FNumberAvailable: Boolean;
     function GetByteFromChar: Byte;
     function GetByteFromNumber: Byte;
+    function GetByteFromNumber16: Byte;
     function GetChar: AnsiChar;
     function GetNumber: Cardinal;
     function ReadLine: AnsiString;
@@ -4677,6 +4680,30 @@ end;
 function TPPMGraphic.GetByteFromNumber: Byte;
 begin
   Result := Byte(GetNumber());
+end;
+
+//------------------------------------------------------------------------------
+
+// Get byte from a 16 bit number.
+// We either read the next number and pass the most significant byte (big endian)
+// or we pass the least significant byte that we saved.
+function TPPMGraphic.GetByteFromNumber16: Byte;
+type
+  TBigEndianNumber = record
+    Hi, Lo: Byte;
+  end;
+  PBigEndianNumber = ^TBigEndianNumber;
+begin
+  if FNumberAvailable then begin
+    FNumberAvailable := False;
+    Result := PBigEndianNumber(@FNumber)^.Lo;
+  end
+  else begin
+    // Number (converted to Word first since we receive a LongWord) in big endian format.
+    FNumber := SwapEndian(Word(GetNumber()));
+    FNumberAvailable := True;
+    Result := PBigEndianNumber(@FNumber)^.Hi;
+  end;
 end;
 
 //------------------------------------------------------------------------------
