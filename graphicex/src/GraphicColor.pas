@@ -550,6 +550,9 @@ function GetBitsMax25(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardina
 // Can handle up to 32 bits (NumberOfBits) but uses UInt64 as intermediary
 function GetBitsMax32(BitIndex, NumberOfBits: Cardinal; BitData: PByte): Cardinal;
 
+// Get the minimum number of bits that is needed to be able to store ANumber.
+function GetBitsRequiredToStoreNumber(ANumber: Cardinal): Cardinal;
+
 //------------------------------------------------------------------------------
 
 {$IFDEF FPC}
@@ -4169,6 +4172,24 @@ begin
   Move(BitData^, PByte(@TempValue)^, ValidBytes);
   // Shift bits so it starts and the first bit and mask out the bits we don't need.
   Result := (TempValue shr BitIndex) and CBitMask[NumberOfBits];
+end;
+
+// Get the minimum number of bits that is needed to be able to store ANumber.
+function GetBitsRequiredToStoreNumber(ANumber: Cardinal): Cardinal;
+var
+  BitCount: Cardinal;
+begin
+  BitCount := 1; // Minimum is 1 bit.
+  while ANumber > 255 do begin
+    Inc(BitCount, 8);
+    ANumber := ANumber shr 8;
+  end;
+  while ANumber > 1 do begin
+    Inc(BitCount);
+    ANumber := ANumber shr 1;
+  end;
+  // Since we start counting at 1 we don't need to add + 1 here.
+  Result := BitCount;
 end;
 
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
