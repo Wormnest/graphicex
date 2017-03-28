@@ -8627,7 +8627,7 @@ begin
   // Note: If source uses separate planes we may be able to do a simplified
   // conversion, however it might be too much work for little gain.
   DisallowedOptions := [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
-    coSeparatePlanes, coMinIsWhite, coInvertedCMYK];
+    coSeparatePlanes, coMinIsWhite, coInvertedCMYK, coNeedsScaling];
   if FTargetBPS <= 8 then
     // No byte swapping needs to be done when all samples are one byte or less.
     DisallowedOptions := DisallowedOptions - [coNeedByteSwap];
