@@ -4966,7 +4966,6 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 function TPPMGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
-
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
@@ -4978,86 +4977,68 @@ begin
 
     if GetChar = 'P' then
     begin
-      case StrToInt(String(GetChar)) of
+      FImageProperties.Version := StrToInt(String(GetChar));
+      FImageProperties.Width := GetNumber;
+      FImageProperties.Height := GetNumber;
+      case FImageProperties.Version of
         1: // PBM ASCII format (black & white)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-
             FImageProperties.SamplesPerPixel := 1;
             FImageProperties.BitsPerSample := 1;
             FImageProperties.ColorScheme := csIndexed;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
             Include(FImageProperties.Options, ioMinIsWhite);
           end;
         2: // PGM ASCII form (gray scale)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
+            // Get maximum color value
+            FImageProperties.MaxValue := GetNumber;
 
             FImageProperties.SamplesPerPixel := 1;
-            FImageProperties.BitsPerSample := 8;
             FImageProperties.ColorScheme := csIndexed;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
           end;
         3: // PPM ASCII form (true color)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
+            // Get maximum color value
+            FImageProperties.MaxValue := GetNumber;
 
             FImageProperties.SamplesPerPixel := 3;
-            FImageProperties.BitsPerSample := 8;
             FImageProperties.ColorScheme := csRGB;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
           end;
         4: // PBM binary format (black & white)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-
             FImageProperties.SamplesPerPixel := 1;
             FImageProperties.BitsPerSample := 1;
             FImageProperties.ColorScheme := csIndexed;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
             Include(FImageProperties.Options, ioMinIsWhite);
           end;
         5: // PGM binary form (gray scale)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
+            // Get maximum color value
+            FImageProperties.MaxValue := GetNumber;
 
             FImageProperties.SamplesPerPixel := 1;
-            FImageProperties.BitsPerSample := 8;
             FImageProperties.ColorScheme := csIndexed;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
           end;
         6: // PPM binary form (true color)
           begin
-            FImageProperties.Width := GetNumber;
-            FImageProperties.Height := GetNumber;
-            // skip maximum color value
-            GetNumber;
-
+            // Get maximum color value
+            FImageProperties.MaxValue := GetNumber;
             FImageProperties.SamplesPerPixel := 3;
-            FImageProperties.BitsPerSample := 8;
             FImageProperties.ColorScheme := csRGB;
-            FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
-              FImageProperties.BitsPerSample;
           end;
       else
         Result := False;
       end;
+      if not (FImageProperties.Version in [1, 4]) then begin
+        if FImageProperties.MaxValue < 256 then
+          FImageProperties.BitsPerSample := 8
+        else if FImageProperties.MaxValue < 65536 then
+          FImageProperties.BitsPerSample := 16
+        else // PNM specifcation says that 65535 is maximum allowed
+          Result := False;
+      end;
+      FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
+        FImageProperties.BitsPerSample;
     end
     else
       Result := False;
