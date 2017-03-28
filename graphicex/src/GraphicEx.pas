@@ -5032,8 +5032,11 @@ begin
       if not (FImageProperties.Version in [1, 4]) then begin
         if FImageProperties.MaxValue < 256 then
           FImageProperties.BitsPerSample := 8
-        else if FImageProperties.MaxValue < 65536 then
-          FImageProperties.BitsPerSample := 16
+        else if FImageProperties.MaxValue < 65536 then begin
+          FImageProperties.BitsPerSample := 16;
+          // Words are stored in big endian order
+          Include(FImageProperties.Options, ioBigEndian);
+        end
         else // PNM specifcation says that 65535 is maximum allowed
           Result := False;
       end;
