@@ -8698,10 +8698,16 @@ begin
     csG:
       case FSourceBPS of
         1: ;
-        2..16:
+        {$IFNDEF FPC}
+        2..4:
+          begin
+            FTargetBPS := 4;
+          end;
+        5..16:
           begin
             FTargetBPS := 8;
           end;
+        {$ENDIF ~FPC}
       else
         FTargetScheme := csBGR;
         FTargetBPS := 8;
