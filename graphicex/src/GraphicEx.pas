@@ -6008,7 +6008,6 @@ begin
 
     // Setup of conversion parameters.
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-    ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
 
     // According to fileformatinfo a value of 3 should be float.
     // However according to the samples form OpenImageIO float has a value of 4.
@@ -6029,26 +6028,13 @@ begin
       [coSeparatePlanes, coBitsLSB2MSB];
 
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-    if FImageProperties.BitsPerSample > 8 then begin
-      ColorManager.TargetBitsPerSample := 8;
-    end
-    else
-      ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
     ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
-    case FImageProperties.ColorScheme of
-      csRGBA, csGA:
-      begin
-        ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetSamplesPerPixel := 4;
-      end;
-      csRGB, csXYZ: ColorManager.TargetColorScheme := csBGR;
-      csG: ColorManager.TargetColorScheme := csBGR;
-    end;
     // RLA with uncommon pixel format like 10 bits per sample use 16 bits for storage.
     // The other bits are unused but do need to be skipped when converting.
     ColorManager.SourceExtraBPS := ((FImageProperties.BitsPerSample+7) div 8 * 8) -
       FImageProperties.BitsPerSample;
 
+    ColorManager.SelectTarget;
     // Set pixel format we are going to use.
     PixelFormat := ColorManager.TargetPixelFormat;
 
