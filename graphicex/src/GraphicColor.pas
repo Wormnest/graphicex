@@ -8371,7 +8371,7 @@ procedure TColorManager.RowMoveAny(Source: array of Pointer; Target: Pointer; Co
 var
   ByteCount: Cardinal;
 begin
-  ByteCount := ((FTargetBPS * FTargetSPP + FTargetExtraBPP * Count) + 7) div 8;
+  ByteCount := ((FTargetBPS * FTargetSPP + FTargetExtraBPP) * Count + 7) div 8;
   Move(PByte(Source[0])^, Target^, ByteCount);
 end;
 
