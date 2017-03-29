@@ -9548,7 +9548,7 @@ begin
           {$IFDEF LCMS}if FICCManager = nil then begin{$ENDIF}
             // The file gamma given here is a scaled cardinal (e.g. 0.45 is expressed as 45000).
             ColorManager.SetGamma(SwapEndian(PCardinal(FRawBuffer)^) / 100000);
-            ColorManager.TargetOptions := ColorManager.TargetOptions + [coApplyGamma];
+            ColorManager.SourceOptions := ColorManager.SourceOptions + [coApplyGamma];
           {$IFDEF LCMS}end;{$ENDIF}
           Include(FImageProperties.Options, ioUseGamma);
           Continue;
@@ -9618,7 +9618,6 @@ begin
     Move(Run^, Magic, 8);
     Inc(Run, 8);
 
-//    if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then begin
     if StrLComp(Magic, PNGMagic, Length(Magic)) = 0 then begin
       // first chunk must be an IHDR chunk
       FCurrentCRC := LoadAndSwapHeader(Run);
@@ -9959,8 +9958,10 @@ begin
     // - http://www.efg2.com/Lab/ImageProcessing/Scanline.htm#pf1bit
     // Even though the showing black part was fixed in Delphi 6, it still appears
     // to be necessary here to set PixelFormat after w/h to use a color palette.
-    if (FImageProperties.ColorScheme = csIndexed) and (FImageProperties.BitsPerPixel = 1) then
-      PixelFormat := pf1Bit;
+    if (FImageProperties.ColorScheme = csIndexed) and (FImageProperties.BitsPerPixel = 1) then begin
+      ColorManager.SelectTarget;
+      PixelFormat := ColorManager.TargetPixelFormat;
+    end;
     {$ENDIF}
 
     // Needs to be after setting PixelFormat or we will get a b/w palette in the above case
@@ -10173,10 +10174,9 @@ begin
     // For both Delphi and Fpc we will have to use BGRA as target
     FImageProperties.ColorScheme := csIndexedA;
     ColorManager.SourceColorScheme := csIndexedA;
-    ColorManager.TargetColorScheme := csBGRA;
-    ColorManager.TargetSamplesPerPixel := 4;
-    ColorManager.TargetBitsPerSample := 8; // Needed for Delphi, in Fpc we already have it set to 8 here.
-    PixelFormat := pf32Bit;
+    // Select target color scheme
+    ColorManager.SelectTarget;
+    PixelFormat := ColorManager.TargetPixelFormat;
     // Set Alpha Palette in ColorManager
     ColorManager.SetSourceAlphaPalette(FTransparency);
   end;
@@ -10281,6 +10281,8 @@ function TPNGGraphic.SetupColorDepth(ColorType, BitDepth: Integer): Integer;
 begin
   Result := 0;
   // determine color scheme and setup related stuff,
+  if FImageProperties.Interlaced then
+    ColorManager.SourceOptions := ColorManager.SourceOptions + [coInterlaced];
   // Note: The calculated BPP value is always at least 1 even for 1 bits per pixel etc. formats
   //       and used in filter calculation.
   case ColorType of
@@ -10289,24 +10291,8 @@ begin
         ColorManager.SourceColorScheme := csG;
         ColorManager.SourceSamplesPerPixel := 1;
         ColorManager.SourceBitsPerSample := BitDepth;
-        {$IFNDEF FPC}
-        ColorManager.TargetColorScheme := csG;
-        ColorManager.TargetSamplesPerPixel := 1;
-        // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
-        case BitDepth of
-          2:
-            ColorManager.TargetBitsPerSample := 4;
-          16:
-            ColorManager.TargetBitsPerSample := 8;
-        else
-          ColorManager.TargetBitsPerSample := BitDepth;
-        end;
-        {$ELSE}
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-        ColorManager.TargetBitsPerSample := 8;
-        {$ENDIF}
-
+        // Select target color scheme
+        ColorManager.SelectTarget;
         PixelFormat := ColorManager.TargetPixelFormat;
         FPalette := ColorManager.CreateGrayscalePalette(False);
         Result := (BitDepth + 7) div 8;
@@ -10316,12 +10302,11 @@ begin
     2: // RGB
       if BitDepth in [8, 16] then begin
         ColorManager.SourceSamplesPerPixel := 3;
-        ColorManager.TargetSamplesPerPixel := 3;
         ColorManager.SourceColorScheme := csRGB;
-        ColorManager.TargetColorScheme := csBGR;
         ColorManager.SourceBitsPerSample := BitDepth;
-        ColorManager.TargetBitsPerSample := 8;
-        PixelFormat := pf24Bit;
+        // Select target color scheme
+        ColorManager.SelectTarget;
+        PixelFormat := ColorManager.TargetPixelFormat;
         Result := BitDepth * 3 div 8;
       end
       else
@@ -10331,23 +10316,10 @@ begin
         ColorManager.SourceColorScheme := csIndexed;
         ColorManager.SourceSamplesPerPixel := 1;
         ColorManager.SourceBitsPerSample := BitDepth;
-        {$IFNDEF FPC}
-        ColorManager.TargetColorScheme := csIndexed;
-        ColorManager.TargetSamplesPerPixel := 1;
-        // 2 bits values are converted to 4 bits values because DIBs don't know the former variant
-        if BitDepth = 2 then
-          ColorManager.TargetBitsPerSample := 4
-        else
-          ColorManager.TargetBitsPerSample := BitDepth;
-        {$ELSE}
-        // Convert to BGR since fpc has trouble handling the other bitdepths
-        // and indexed mode png might specify a transparency channel in which
-        // case we will later change it to BGRA with 4 spp
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-        ColorManager.TargetBitsPerSample := 8;
-        {$ENDIF}
 
+        // Note: Always do SelectTarget even for BitDepth 1, otherwise the
+        // gamma table may not get initialized when loading palette!
+        ColorManager.SelectTarget;
         {$IFNDEF FPC}
         // See comment in LoadIDAT for the reason why this is necessary in Delphi
         if BitDepth <> 1 then
@@ -10362,9 +10334,8 @@ begin
         ColorManager.SourceSamplesPerPixel := 2;
         ColorManager.SourceBitsPerSample := BitDepth;
         ColorManager.SourceColorScheme := csGA;
-        ColorManager.TargetSamplesPerPixel := 4;
-        ColorManager.TargetBitsPerSample := 8;
-        ColorManager.TargetColorScheme := csBGRA;
+        // Select target color scheme
+        ColorManager.SelectTarget;
         PixelFormat := ColorManager.TargetPixelFormat;
         FPalette := ColorManager.CreateGrayScalePalette(False);
         Result := 2 * BitDepth div 8;
@@ -10374,12 +10345,11 @@ begin
     6: // RGB with alpha (8, 16)
       if BitDepth in [8, 16] then begin
         ColorManager.SourceSamplesPerPixel := 4;
-        ColorManager.TargetSamplesPerPixel := 4;
         ColorManager.SourceColorScheme := csRGBA;
-        ColorManager.TargetColorScheme := csBGRA;
         ColorManager.SourceBitsPerSample := BitDepth;
-        ColorManager.TargetBitsPerSample := 8;
-        PixelFormat := pf32Bit;
+        // Select target color scheme
+        ColorManager.SelectTarget;
+        PixelFormat := ColorManager.TargetPixelFormat;
 
         Result := BitDepth * 4 div 8;
       end
