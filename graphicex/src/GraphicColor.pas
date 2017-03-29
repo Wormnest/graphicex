@@ -8843,12 +8843,10 @@ begin
           if (FTargetBPS = 8) and (FSourceBPS <= 64) then
             FRowConversion := RowConvertGray2BGR;
       else
-        if ((FSourceBPS in [5..64]) and (FTargetBPS in [8, 16])) or
-           ((FSourceBPS in [2..4]) and (FTargetBPS = 4)) then
+        if ((FTargetBPS in [8, 16]) and (FSourceBPS in [1..64])) or
+           ((FTargetBPS = 4) and (FSourceBPS in [1..4])) then
           FRowConversion := RowConvertGray
-        else if (FTargetBPS >= FSourceBPS) and (FTargetBPS <= 8) then
-          // Source 1bps CSG --> Target 1bps CSG
-          // Todo: move this to RowConvertGray too
+        else if ((FTargetBPS = 1) and (FSourceBPS = 1)) then
           FRowConversion := RowConvertIndexed8;
       end;
     csIndexed:
