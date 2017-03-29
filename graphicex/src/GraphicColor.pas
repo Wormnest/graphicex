@@ -230,6 +230,7 @@ type
     coAlphaPalette,   // Png: A separate alpha palette is specified for indexed images
     coInvertedCMYK,   // Jpeg: CMYK values are inverted (PhotoShop does this)
     coBitsLSB2MSB,    // Get bits from LSB to MSB instead of the reverse
+    coInterlaced,     // Image is interlaced (PNG). We need to know this when deciding target format
     coNeedsScaling    // Bits need to be scaled up or down, not using the full BitsPerSample
                       // Note: This is not exactly the same as ExtraBPP since the Max value may
                       // not be a value that exactly fits in a certain number of bits
@@ -8761,7 +8762,7 @@ begin
   // Note: If source uses separate planes we may be able to do a simplified
   // conversion, however it might be too much work for little gain.
   DisallowedOptions := [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
-    coSeparatePlanes, coMinIsWhite, coInvertedCMYK, coNeedsScaling];
+    coSeparatePlanes, coMinIsWhite, coInvertedCMYK, coInterlaced, coNeedsScaling];
   if FTargetBPS <= 8 then
     // No byte swapping needs to be done when all samples are one byte or less.
     DisallowedOptions := DisallowedOptions - [coNeedByteSwap];
