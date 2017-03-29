@@ -5069,9 +5069,7 @@ var
   Line: Pointer;
   Decoder: TCUTRLEDecoder;
   Y: Integer;
-  {$IFDEF FPC}
   LineBuf: PByte;
-  {$ENDIF}
   LogPalette: TMaxLogPalette;
   CompressedSize: Word;
 
@@ -5084,19 +5082,15 @@ begin
     FProgressRect := Rect(0, 0, FImageProperties.Width, 0);
     Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
-    {$IFNDEF FPC}
-    PixelFormat := pf8Bit;
-    {$ELSE}
-    PixelFormat := pf24Bit;
     ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
     ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
     ColorManager.SourceColorScheme := csIndexed;
-    ColorManager.TargetBitsPerSample := 8;
-    ColorManager.TargetSamplesPerPixel := 3;
-    ColorManager.TargetColorScheme := csBGR;
-    {$ENDIF}
+    ColorManager.SelectTarget;
+    PixelFormat := ColorManager.TargetPixelFormat;
+
     Self.Width := FImageProperties.Width;
     Self.Height := FImageProperties.Height;
+
     // TODO: We should first decode the image data and depending on the
     // amount of palette indexes used determine the palette size and what
     // to use for what indexes. e.g. I have examples using probably only 2
@@ -5104,19 +5098,13 @@ begin
     // 1 index black and 1 white.
     LogPalette := LoadPalette;
 
-    {$IFDEF FPC}
     ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
     GetMem(LineBuf, Width);
-    {$ENDIF}
     Decoder := TCUTRLEDecoder.Create;
     try
       for Y := 0 to Height - 1 do
       begin
-        {$IFNDEF FPC}
-        Line := ScanLine[Y];
-        {$ELSE}
         Line := LineBuf;
-        {$ENDIF}
         // Length in bytes of compressed data.
         CompressedSize := PWord(Source)^;
         Inc(Source, 2);
@@ -5126,17 +5114,13 @@ begin
         if (Decoder.CompressedBytesAvailable <> 0) or (Decoder.DecompressedBytes <> Width) then
           GraphicExError(gesDecompression, ['CUT']);
 
-        {$IFDEF FPC}
         ColorManager.ConvertRow([LineBuf], ScanLine[Y], Width, $FF);
-        {$ENDIF}
         Progress(Self, psRunning, MulDiv(Y, 100, Height), True, FProgressRect, '');
         OffsetRect(FProgressRect, 0, 1);
       end;
     finally
       FreeAndNil(Decoder);
-      {$IFDEF FPC}
       FreeMem(LineBuf);
-      {$ENDIF}
     end;
 
     Progress(Self, psEnding, 0, False, FProgressRect, '');
