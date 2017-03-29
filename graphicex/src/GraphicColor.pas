@@ -4193,13 +4193,15 @@ begin
   Result := BitCount;
 end;
 
+//------------------------------------------------------------------------------
+
 procedure TColorManager.RowConvertGray(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 
 // Conversion from source grayscale (possibly with alpha) to target grayscale
 // Note: Currently this also handles 8 bps source/target Indexed with alpha!
 // Note: For indexed and grayscale with alpha the alpha channel is skipped/removed!
 // Note: Since grayscale is basically handled like indexed mode (palette), there is no need to
-//       handle gamma correction here as this happend already during palette creation.
+//       handle gamma correction here as this happened already during palette creation.
 
 var
   Target8: PByte;
@@ -4241,258 +4243,14 @@ begin
     BitIncrement := FSourceBPS; // Bits only
   end;
 
-  case FSourceBPS of
-    8:
-      case FTargetBPS of
-        8: // 888 to 888
-          begin
-            Source8 := Source[0];
-            Target8 := Target;
-
-            if coNeedsScaling in FSourceOptions then begin
-              // Since this is a rarely encountered setting (PNM) we will handle this
-              // outside the main conversion loop to not slow down the general case.
-              // Note this setting does not take Mask into account.
-              // Note: Always assumes big endian words currently.
-              Temp := Count;
-              Temp8 := Source[0];
-              // Scale all values up to use the full 8 bits
-              while Temp > 0 do begin
-                Temp8^ := MulDiv(Temp8^, 255, FSourceMaxValue);
-                Inc(Temp8, 1 + AlphaSkip);
-                Dec(Temp);
-              end;
-            end;
-
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
-              begin
-                Target8^ := Source8^;
-                Inc(Source8, 1 + AlphaSkip);
-              end;
-              BitRun := RorByte(BitRun);
-              Dec(Count);
-              Inc(Target8);
-            end;
-          end;
-        16: // 888 to 161616
-          begin
-            Source8 := Source[0];
-            Target16 := Target;
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
-              begin
-                Target16^ := MulDiv16(Source8^, 65535, 255);
-                Inc(Source8, 1 + AlphaSkip);
-              end;
-              BitRun := RorByte(BitRun);
-              Dec(Count);
-              Inc(Target16);
-            end;
-          end;
+  case FTargetBPS of
+    1: // Convert to 1 bit
+      begin // from 1..8 bits to 1
+        ; // TODO! For now 1 to 1 with Mask is done in RowConvertIndexed8.
       end;
-    16:
-      case FTargetBPS of
-        8: // 161616 to 888
-          begin
-            Source16 := Source[0];
-            Target8 := Target;
-
-            if coNeedsScaling in FSourceOptions then begin
-              // Since this is a rarely encountered setting (PNM) we will handle this
-              // outside the main conversion loop to not slow down the general case.
-              // Note this setting does not take Mask into account.
-              // Note: Always assumes big endian words currently.
-              Temp := Count;
-              Temp16 := Source[0];
-              // Scale all values up to use the full 8 bits
-              while Temp > 0 do begin
-                Temp16^ := SwapEndian(Word(MulDiv(SwapEndian(Temp16^), 65535, FSourceMaxValue)));
-                Inc(Temp16, 1 + AlphaSkip);
-                Dec(Temp);
-              end;
-            end;
-
-            if coNeedByteSwap in FSourceOptions then
-              Convert16 := ComponentSwapScaleConvert
-            else
-              Convert16 := ComponentScaleConvert16To8;
-            // Half Float sample data format needs different conversion.
-            if FSourceDataFormat = sdfFloat then
-              Convert16 := ComponentScaleConvertFloat16To8;
-
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
-              begin
-                Target8^ := Convert16(Source16^);
-                Inc(Source16, 1 + AlphaSkip);
-              end;
-              BitRun := RorByte(BitRun);
-              Dec(Count);
-              Inc(Target8);
-            end;
-          end;
-        16: // 161616 to 161616
-          begin
-            Source16 := Source[0];
-            Target16 := Target;
-
-            if coNeedByteSwap in FSourceOptions then
-            begin
-              while Count > 0 do
-              begin
-                if Boolean(Mask and BitRun) then
-                begin
-                  Target16^ := SwapEndian(Source16^);
-                  Inc(Source16, 1 + AlphaSkip);
-                end;
-                BitRun := RorByte(BitRun);
-                Dec(Count);
-                Inc(Target16);
-              end;
-            end
-            else
-            begin
-              while Count > 0 do
-              begin
-                if Boolean(Mask and BitRun) then
-                begin
-                  Target16^ := Source16^;
-                  Inc(Source16, 1 + AlphaSkip);
-                end;
-                BitRun := RorByte(BitRun);
-                Dec(Count);
-                Inc(Target16);
-              end;
-            end;
-          end;
-      end;
-
-    5..7, 9..15:
-      // Conversion of uncommon bit formats to 8 bits only for now
-      case FTargetBPS of
-        8: // Conversion supported for 5..7 bits and 9..15 bits
-          begin
-            Source16 := Source[0];
-            Target8 := Target;
-            case FSourceBPS of
-               6: ConvertAny := ComponentScaleConvert6To8;
-              10: ConvertAny := ComponentScaleConvert10To8;
-              12: ConvertAny := ComponentScaleConvert12To8;
-              14: ConvertAny := ComponentScaleConvert14To8;
-            else
-              ConvertAny := ComponentScaleConvertUncommonTo8;
-            end;
-
-            BitOffset := 0;
-            while Count > 0 do
-            begin
-              if Boolean(Mask and BitRun) then
-              begin
-                // For now always assuming that bits are in big endian MSB first order!!! (TIF)
-                Bits := GetBitsMSB(BitOffset, FSourceBPS,PByte(Source16));
-                Target8^ := ConvertAny(Bits,FSourceBPS);
-                // Update the bit and byte pointers
-                Inc(BitOffset, BitIncrement);
-                Inc( PByte(Source16), BitOffset div 8 );
-                BitOffset := BitOffset mod 8;
-              end;
-              BitRun := RorByte(BitRun);
-              Dec(Count);
-              Inc(Target8);
-            end;
-          end;
-      else
-      end;
-    17..32: // Support for high bits per samples (mainly 24/32 bits)
-      case FTargetBPS of
-        8:  // Default 8 bits per sample target
-          begin
-            Source32 := Source[0];
-            Target8 := Target;
-            GetBits32 := GetBitsMSB;
-            case FSourceBPS of
-               32:
-                 if FSourceDataFormat = sdfFloat then begin
-                   Convert32 := ComponentScaleConvertFloat32To8;
-                   GetBits32 := GetBitsSingle;
-                 end
-                 else begin
-                   Convert32 := ComponentScaleConvert32To8;
-                 end;
-               24:
-                 if FSourceDataFormat = sdfFloat then begin
-                   Convert32 := ComponentScaleConvertFloat24To8;
-                   GetBits32 := GetBitsSingle;
-                 end
-                 else begin
-                   Convert32 := ComponentScaleConvert17_24To8;
-                 end;
-               17..23: Convert32 := ComponentScaleConvert17_24To8;
-            else // Use else for 25..31 or else compiler will complain about uninitialized
-              {25..31:} Convert32 := ComponentScaleConvert25_31To8;
-            end;
-
-            BitOffset := 0;
-            while Count > 0 do
-            begin
-              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
-              Bits := GetBits32(BitOffset, FSourceBPS, PByte(Source32));
-              Target8^ := Convert32(Bits, FSourceBPS);
-              // Update the bit and byte pointers
-              Inc(BitOffset, BitIncrement);
-              Inc( PByte(Source32), BitOffset div 8 );
-              BitOffset := BitOffset mod 8;
-              Dec(Count);
-              Inc(Target8);
-            end;
-          end;
-      else
-        // Other targets unsupported for now
-      end;
-    33..64: // Support for high bits per samples (mainly 64 bits)
-      case FTargetBPS of
-        8:  // Default 8 bits per sample target
-          begin
-            Source64 := Source[0];
-            Target8 := Target;
-            if FSourceBPS = 64 then begin
-              if FSourceDataFormat = sdfFloat then begin
-                Convert64 := ComponentScaleConvertFloat64To8;
-                GetBits64 := GetBitsDouble; // Apparently not BigEndian
-              end
-              else begin
-                Convert64 := ComponentScaleConvert64To8;
-                GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
-              end;
-            end
-            else begin
-              Convert64 := ComponentScaleConvert33_63To8;
-              GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
-            end;
-
-            BitOffset := 0;
-            while Count > 0 do
-            begin
-              Bits64 := GetBits64(BitOffset, FSourceBPS, PByte(Source64));
-              Target8^ := Convert64(Bits64, FSourceBPS);
-              // Update the bit and byte pointers
-              Inc(BitOffset, BitIncrement);
-              Inc( PByte(Source64), BitOffset div 8 );
-              BitOffset := BitOffset mod 8;
-              Dec(Count);
-              Inc(Target8);
-            end;
-          end;
-      else
-        // Other targets unsupported for now
-      end;
-    2..4: // Conversion of 2..4 bits to 4 bits
-      case FTargetBPS of
-        4: // Convert to 4 bits
+    4: // Convert to 4 bits
+      case FSourceBPS of
+        1..8:
           begin
             Source8 := Source[0];
             Target8 := Target;
@@ -4569,7 +4327,239 @@ begin
               end;
             end;
           end;
-      else
+      end;
+    8:
+      case FSourceBPS of
+        8: // 888 to 888
+          begin
+            Source8 := Source[0];
+            Target8 := Target;
+
+            if coNeedsScaling in FSourceOptions then begin
+              // Since this is a rarely encountered setting (PNM) we will handle this
+              // outside the main conversion loop to not slow down the general case.
+              // Note this setting does not take Mask into account.
+              // Note: Always assumes big endian words currently.
+              Temp := Count;
+              Temp8 := Source[0];
+              // Scale all values up to use the full 8 bits
+              while Temp > 0 do begin
+                Temp8^ := MulDiv(Temp8^, 255, FSourceMaxValue);
+                Inc(Temp8, 1 + AlphaSkip);
+                Dec(Temp);
+              end;
+            end;
+
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                Target8^ := Source8^;
+                Inc(Source8, 1 + AlphaSkip);
+              end;
+              BitRun := RorByte(BitRun);
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+        1..7, 9..15:
+          // Conversion of uncommon bit formats to 8 bits
+          begin
+            Source16 := Source[0];
+            Target8 := Target;
+            case FSourceBPS of
+               6: ConvertAny := ComponentScaleConvert6To8;
+              10: ConvertAny := ComponentScaleConvert10To8;
+              12: ConvertAny := ComponentScaleConvert12To8;
+              14: ConvertAny := ComponentScaleConvert14To8;
+            else
+              ConvertAny := ComponentScaleConvertUncommonTo8;
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+                Bits := GetBitsMSB(BitOffset, FSourceBPS,PByte(Source16));
+                Target8^ := ConvertAny(Bits,FSourceBPS);
+                // Update the bit and byte pointers
+                Inc(BitOffset, BitIncrement);
+                Inc( PByte(Source16), BitOffset div 8 );
+                BitOffset := BitOffset mod 8;
+              end;
+              BitRun := RorByte(BitRun);
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+        16: // 161616 to 888
+          begin
+            Source16 := Source[0];
+            Target8 := Target;
+
+            if coNeedsScaling in FSourceOptions then begin
+              // Since this is a rarely encountered setting (PNM) we will handle this
+              // outside the main conversion loop to not slow down the general case.
+              // Note this setting does not take Mask into account.
+              // Note: Always assumes big endian words currently.
+              Temp := Count;
+              Temp16 := Source[0];
+              // Scale all values up to use the full 8 bits
+              while Temp > 0 do begin
+                Temp16^ := SwapEndian(Word(MulDiv(SwapEndian(Temp16^), 65535, FSourceMaxValue)));
+                Inc(Temp16, 1 + AlphaSkip);
+                Dec(Temp);
+              end;
+            end;
+
+            if coNeedByteSwap in FSourceOptions then
+              Convert16 := ComponentSwapScaleConvert
+            else
+              Convert16 := ComponentScaleConvert16To8;
+            // Half Float sample data format needs different conversion.
+            if FSourceDataFormat = sdfFloat then
+              Convert16 := ComponentScaleConvertFloat16To8;
+
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                Target8^ := Convert16(Source16^);
+                Inc(Source16, 1 + AlphaSkip);
+              end;
+              BitRun := RorByte(BitRun);
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+        17..32: // Conversion of high bits per samples (mainly 24/32 bits) to 8 bits
+          begin
+            Source32 := Source[0];
+            Target8 := Target;
+            GetBits32 := GetBitsMSB;
+            case FSourceBPS of
+               32:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat32To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert32To8;
+                 end;
+               24:
+                 if FSourceDataFormat = sdfFloat then begin
+                   Convert32 := ComponentScaleConvertFloat24To8;
+                   GetBits32 := GetBitsSingle;
+                 end
+                 else begin
+                   Convert32 := ComponentScaleConvert17_24To8;
+                 end;
+               17..23: Convert32 := ComponentScaleConvert17_24To8;
+            else // Use else for 25..31 or else compiler will complain about uninitialized
+              {25..31:} Convert32 := ComponentScaleConvert25_31To8;
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              // For now always assuming that bits are in big endian MSB first order!!! (TIF)
+              Bits := GetBits32(BitOffset, FSourceBPS, PByte(Source32));
+              Target8^ := Convert32(Bits, FSourceBPS);
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source32), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+        33..64: // Conversion of high bits per samples (mainly 64 bits) to 8 bits
+          begin
+            Source64 := Source[0];
+            Target8 := Target;
+            if FSourceBPS = 64 then begin
+              if FSourceDataFormat = sdfFloat then begin
+                Convert64 := ComponentScaleConvertFloat64To8;
+                GetBits64 := GetBitsDouble; // Apparently not BigEndian
+              end
+              else begin
+                Convert64 := ComponentScaleConvert64To8;
+                GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+              end;
+            end
+            else begin
+              Convert64 := ComponentScaleConvert33_63To8;
+              GetBits64 := GetBitsMSB64; // Always BigEndian (TIFF) is currently assumed
+            end;
+
+            BitOffset := 0;
+            while Count > 0 do
+            begin
+              Bits64 := GetBits64(BitOffset, FSourceBPS, PByte(Source64));
+              Target8^ := Convert64(Bits64, FSourceBPS);
+              // Update the bit and byte pointers
+              Inc(BitOffset, BitIncrement);
+              Inc( PByte(Source64), BitOffset div 8 );
+              BitOffset := BitOffset mod 8;
+              Dec(Count);
+              Inc(Target8);
+            end;
+          end;
+      end;
+    16:
+      case FSourceBPS of
+        8: // 888 to 161616
+          begin
+            Source8 := Source[0];
+            Target16 := Target;
+            while Count > 0 do
+            begin
+              if Boolean(Mask and BitRun) then
+              begin
+                Target16^ := MulDiv16(Source8^, 65535, 255);
+                Inc(Source8, 1 + AlphaSkip);
+              end;
+              BitRun := RorByte(BitRun);
+              Dec(Count);
+              Inc(Target16);
+            end;
+          end;
+        16: // 161616 to 161616
+          begin
+            Source16 := Source[0];
+            Target16 := Target;
+
+            if coNeedByteSwap in FSourceOptions then
+            begin
+              while Count > 0 do
+              begin
+                if Boolean(Mask and BitRun) then
+                begin
+                  Target16^ := SwapEndian(Source16^);
+                  Inc(Source16, 1 + AlphaSkip);
+                end;
+                BitRun := RorByte(BitRun);
+                Dec(Count);
+                Inc(Target16);
+              end;
+            end
+            else
+            begin
+              while Count > 0 do
+              begin
+                if Boolean(Mask and BitRun) then
+                begin
+                  Target16^ := Source16^;
+                  Inc(Source16, 1 + AlphaSkip);
+                end;
+                BitRun := RorByte(BitRun);
+                Dec(Count);
+                Inc(Target16);
+              end;
+            end;
+          end;
       end;
   end;
 end;
