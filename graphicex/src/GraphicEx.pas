@@ -6751,18 +6751,12 @@ begin
         RunR := GetChannel(0);
         for Y := 0 to Layer.FImage.Height - 1 do
         begin
-          {$IFNDEF FPC}
-          Move(RunR^, Layer.FImage.ScanLine[Y]^, Layer.FImage.Width);
-          {$ELSE}
           ColorManager.ConvertRow([RunR], Layer.FImage.ScanLine[Y], Layer.FImage.Width, $FF);
-          {$ENDIF}
           Inc(RunR, Layer.FImage.Width);
         end;
       end;
     pf24Bit: // RGB, CMYK or Lab
       begin
-        // We need to add planar to our source options
-        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
         if FMode = PSD_CMYK then
         begin
           // Photoshop CMYK values are given with 0 for maximum values, but the
@@ -6810,7 +6804,6 @@ begin
         // We should also check for the determined color mode csXXX instead of using FMode.
         // TODO: Support 16 bit per channel versions. Doing the above will probably solve that.
         // We need to add planar to our source options
-        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
         if FMode = PSD_CMYK then
         begin
           // Photoshop CMYK values are given with 0 for maximum values, but the
@@ -7439,46 +7432,31 @@ begin
             FICCManager.CreateTransformTosRGB_Gray8();
           // else for Indexed no transform should be done here, instead the palette entries should be transformed
           {$ENDIF}
-          // Very simple format here, we don't need the color conversion manager.
           if Assigned(Decoder) then
           begin
-            {$IFDEF FPC}
             GetMem(Buffer, W);
             try
-            {$ENDIF}
               for Y := 0 to H - 1 do
               begin
                 Count := RLELength[Y];
-                {$IFNDEF FPC}
-                Line := ScanLine[Y];
-                {$ELSE}
                 Line := Buffer;
-                {$ENDIF}
                 Decoder.Decode(Pointer(Source), Line, Count, W);
                 Inc(Source, Count);
 
-                {$IFDEF FPC}
                 ColorManager.ConvertRow([Buffer], ScanLine[Y], W, $FF);
-                {$ENDIF}
                 {$IFDEF LCMS}
                 FICCManager.ExecuteTransform(ScanLine[Y], W);
                 {$ENDIF}
                 AdvanceProgress(100 / H, 0, 1, True);
               end;
-            {$IFDEF FPC}
             finally
               FreeMem(Buffer);
             end;
-            {$ENDIF}
           end
           else // uncompressed data
             for Y := 0 to H - 1 do
             begin
-              {$IFNDEF FPC}
-              Move(Source^, ScanLine[Y]^, W);
-              {$ELSE}
               ColorManager.ConvertRow([Source], ScanLine[Y], W, $FF);
-              {$ENDIF}
               {$IFDEF LCMS}
               FICCManager.ExecuteTransform(ScanLine[Y], W);
               {$ENDIF}
@@ -7499,8 +7477,6 @@ begin
         begin
           // Data is organized in planes. This means first all red rows, then
           // all green and finally all blue rows.
-          // We need to add that to our source options
-          ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
           BPS := FImageProperties.BitsPerSample div 8;
           ChannelSize := BPS * W * H;
 
@@ -7927,94 +7903,34 @@ begin
   // PSD always uses bigendian (even for float values!).
   ColorManager.SourceOptions := [coNeedByteSwap];
   ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-  case FImageProperties.BitsPerSample of
-    1, 8:
-    begin
-      ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
-    end;
-    16:
-    begin
-      ColorManager.TargetBitsPerSample := 8;
-    end;
-    32:
-    begin
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.SourceDataFormat := sdfFloat;
-    end;
-  else
-    // On purpose nothing is set here.
-    // Unknown BitsPerSample will raise a bitdepth error.
-  end;
+  if FImageProperties.BitsPerSample = 32 then
+    ColorManager.SourceDataFormat := sdfFloat;
+
   ColorManager.SourceSamplesPerPixel := Channels;
+  if Channels > 1 then
+    // Data is organized in planes. We need to add that to our source options
+    ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
 
   CurrentColorScheme := DetermineColorScheme(Channels);
   ColorManager.SourceColorScheme := CurrentColorScheme;
-  // Always explicitly set TargetSamplesPerPixel because source might have
-  // extra non color channels that we need to ignore if possible.
   case CurrentColorScheme of
     csG,
     csIndexed:
       begin
         if ioMinIsWhite in FImageProperties.Options then
           ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
-        {$IFNDEF FPC}
-        ColorManager.TargetColorScheme := CurrentColorScheme;
-        ColorManager.TargetSamplesPerPixel := 1;
-        {$ELSE}
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-        ColorManager.TargetBitsPerSample := 8; // Necessary since it might be different
-        PixelFormat := pf24Bit;
-        {$ENDIF}
-      end;
-    csGA,
-    csIndexedA:
-      begin
-        ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetSamplesPerPixel := 4;
       end;
     csRGB:
-      if Channels = 3 then
-      begin
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-      end
-      else // 4 or more
-      begin
+      if Channels > 3 then begin
         ColorManager.SourceColorScheme := csRGBA;
-        ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetSamplesPerPixel := 4;
-      end;
-    csRGBA:
-      begin
-        ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetSamplesPerPixel := 4;
-      end;
-    csCMYK:
-      begin
-        ColorManager.TargetColorScheme := csBGR;
-        ColorManager.TargetSamplesPerPixel := 3;
-      end;
-    csCMYKA:
-      begin
-        ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetSamplesPerPixel := 4;
       end;
     csCIELab:
       begin
-        ColorManager.SourceColorScheme := CurrentColorScheme;
         // PSD uses 0..255 for a and b so we need to convert them to -128..127
         ColorManager.SourceOptions := ColorManager.SourceOptions + [coLabByteRange, coLabChromaOffset];
-        if Channels = 3 then begin
-          ColorManager.TargetColorScheme := csBGR;
-          ColorManager.TargetSamplesPerPixel := 3;
-        end
-        else begin // 4 or more
-          ColorManager.TargetColorScheme := csBGRA;
-          ColorManager.TargetSamplesPerPixel := 4;
-        end;
       end;
   end;
+  ColorManager.SelectTarget;
   Result := ColorManager.TargetPixelFormat;
 end;
 
