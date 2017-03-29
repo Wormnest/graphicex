@@ -8617,8 +8617,8 @@ var
     begin
       FImageProperties.ColorScheme := csRGBA;
       ColorManager.SourceColorScheme := csRGBA;
-      ColorManager.TargetColorScheme := csBGRA;
-      PixelFormat := pf32Bit;
+      ColorManager.SelectTarget;
+      PixelFormat := ColorManager.TargetPixelFormat;
     end;
 
     if FImageProperties.Version > 3 then
@@ -8637,7 +8637,7 @@ var
     B := BlueBuffer;
     C := CompBuffer;
 
-    if ColorManager.TargetColorScheme in [csIndexed, csG] then
+    if ColorManager.SourceColorScheme in [csIndexed, csG] then
     begin
       // Make sure we got a valid grayscale channel
       if not Assigned(C) then
@@ -8688,12 +8688,6 @@ var
       end;
       VisibleWidth := AbsoluteRect.Right - AbsoluteRect.Left;
 
-      {$IFDEF FPC}
-      ColorManager.TargetColorScheme := csBGR;
-      ColorManager.TargetBitsPerSample := 8;
-      ColorManager.TargetSamplesPerPixel := 3;
-      PixelFormat := pf24Bit;
-      {$ENDIF}
       for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
       begin
         // Note: I don't have any samples for BPS = 1 or 4 and am not
@@ -8742,13 +8736,9 @@ var
         AbsoluteRect.Bottom := Height;
       end;
       // TODO: Check that AbsoluteRect.Bottom is inside image boundary.
-      // PSP has separate channels thus we need to set that in source options.
-      ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+
       // Compute start offset in ScanLine for this layer
-      if ColorManager.TargetColorScheme = csBGR then
-        StartOfs := AbsoluteRect.Left * 3  // 3 bytes per pixel
-      else // csBGRA
-        StartOfs := AbsoluteRect.Left * 4; // 4 bytes per pixel
+      StartOfs := AbsoluteRect.Left * ColorManager.TargetSamplesPerPixel; // 3 or 4 bytes per pixel
       for Y := AbsoluteRect.Top to AbsoluteRect.Bottom - 1 do
       begin
         ColorManager.ConvertRow([R, G, B, C], PAnsiChar(ScanLine[Y])+StartOfs,
@@ -8968,31 +8958,16 @@ begin
       Move(Run^, Image, SizeOf(Image));
       Run := Pointer(LastPosition + TotalBlockLength);
 
-      ColorManager.SourceOptions := [];
+      if FImageProperties.ColorScheme in [csG, csIndexed] then
+        ColorManager.SourceOptions := []
+      else
+        // PSP has separate channels thus we need to set that in source options.
+        ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
       ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
-      if FImageProperties.BitsPerSample <= 8 then
-        ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample
-      else
-        ColorManager.TargetBitsPerSample := 8;
       ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-      ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
       ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
-      if FImageProperties.ColorScheme = csRGB then begin
-        // Even when this is set it doesn't mean we will have an alpha channel
-        // next to our color channels apparently.
-        // This flag is possibly used when the optional "Alpha Bank Block" is present.
-        // The Alpha Bank Block is an optional block that defines alpha channels associated
-        // with the image document. (See 2.4 in psp fileformat specification 7.)
-        // Example: "Marble head.PspImage"
-        {if GraphicContents and PSP_GC_ALPHACHANNELS = PSP_GC_ALPHACHANNELS then
-          // alpha channel present (jb: I haven't encountered this yet, example needed)
-          TargetColorScheme := csBGRA
-        else}
-          ColorManager.TargetColorScheme := csBGR;
-      end
-      else
-        ColorManager.TargetColorScheme := FImageProperties.ColorScheme;
 
+      ColorManager.SelectTarget;
       PixelFormat := ColorManager.TargetPixelFormat;
 
       Self.Width := FImageProperties.Width;
@@ -9123,9 +9098,7 @@ begin
               Move(Run^, RawPalette, Index * SizeOf(TRGBQuad));
               Inc(Run, Index * SizeOf(TRGBQuad));
               Palette := ColorManager.CreateColorPalette([@RawPalette], pfInterlaced8Quad, Index, False {BGR order});
-              {$IFDEF FPC}
               ColorManager.SetSourcePalette([@RawPalette], pfInterlaced8Quad, False {BGR order});
-              {$ENDIF}
             end;
         end;
 
