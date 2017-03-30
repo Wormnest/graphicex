@@ -9017,6 +9017,7 @@ begin
         csYCbCr: ;
       end;
     csCIELab,
+    csICCLab,
     csITULab:
       case FTargetScheme of
         csRGB,
