@@ -420,6 +420,11 @@ begin
         ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
         ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
         ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+        if FImageProperties.BitsPerSample = 16 then
+          ColorManager.SourceOptions := ColorManager.SourceOptions + [coNeedByteSwap]
+        else if FImageProperties.BitsPerSample = 32 then
+          // Not sure if float needs coByteSwap too, we don't have an example of this format
+          ColorManager.SourceDataFormat := sdfFloat;
 
         // Select target color scheme
         ColorManager.SelectTarget;
