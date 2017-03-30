@@ -395,21 +395,14 @@ begin
       if not ReadImageProperties(Memory, Size, ImageIndex) then
         raise EgexInvalidGraphic.CreateFmt(gesInvalidImage, [IffType]);
 
+    if (FImageProperties.Width <= 0) or (FImageProperties.Height <= 0) then
+      Exit;
+
     depth := FImageProperties.SamplesPerPixel;
 
-    // Setup bitmap properties
-    case depth of
-      3 : PixelFormat := pf24Bit;
-      4 : PixelFormat := pf32Bit;
-    else
+    if not (depth in [3, 4]) then
       // Unsupported Samples per pixel image type
       raise EgexInvalidGraphic.CreateFmt(gesInvalidColorFormat, [IffType]);
-    end;
-    // Image dimensions after PixelFormat
-    Width := FImageProperties.Width;
-    Height := FImageProperties.Height;
-    if (Width <= 0) or (Height <= 0) then
-      Exit;
 
     // Now look for a chunk of type TBMP
     Done := False;
@@ -426,13 +419,14 @@ begin
         ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
         ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
         ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-        if FImageProperties.SamplesPerPixel = 3 then
-          ColorManager.TargetColorScheme := csBGR
-        else
-          ColorManager.TargetColorScheme := csBGRA;
-        ColorManager.TargetBitsPerSample := 8;
-        ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
         ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+
+        // Select target color scheme
+        ColorManager.SelectTarget;
+        PixelFormat := ColorManager.TargetPixelFormat;
+        // Set target dimensions
+        Self.Width := FImageProperties.Width;
+        Self.Height := FImageProperties.Height;
 
         // Setup Decoder for compressed tiles.
         Decoder := TTargaRLEDecoder.Create(8);
