@@ -8677,10 +8677,14 @@ begin
   FTargetSPP := FSourceSPP;
   if (coApplyGamma in FSourceOptions) then
     FTargetOptions := FTargetOptions + [coApplyGamma];
+  // Note: Since extra non color/alpha channels are possible in source
+  // we always need to explicitly set target SPP!
   case FSourceScheme of
     csIndexed:
       begin
-        if FSourceSPP > 1 then begin
+        // TODO: How to distinguish PCX case from extra non color channels?
+        // Probably very rare for indexed.
+        if (FSourceSPP in [2..4]) and (FSourceBPS in [1..4, 8]) then begin
           // Rare case, e.g. PCX with multiple planes that need to be combined into one index into a palette
           {$IFNDEF FPC} // Delphi
           FTargetSPP := 1;
@@ -8694,7 +8698,8 @@ begin
           FTargetSPP := 3;
           {$ENDIF ~FPC}
         end
-        else
+        else begin
+          FTargetSPP := 1;
           case FSourceBPS of
             1: ;
             {$IFNDEF FPC}
@@ -8712,24 +8717,28 @@ begin
             FTargetBPS := 8;
             FTargetSPP := 3;
           end;
+        end;
       end;
     csG:
-      case FSourceBPS of
-        1: ;
-        {$IFNDEF FPC}
-        2..4:
-          begin
-            FTargetBPS := 4;
-          end;
-        5..16:
-          begin
-            FTargetBPS := 8;
-          end;
-        {$ENDIF ~FPC}
-      else
-        FTargetScheme := csBGR;
-        FTargetBPS := 8;
-        FTargetSPP := 3;
+      begin
+        FTargetSPP := 1;
+        case FSourceBPS of
+          1: ;
+          {$IFNDEF FPC}
+          2..4:
+            begin
+              FTargetBPS := 4;
+            end;
+          5..16:
+            begin
+              FTargetBPS := 8;
+            end;
+          {$ENDIF ~FPC}
+        else
+          FTargetScheme := csBGR;
+          FTargetBPS := 8;
+          FTargetSPP := 3;
+        end;
       end;
     csIndexedA, csGA:
       begin
@@ -8744,6 +8753,7 @@ begin
     csPhotoYCC:
       begin
         FTargetScheme := csBGR;
+        FTargetSPP := 3;
         {$IFNDEF FPC}
         if (FSourceBPS = 5) and (FSourceSPP = 3) and (FSourceExtraBPP = 1) then begin
           // 15/16 bits per pixel, pf15Bit
@@ -8754,7 +8764,6 @@ begin
         {$ENDIF ~FPC}
         begin
           FTargetBPS := 8;
-          FTargetSPP := 3;
         end;
       end;
     csCIELab,
