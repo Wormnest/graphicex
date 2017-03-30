@@ -2701,12 +2701,6 @@ begin
         begin
           TIFFSetDirectory(TIFFImage, ImageIndex);
 
-          ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
-          ColorManager.SourceDataFormat := TSampleDataFormat(FImageProperties.SampleFormat);
-          // If Tiff uses separate planes we need to add that to our source options
-          if ioSeparatePlanes in FImageProperties.Options then
-            ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-
           {$DEFINE YCBCR} // Use this as long as we haven't finished handling YCbCr ourselves
           // Generic RGBA image loading. Only needed when we can't handle the
           // image format ourselves. Currently that seems to be the case
@@ -2719,14 +2713,24 @@ begin
             if (FImageProperties.Height > 0) and (FImageProperties.Width > 0) then
             begin
               // 3 or more samples per pixel are used for RGB(A), CMYK, L*a*b*, YCbCr etc.
-              // All of these will be converted to RGBA.
-              if FImageProperties.HasAlpha then
-                PixelFormat := pf32Bit
-              else
-                PixelFormat := pf24Bit;
+              // All of these will be converted to RGBA by TIFF and from there to
+              // whatever format our ColorManager.SelectTarget prefers.
+              // Reset source color manager for RGB(A) input.
+              ColorManager.SourceOptions := [];
+              ColorManager.SourceBitsPerSample := 8;
+              // Libtiff always converts to RGBA
+              ColorManager.SourceColorScheme := csRGBA;
+              ColorManager.SourceSamplesPerPixel := 4;
+
+              // Select target color scheme
+              ColorManager.SelectTarget;
+              PixelFormat := ColorManager.TargetPixelFormat;
+
+              // Set dimensions of target image
               Self.Width := FImageProperties.Width;
               Self.Height := FImageProperties.Height;
-              // We will always receive RGBA thus we need to reserve space for
+
+              // We will always receive RGBA from libtiff thus we need to reserve space for
               // Width * Height * SizeOf(RGBA)
               Count := Width * Height;
               GetMem(Pixels, Count * SizeOf(TRGBA));
@@ -2741,12 +2745,7 @@ begin
                   for I := Height - 1 downto 0 do
                   begin
                     Line := Scanline[I];
-                    if FImageProperties.HasAlpha then
-                      // Change RGBA to BGRA, 1 line at a time
-                      RGBAToBGRA(Run, Width, 1)
-                    else
-                      RGBAToBGR(Run, Width, 1);
-                    Move(Run^, Line^, Width * (3+Ord(FImageProperties.HasAlpha)));
+                    ColorManager.ConvertRow([Run], Line, Width, $ff);
                     Inc(Run, Width * 4);
                     AdvanceProgress(100 / Height, 0, 1, True);
                   end;
@@ -2764,146 +2763,74 @@ begin
             // Monochrome and indexed with 1-64 bits per pixel including floating point
             // RGB(A) 16, 32, 64 bits including floating point
             // Strip, Tiles, contiguous and planar are all supported
+            ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
             ColorManager.SourceBitsPerSample := FImageProperties.BitsPerSample;
             ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
+            ColorManager.SourceDataFormat := TSampleDataFormat(FImageProperties.SampleFormat);
+            // If Tiff uses separate planes we need to add that to our source options
+            if ioSeparatePlanes in FImageProperties.Options then
+              ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
+            if FImageProperties.HasAlpha then
+              // To make sure that strange formats with alpha have that option set (CIELAB etc with alpha, does that exist?)
+              ColorManager.SourceOptions := ColorManager.SourceOptions + [coAlpha];
+            if ioMinIsWhite in FImageProperties.Options then
+              ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
 
-            if FImageProperties.ColorScheme in [csG, csGA, csIndexed, csIndexedA] then begin
-              // Monochrome images are handled just like indexed images (a gray scale palette is used).
-
-              // TargetBitsPerSample needs to correspond to the TargetPixelFormat
-              // or else the image will not be painted correctly.
-              {$IFNDEF FPC}
-              if (FImageProperties.BitsPerSample >= 5) and (FImageProperties.BitsPerSample <= 64) then
-                ColorManager.TargetBitsPerSample := 8
-              else if FImageProperties.BitsPerSample in [2, 3, 4] then
-                ColorManager.TargetBitsPerSample := 4
-              else // 1 BitsPerSample, or values > 64 which we don't support and will throw an error
-                ColorManager.TargetBitsPerSample := FImageProperties.BitsPerSample;
-
-              ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-              if (FImageProperties.SamplesPerPixel > 1) and not FImageProperties.HasAlpha then begin
-                // There are extra samples but apparently not a normal alpha channel.
-                // We need to make sure these extra samples get skipped.
-                ColorManager.TargetSamplesPerPixel := 1;
-              end;
-
-              if (FImageProperties.ColorScheme = csGA) and (FImageProperties.BitsPerSample = 8) then begin
-                // Need to convert to BGRA to be able to show alpha
-                ColorManager.TargetColorScheme := csBGRA;
-                ColorManager.TargetSamplesPerPixel := 4;
-              end
-              else
-                ColorManager.TargetColorScheme := csIndexed;
-              {$ELSE}
-              ColorManager.TargetBitsPerSample := 8;
-              if FImageProperties.HasAlpha then begin
-                ColorManager.TargetSamplesPerPixel := 4;
-                ColorManager.TargetColorScheme := csBGRA;
-              end
-              else begin
-                ColorManager.TargetSamplesPerPixel := 3;
-                ColorManager.TargetColorScheme := csBGR;
-              end;
-              {$ENDIF}
-              if ioSeparatePlanes in FImageProperties.Options then begin
-                // Only possible for Grayscale or Indexed with alpha.
-                ColorManager.SourceOptions := ColorManager.SourceOptions + [coSeparatePlanes];
-              end;
-              if ioMinIsWhite in FImageProperties.Options then
-                ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
-            end
-            else begin
-              // Assume we want BGR(A) for everything else
-
-              // TargetBitsPerSample needs to correspond to the TargetPixelFormat
-              // or else the image will not be painted correctly.
-              // For BGR/RGB  we are always converting to 8 bits
-              // since target 1, 4 bits would need palette handling.
-              ColorManager.TargetBitsPerSample := 8;
-
-              if FImageProperties.HasAlpha then
-                // Note that if we wanted to add alpha where the source doesn't
-                // have alpha we would need to add the next line:
-                // ColorManager.TargetSamplesPerPixel := 4;
-                ColorManager.TargetColorScheme := csBGRA
-              else
-                ColorManager.TargetColorScheme := csBGR;
-
-              case FImageProperties.ColorScheme of
-                csYCbCr:
-                  begin
-                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRSUBSAMPLING, @FHorSubSampling, @FVertSubSampling);
-                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRPOSITIONING, @FYcbCrPositioning);
-                    TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRCOEFFICIENTS, @Luma);
-                    // Copy luma
-                    Move(Luma^,FLuma,SizeOf(TLuma));
-                    ColorManager.SetYCbCrParameters([FLuma.LumaRed, FLuma.LumaGreen, FLuma.LumaBlue], FHorSubSampling, FVertSubSampling);
-                    if (FImageProperties.Compression = ctJPEG) and not (ioTiled in FImageProperties.Options) then begin
-                      // Let the Jpeg Lib do the conversion from YCbCr to RGB for us
-                      TIFFSetField(TIFFImage, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
-                      ColorManager.SourceColorScheme := csRGB;
+            case FImageProperties.ColorScheme of
+              csYCbCr:
+                begin
+                  TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRSUBSAMPLING, @FHorSubSampling, @FVertSubSampling);
+                  TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRPOSITIONING, @FYcbCrPositioning);
+                  TIFFGetFieldDefaulted(TIFFImage, TIFFTAG_YCBCRCOEFFICIENTS, @Luma);
+                  // Copy luma
+                  Move(Luma^,FLuma,SizeOf(TLuma));
+                  ColorManager.SetYCbCrParameters([FLuma.LumaRed, FLuma.LumaGreen, FLuma.LumaBlue], FHorSubSampling, FVertSubSampling);
+                  if (FImageProperties.Compression = ctJPEG) and not (ioTiled in FImageProperties.Options) then begin
+                    // Let the Jpeg Lib do the conversion from YCbCr to RGB for us
+                    TIFFSetField(TIFFImage, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
+                    ColorManager.SourceColorScheme := csRGB;
+                  end;
+                end;
+              csCIELab,
+              csICCLab,
+              csITULab:
+                begin
+                  if FImageProperties.SamplesPerPixel >= 3 then begin
+                    if FImageProperties.ColorScheme = csCIELab then // Not sure about this.
+                      ColorManager.SourceOptions := ColorManager.SourceOptions +
+                        [coLabByteRange]
+                    else if FImageProperties.ColorScheme = csICCLab then
+                      ColorManager.SourceOptions := ColorManager.SourceOptions +
+                        [coLabByteRange, coLabChromaOffset]
+                  end
+                  else begin
+                    // The one example I have has a range from light=1 to dark= 254
+                    // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
+                    Include(FImageProperties.Options, ioMinIsWhite);
+                    ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
+                  end;
+                end;
+              csUnknown: // Do a simple guess what color scheme it could be.
+                begin
+                  if FImageProperties.BitsPerSample in [8, 16] then
+                    case FImageProperties.SamplesPerPixel of
+                      1:
+                        begin
+                          ColorManager.SourceColorScheme := csG;
+                        end;
+                      3:
+                        begin
+                          ColorManager.SourceColorScheme := csRGB;
+                        end;
+                      4:
+                        begin
+                          ColorManager.SourceColorScheme := csRGBA;
+                        end;
                     end;
-                  end;
-                csCIELab,
-                csICCLab,
-                csITULab:
-                  begin
-                    if FImageProperties.SamplesPerPixel >= 3 then begin
-                      ColorManager.TargetSamplesPerPixel := 3 + Ord(FImageProperties.HasAlpha);
-                      if FImageProperties.ColorScheme = csCIELab then // Not sure about this.
-                        ColorManager.SourceOptions := ColorManager.SourceOptions +
-                          [coLabByteRange]
-                      else if FImageProperties.ColorScheme = csICCLab then
-                        ColorManager.SourceOptions := ColorManager.SourceOptions +
-                          [coLabByteRange, coLabChromaOffset]
-                    end
-                    else begin
-                      {$IFNDEF FPC}
-                      ColorManager.TargetSamplesPerPixel := 1;
-                      ColorManager.TargetColorScheme := csG;
-                      {$ELSE}
-                      // Fpc: convert CIELAB gray to BGR and pretend that source is grayscale
-                      ColorManager.SourceColorScheme := csG;
-                      ColorManager.TargetSamplesPerPixel := 3;
-                      {$ENDIF}
-                      // The one example I have has a range from light=1 to dark= 254
-                      // It has an extra TIFF tag: Halftone Hints: light 1 dark 254
-                      Include(FImageProperties.Options, ioMinIsWhite);
-                      ColorManager.SourceOptions := ColorManager.SourceOptions + [coMinIsWhite];
-                    end;
-                  end;
-                csUnknown: // Do a simple guess what color scheme it could be.
-                  begin
-                    if FImageProperties.BitsPerSample in [8, 16] then
-                      case FImageProperties.SamplesPerPixel of
-                        1:
-                          begin
-                            ColorManager.SourceColorScheme := csG;
-                            ColorManager.TargetColorScheme := csG;
-                          end;
-                        3:
-                          begin
-                            ColorManager.SourceColorScheme := csRGB;
-                            ColorManager.TargetColorScheme := csBGR;
-                          end;
-                        4:
-                          begin
-                            ColorManager.SourceColorScheme := csRGBA;
-                            ColorManager.TargetColorScheme := csBGRA;
-                          end;
-                      end;
-                  end;
-              else
-                // Tiff can have extra samples that are not normal alpha channels.
-                // Catch those so we can interpret it at least partially.
-                // That is the reason that we use explicit numbers here and not SamplesPerPixel.
-                if FImageProperties.HasAlpha then
-                  ColorManager.TargetSamplesPerPixel := 4
-                else
-                  ColorManager.TargetSamplesPerPixel := 3;
-              end;
-            end;
+                end;
+            end; // case
 
+            ColorManager.SelectTarget;
             PixelFormat := ColorManager.TargetPixelFormat;
             // TIFF can handle sizes larger than Max(Integer) on 32 bits
             // We probably won't be able to handle the amount of memory needed
@@ -2917,6 +2844,7 @@ begin
             else
               Self.Height := MaxInt;
 
+            // TODO: Check if it is possible to load palette data before selecting target color scheme!
             if FImageProperties.ColorScheme in [csIndexed, csIndexedA] then
             begin
               {$ifndef DELPHI_6_UP}
@@ -2930,39 +2858,14 @@ begin
 
               if GotPalette > 0 then
               begin
-                {$IFNDEF FPC}
-                if FImageProperties.BitsPerSample in [9..16] then begin
-                {$ENDIF}
-                  // Palette images with more than 8 bits per sample are converted
-                  // to RGB since Windows palette can have a maximum of 8 bits (256) entries
-                  // and downscaling a palette is very complicated.
-                  ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
-                  if not FImageProperties.HasAlpha then begin
-                    if ColorManager.TargetColorScheme <> csBGR then begin
-                      // Only change if needed since changing PixelFormat might be slow
-                      ColorManager.TargetColorScheme := csBGR;
-                      ColorManager.TargetBitsPerSample := 8;
-                      ColorManager.TargetSamplesPerPixel := 3;
-                      PixelFormat := ColorManager.TargetPixelFormat;
-                    end
-                  end
-                  else begin
-                    // Extra alpha channel present
-                    if ColorManager.TargetColorScheme <> csBGRA then begin
-                      // Only change if needed since changing PixelFormat might be slow
-                      ColorManager.TargetColorScheme := csBGRA;
-                      ColorManager.TargetBitsPerSample := 8;
-                      ColorManager.TargetSamplesPerPixel := 4;
-                      PixelFormat := ColorManager.TargetPixelFormat;
-                    end
-                  end
-                {$IFNDEF FPC}
-                end
-                else
+                ColorManager.SetSourcePalette([RedMap, GreenMap, Bluemap], pfPlane16Triple);
+                // We only need to create a palette if the target also will be indexed
+                // TODO: ColorManager should handle creating color palette because it
+                // knows best what to do if target bits per sample is different than source.
+                if ColorManager.TargetColorScheme = csIndexed then
                   // Create the palette from the three maps.
                   Palette := ColorManager.CreateColorPalette([RedMap, GreenMap, Bluemap],
                     pfPlane16Triple, 1 shl FImageProperties.BitsPerPixel, True);
-                {$ENDIF}
               end
               else // If there was no palette then use a grayscale palette.
                 Palette := ColorManager.CreateGrayscalePalette(False);
