@@ -1252,6 +1252,10 @@ begin
     else
       sgImgProperties.Cells[1,InfoRow] := CColorScheme[ImgProperties.ColorScheme];
     IncInfoRow;
+    if ImgProperties.HasAlpha then begin
+      sgImgProperties.Cells[0,InfoRow] := 'Alpha channel present:';
+      sgImgProperties.Cells[1,InfoRow] := 'True'; IncInfoRow;
+    end;
     sgImgProperties.Cells[0,InfoRow] := 'Bits per pixel:';
     sgImgProperties.Cells[1,InfoRow] := IntToStr(ImgProperties.BitsPerPixel); IncInfoRow;
     sgImgProperties.Cells[0,InfoRow] := 'Bits per sample:';
@@ -1307,10 +1311,6 @@ begin
     if ImgProperties.Interlaced then begin
       sgImgProperties.Cells[0,InfoRow] := 'Interlaced:';
       sgImgProperties.Cells[1,InfoRow] := 'Yes'; IncInfoRow;
-    end;
-    if ImgProperties.HasAlpha then begin
-      sgImgProperties.Cells[0,InfoRow] := 'Has Alpha:';
-      sgImgProperties.Cells[1,InfoRow] := 'True'; IncInfoRow;
     end;
     if ImgProperties.Options <> [] then begin
       sgImgProperties.Cells[0,InfoRow] := 'Image settings:';
