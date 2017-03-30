@@ -774,10 +774,6 @@ begin
               AlphaIndex := FIffProperties.TransparentColor
             else
               AlphaIndex := -1;
-            // Needed for the ColorManager Ham converter:
-            ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-            // Target ColorScheme either RGB(A) or BGR(A) defined when calling
-            // the conversion routine (for now).
           end
           else begin
             nSamples := FImageProperties.SamplesPerPixel;
@@ -862,17 +858,15 @@ begin
                     // Unpack sham palette for current line
                     UnpackPal(FIffProperties.ShamOfs, y, True);
                   end;
+                  // This special Ham converter only converts to targets
+                  // BGR(A) or RGB(A) 8 bits per sample. If we ever want to support
+                  // other targets then this function will have to be adapted.
                   ColorManager.ConvertHam(PixelBuf, Scanline[y], Width, FIffProperties.nPlanes,
                     AlphaIndex, PByte(ExtraPal));
                 end
                 else begin
                   // Convert RGB(A) to BGR(A)
-                  case FImageProperties.ColorScheme of
-                    csRGB: RGBToBGR(PixelBuf, Width, 1);
-                    csRGBA:RGBAToBGRA(PixelBuf, Width, 1);
-                  end;
-                  // Finally Copy this line of Pixels to the Scanline
-                  Move(PixelBuf^, Scanline[y]^, Cardinal(Width)*nSamples);
+                  ColorManager.ConvertRow([PixelBuf], Scanline[y], Width, $ff);
                 end;
               end
               else begin // RGB Compression, RGBN/RGB8 Iff type
@@ -893,7 +887,7 @@ begin
                     end;
                 end;
                 // Finally Copy this line of Pixels to the Scanline
-                Move(PixelBuf^, Scanline[y]^, Cardinal(Width)*nSamples);
+                ColorManager.ConvertRow([PixelBuf], Scanline[y], Width, $ff);
               end;
             end; // for y
           until FixIncorrectCompression = False;
@@ -911,27 +905,9 @@ begin
             ColorManager.SetSourcePalette([GrayPal], pfInterlaced8Triple);
           end;
 
-          // Set up ColorManager
-          ColorManager.SourceBitsPerSample := 8;
-          ColorManager.SourceSamplesPerPixel := 1;
-          ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
-          ColorManager.TargetBitsPerSample := 8;
-          if FImageProperties.ColorScheme = csIndexed then begin
-            ColorManager.TargetSamplesPerPixel := 3;
-            ColorManager.TargetColorScheme := csBGR;
-          end
-          else begin
-            ColorManager.TargetSamplesPerPixel := 4;
-            ColorManager.TargetColorScheme := csBGRA;
-          end;
-
           if FIffProperties.IffType = itPbm then begin
             // Number of bytes for a line of pixels
-            {.$IFDEF FPC}
             PixelLineSize := Width * ColorManager.TargetSamplesPerPixel;
-            {.$ELSE}
-            //PixelLineSize := Width;
-            {.$ENDIF}
 
             // Get size of 1 line of data aligned on 16 bytes:
             LineSize := (Width + 15) div 16 * 16;
@@ -981,14 +957,7 @@ begin
                 else
                   if not ReadIffData(@FData, LineSize, LineBuf) = LineSize then
                     raise EgexInvalidGraphic.CreateFmt(gesStreamReadError, [IffType]);
-                {.$IFDEF FPC}
-                ColorManager.ConvertRow([LineBuf], PixelBuf, Width, $ff);
-                // Finally Copy this line of Pixels to the Scanline
-                Move(PixelBuf^, Scanline[y]^, PixelLineSize);
-                {.$ELSE}
-                // Copy this line of palette data to the Scanline
-                //Move(LineBuf^, Scanline[y]^, PixelLineSize);
-                {.$ENDIF}
+                ColorManager.ConvertRow([LineBuf], Scanline[y], Width, $ff);
               end; // for y
             until FixIncorrectCompression = False;
           end
@@ -1011,11 +980,7 @@ begin
 
             PixelLineSize := LineSize * TotalPlanes;
             GetMem(LineBuf, PixelLineSize);
-            {.$IFDEF FPC}
             ScanlineSize := Cardinal(Width) * BytesPerPixel;
-            {.$ELSE}
-            //ScanlineSize := Width;
-            {.$ENDIF}
             GetMem(PixelBuf, ScanlineSize);
 
             if FIffProperties.CompressionType = cmpVDAT then begin
@@ -1132,7 +1097,6 @@ begin
                   end;
               end;
               // Convert Indexed
-              {.$IFDEF FPC}
               if ExtraPalOfs <> nil then begin
                 if PchgMask <> nil then begin
                   // Read PCHG Palette for current line
@@ -1148,14 +1112,6 @@ begin
                 ColorManager.SetSourcePalette([ExtraPal], pfInterlaced8Triple);
               end;
               ColorManager.ConvertRow([PixelBuf], Scanline[y], Width, $ff);
-              // Finally Copy this line of Pixels to the Scanline
-              //Move(PixelBuf^, Scanline[y]^, ScanlineSize);
-              {.$ELSE}
-              // Copy this line of palette data to the Scanline
-              //Move(LineBuf^, Scanline[y]^, ScanlineSize);
-              {.$ENDIF}
-              // Finally Copy this line of Pixels to the Scanline
-              //Move(PixelBuf^, Scanline[y]^, Width*FImageProperties.SamplesPerPixel);
           end; // for y
         end; // else ilbm
       end; // csIndexed case
@@ -1198,16 +1154,42 @@ begin
   EHBPal := nil;
   CMapOfs := nil;
   try
+    // Set up ColorManager
+    ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
+    ColorManager.SourceBitsPerSample := 8;
     case FImageProperties.ColorScheme of
-      csRGB: PixelFormat := pf24Bit;
-      csRGBA: PixelFormat := pf32Bit;
-      csIndexed: PixelFormat := pf24Bit;
-      csIndexedA: PixelFormat := pf32Bit;
+      csRGB:
+        ColorManager.SourceSamplesPerPixel := 3;
+      csRGBA:
+        ColorManager.SourceSamplesPerPixel := 4;
+      csIndexed:
+        ColorManager.SourceSamplesPerPixel := 1;
+      csIndexedA:
+        ColorManager.SourceSamplesPerPixel := 2;
     end;
+    // RGB8 and RGBN already have a first conversion step that converts to BGR
+    // to make sure that the final conversion in ConvertRow doesn't convert to RGB
+    // we have to set source scheme  here to csBGR.
+    // No alpha is used here so we don't check if we need to set csBGRA.
+    if FIffProperties.IffType in [itRGB8, itRGBN] then
+      ColorManager.SourceColorScheme := csBGR;
+
+    if (FIffProperties.PchgSize > 0) or (FIffProperties.CtblSize > 0) then begin
+      // Amiga has some strange changing palette image types that can't be converted
+      // to an indexed target. Setting the below flag notifies the ColorManager of this.
+      ColorManager.SourceOptions := ColorManager.SourceOptions + [coPaletteChanges];
+    end;
+
+    // Select target color scheme
+    ColorManager.SelectTarget;
+    PixelFormat := ColorManager.TargetPixelFormat;
+    // Set image dimensions
     Width := FImageProperties.Width;
     Height := FImageProperties.Height;
+
     if (Width <= 0) or (Height <= 0) then
       Exit;  // TODO: Add warning
+
     case FIffProperties.CompressionType of
       cmpByteRun1:
         begin
