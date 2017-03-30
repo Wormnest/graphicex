@@ -1093,53 +1093,15 @@ begin
       // Set up Color Manager
       ColorManager.SourceOptions := [];
       ColorManager.SourceBitsPerSample := 8;
-      ColorManager.TargetBitsPerSample := 8;
-      // Since layers without alpha will already be converted to with alpha before
-      // the ColorManager gets at it, we will set Source and Target the same:
+      // Note: layers without alpha will already be converted to with alpha before
+      // the ColorManager gets at it
       ColorManager.SourceSamplesPerPixel := FImageProperties.SamplesPerPixel;
-      ColorManager.TargetSamplesPerPixel := FImageProperties.SamplesPerPixel;
-      case XcfLayer.LayerType of
-        Ord(GIMP_RGBA_IMAGE):
-          begin
-            ColorManager.SourceColorScheme := csRGBA;
-            ColorManager.TargetColorScheme := csBGRA;
-          end;
-        Ord(GIMP_RGB_IMAGE):
-          begin
-            ColorManager.SourceColorScheme := csRGBA;
-            ColorManager.TargetColorScheme := csBGRA;
-          end;
-        Ord(GIMP_GRAYA_IMAGE):    // Gray with alpha
-          begin
-            ColorManager.SourceColorScheme := csGA;
-            ColorManager.TargetColorScheme := csBGRA;
-            ColorManager.TargetSamplesPerPixel := 4;
-          end;
-        Ord(GIMP_GRAY_IMAGE):     // Grayscale without alpha
-          begin
-            ColorManager.SourceColorScheme := csGA;
-            ColorManager.TargetColorScheme := csBGRA;
-            ColorManager.TargetSamplesPerPixel := 4;
-          end;
-        Ord(GIMP_INDEXEDA_IMAGE): // Indexed with alpha
-          begin
-            ColorManager.SourceColorScheme := csIndexedA;
-            ColorManager.TargetColorScheme := csBGRA;
-            ColorManager.TargetSamplesPerPixel := 4;
-          end;
-        Ord(GIMP_INDEXED_IMAGE):  // Indexed without alpha
-          begin
-            ColorManager.SourceColorScheme := csIndexedA;
-            ColorManager.TargetColorScheme := csBGRA;
-            ColorManager.TargetSamplesPerPixel := 4;
-          end;
-      else
-        WarningMessage(ResXcfError_UnknownColorScheme);
-        Exit;
-      end;
+      ColorManager.SourceColorScheme := FImageProperties.ColorScheme;
 
       // Set pixel format before size to avoid possibly large conversion operation.
+      ColorManager.SelectTarget;
       Self.PixelFormat := ColorManager.TargetPixelFormat;
+      // Image dimensions
       Self.Width := FImageProperties.Width;
       Self.Height := FImageProperties.Height;
 
