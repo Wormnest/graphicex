@@ -231,6 +231,7 @@ type
     coInvertedCMYK,   // Jpeg: CMYK values are inverted (PhotoShop does this)
     coBitsLSB2MSB,    // Get bits from LSB to MSB instead of the reverse
     coInterlaced,     // Image is interlaced (PNG). We need to know this when deciding target format
+    coPaletteChanges, // With certain Amiga modes the palette changes per scanline. We can't use Indexed as target in this case
     coNeedsScaling    // Bits need to be scaled up or down, not using the full BitsPerSample
                       // Note: This is not exactly the same as ExtraBPP since the Max value may
                       // not be a value that exactly fits in a certain number of bits
@@ -8682,9 +8683,17 @@ begin
   case FSourceScheme of
     csIndexed:
       begin
+        if coPaletteChanges in FSourceOptions then begin
+          // With a palette that can change per scanline we can't use Indexed as target
+          // since we won't have a normal palette to work with (would have to construct
+          // a palette which we won't do at least for now). Instead convert to BGR.
+          FTargetScheme := csBGR;
+          FTargetBPS := 8;
+          FTargetSPP := 3;
+        end
         // TODO: How to distinguish PCX case from extra non color channels?
         // Probably very rare for indexed.
-        if (FSourceSPP in [2..4]) and (FSourceBPS in [1..4, 8]) then begin
+        else if (FSourceSPP in [2..4]) and (FSourceBPS in [1..4, 8]) then begin
           // Rare case, e.g. PCX with multiple planes that need to be combined into one index into a palette
           {$IFNDEF FPC} // Delphi
           FTargetSPP := 1;
@@ -8806,7 +8815,7 @@ begin
   // Note: If source uses separate planes we may be able to do a simplified
   // conversion, however it might be too much work for little gain.
   DisallowedOptions := [coApplyGamma, coNeedByteSwap, coLabByteRange, coLabChromaOffset,
-    coSeparatePlanes, coMinIsWhite, coInvertedCMYK, coInterlaced, coNeedsScaling];
+    coSeparatePlanes, coMinIsWhite, coInvertedCMYK, coInterlaced, coPaletteChanges, coNeedsScaling];
   if FTargetBPS <= 8 then
     // No byte swapping needs to be done when all samples are one byte or less.
     DisallowedOptions := DisallowedOptions - [coNeedByteSwap];
