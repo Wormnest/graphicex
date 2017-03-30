@@ -8740,8 +8740,6 @@ begin
     csBGR,
     csRGB,
     csCMYK,
-    csCIELab,
-    csITULab,
     csYCbCr,
     csPhotoYCC:
       begin
@@ -8756,6 +8754,29 @@ begin
         {$ENDIF ~FPC}
         begin
           FTargetBPS := 8;
+          FTargetSPP := 3;
+        end;
+      end;
+    csCIELab,
+    csICCLab,
+    csITULab:
+      begin
+        FTargetBPS := 8;
+        {$IFNDEF FPC}
+        if FSourceSPP = 1 then begin
+          // e.g. this example: CIELAB_1BPS (oobr).tif
+          FTargetScheme := csG;
+          FTargetSPP := 1;
+        end
+        else
+        {$ENDIF}
+        if coAlpha in FSourceOptions then begin
+          // e.g. this example: NTV7_Testpattern_masktest_LAB_8bit.tif
+          FTargetScheme := csBGRA;
+          FTargetSPP := 4;
+        end
+        else begin
+          FTargetScheme := csBGR;
           FTargetSPP := 3;
         end;
       end;
