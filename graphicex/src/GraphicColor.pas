@@ -364,6 +364,10 @@ type
     procedure RowConvertPhotoYCC2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertYCbCr2BGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowConvertYCbCr2RGB(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    // Common and "simple" interleaved RGB(A) to BGR(A) or vice versa fast conversion routines
+    // Note: Mask is ignored as are any other Source or Target Options.
+    procedure RowSwapRGBAndBGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+    procedure RowSwapRGBAAndBGRA(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     // "no conversion" Move routines
     procedure RowMove8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
     procedure RowMove16(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
@@ -8338,6 +8342,20 @@ end;
 
 //------------------------------------------------------------------------------
 
+// Common and "simple" interleaved RGB(A) to BGR(A) or vice versa fast conversion routines
+// Note: Mask is ignored as are any other Source or Target Options.
+procedure TColorManager.RowSwapRGBAndBGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  RGBToBGR(Source[0], Count, 1);
+  Move(Source[0]^, Target^, 3 * Count);
+end;
+
+procedure TColorManager.RowSwapRGBAAndBGRA(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
+begin
+  RGBAToBGRA(Source[0], Count, 1);
+  Move(Source[0]^, Target^, 4 * Count);
+end;
+
 procedure TColorManager.RowMove8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 begin
   Move(PByte(Source[0])^, Target^, Count);
@@ -8900,10 +8918,22 @@ begin
     csRGB,
     csRGBA:
       case FTargetScheme of
-        csRGB: FRowConversion := RowConvertRGB2RGB;
-        csRGBA: FRowConversion := RowConvertRGB2RGB;
-        csBGR: FRowConversion := RowConvertRGB2BGR;
-        csBGRA: FRowConversion := RowConvertRGB2BGR;
+        csRGB,
+        csRGBA:
+          FRowConversion := RowConvertRGB2RGB;
+        csBGR,
+        csBGRA:
+          begin
+            FRowConversion := RowConvertRGB2BGR;
+            // See if a faster conversion is possible
+            if (FSourceBPS = 8) and (FTargetBPS = 8) and (FSourceExtraBPP = 0) and
+              (FSourceSPP = FTargetSPP) and (FSourceSPP in [3, 4]) then begin
+              if FSourceOptions = [] then // No alpha channel, no other options set
+                FRowConversion := RowSwapRGBAndBGR
+              else if FSourceOptions = [coAlpha] then // With alpha channel, no other options set
+                FRowConversion := RowSwapRGBAAndBGRA;
+            end;
+          end;
         csCMY: ;
         csCMYK: ;
         csCMYKA: ;
@@ -8914,11 +8944,24 @@ begin
     csBGR:
       case FTargetScheme of
         csRGB,
-        csRGBA: FRowConversion := RowConvertBGR2RGB;
+        csRGBA:
+          begin
+            FRowConversion := RowConvertBGR2RGB;
+            // See if a faster conversion is possible
+            if (FSourceBPS = 8) and (FTargetBPS = 8) and (FSourceExtraBPP = 0) and
+              (FSourceSPP = FTargetSPP) and (FSourceSPP in [3, 4]) then begin
+              if FSourceOptions = [] then // No alpha channel, no other options set
+                FRowConversion := RowSwapRGBAndBGR
+              else if FSourceOptions = [coAlpha] then // With alpha channel, no other options set
+                FRowConversion := RowSwapRGBAAndBGRA;
+            end;
+          end;
         csBGR,
         csBGRA:
           // Since the order of the colors doesn't change BGR -> BGR should be the same
           // as RGB -> RGB and RowConvertBGR2BGR is less complete than RGB2RGB
+          // Note: I can think of one case where it DOES MATTER: when the samples
+          // of R, G, and B don't have the same number of bits, e.g. R5G6B7.
           FRowConversion := RowConvertRGB2RGB;
           //FRowConversion := RowConvertBGR2BGR;
         csCMY: ;
