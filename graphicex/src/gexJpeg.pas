@@ -134,11 +134,13 @@ const
 function gexJpegFillInputBuffer(cinfo: j_decompress_ptr): Boolean; cdecl;
 var
   JpegData: PJpegSourceData;
-  BufBytes: UInt64;
+  BufBytes: Int64;
 begin
   JpegData := PJpegSourceData(cinfo.Src);
   // Compute number of available bytes
   if JpegData.jpeg_pos + JpegData.jpeg_blocksize >= JpegData.jpeg_filesize then
+    // Note that in a corrupt image jpeg_pos can be > than jpeg_filesize.
+    // For that reason BufBytes needs to be Int64 and can't be unsigned.
     BufBytes := JpegData.jpeg_filesize - JpegData.jpeg_pos
   else
     BufBytes := JpegData.jpeg_blocksize;
