@@ -347,7 +347,6 @@ var
   PropertiesOK: Boolean;
   row_stride: Cardinal;
   buffer: array [0..0] of PByte;
-  ConvertScanline: TColorConverter;
   {$IFDEF JPEG_MEASURE_SPEED}
   TempTick: Int64;
   {$ENDIF}
@@ -370,61 +369,46 @@ begin
       // Jpeg's don't have transparency
       Self.Transparent := False;
 
-      // From ReadImageProperties we already know what the OutColorSpace is gonna be
+      // From ReadImageProperties we already know what the OutColorSpace is going to be.
+      // Note that this is not necessarily the same as FImageProperties.ColorScheme,
+      // that's way the Source properties are explicitly set based on out_color_space.
+      Colormanager.SourceBitsPerSample := FImageProperties.BitsPerSample;
       case FJpegInfo.out_color_space of
       JCS_RGB:
         begin
-          ConvertScanline := Jpeg_RGB2BGR;
-          PixelFormat := pf24Bit;
+          ColorManager.SourceColorScheme := csRGB;
+          ColorManager.SourceSamplesPerPixel := 3;
         end;
       JCS_GRAYSCALE:
         begin
-          {$IFNDEF FPC}
-          ConvertScanline := Jpeg_Copy;
-          PixelFormat := pf8Bit;
-          Palette := ColorManager.CreateGrayScalePalette(False);
-          {$ELSE}
-          ConvertScanline := Jpeg_ConvertRow;
           ColorManager.SourceColorScheme := csG;
-          Colormanager.SourceBitsPerSample := FImageProperties.BitsPerSample;
           ColorManager.SourceSamplesPerPixel := 1;
-          ColorManager.TargetColorScheme := csBGR;
-          ColorManager.TargetBitsPerSample := 8;
-          ColorManager.TargetSamplesPerPixel := 3;
-          PixelFormat := pf24Bit;
-          {$ENDIF}
         end;
       JCS_CMYK, JCS_YCCK:
         begin
-          ConvertScanline := Jpeg_ConvertRow;
           ColorManager.SourceColorScheme := csCMYK;
-          Colormanager.SourceBitsPerSample := FImageProperties.BitsPerSample;
           ColorManager.SourceSamplesPerPixel := 4;
-          ColorManager.TargetColorScheme := csBGR;
-          ColorManager.TargetBitsPerSample := 8;
-          ColorManager.TargetSamplesPerPixel := 3;
           if FJpegInfo.saw_Adobe_marker then
             // Adobe PhotoShop uses inverted CMYK
             ColorManager.SourceOptions := ColorManager.SourceOptions + [coInvertedCMYK];
-          PixelFormat := pf24Bit;
         end;
       JCS_YCBCR:
         begin
-          ConvertScanline := Jpeg_ConvertRow;
           ColorManager.SourceColorScheme := csYCBCR;
-          Colormanager.SourceBitsPerSample := FImageProperties.BitsPerSample;
           ColorManager.SourceSamplesPerPixel := 3;
-          ColorManager.TargetColorScheme := csBGR;
-          ColorManager.TargetBitsPerSample := 8;
-          ColorManager.TargetSamplesPerPixel := 3;
-          PixelFormat := pf24Bit;
         end;
       else
         // If we don't know what to do then use an empty converter:
         // just copy without any conversion.
-        ConvertScanline := Jpeg_Copy;
-        PixelFormat := pf24Bit; // Assume 24 bit
+        ColorManager.SourceColorScheme := csRGB;
+        ColorManager.SourceSamplesPerPixel := 3;
       end;
+      // Select target color scheme
+      ColorManager.SelectTarget;
+      PixelFormat := ColorManager.TargetPixelFormat;
+      // Palette has to be set after setting PixelFormat
+      if ColorManager.TargetColorScheme in [csG, csIndexed] then
+        Palette := ColorManager.CreateGrayScalePalette(False);
 
       // Set buffer to nil so in case of an error we will know whether it's assigned or not
       buffer[0] := nil;
@@ -474,8 +458,8 @@ begin
           // by jpeg_read_scanlines. Thus we need to subtract 1* to get the
           // correct scanline number. * Or the number of scanlines we read at one time.
           {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
-          ConvertScanline(buffer[0], ScanLine[FJpegInfo.output_scanline-1],
-            FJpegInfo.output_width, Cardinal(FJpegInfo.output_components));
+          // Convert this row to our target color scheme.
+          ColorManager.ConvertRow([buffer[0]], ScanLine[FJpegInfo.output_scanline-1], FJpegInfo.output_width, $ff);
           {$IFDEF JPEG_MEASURE_SPEED}Inc(FConversionTicks, GetTickCount64 - TempTick);{$ENDIF}
         end;
         {$IFDEF FPC}
