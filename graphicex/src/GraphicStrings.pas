@@ -145,6 +145,9 @@ resourcestring
   // memory access errors
   gesMemoryAccess = 'We tried to access a memory location outside the %s image buffer.'#10'Most likely this is caused by a corrupt image.';
 
+  // Image saving errors
+  gesStreamWriteError = 'Error writing to stream. Maybe drive is full or write protected.';
+
 //----------------------------------------------------------------------------------------------------------------------
 
 implementation
