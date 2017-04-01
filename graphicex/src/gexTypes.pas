@@ -34,6 +34,7 @@ type
   EgexGraphicCompressionError = class(EgexBaseException);
   EgexStretchException = class(EgexBaseException);
   EgexMemoryAccessException = class(EgexBaseException);
+  EgexSaveError = class(EgexBaseException);
 
   // Arrays for easy access to some base types.
   TCardinalArray = array of Cardinal;
