@@ -32,8 +32,9 @@ Supported image formats
     + 1, 8 bits per sample
     + Uncompressed, RLE
 * **Jpeg images (.jpeg, .jpg, .jpe, .jfif)**
-    + RGB, Grayscale, CMYK
+    + RGB, Grayscale, CMYK, YCbCr, YCCk
 	+ 8 bits per sample
+	+ Jpeg compression
 	+ Uses libjpeg
 * **Portable network graphic images (.png)**
     + RGB(A), Indexed(A), Grayscale(A)
