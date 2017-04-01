@@ -426,6 +426,10 @@ type
       In the future this define should be replaced by descendant classes.
     }
     procedure SelectTarget;
+    // Set a specific target, e.g. for saving.
+    procedure SelectTargetRGB8;
+    // Set source settings based on the specified PixelFormat.
+    procedure SetSourceFromPixelFormat(APixelFormat: TPixelFormat);
 
     property SourceBitsPerSample: Byte read FSourceBPS write SetSourceBitsPerSample;
     property SourceColorScheme: TColorScheme read FSourceScheme write SetSourceColorScheme;
@@ -8831,6 +8835,71 @@ begin
   // Target PixelFormat is requested. In that case we would not have to call
   // this function from the conversion routine. Instead it could stay a protected
   // method inside the ColorManager.
+end;
+
+//------------------------------------------------------------------------------
+
+// Set a specific target, e.g. for saving.
+procedure TColorManager.SelectTargetRGB8;
+begin
+  // TODO: Handling of certain options like coNeedByteSwap.
+  FTargetScheme := csRGB;
+  FTargetBPS := 8;
+  FTargetSPP := 3;
+  FTargetExtraBPP := 0;
+  FTargetOptions := [];
+end;
+
+//------------------------------------------------------------------------------
+
+// Set source settings based on the specified PixelFormat.
+procedure TColorManager.SetSourceFromPixelFormat(APixelFormat: TPixelFormat);
+begin
+  FSourceOptions := [];
+  case APixelFormat of
+    pf1Bit:
+      begin
+        FSourceBPS := 1;
+        FSourceSPP := 1;
+        FSourceScheme := csIndexed;
+      end;
+    pf4Bit:
+      begin
+        FSourceBPS := 4;
+        FSourceSPP := 1;
+        FSourceScheme := csIndexed;
+      end;
+    pf8Bit:
+      begin
+        FSourceBPS := 8;
+        FSourceSPP := 1;
+        FSourceScheme := csIndexed;
+      end;
+    pf15Bit, pf16Bit:
+      begin
+        FSourceBPS := 5;
+        FSourceSPP := 3;
+        FSourceScheme := csBGR;
+      end;
+    pf24Bit:
+      begin
+        FSourceBPS := 8;
+        FSourceSPP := 3;
+        FSourceScheme := csBGR;
+      end;
+    pf32Bit:
+      begin
+        FSourceBPS := 8;
+        FSourceSPP := 4;
+        FSourceScheme := csBGRA;
+        FSourceOptions := [coAlpha];
+      end;
+  else
+    // Guessing...
+    FSourceBPS := 8;
+    FSourceSPP := 3;
+    FSourceScheme := csBGR;
+  end;
 end;
 
 //------------------------------------------------------------------------------
