@@ -451,7 +451,9 @@ begin
            * more than one scanline at a time if that's more convenient.
            *}
           {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
-          jpeg_read_scanlines(FJpegInfo, @buffer, 1);
+          if jpeg_read_scanlines(FJpegInfo, @buffer, 1) <> 1 then
+            // This can happen in corrupt images!
+            break;
           {$IFDEF JPEG_MEASURE_SPEED}Inc(FLibJpegTicks, GetTickCount64 - TempTick);{$ENDIF}
 
           // Note: at this moment OutputScanline has already been incremented
