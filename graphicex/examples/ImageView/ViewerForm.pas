@@ -341,7 +341,10 @@ end;
 procedure JpegMessageInterceptor(const AMessage: string; const AMessageLevel: Integer;
   var AContinue: Boolean);
 begin
-  ErrorList.AddObject(Format('LibJpeg message level %d. %s',[AMessageLevel, AMessage]), TObject(AMessageLevel));
+  // Don't add messages at level 3. There can sometimes be a large amount of them
+  // and they are usually not interesting.
+  if AMessageLevel < 3 then
+    ErrorList.AddObject(Format('LibJpeg message level %d. %s',[AMessageLevel, AMessage]), TObject(AMessageLevel));
   // Continue for warnings and informational messages
   AContinue := AMessageLevel >= -1;
 end;
