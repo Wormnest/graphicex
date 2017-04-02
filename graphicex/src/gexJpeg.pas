@@ -35,6 +35,7 @@ type
   TgexJpegImage = class(TGraphicExGraphic)
   private
     FJpegInfo: j_decompress_ptr;
+    FJpegSaveInfo: j_compress_ptr;
     FJpegErr: jpeg_error_mgr_ptr;
     {$IFDEF JPEG_MEASURE_SPEED}
     FLibJpegTicks: Int64;
@@ -47,9 +48,12 @@ type
     FAutoScaleMemoryLimit: UInt64;
   protected
     function InitJpegDecompress(const Memory: Pointer; const Size: Int64): Boolean;
+    function InitJpegCompress(SaveStream: TStream): Boolean;
     function InitJpegErrorManager: jpeg_error_mgr_ptr; virtual;
     function InitJpegSourceManager(var SrcManager: jpeg_source_mgr_ptr;
       const Memory: Pointer; const Size: Int64): Boolean; virtual;
+    function InitJpegDestManager(var DestManager: jpeg_destination_mgr_ptr;
+      OutputStream: TStream): Boolean; virtual;
     procedure Jpeg_RGB2BGR(const ASrcBuf: PByte; const ADestBuf: PByte;
       const ALineWidth, ANumComponents: Cardinal);
     procedure Jpeg_Copy(const ASrcBuf: PByte; const ADestBuf: PByte;
@@ -66,6 +70,7 @@ type
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
     procedure LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0); override;
+    procedure SaveToStream(Stream: TStream); override;
     {$IFDEF JPEG_MEASURE_SPEED}
     property LibJpegTicks: Int64 read FLibJpegTicks;
     property ConversionTicks: Int64 read FConversionTicks;
@@ -93,7 +98,7 @@ uses Graphics,
      jpeg,
      {$ENDIF NEED_TJPEGIMAGE_SAVING}
      {$ENDIF}
-     GraphicStrings, GraphicColor;
+     gexTypes, GraphicStrings, GraphicColor;
 
 const
   BlockSize_FileMapping: Cardinal = High(Integer);
@@ -101,6 +106,7 @@ const
 
 const
   cJpegSOIMarker = $d8ff;
+  OUTPUT_BUF_SIZE = 65536;   // 64K buffer
 
 type
    TShortFileHeader = record
@@ -121,6 +127,14 @@ type
     jpeg_blocksize: Cardinal;
   end;
   PJpegSourceData = ^TJpegSourceData;
+
+  TJpegDestData = record
+    jpeg_dest: jpeg_destination_mgr;
+    // Extra fields we need go here
+    output_stream: TStream;
+    buffer: JOCTET_ptr;
+  end;
+  PJpegDestData = ^TJpegDestData;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                           Jpeg DataSource handlers
@@ -197,6 +211,65 @@ begin
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
+//                           Jpeg DataDest (save) handlers
+
+// See jdatadst.c
+procedure gexJpegInitDest(cinfo: j_compress_ptr); cdecl;
+begin
+  // Don't set output_stream to nil here. If we arrive here output_stream has
+  // already been initialized to a valid stream.
+  //PJpegDestData(cinfo.dest)^.output_stream := nil;
+  PJpegDestData(cinfo.dest)^.buffer := cinfo^.mem^.alloc_small(j_common_ptr(cinfo),
+    JPOOL_IMAGE, OUTPUT_BUF_SIZE * SizeOf(JOCTET));
+  PJpegDestData(cinfo.dest)^.jpeg_dest.next_output_byte :=
+    PJpegDestData(cinfo.dest)^.buffer;
+  PJpegDestData(cinfo.dest)^.jpeg_dest.free_in_buffer := OUTPUT_BUF_SIZE;
+end;
+
+{
+ * Empty the output buffer --- called whenever buffer fills up.
+ *
+ * In typical applications, this should write the entire output buffer
+ * (ignoring the current state of next_output_byte & free_in_buffer),
+ * reset the pointer & count to the start of the buffer, and return TRUE
+ * indicating that the buffer has been dumped.
+}
+function gexJpegEmptyOutputBuffer(cinfo: j_compress_ptr): Boolean; cdecl;
+begin
+  with PJpegDestData(cinfo.dest)^ do
+    if output_stream.Write(buffer^, OUTPUT_BUF_SIZE) <> OUTPUT_BUF_SIZE then
+      raise EgexSaveError.Create(gesStreamWriteError);
+
+  PJpegDestData(cinfo.dest)^.jpeg_dest.next_output_byte :=
+    PJpegDestData(cinfo.dest)^.buffer;
+  PJpegDestData(cinfo.dest)^.jpeg_dest.free_in_buffer := OUTPUT_BUF_SIZE;
+
+  Result := True;
+end;
+
+{
+ * Terminate destination --- called by jpeg_finish_compress
+ * after all data has been written.  Usually needs to flush buffer.
+ *
+ * NB: *not* called by jpeg_abort or jpeg_destroy; surrounding
+ * application must deal with any cleanup that should happen even
+ * for error exit.
+}
+procedure gexJpegTermDestination(cinfo: j_compress_ptr); cdecl;
+var
+  DataCount: Integer;
+begin
+  with PJpegDestData(cinfo.dest)^ do begin
+    DataCount := OUTPUT_BUF_SIZE - jpeg_dest.free_in_buffer;
+    // Write data if there is any in the buffer
+    if DataCount > 0 then begin
+      if output_stream.Write(buffer^, DataCount) <> DataCount then
+        raise EgexSaveError.Create(gesStreamWriteError);
+    end;
+  end;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
 //                           TgexJpegImage
 
 constructor TgexJpegImage.Create;
@@ -204,6 +277,7 @@ begin
   inherited Create;
   // Allocate memory for jpeg data and zero fill it
   FJpegInfo := AllocMem(SizeOf(jpeg_decompress_struct));
+  FJpegSaveInfo := nil;
   FJpegErr := AllocMem(SizeOf(jpeg_error_mgr));
   FScale := jsFullSize;
   FPerformance := jpBestQuality;
@@ -245,6 +319,24 @@ begin
   Result := True;
 end;
 
+function TgexJpegImage.InitJpegCompress(SaveStream: TStream): Boolean;
+begin
+  if FJpegSaveInfo = nil then begin
+    Result := False;
+    Exit;
+  end;
+  // Initialize jpeg error manager
+  FJpegSaveInfo.err := InitJpegErrorManager;
+
+  // Initialize jpeg compress structure
+  jpeg_create_compress(FJpegSaveInfo);
+
+  // Initialize our destination manager
+  InitJpegDestManager(FJpegSaveInfo.dest, SaveStream);
+
+  Result := True;
+end;
+
 function TgexJpegImage.InitJpegErrorManager: jpeg_error_mgr_ptr;
 begin
   // Initialize Jpeg error manager to the default first
@@ -281,6 +373,29 @@ begin
   PJpegSourceData(SrcManager).jpeg_blocksize := BlockSize_FileMapping;
   SrcManager.bytes_in_buffer := 0;
   SrcManager.next_input_byte := nil;
+  Result := True;
+end;
+
+function TgexJpegImage.InitJpegDestManager(var DestManager: jpeg_destination_mgr_ptr;
+  OutputStream: TStream): Boolean;
+begin
+  // Create compression info and fill with our handlers
+  if DestManager = nil then begin
+    // Get memory for the DestData buffer. Use JpegLib's memory allocation
+    // that way we don't need to worry about freeing it.
+    DestManager := FJpegSaveInfo.Mem^.alloc_small(j_common_ptr(FJpegSaveInfo),
+      JPOOL_PERMANENT, SizeOf(TJpegDestData));
+    // Initialize it
+    DestManager.init_destination := gexJpegInitDest;
+    DestManager.empty_output_buffer := gexJpegEmptyOutputBuffer;
+    DestManager.term_destination := gexJpegTermDestination;
+  end;
+  // Initialize extra data for our handlers
+  PJpegDestData(DestManager).output_stream := OutputStream;
+
+  DestManager.next_output_byte := PJpegDestData(DestManager)^.buffer;
+  DestManager.free_in_buffer := OUTPUT_BUF_SIZE;
+
   Result := True;
 end;
 
@@ -546,6 +661,91 @@ begin
   ColorManager.ConvertRow([ASrcBuf], ADestBuf, ALineWidth, $ff);
 end;
 
+procedure TgexJpegImage.SaveToStream(Stream: TStream);
+var
+  row_pointer: array [0..0] of PByte;
+  RowBuffer: PByte;
+  SavingError: Boolean;
+begin
+  if (Width > 0) and (Height > 0) and (PixelFormat <> pfCustom) then begin
+    Stream.Position := 0;
+    RowBuffer := nil;
+    SavingError := False;
+    // Allocate memory for the jpeg compression structure
+    FJpegSaveInfo := AllocMem(SizeOf(jpeg_compress_struct));
+    try
+      if not InitJpegCompress(Stream) then
+        Exit;  // TODO: Add warning message
+
+      // Initialize save parameters
+      FJpegSaveInfo^.image_width := Width;
+      FJpegSaveInfo^.image_height := Height;
+      FJpegSaveInfo^.input_components := 3;     // Always 3 components for RGB
+      FJpegSaveInfo^.in_color_space := JCS_RGB; // colorspace of input image
+
+      // Since on Windows color format is BGR we will have to convert all image data.
+      // First set up source
+      ColorManager.SetSourceFromPixelFormat(PixelFormat);
+      // And then select RGB target
+      ColorManager.SelectTargetRGB8;
+      // Allocate memory for the conversion row buffer
+      GetMem(RowBuffer, Width * 3);
+
+      // Set default jpeg saving parameters (needs to be done after setting in_color_space).
+      jpeg_set_defaults(FJpegSaveInfo);
+      // Adjust parameters to our personal preferences.
+      jpeg_set_quality(FJpegSaveInfo, FQuality, TRUE { limit to baseline-JPEG values });
+      if FPerformance = jpBestSpeed then begin
+        FJpegSaveInfo.dct_method := JDCT_IFAST; // We want best speed for saving
+      end
+      else begin
+        FJpegSaveInfo.dct_method := JDCT_FLOAT; // We want best quality for saving
+      end;
+
+      // True ensures that we will write a complete interchange-JPEG file.
+      jpeg_start_compress(FJpegSaveInfo, True);
+
+      SavingError := True; // In case we get an exception we will know there was an error
+
+      // Loop over all rows
+      row_pointer[0] := RowBuffer; // Since RowBuffer doesn't change, assign outside loop
+      while (FJpegSaveInfo.next_scanline < FJpegSaveInfo.image_height) do begin
+        // First Convert a row of image data to the desired jpeg format
+        ColorManager.ConvertRow([Scanline[FJpegSaveInfo.next_scanline]], RowBuffer, Width, $ff);
+        {
+         * jpeg_write_scanlines expects an array of pointers to scanlines.
+         * Here the array is only one element long, but you could pass
+         * more than one scanline at a time if that's more convenient.
+         *
+        }
+        if jpeg_write_scanlines(FJpegSaveInfo, @row_pointer, 1) <> 1 then begin
+          SavingError := False; // False here because below it's negated to True
+          break;
+        end;
+
+        // TODO: Progress info
+      end;
+
+      // Finish compression
+      jpeg_finish_compress(FJpegSaveInfo);
+      SavingError := not SavingError;
+    finally
+      // If there was a problem saving then we should reset the stream size
+      if SavingError then
+        Stream.Size := 0;
+      // TODO: Check the best way to make sure a corrupted save gets deleted.
+
+      // Release JPEG compression object
+      // This is an important step since it will release a good deal of memory.
+      jpeg_destroy_compress(FJpegSaveInfo);
+      // Free our own memory objects
+      FreeMem(FJpegSaveInfo);
+      FJpegSaveInfo := nil;
+      if Assigned(RowBuffer) then
+        FreeMem(RowBuffer);
+    end;
+  end;
+end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
