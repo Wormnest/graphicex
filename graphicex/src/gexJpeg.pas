@@ -40,6 +40,8 @@ type
     FLibJpegTicks: Int64;
     FConversionTicks: Int64;
     {$ENDIF}
+    FPerformance: TJPEGPerformance;
+    FQuality: TJPEGQualityRange;
     FScale: TJPEGScale;
     FAutoScaleLargeImage: Boolean;
     FAutoScaleMemoryLimit: UInt64;
@@ -72,6 +74,8 @@ type
     property AutoScaleMemoryLimit: UInt64 read FAutoScaleMemoryLimit write FAutoScaleMemoryLimit;
 
     // TJpegImage compatible properties
+    property CompressionQuality: TJPEGQualityRange read FQuality write FQuality;
+    property Performance: TJPEGPerformance read FPerformance write FPerformance;
     property Scale: TJPEGScale read FScale write FScale default jsFullSize;
   end;
 
@@ -202,6 +206,8 @@ begin
   FJpegInfo := AllocMem(SizeOf(jpeg_decompress_struct));
   FJpegErr := AllocMem(SizeOf(jpeg_error_mgr));
   FScale := jsFullSize;
+  FPerformance := jpBestQuality;
+  FQuality := 90;
   FAutoScaleLargeImage := False;
   FAutoScaleMemoryLimit := 1024 * 1024 * 1024; // Default 1 GB
 end;
@@ -422,6 +428,20 @@ begin
         // If requested scale down large images to reduce memory usage
         if FAutoScaleLargeImage then
           DoAutoScale;
+        if FPerformance = jpBestSpeed then begin
+          // Go for best speed, see also djpeg.c
+          FJpegInfo.two_pass_quantize := False;
+          FJpegInfo.dither_mode := JDITHER_NONE;
+          FJpegInfo.dct_method := JDCT_IFAST;
+          FJpegInfo.do_fancy_upsampling := False;
+        end
+        else begin
+          // Go for best quality
+          FJpegInfo.two_pass_quantize := True;
+          FJpegInfo.dither_mode := JDITHER_FS;
+          FJpegInfo.dct_method := JDCT_FLOAT;
+          FJpegInfo.do_fancy_upsampling := True;
+        end;
 
         // Start decompressor
         jpeg_start_decompress(FJpegInfo);
