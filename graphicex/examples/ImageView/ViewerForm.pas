@@ -2446,11 +2446,18 @@ end;
 
 procedure TfrmViewer.ShowErrors;
 var i: Integer;
+  MaxErr: Integer;
 begin
   if ErrorList.Count > 0 then begin
     // 1 empty row between image info and image loading errors
     IncInfoRow;
-    for i := 0 to ErrorList.Count-1 do begin
+    MaxErr := ErrorList.Count;
+    // Very large amounts of errors can make it seem like we are in a endless
+    // loop since adding huge amounts of rows to the grid will slow things down
+    // and use a lot of memory. More than a 1000 doesn't seem useful to look at.
+    if MaxErr > 1000 then
+      MaxErr := 1000;
+    for i := 0 to MaxErr-1 do begin
       case NativeInt(ErrorList.Objects[i]) of
         -2: sgImgProperties.Cells[0,InfoRow] := 'Image loading error:';
         -1: sgImgProperties.Cells[0,InfoRow] := 'Image loading warning:';
