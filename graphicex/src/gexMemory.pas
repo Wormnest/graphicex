@@ -9,19 +9,25 @@ unit gexMemory;
 
 interface
 
-{$IFDEF FPC}
+{$IFNDEF FPC}
+  // Delphi
+  {$I Compilers.inc}
+{$ELSE}
+  // Fpc/Lazarus
   {$mode delphi}
 {$ENDIF}
 
 {$I GraphicConfiguration.inc}
 
 type
+  TByteOrder = (boLittleEndian, boBigEndian);
   TMemoryAccess = class(TObject)
   private
     FMemory: Pointer;     // Start of memory block we will provide access to
     FSize: Int64;         // Size of memory block
     FCurPos: PByte;       // Current position in memory
     FMaxPos: PByte;       // Precomputed max position (actually first position that's not allowed)
+    FByteOrder: TByteOrder;
     FImageType: string;
 
     function GetCurrentPosition(): UInt64;
@@ -34,6 +40,8 @@ type
 
     procedure GetBytes(var ABuffer; ASize: Cardinal);
     function GetByte(): Byte;
+    function GetWord(): Word;
+    function GetLongWord(): LongWord;
     procedure SeekForward(ACount: UInt64);
     procedure SeekBackward(ACount: UInt64);
     procedure SeekFromBeginning(ACount: UInt64);
@@ -42,12 +50,13 @@ type
     // ask for a pointer and it will check the amount of bytes requested
     function GetAccessToMemory(ASize: Cardinal): PByte;
 
+    property ByteOrder: TByteOrder read FByteOrder write FByteOrder default boLittleEndian;
     property CurrentPosition: UInt64 read GetCurrentPosition;
   end;
 
 implementation
 
-uses gexTypes, GraphicStrings;
+uses gexTypes, gexUtils, GraphicStrings;
 
 // Sets FCurPos without checks!!!!
 procedure TMemoryAccess.TEMPORARY_SET_POSITION(APos: PByte);
@@ -62,6 +71,7 @@ begin
   FCurPos := FMemory;
   FMaxPos := PByte(NativeUInt(FMemory)+ASize);
   FImageType := AImageType;
+  FByteOrder := boLittleEndian;
   // Computer memory sizes that would overflow this are not possible at this time
 end;
 
@@ -113,6 +123,46 @@ begin
   // curpos to get moved to maxpos
   if NewPos <= FMaxPos then begin
     Result := FCurPos^;
+    FCurPos := NewPos;
+  end
+  else begin
+    // Buffer overflow!
+    raise EgexMemoryAccessException.CreateFmt(gesMemoryAccess,
+      [FImageType]) {$IFNDEF FPC}at ReturnAddress{$ENDIF};
+  end;
+end;
+
+function TMemoryAccess.GetWord(): Word;
+var NewPos: PByte;
+begin
+  NewPos := PByte(NativeUInt(FCurPos) + 2);
+  // To be able to read the last byte of the file we need to allow
+  // curpos to get moved to maxpos
+  if NewPos <= FMaxPos then begin
+    if FByteOrder = boLittleEndian then
+      Result := PWord(FCurPos)^
+    else
+      Result := SwapEndian(PWord(FCurPos)^);
+    FCurPos := NewPos;
+  end
+  else begin
+    // Buffer overflow!
+    raise EgexMemoryAccessException.CreateFmt(gesMemoryAccess,
+      [FImageType]) {$IFNDEF FPC}at ReturnAddress{$ENDIF};
+  end;
+end;
+
+function TMemoryAccess.GetLongWord(): LongWord;
+var NewPos: PByte;
+begin
+  NewPos := PByte(NativeUInt(FCurPos) + 4);
+  // To be able to read the last byte of the file we need to allow
+  // curpos to get moved to maxpos
+  if NewPos <= FMaxPos then begin
+    if FByteOrder = boLittleEndian then
+      Result := PLongWord(FCurPos)^
+    else
+      Result := SwapEndian(PLongWord(FCurPos)^);
     FCurPos := NewPos;
   end
   else begin
