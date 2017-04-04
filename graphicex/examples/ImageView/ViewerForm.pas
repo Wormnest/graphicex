@@ -1439,6 +1439,11 @@ begin
   sgImgProperties.Cells[0,InfoRow] := 'Converted PixelFormat:';
   sgImgProperties.Cells[1,InfoRow] := CPixelFormat[FPicture.Bitmap.PixelFormat];
   IncInfoRow;
+  if (FPicture.Bitmap.Width <> ImgProperties.Width) or (FPicture.Bitmap.Height <> ImgProperties.Height) then begin
+    sgImgProperties.Cells[0,InfoRow] := 'Converted Dimensions:';
+    sgImgProperties.Cells[1,InfoRow] := Format('%u x %u',[FPicture.Bitmap.Width , FPicture.Bitmap.Height]); IncInfoRow;
+    IncInfoRow;
+  end;
 end;
 
 // Source: http://www.efg2.com/Lab/Library/UseNet/2000/0120a.txt
