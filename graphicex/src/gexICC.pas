@@ -35,16 +35,19 @@ type
   protected
     function LoadProfile(AProfile: Pointer; ASize: Cardinal;
       ALoadTarget: TICCLoadTarget = iltSource): Boolean;
-    function CreateTransformSourceTosRGB(AColorMode: Cardinal): Boolean;
+    function CreateTransformSourceTosRGB(AColorMode: Cardinal): Boolean; overload;
+    function CreateTransformSourceTosRGB(ASourceColorMode, ADestColorMode: Cardinal): Boolean; overload;
   public
     constructor Create;
     destructor Destroy; override;
 
     function LoadSourceProfileFromMemory(ASource: Pointer; ASize: Cardinal): Boolean;
+    function CreateTransformAnyTosRGB(ASourceColorMode: Cardinal; AWithAlpha: Boolean): Boolean;
     function CreateTransformTosRGB(AWithAlpha: Boolean): Boolean;
     function CreateTransformTosRGB_Gray8(): Boolean;
     function CreateTransformPalette(APlanar, AWithAlpha: Boolean): Boolean;
-    procedure ExecuteTransform(ABuffer: Pointer; ASize: Cardinal);
+    procedure ExecuteTransform(ABuffer: Pointer; ASize: Cardinal); overload;
+    procedure ExecuteTransform(ASourceBuffer, ADestBuffer: Pointer; ASize: Cardinal); overload;
     procedure DestroyTransform;
 
     property SourceProfileDescription: string read GetSourceProfileDescription;
@@ -156,6 +159,38 @@ begin
   Result := FTransform <> nil;
 end;
 
+function TICCProfileManager.CreateTransformSourceTosRGB(ASourceColorMode, ADestColorMode: Cardinal): Boolean;
+var
+  SourceProfile, DestProfile: cmsHPROFILE;
+begin
+  // First close previous transform if present
+  DestroyTransform();
+  // Then open the source profile we read from the image
+  SourceProfile := cmsOpenProfileFromMem(FSourceProfile, FsourceProfileSize);
+  // Target for now is always screen sRGB
+  DestProfile := cmsCreate_sRGBProfile();
+  // Define the transform
+  FTransform := cmsCreateTransform(
+    SourceProfile, ASourceColorMode,
+    DestProfile, ADestColorMode,
+    INTENT_PERCEPTUAL, 0);
+  // Close profiles
+  cmsCloseProfile(SourceProfile);
+  cmsCloseProfile(DestProfile);
+  Result := FTransform <> nil;
+end;
+
+function TICCProfileManager.CreateTransformAnyTosRGB(ASourceColorMode: Cardinal; AWithAlpha: Boolean): Boolean;
+var
+  TransformColorMode: Cardinal;
+begin
+  if AWithAlpha then
+    TransformColorMode := TYPE_BGRA_8
+  ELSE
+    TransformColorMode := TYPE_BGR_8;
+  Result := CreateTransformSourceTosRGB(ASourceColorMode, TransformColorMode);
+end;
+
 function TICCProfileManager.CreateTransformTosRGB(AWithAlpha: Boolean): Boolean;
 var
   TransformColorMode: Cardinal;
@@ -200,6 +235,16 @@ begin
   if FTransform = nil then
     Exit;
   cmsDoTransform(FTransform, ABuffer, ABuffer, ASize);
+end;
+
+procedure TICCProfileManager.ExecuteTransform(ASourceBuffer, ADestBuffer: Pointer; ASize: Cardinal);
+begin
+  // We silently exit when no transform is defined.
+  // That way no extra checks inside a loop have to be performed to see if
+  // an ICC profile is present and whether transformation is wanted.
+  if FTransform = nil then
+    Exit;
+  cmsDoTransform(FTransform, ASourceBuffer, ADestBuffer, ASize);
 end;
 
 function TICCProfileManager.GetSourceProfileDescription(): string;
