@@ -50,6 +50,7 @@ type
     FScale: TJPEGScale;
     FAutoScaleLargeImage: Boolean;
     FAutoScaleMemoryLimit: UInt64;
+    FAutoCorrectOrientation: Boolean;
   protected
     function InitJpegDecompress(const Memory: Pointer; const Size: Int64): Boolean;
     function InitJpegCompress(SaveStream: TStream): Boolean;
@@ -64,7 +65,10 @@ type
       const ALineWidth, ANumComponents: Cardinal);
     procedure Jpeg_ConvertRow(const ASrcBuf: PByte; const ADestBuf: PByte;
       const ALineWidth, {%H-}ANumComponents: Cardinal);
+
     function DoAutoScale: Boolean;
+    procedure CheckJpegMarkers;
+    procedure HandleExif(ExifData: PByte; ExifLen: Cardinal);
     function InternalReadImageProperties(const Memory: Pointer; Size: Int64;
       ImageIndex: Cardinal; ImageRequired: Boolean = False): Boolean;
   public
@@ -81,6 +85,7 @@ type
     {$ENDIF}
     property AutoScaleLargeImage: Boolean read FAutoScaleLargeImage write FAutoScaleLargeImage default False;
     property AutoScaleMemoryLimit: UInt64 read FAutoScaleMemoryLimit write FAutoScaleMemoryLimit;
+    property AutoCorrectOrientation: Boolean read FAutoCorrectOrientation write FAutoCorrectOrientation default True;
 
     // TJpegImage compatible properties
     property CompressionQuality: TJPEGQualityRange read FQuality write FQuality;
@@ -102,7 +107,10 @@ uses Graphics,
      jpeg,
      {$ENDIF NEED_TJPEGIMAGE_SAVING}
      {$ENDIF}
-     gexTypes, GraphicStrings, GraphicColor;
+     {$IFDEF LCMS}
+     lcms2dll, gexICC, // ICC profile manager
+     {$ENDIF}
+     gexTypes, gexExif, GraphicStrings, GraphicColor;
 
 const
   BlockSize_FileMapping: Cardinal = High(Integer);
@@ -110,6 +118,19 @@ const
 
 const
   cJpegSOIMarker = $d8ff;
+  // APP1
+  // Note: We explicitly declare this as AnsiString since that is how they are
+  // stored inside Jpeg's and we use byte comparison using CompareMem to
+  // check if we have found the correct marker.
+  cExifMarker: AnsiString = 'Exif'#0#0;
+  cExifMarkerLen          = 6;
+  cXMPMarker: AnsiString  = 'http://ns.adobe.com/xap/1.0/'#0;
+  cXMPMarkerLen           = 29;
+  // APP2
+  cICCMarker: AnsiString  = 'ICC_PROFILE'#0;
+  cICCMarkerLen           = 12;
+  cICCMarkerHeaderLen     = 14; // Minimum length of header for ICC
+
   OUTPUT_BUF_SIZE = 65536;   // 64K buffer
 
 type
@@ -139,6 +160,13 @@ type
     buffer: JOCTET_ptr;
   end;
   PJpegDestData = ^TJpegDestData;
+
+  TIccProfileRecord = packed record
+    id: array [0..11] of AnsiChar;
+    CurrentChunk: Byte; // Starts at 1
+    TotalChunks: Byte;
+  end;
+  PIccProfileRecord = ^TIccProfileRecord;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                           Jpeg DataSource handlers
@@ -288,6 +316,7 @@ begin
   FQuality := 90;
   FAutoScaleLargeImage := False;
   FAutoScaleMemoryLimit := 1024 * 1024 * 1024; // Default 1 GB
+  FAutoCorrectOrientation := True;
 end;
 
 destructor TgexJpegImage.Destroy;
@@ -319,6 +348,11 @@ begin
 
   // Initialize our source manager
   InitJpegSourceManager(FJpegInfo.Src, Memory, Size);
+
+  // We want info about APP1 (Exif etc.), APP2 (ICC) and COM (commment) markers
+  jpeg_save_markers(FJpegInfo, JPEG_APP0+1, $ffff);
+  jpeg_save_markers(FJpegInfo, JPEG_APP0+2, $ffff);
+  jpeg_save_markers(FJpegInfo, JPEG_COM, $ffff);
 
   Result := True;
 end;
@@ -403,6 +437,119 @@ begin
   Result := True;
 end;
 
+procedure TgexJpegImage.HandleExif(ExifData: PByte; ExifLen: Cardinal);
+var
+  ExifReader: TSimpleExifReader;
+  ExifOrientation: Byte;
+begin
+  // The first bytes will be the Exif marker (6 bytes), after that the real Exif data.
+  Inc(ExifData, 6);
+  Dec(ExifLen, 6);
+  ExifReader := TSimpleExifReader.Create(ExifData, ExifLen);
+  try
+    ExifOrientation := ExifReader.Orientation;
+    FImageProperties.Orientation := TgexOrientation(ExifOrientation);
+  finally
+    ExifReader.Free;
+  end;
+end;
+
+procedure TgexJpegImage.CheckJpegMarkers;
+type
+  TIccData = record
+    Icc: PByte;
+    Len: Integer;
+  end;
+var
+  CurrentMarker: jpeg_saved_marker_ptr;
+  i: Integer;
+  NumIcc: Integer;
+  LastIcc: Integer;
+  IccSize: Cardinal;
+  IccBlocks: array of TIccData;
+  TempICC, TempPos, SourcePos: PByte;
+begin
+  // Get first marker.
+  CurrentMarker := FJpegInfo.marker_list;
+  NumIcc := 0; LastIcc := 0;
+  IccSize := 0;
+  SetLength(IccBlocks, 0);
+  while CurrentMarker <> nil do begin
+    case CurrentMarker.marker of
+      JPEG_COM:
+        begin
+          if (CurrentMarker.data_length > 0) and (PByte(CurrentMarker.data)^ <> 0) then
+            if FImageProperties.Comment = '' then
+              FImageProperties.Comment := string(PAnsiChar(CurrentMarker.data))
+            else // concatenate comments separated by a LF
+              FImageProperties.Comment := FImageProperties.Comment + #10 + string(PAnsiChar(CurrentMarker.data));
+        end;
+      JPEG_APP0+1:
+        if CurrentMarker.data_length > cExifMarkerLen then begin
+          if CompareMem(CurrentMarker.data, @cExifMarker[1], cExifMarkerLen) then
+            HandleExif(PByte(CurrentMarker.data), CurrentMarker.data_length);
+        end;
+      {$IFDEF LCMS}
+      JPEG_APP0+2:
+        if CurrentMarker.data_length > cICCMarkerHeaderLen then begin
+          if CompareMem(CurrentMarker.data, @cICCMarker[1], cICCMarkerLen) then begin
+            // Found an ICC chunk (there can be multiple).
+            if NumIcc = 0 then begin
+              // First Icc chunk found.
+              NumIcc := PIccProfileRecord(CurrentMarker.data)^.TotalChunks;
+              SetLength(IccBlocks, NumIcc);
+            end
+            else if NumIcc <> PIccProfileRecord(CurrentMarker.data)^.TotalChunks then begin
+              // Different number of ICC chunks according to this chunk. Something is wrong!
+              // TODO: Add warning.
+              NumIcc := 0; LastIcc := 0;
+              CurrentMarker := CurrentMarker.next;
+              SetLength(IccBlocks, 0);
+              continue;
+            end;
+
+            // Check if current chunk number is valid
+            if PIccProfileRecord(CurrentMarker.data)^.CurrentChunk = LastIcc+1 then begin
+              IccBlocks[LastIcc].Icc := PByte(CurrentMarker.data);
+              IccBlocks[LastIcc].Len := CurrentMarker.data_length-cICCMarkerHeaderLen;
+              Inc(IccSize, IccBlocks[LastIcc].Len);
+              Inc(LastIcc);
+
+              if LastIcc = NumIcc then begin
+                // We found all ICC blocks and now know the total size needed
+                // so we can now assemble the ICC profile.
+                if not Assigned(FICCManager) then
+                  FICCManager := TICCProfileManager.Create;
+                // Need memory for the profile
+                GetMem(TempICC, IccSize);
+                try
+                  TempPos := TempICC;
+                  for i := 0 to NumIcc-1 do begin
+                    SourcePos := IccBlocks[i].Icc;
+                    Inc(SourcePos, cICCMarkerHeaderLen);
+                    Move(SourcePos^, TempPos^, IccBlocks[i].Len);
+                    Inc(TempPos, IccBlocks[i].Len);
+                  end;
+                  FICCManager.LoadSourceProfileFromMemory(TempICC, IccSize);
+                finally
+                  FreeMem(TempICC);
+                end;
+              end;
+            end;
+          end;
+        end;
+      {$ENDIF}
+    end;
+    CurrentMarker := CurrentMarker.next;
+  end;
+
+  // Finally we signal that we are not interested in this data anymore and
+  // that the memory used by it can be freed. We do this by setting max length to 0.
+  jpeg_save_markers(FJpegInfo, JPEG_APP0+1, 0);
+  jpeg_save_markers(FJpegInfo, JPEG_APP0+2, 0);
+  jpeg_save_markers(FJpegInfo, JPEG_COM, 0);
+end;
+
 // InternalReadImageProperties handles the actual reading of properties.
 // However it does not destroy the jpeg object.
 function TgexJpegImage.InternalReadImageProperties(const Memory: Pointer;
@@ -418,6 +565,7 @@ begin
 
   // read jpeg file header
   if jpeg_read_header(FJpegInfo, ImageRequired) = JPEG_HEADER_OK then begin
+    CheckJpegMarkers; // First check if there are jpeg markers we are interested in.
     FImageProperties.Compression := ctJPEG;
     FImageProperties.BitsPerSample := FJpegInfo.data_precision;
     FImageProperties.SamplesPerPixel := FJpegInfo.num_components;
@@ -470,11 +618,17 @@ end;
 procedure TgexJpegImage.LoadFromMemory(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal = 0);
 var
   PropertiesOK: Boolean;
-  row_stride: Cardinal;
   buffer: array [0..0] of PByte;
   {$IFDEF JPEG_MEASURE_SPEED}
   TempTick: Int64;
   {$ENDIF}
+  {$IFDEF LCMS}
+  SourceColorMode: Cardinal;
+  DoIccConversion: Boolean;
+  {$ENDIF}
+  AdjustmentBuffer, BufferPtr: PByte;
+  TargetLineWidth: Cardinal;
+  DoRotate: Boolean;
 begin
   inherited;
 
@@ -494,6 +648,11 @@ begin
       // Jpeg's don't have transparency
       Self.Transparent := False;
 
+      {$IFDEF LCMS}
+      SourceColorMode := TYPE_RGB_8;
+      DoIccConversion := False;
+      {$ENDIF}
+
       // From ReadImageProperties we already know what the OutColorSpace is going to be.
       // Note that this is not necessarily the same as FImageProperties.ColorScheme,
       // that's way the Source properties are explicitly set based on out_color_space.
@@ -503,19 +662,33 @@ begin
         begin
           ColorManager.SourceColorScheme := csRGB;
           ColorManager.SourceSamplesPerPixel := 3;
+          {$IFDEF LCMS}
+          SourceColorMode := TYPE_RGB_8;
+          {$ENDIF}
         end;
       JCS_GRAYSCALE:
         begin
           ColorManager.SourceColorScheme := csG;
           ColorManager.SourceSamplesPerPixel := 1;
+          {$IFDEF LCMS}
+          SourceColorMode := TYPE_GRAY_8;
+          {$ENDIF}
         end;
       JCS_CMYK, JCS_YCCK:
         begin
           ColorManager.SourceColorScheme := csCMYK;
           ColorManager.SourceSamplesPerPixel := 4;
-          if FJpegInfo.saw_Adobe_marker then
+          if FJpegInfo.saw_Adobe_marker then begin
             // Adobe PhotoShop uses inverted CMYK
             ColorManager.SourceOptions := ColorManager.SourceOptions + [coInvertedCMYK];
+            {$IFDEF LCMS}
+            SourceColorMode := TYPE_CMYK_8_REV;
+            {$ENDIF}
+          end
+          {$IFDEF LCMS}
+          else
+            SourceColorMode := TYPE_CMYK_8;
+          {$ENDIF}
         end;
       JCS_YCBCR:
         begin
@@ -535,8 +708,18 @@ begin
       if ColorManager.TargetColorScheme in [csG, csIndexed] then
         Palette := ColorManager.CreateGrayScalePalette(False);
 
+      {$IFDEF LCMS}
+      if (FICCManager <> nil) and (ColorManager.TargetColorScheme = csBGR) and FICCTransformEnabled
+        and (FPerformance <> jpBestSpeed) then begin
+        // Assume we have a source profile loaded
+        FICCManager.CreateTransformAnyTosRGB(SourceColorMode, ColorManager.TargetSamplesPerPixel >= 4);
+        DoIccConversion := True;
+      end;
+      {$ENDIF}
+
       // Set buffer to nil so in case of an error we will know whether it's assigned or not
       buffer[0] := nil;
+      AdjustmentBuffer := nil;
       try
         // Set scaling factor as defined by the user
         case FScale of
@@ -565,52 +748,157 @@ begin
         // Start decompressor
         jpeg_start_decompress(FJpegInfo);
 
+        // compute line width of line not adjusted to orientation
+        // Don't use FImageProperties.Width below because output might be scaled down!
+        TargetLineWidth := FJpegInfo.output_width * Cardinal(FJpegInfo.output_components);
+
         // Set dimensions after setting PixelFormat and after we know the output size
-        Width := FJpegInfo.output_width;
-        Height := FJpegInfo.output_height;
-
-        row_stride := FJpegInfo.output_width * Cardinal(FJpegInfo.output_components);
-        // Make a one-row-high sample array that will go away when done with image
-        //buffer[0] := PByte(FJpegInfo.Mem.alloc_sarray(j_common_ptr(FJpegInfo), JPOOL_IMAGE, row_stride, 1));
-        GetMem(buffer[0], row_stride * 1);
-
-        {$IFDEF FPC}
-        BeginUpdate(False);
-        {$ENDIF}
-        {$IFDEF JPEG_MEASURE_SPEED}
-        FLibJpegTicks := 0;
-        FConversionTicks := 0;
-        {$ENDIF}
-        {* Here we use the library's state variable cinfo.output_scanline as the
-         * loop counter, so that we don't have to keep track ourselves.
-         *}
-        while (FJpegInfo.output_scanline < FJpegInfo.output_height) do begin
-          {* jpeg_read_scanlines expects an array of pointers to scanlines.
-           * Here the array is only one element long, but you could ask for
-           * more than one scanline at a time if that's more convenient.
-           *}
-          {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
-          if jpeg_read_scanlines(FJpegInfo, @buffer, 1) <> 1 then
-            // This can happen in corrupt images!
-            break;
-          {$IFDEF JPEG_MEASURE_SPEED}Inc(FLibJpegTicks, GetTickCount64 - TempTick);{$ENDIF}
-
-          // Note: at this moment OutputScanline has already been incremented
-          // by jpeg_read_scanlines. Thus we need to subtract 1* to get the
-          // correct scanline number. * Or the number of scanlines we read at one time.
-          {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
-          // Convert this row to our target color scheme.
-          ColorManager.ConvertRow([buffer[0]], ScanLine[FJpegInfo.output_scanline-1], FJpegInfo.output_width, $ff);
-          {$IFDEF JPEG_MEASURE_SPEED}Inc(FConversionTicks, GetTickCount64 - TempTick);{$ENDIF}
+        DoRotate := False;
+        if FAutoCorrectOrientation and (Byte(FImageProperties.Orientation) > 1) then begin
+          // First we need to make sure that we can allocate enough extra memory
+          // to be able to do the rotation. We need an extra buffer the size of
+          // all the image data. In case this fails with EOutOfMemory we will continue
+          // showing the image without rotation.
+          try
+            // Get buffer for the whole image if possible.
+            // Don't use FImageProperties.Height below since output can be scaled down!
+            // Zero the memory. That way in case of problems we won't have random pixel colors.
+            AdjustmentBuffer := AllocMem(FJpegInfo.output_height * TargetLineWidth);
+          except
+            on EOutOfMemory do begin
+              AdjustmentBuffer := nil;
+            end;
+          end;
+          if Assigned(AdjustmentBuffer) then
+            case FImageProperties.Orientation of
+              TgexOrientation.gexoRightTop:
+                begin
+                  Height := FJpegInfo.output_width;
+                  Width := FJpegInfo.output_height;
+                  DoRotate := True;
+                end;
+              TgexOrientation.gexoBottomRight:
+                begin
+                  Width := FJpegInfo.output_width;
+                  Height := FJpegInfo.output_height;
+                  DoRotate := True;
+                end;
+              TgexOrientation.gexoLeftBottom:
+                begin
+                  Height := FJpegInfo.output_width;
+                  Width := FJpegInfo.output_height;
+                  DoRotate := True;
+                end;
+            else
+              DoRotate := True;
+              Width := FJpegInfo.output_width;
+              Height := FJpegInfo.output_height;
+            end;
+        end
+        else begin
+          Width := FJpegInfo.output_width;
+          Height := FJpegInfo.output_height;
         end;
-        {$IFDEF FPC}
-        EndUpdate(False);
-        {$ENDIF}
+
+        // Buffer for one row of output from jpeg_read_scanlines
+        GetMem(buffer[0], TargetLineWidth);
+        if not DoRotate then begin
+          {$IFDEF FPC}
+          BeginUpdate(False);
+          {$ENDIF}
+          {$IFDEF JPEG_MEASURE_SPEED}
+          FLibJpegTicks := 0;
+          FConversionTicks := 0;
+          {$ENDIF}
+          {* Here we use the library's state variable cinfo.output_scanline as the
+           * loop counter, so that we don't have to keep track ourselves.
+           *}
+          while (FJpegInfo.output_scanline < FJpegInfo.output_height) do begin
+            {* jpeg_read_scanlines expects an array of pointers to scanlines.
+             * Here the array is only one element long, but you could ask for
+             * more than one scanline at a time if that's more convenient.
+             *}
+            {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
+            if jpeg_read_scanlines(FJpegInfo, @buffer, 1) <> 1 then
+              // This can happen in corrupt images!
+              break;
+            {$IFDEF JPEG_MEASURE_SPEED}Inc(FLibJpegTicks, GetTickCount64 - TempTick);{$ENDIF}
+
+            {$IFDEF JPEG_MEASURE_SPEED}TempTick := GetTickCount64;{$ENDIF}
+            {$IFDEF LCMS}
+            if DoIccConversion then begin
+              FICCManager.ExecuteTransform(buffer[0], ScanLine[FJpegInfo.output_scanline-1],
+                FJpegInfo.output_width);
+            end
+            else
+            {$ENDIF}
+            begin
+              // Convert this row to our target color scheme.
+              ColorManager.ConvertRow([buffer[0]], ScanLine[FJpegInfo.output_scanline-1], FJpegInfo.output_width, $ff);
+            end;
+            {$IFDEF JPEG_MEASURE_SPEED}Inc(FConversionTicks, GetTickCount64 - TempTick);{$ENDIF}
+          end;
+          {$IFDEF FPC}
+          EndUpdate(False);
+          {$ENDIF}
+        end
+        else begin
+          // We want to rotate. First get the image, then rotate it.
+
+          {* Here we use the library's state variable cinfo.output_scanline as the
+           * loop counter, so that we don't have to keep track ourselves.
+           *}
+          BufferPtr := AdjustmentBuffer;
+          while (FJpegInfo.output_scanline < FJpegInfo.output_height) do begin
+            {* jpeg_read_scanlines expects an array of pointers to scanlines.
+             * Here the array is only one element long, but you could ask for
+             * more than one scanline at a time if that's more convenient.
+             *}
+            if jpeg_read_scanlines(FJpegInfo, @buffer, 1) <> 1 then
+              // This can happen in corrupt images!
+              break;
+
+            {$IFDEF LCMS}
+            if DoIccConversion then begin
+              FICCManager.ExecuteTransform(buffer[0], BufferPtr, FJpegInfo.output_width);
+            end
+            else
+            {$ENDIF}
+            begin
+              // Convert this row to our target color scheme.
+              ColorManager.ConvertRow([buffer[0]], BufferPtr, FJpegInfo.output_width, $ff);
+            end;
+            Inc(BufferPtr, TargetLineWidth);
+          end;
+          {$IFDEF FPC}
+          BeginUpdate(False);
+          {$ENDIF}
+          // And now do the rotation
+          case FImageProperties.Orientation of
+            TgexOrientation.gexoRightTop:
+              RotateRightTop(AdjustmentBuffer, FJpegInfo.output_width, FJpegInfo.output_components);
+            TgexOrientation.gexoLeftBottom:
+              RotateLeftBottom(AdjustmentBuffer, FJpegInfo.output_width, FJpegInfo.output_components);
+            TgexOrientation.gexoBottomRight:
+              RotateBottomRight(AdjustmentBuffer, FJpegInfo.output_width, FJpegInfo.output_components);
+            TgexOrientation.gexoTopLeft:
+              RotateTopLeft(AdjustmentBuffer, FJpegInfo.output_width, FJpegInfo.output_components);
+          end;
+          {$IFDEF FPC}
+          EndUpdate(False);
+          {$ENDIF}
+        end;
         // Stop decompressor
         jpeg_finish_decompress(FJpegInfo);
       finally
+        {$IFDEF LCMS}
+        if DoIccConversion then
+          FICCManager.DestroyTransform;
+        {$ENDIF}
         if Assigned(buffer[0]) then
           FreeMem(buffer[0]);
+        if Assigned(AdjustmentBuffer) then
+          FreeMem(AdjustmentBuffer);
       end;
     finally
       // Release decompressor memory
