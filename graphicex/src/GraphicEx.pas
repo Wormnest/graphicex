@@ -230,10 +230,6 @@ type
   TGraphicExGraphic = class(TBitmap)
   private
     FColorManager: TColorManager;
-    {$IFDEF LCMS}
-    FICCManager: TICCProfileManager;
-    FICCTransformEnabled: Boolean;
-    {$ENDIF}
 
     // Advanced progress display support.
     FProgressStack: TStack;       // Used to manage nested progress sections.
@@ -241,6 +237,11 @@ type
     FPercentDone: Single;         // Progress over all parts of the load process.
   protected
     FImageProperties: TImageProperties; // Can't be private because we need access from other units
+    {$IFDEF LCMS}
+    // Not private because we need access from other units
+    FICCManager: TICCProfileManager;
+    FICCTransformEnabled: Boolean;
+    {$ENDIF}
     Decoder: TDecoder;            // The decoder used to decompress the image data.
 
     procedure AdvanceProgress(Amount: Single; OffsetX, OffsetY: Integer; DoRedraw: Boolean);
