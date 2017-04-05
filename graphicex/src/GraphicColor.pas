@@ -455,6 +455,9 @@ type
 // Fpc/Lazarus is missing the CopyPalette function present in Delphi.
 function CopyPalette(Palette: HPALETTE): HPALETTE;
 
+// Function to get a logical palette filled from Palette.
+function GetLogPaletteFromHPalette(Palette: HPALETTE; LogPalette: PLogPalette): Boolean;
+
 // Creates a 16 entry EGA palette and returns the result.
 // The returned EGA palette is of type pfInterlaced8Triple with RGB order.
 // Note the caller needs to free the memory!
@@ -697,6 +700,25 @@ begin
   finally
   FreeMem(LogPalette, LogSize);
   end;
+end;
+
+function GetLogPaletteFromHPalette(Palette: HPALETTE; LogPalette: PLogPalette): Boolean;
+var
+  PaletteSize: Integer;
+  LogSize: Integer;
+begin
+  Result := False;
+  if (Palette = 0) or (LogPalette = nil) then
+    Exit;
+  GetObject(Palette, SizeOf(PaletteSize), @PaletteSize);
+  LogSize := SizeOf(TLogPalette) + (PaletteSize - 1) * SizeOf(TPaletteEntry);
+  with LogPalette^ do
+  begin
+    palVersion := $0300;
+    palNumEntries := PaletteSize;
+    GetPaletteEntries(Palette, 0, PaletteSize, palPalEntry);
+  end;
+  Result := True;
 end;
 
 //------------------------------------------------------------------------------
