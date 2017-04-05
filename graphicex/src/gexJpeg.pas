@@ -99,6 +99,7 @@ procedure InitgexJpeg;
 implementation
 
 uses Graphics,
+     Windows, // TMaxLogPalette
      {$IFNDEF FPC}
      {$IFDEF NEED_TJPEGIMAGE_SAVING}
      // For being able to unregister TJpegImage. However this is bad because it
@@ -958,8 +959,12 @@ var
   row_pointer: array [0..0] of PByte;
   RowBuffer: PByte;
   SavingError: Boolean;
+  LogPalette: TMaxLogPalette;
 begin
-  if (Width > 0) and (Height > 0) and (PixelFormat <> pfCustom) then begin
+  if (Width > 0) and (Height > 0) then begin
+    // If we have a custom pixelformat then force it to pf24Bit.
+    if PixelFormat = pfCustom then
+      PixelFormat := pf24Bit;
     Stream.Position := 0;
     RowBuffer := nil;
     SavingError := False;
@@ -978,6 +983,12 @@ begin
       // Since on Windows color format is BGR we will have to convert all image data.
       // First set up source
       ColorManager.SetSourceFromPixelFormat(PixelFormat);
+      // if source is Indexed then we need to add a source palette
+      if ColorManager.SourceColorScheme = csIndexed then begin
+        if GetLogPaletteFromHPalette(Palette, @LogPalette) then begin
+          ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+        end;
+      end;
       // And then select RGB target
       ColorManager.SelectTargetRGB8;
       // Allocate memory for the conversion row buffer
