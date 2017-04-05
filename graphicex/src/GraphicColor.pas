@@ -4903,6 +4903,7 @@ var
   // For pre computing planar indexed data (PCX)
   PrecomputedSource8: array of byte;
   AdjustedBPS: Byte;
+  SavedOptions: TConvertOptions;
 begin
   BitRun := $80;
 
@@ -4945,6 +4946,19 @@ begin
   // Convert to number of bytes (Don't worry about FSourceBPS being a multiple of 8:
   // SourceIncrement will not be used in those cases!)
   SourceIncrement := FSourceBPS div 8 * SourceIncrement;
+
+  SavedOptions := FSourceOptions;
+  if (FTargetScheme in [csRGB, csRGBA]) then begin
+    // Temporary solution: Because this function does both conversion to BGR and RGB
+    // we need to make sure it is converted to the right format.
+    // We do that by lying about the palette format for RGB(A) target.
+    // However since we can get called again we need to restore that
+    // setting after doing our conversion!
+    if coPaletteBGR in FSourceOptions then
+      Exclude(FSourceOptions, coPaletteBGR)
+    else
+      Include(FSourceOptions, coPaletteBGR);
+  end;
 
   case FSourcePaletteFormat of
     pfPlane16Triple,
@@ -5270,6 +5284,7 @@ begin
   else
     ShowError(gesPaletteFormatConversionUnsupported);
   end;
+  FSourceOptions := SavedOptions;
 end;
 
 //------------------------------------------------------------------------------
