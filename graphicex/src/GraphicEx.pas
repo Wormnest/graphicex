@@ -256,6 +256,24 @@ type
     // that access the inherited LoadFromFile/LoadFromStream.
     procedure LoadBitmapFromFile(const FileName: string);
     procedure LoadBitmapFromStream(Stream: TStream);
+
+    // Rotation functions. These can be used to rotate the pixel data in ASrcBuf
+    // and put them into the scanlines of this bitmap where normal rotation is
+    // considered to be "TopLeft" (as used in TIFF and EXIF).
+    // The destination bitmap (our own class) is expected to already have set
+    // the correct PixelFormat, Width and Height.
+    // TODO: Currently the directions that need mirroring/flipping are not supported. (How common are these?)
+
+    // Rotate ASrcBuf 90 degrees clockwise and put result in this bitmap's scanlines.
+    procedure RotateRightTop(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+    // Rotate ASrcBuf 90 degrees counterclockwise and put result in this bitmap's scanlines.
+    procedure RotateLeftBottom(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+    // Rotate ASrcBuf 180 degrees and put result in this bitmap's scanlines.
+    procedure RotateBottomRight(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+    // No rotation 0 degrees. Put ASrcBuf without change in this bitmap's scanlines.
+    // This one is probably not needed but added to have a function for all simple directions.
+    procedure RotateTopLeft(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -1723,6 +1741,114 @@ function TGraphicExGraphic.ReadImageProperties(const Memory: Pointer; Size: Int6
 begin
   ZeroMemory(@FImageProperties, SizeOf(FImageProperties));
   Result := True;
+end;
+
+//------------------------------------------------------------------------------
+
+// Rotate ASrcBuf 90 degrees clockwise and put result in this bitmap's scanlines.
+procedure TGraphicExGraphic.RotateRightTop(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+var
+  x, y: Integer;
+  ScanLinePos, SrcBuf, SrcBase: PByte;
+  SrcLineBytes: Integer;
+  LineOffset: Integer;
+  WidthMinus1: Integer;
+begin
+  // The thing to remember is that requesting a Scanline is costly, so don't do
+  // it more often than necessary
+  SrcLineBytes := ASrcWidth * ASamplesPerPixel;
+  WidthMinus1 := Width-1;
+  for y := 0 to Height-1 do begin
+    ScanLinePos := ScanLine[y];
+    LineOffset := y * ASamplesPerPixel;
+    SrcBase := ASrcBuf;
+    Inc(SrcBase, LineOffset);
+    for x := 0 to WidthMinus1 do begin
+      SrcBuf := SrcBase;
+      Inc(SrcBuf, (WidthMinus1-x) * SrcLineBytes);
+      Move(SrcBuf^, ScanLinePos^, ASamplesPerPixel);
+      Inc(ScanLinePos, ASamplesPerPixel);
+    end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+// Rotate ASrcBuf 90 degrees counterclockwise and put result in this bitmap's scanlines.
+procedure TGraphicExGraphic.RotateLeftBottom(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+var
+  x, y: Integer;
+  ScanLinePos, SrcBuf, SrcBase: PByte;
+  SrcLineBytes: Integer;
+  LineOffset: Integer;
+  WidthMinus1: Integer;
+  HeightMinus1: Integer;
+begin
+  // The thing to remember is that requesting a Scanline is costly, so don't do
+  // it more often than necessary
+  SrcLineBytes := ASrcWidth * ASamplesPerPixel;
+  WidthMinus1 := Width-1;
+  HeightMinus1 := Height-1;
+  for y := 0 to HeightMinus1 do begin
+    ScanLinePos := ScanLine[y];
+    LineOffset := (HeightMinus1-y) * ASamplesPerPixel;
+    SrcBase := ASrcBuf;
+    Inc(SrcBase, LineOffset);
+    for x := 0 to WidthMinus1 do begin
+      SrcBuf := SrcBase;
+      Inc(SrcBuf, x * SrcLineBytes);
+      Move(SrcBuf^, ScanLinePos^, ASamplesPerPixel);
+      Inc(ScanLinePos, ASamplesPerPixel);
+    end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+// Rotate ASrcBuf 180 degrees and put result in this bitmap's scanlines.
+procedure TGraphicExGraphic.RotateBottomRight(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+var
+  x, y: Integer;
+  ScanLinePos, SrcBuf: PByte;
+  WidthMinus1: Integer;
+  HeightMinus1: Integer;
+begin
+  WidthMinus1 := Width-1;
+  HeightMinus1 := Height-1;
+  SrcBuf := ASrcBuf;
+  Inc(SrcBuf, (Width*Height-1) * ASamplesPerPixel);
+  for y := 0 to HeightMinus1 do begin
+    ScanLinePos := ScanLine[y];
+    for x := WidthMinus1 downto 0 do begin
+      Move(SrcBuf^, ScanLinePos^, ASamplesPerPixel);
+      Dec(SrcBuf, ASamplesPerPixel);
+      Inc(ScanLinePos, ASamplesPerPixel);
+    end;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+// No rotation 0 degrees. Put ASrcBuf without change in this bitmap's scanlines.
+// This one is probably not needed but added to have a function for all simple directions.
+procedure TGraphicExGraphic.RotateTopLeft(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
+var
+  y: Integer;
+  SrcBuf: PByte;
+  SrcLineBytes: Integer;
+  HeightMinus1: Integer;
+begin
+  SrcLineBytes := ASrcWidth * ASamplesPerPixel;
+  HeightMinus1 := Height-1;
+  SrcBuf := ASrcBuf;
+  // We start from the bottom because using downto 0 is supposedly faster.
+  // Since I'm not sure this case can be automatically optimized here we do it by hand.
+  if Height > 1 then
+    Inc(SrcBuf, SrcLineBytes * (Height-1));
+  for y := HeightMinus1 downto 0 do begin
+    Move(SrcBuf^, ScanLine[y]^, SrcLineBytes);
+    Dec(SrcBuf, SrcLineBytes);
+  end;
 end;
 
 //----------------- TAutodeskGraphic -----------------------------------------------------------------------------------
