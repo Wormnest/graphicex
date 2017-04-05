@@ -4985,6 +4985,10 @@ begin
                 // Get palette index
                 PalIndex8 := SourceRun8^;
 
+                // TODO: Instead of converting for every pixel we should store a converted palette array.
+                // TODO: Maybe we should even store all source palettes in just one format,
+                // converted by ourselves to whatever format we prefer. That would simplify
+                // handling palettes.
                 // Store color info from palette index in Target
                 TargetRun8^.B := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[2])^[PalIndex8]);
                 TargetRun8^.G := ComponentScaleConvert16To8(PWordArray(FSourcePaletteData[1])^[PalIndex8]);
