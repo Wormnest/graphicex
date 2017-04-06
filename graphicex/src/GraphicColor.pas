@@ -8461,13 +8461,11 @@ end;
 procedure TColorManager.RowSwapRGBAndBGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 begin
   RGBToBGR(Source[0], Target, Count);
-  Move(Source[0]^, Target^, 3 * Count);
 end;
 
 procedure TColorManager.RowSwapRGBAAndBGRA(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 begin
   RGBAToBGRA(Source[0], Target, Count);
-  Move(Source[0]^, Target^, 4 * Count);
 end;
 
 procedure TColorManager.RowMove8(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
