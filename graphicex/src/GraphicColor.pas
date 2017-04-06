@@ -503,11 +503,17 @@ function MakeRGB(const R, G, B: Byte): TRGB; overload;
 function MakeRGB(const R, G, B: Single): TRGBFloat; overload;
 
 // Convert RGBA (e.g. TIFF sources) to Windows BGRA
-procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal);
-// Convert RGBA TO BGR (no alpha)
-procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal);
-// Convert RGB TO BGR
-procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal);
+procedure RGBAToBGRA(Memory: Pointer; Width, Height: Cardinal); overload;
+// Convert RGBA TO BGR (no alpha) in place
+procedure RGBAToBGR(Memory: Pointer; Width, Height: Cardinal); overload;
+// Convert RGBA in ASource TO BGRA in ADest or vice versa.
+procedure RGBAToBGRA(const ASource, ADest: Pointer; ACount: Cardinal); overload;
+// Convert RGB TO BGR in place
+procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal); overload;
+// Convert RGB in ASource TO BGR in ADest or vice versa.
+procedure RGBToBGR(const ASource, ADest: Pointer; ACount: Cardinal); overload;
+// Convert RGBA to BGR
+procedure RGBAToBGR(const ASource, ADest: Pointer; ACount: Cardinal); overload;
 
 // Convert ARGB 4 bits (2 words) TO BGR 8 bits
 procedure X4R4G4B4ToBGR(Source, Dest: Pointer; Width, Height: Cardinal);
@@ -1441,7 +1447,7 @@ begin
   end;
 end;
 
-// Convert RGB TO BGR
+// Convert RGB TO BGR in place
 procedure RGBToBGR(Memory: Pointer; Width, Height: Cardinal);
 var
   m: PByte;
@@ -1461,6 +1467,70 @@ begin
     Dest.B := m^; Inc(m);
     // Replace Red last since it replace the Blue byte in the line above
     Dest.R := Red;
+    Inc(Dest);
+  end;
+end;
+
+// Convert RGBA in ASource TO BGRA in ADest or vice versa.
+procedure RGBAToBGRA(const ASource, ADest: Pointer; ACount: Cardinal); overload;
+var
+  Src, Dest: PCardinal;
+  n: Cardinal;
+  o: Cardinal;
+begin
+  Src := ASource;
+  Dest := ADest;
+  for n := 0 to ACount-1 do
+  begin
+    o := Src^;
+    Dest^ :=
+      (o and $FF00FF00) or             {G and A}
+      ((o and $00FF0000) shr 16) or    {B}
+      ((o and $000000FF) shl 16);      {R}
+    Inc(Src);
+    Inc(Dest);
+  end;
+end;
+
+// Convert RGB in ASource TO BGR in ADest or vice versa.
+procedure RGBToBGR(const ASource, ADest: Pointer; ACount: Cardinal);
+var
+  Src: PByte;
+  Red: Byte;
+  Dest: PBGR;
+  n: Cardinal;
+begin
+  Src := ASource;
+  Dest := ADest;
+  for n := 0 to ACount - 1 do
+  begin
+    Red := Src^;
+    Inc(Src);
+    Dest.G := Src^;
+    Inc(Src);
+    Dest.B := Src^;
+    Inc(Src);
+    // Replace Red last since it replace the Blue byte in the line above
+    Dest.R := Red;
+    Inc(Dest);
+  end;
+end;
+
+// Convert RGBA to BGR
+procedure RGBAToBGR(const ASource, ADest: Pointer; ACount: Cardinal); overload;
+var
+  Src: PRGBA;
+  Dest: PBGR;
+  n: Cardinal;
+begin
+  Src := ASource;
+  Dest := ADest;
+  for n := 0 to ACount - 1 do
+  begin
+    Dest.B := Src.B;
+    Dest.G := Src.G;
+    Dest.R := Src.R;
+    Inc(Src);
     Inc(Dest);
   end;
 end;
