@@ -919,8 +919,10 @@ type
     procedure LoadText(var Source: PByte);
     procedure LoadTransparency(var Source: PByte; const Description);
     procedure LoadICCProfile(var Source: PByte);
+    {$IFDEF LCMS}
     procedure DecompressToBuffer(Source: PByte; CompressedSize: Cardinal;
       out DecompressBuf: PByte; out DecompressedSize: Cardinal);
+    {$ENDIF}
     procedure ReadDataAndCheckCRC(var Source: PByte);
     procedure ReadRow(var Source: PByte; RowBuffer: Pointer; BytesPerRow: Integer);
     function SetupColorDepth(ColorType, BitDepth: Integer): Integer;
@@ -9757,7 +9759,7 @@ begin
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
-
+{$IFDEF LCMS}
 procedure TPNGGraphic.DecompressToBuffer(Source: PByte; CompressedSize: Cardinal;
   out DecompressBuf: PByte; out DecompressedSize: Cardinal);
 const MAXBUF = 65536; // Size of temporary buffer used for decompressing
@@ -9848,14 +9850,18 @@ begin
     ICCDecoder.Free;
   end;
 end;
+{$ENDIF}
 
 procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
 var
   ProfileName: PAnsiChar;
   ProfileLength: Cardinal;
   //Compression: Byte;
-  CompressedBytes, DecompressedSize: Cardinal;
+  CompressedBytes: Cardinal;
+  {$IFDEF LCMS}
+  DecompressedSize: Cardinal;
   LocalBuffer: PByte;
+  {$ENDIF}
 begin
   ProfileName := PAnsiChar(Source);
   ProfileLength := Length(ProfileName)+1; // +1 to include the null byte

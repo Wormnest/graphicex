@@ -463,18 +463,22 @@ type
   end;
 var
   CurrentMarker: jpeg_saved_marker_ptr;
+  {$IFDEF LCMS}
   i: Integer;
   NumIcc: Integer;
   LastIcc: Integer;
   IccSize: Cardinal;
   IccBlocks: array of TIccData;
   TempICC, TempPos, SourcePos: PByte;
+  {$ENDIF}
 begin
   // Get first marker.
   CurrentMarker := FJpegInfo.marker_list;
+  {$IFDEF LCMS}
   NumIcc := 0; LastIcc := 0;
   IccSize := 0;
   SetLength(IccBlocks, 0);
+  {$ENDIF}
   while CurrentMarker <> nil do begin
     case CurrentMarker.marker of
       JPEG_COM:
