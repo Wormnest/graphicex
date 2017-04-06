@@ -10801,10 +10801,28 @@ end;
 function TFileFormatList.GraphicFromContent(const FileName: string): TGraphicExGraphicClass;
 
 // Tries to determine the type of the image in the file.
+// Since in most cases the file extension will point to the correct image type
+// we will try the class that's connected to that extension first. If that fails
+// to determine the graphic class we will use the normal GraphicFromContent routine.
+
+var
+  gc: TGraphicClass;
+  T: TGraphicExGraphicClass;
 
 begin
   with TFileMapping.Create(FileName, fmmReadOnly) do
   try
+    // First see if we can determine it based on it's extension.
+    gc := GraphicFromExtension(FileName);
+    if Assigned(gc) and (gc.InheritsFrom(TGraphicExGraphic)) then begin
+      // It's a valid GraphicEx class, see if it can load this file
+      T := TGraphicExGraphicClass(gc);
+      if T.CanLoad(FileName) then begin
+        Result := T;
+        Exit;
+      end;
+    end;
+    // Could not determine file based on extension. Try to determine based on content.
     Result := GraphicFromContent(Memory, Size);
   finally
     Free;
@@ -10815,7 +10833,7 @@ end;
 
 function TFileFormatList.GraphicFromContent(const Memory: Pointer; Size: Int64): TGraphicExGraphicClass;
 
-// Tries to determine the type of the image in the file. 
+// Tries to determine the type of the image in the file.
 
 var
   I: Integer;
