@@ -1496,7 +1496,6 @@ end;
 procedure RGBToBGR(const ASource, ADest: Pointer; ACount: Cardinal);
 var
   Src: PByte;
-  Red: Byte;
   Dest: PBGR;
   n: Cardinal;
 begin
@@ -1504,14 +1503,12 @@ begin
   Dest := ADest;
   for n := 0 to ACount - 1 do
   begin
-    Red := Src^;
+    Dest.R := Src^;
     Inc(Src);
     Dest.G := Src^;
     Inc(Src);
     Dest.B := Src^;
     Inc(Src);
-    // Replace Red last since it replace the Blue byte in the line above
-    Dest.R := Red;
     Inc(Dest);
   end;
 end;
