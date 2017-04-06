@@ -165,8 +165,8 @@ implementation
 
 uses Windows, gexTypes, GraphicStrings, gexUtils;
 
-const gimp_base_id = 'gimp xcf ';
-      gimp_id2     = 'file';
+const gimp_base_id: AnsiString = 'gimp xcf ';
+      gimp_id2: AnsiString     = 'file';
       gimp_known_max_version = 3; // Highest XCF file version known to us.
 
 resourcestring
@@ -414,9 +414,9 @@ begin
   Result := Size > 14 + (7*4); // Minimum size according to xcftools
   if Result then begin
     Run := Memory;
-    if not (StrLIComp(PXcfHeader(Run)^.gimp_header_short, gimp_base_id, Length(gimp_base_id)) = 0) then
+    if not CompareMem(@PXcfHeader(Run)^.gimp_header_short, @gimp_base_id[1], Length(gimp_base_id)) then
       Result := False
-    else if (StrLIComp(PXcfHeader(Run)^.gimp_header_part2, gimp_id2, Length(gimp_id2)) = 0) then
+    else if CompareMem(@PXcfHeader(Run)^.gimp_header_part2, @gimp_id2[1], Length(gimp_id2)) then
       Result := True // version 0
     else if PXcfHeader(Run)^.gimp_v = 'v' then
       Result := True
@@ -1173,11 +1173,11 @@ begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
   if Result and (Size > 14 + (7*4)) then begin
     Run := Memory;
-    if not (StrLIComp(PXcfHeader(Run)^.gimp_header_short, gimp_base_id, Length(gimp_base_id)) = 0) then begin
+    if not CompareMem(@PXcfHeader(Run)^.gimp_header_short, @gimp_base_id[1], Length(gimp_base_id)) then begin
       Result := False;
       Exit;
     end
-    else if (StrLIComp(PXcfHeader(Run)^.gimp_header_part2, gimp_id2, Length(gimp_id2)) = 0) then
+    else if CompareMem(@PXcfHeader(Run)^.gimp_header_part2, @gimp_id2[1], Length(gimp_id2)) then
       FImageProperties.Version := 0
     else if (PXcfHeader(Run)^.gimp_v = 'v') and (PXcfHeader(Run)^.gimp_version[3] = #0) then
       FImageProperties.Version := StrToIntDef( string(PXcfHeader(Run)^.gimp_version), -1)
