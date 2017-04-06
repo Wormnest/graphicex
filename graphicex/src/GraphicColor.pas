@@ -8460,13 +8460,13 @@ end;
 // Note: Mask is ignored as are any other Source or Target Options.
 procedure TColorManager.RowSwapRGBAndBGR(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 begin
-  RGBToBGR(Source[0], Count, 1);
+  RGBToBGR(Source[0], Target, Count);
   Move(Source[0]^, Target^, 3 * Count);
 end;
 
 procedure TColorManager.RowSwapRGBAAndBGRA(Source: array of Pointer; Target: Pointer; Count: Cardinal; Mask: Byte);
 begin
-  RGBAToBGRA(Source[0], Count, 1);
+  RGBAToBGRA(Source[0], Target, Count);
   Move(Source[0]^, Target^, 4 * Count);
 end;
 
