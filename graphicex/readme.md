@@ -6,7 +6,7 @@ application to load many common image formats. This library is
 primarily designed to load images as background (buttons, forms,
 toolbars) and textures (DirectX, OpenGL) or for image browsing
 and editing purposes as long as you don't need to save images.
-Currently only TTargaGraphic also supports saving an image.
+Currently only TgexJpeg and TTargaGraphic also support saving an image.
 GraphicEx is open source under the Mozilla Public License (MPL).
 
 Supported image formats
@@ -22,7 +22,7 @@ Supported image formats
     + 1, 8, 16 bits per sample integer, 32 bits per sample float
     + Uncompressed, packbits
 	+ Reads the combined image
-	+ color profiles can be read and used except for indexed
+	+ Color profiles can be read and used except for indexed (needs LCMS to be defined)
 * **Paintshop Pro images (.psp)**
     + RGB(A), Indexed, Grayscale
     + 1, 4, 8, 16 bits per sample
@@ -35,21 +35,25 @@ Supported image formats
     + RGB, Grayscale, CMYK, YCbCr, YCCk
 	+ 8 bits per sample
 	+ Jpeg compression
+	+ Automatic rotation based on Exif orientation tag (can be disabled)
+	+ Color profiles can be read and used (needs LCMS to be defined)
 	+ Uses libjpeg
+	+ Saving support included (24 bits destination only, progressive not supported)
 * **Portable network graphic images (.png)**
     + RGB(A), Indexed(A), Grayscale(A)
     + 1, 2, 4, 8, 16 bits per sample
 	+ LZ77 compressed
-	+ Color profiles can be read and used except for interlaced images
+	+ Color profiles can be read and used except for interlaced images (needs LCMS to be defined)
 * **Gif images (.gif)**
 	+ Indexed
     + 1, 4, 8 bits per sample
 	+ LZW compressed
 	+ All image frames can be read (but not animated)
-* **Truevision images (.tga; .vst; .icb; .vda; .win)**, write support included
+* **Targa Truevision images (.tga; .vst; .icb; .vda; .win)**
     + 24 bits RGB(A)(888), 15 bits RGB (555), Grayscale, Indexed
     + 5 and 8 bits per sample
     + Uncompressed, RLE
+	+ Saving support included
 * **Kodak Photo-CD images (.pcd)**
     + 8 bits per sample in YCbCr in any resolution (192 x 128 up to 6144 x 4096)
 * **Portable pixel/gray/bw map images (.ppm, .pgm, .pbm)**
@@ -179,6 +183,14 @@ Additions March 2017
   and decoder tests were added to the test suite.
 * Improvements to the GIF, PCX, RLA and SGI image readers.
 * Update libtiff to version 4.0.7.
+
+Additions March/April 2017
+--------------------------
+* Setting target is now always done by the ColorManager.
+* Automatic rotating of Jpegs based on Exif orientation tag (can be disabled).
+* Detect and use included color profiles (needs LCMS to be defined).
+* Support for Saving Jpegs (24 bits only, progressive not supported).
+* 16 bits PNM support.
 
 Todo
 ----
