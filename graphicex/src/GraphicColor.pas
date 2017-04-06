@@ -705,13 +705,11 @@ end;
 function GetLogPaletteFromHPalette(Palette: HPALETTE; LogPalette: PLogPalette): Boolean;
 var
   PaletteSize: Integer;
-  LogSize: Integer;
 begin
   Result := False;
   if (Palette = 0) or (LogPalette = nil) then
     Exit;
   GetObject(Palette, SizeOf(PaletteSize), @PaletteSize);
-  LogSize := SizeOf(TLogPalette) + (PaletteSize - 1) * SizeOf(TPaletteEntry);
   with LogPalette^ do
   begin
     palVersion := $0300;
