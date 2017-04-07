@@ -230,6 +230,7 @@ type
   TGraphicExGraphic = class(TBitmap)
   private
     FColorManager: TColorManager;
+    FAutoCorrectOrientation: Boolean;
 
     // Advanced progress display support.
     FProgressStack: TStack;       // Used to manage nested progress sections.
@@ -294,6 +295,9 @@ type
     function ReadImageProperties(Stream: TStream; ImageIndex: Cardinal): Boolean; overload; virtual;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; overload; virtual;
 
+    // Should image formats that have orientation information be rotated according to
+    // that orientation or not. Default is True.
+    property AutoCorrectOrientation: Boolean read FAutoCorrectOrientation write FAutoCorrectOrientation default True;
     property ColorManager: TColorManager read FColorManager;
     property ImageProperties: TImageProperties read FImageProperties;
     {$IFDEF LCMS}
@@ -1279,6 +1283,7 @@ constructor TGraphicExGraphic.Create;
 begin
   inherited;
   FColorManager := TColorManager.Create;
+  FAutoCorrectOrientation := True;
   Decoder := nil;
   {$IFDEF LCMS}
   {$IFDEF LCMS_CONVERSION}

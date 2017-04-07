@@ -50,7 +50,6 @@ type
     FScale: TJPEGScale;
     FAutoScaleLargeImage: Boolean;
     FAutoScaleMemoryLimit: UInt64;
-    FAutoCorrectOrientation: Boolean;
   protected
     function InitJpegDecompress(const Memory: Pointer; const Size: Int64): Boolean;
     function InitJpegCompress(SaveStream: TStream): Boolean;
@@ -85,7 +84,6 @@ type
     {$ENDIF}
     property AutoScaleLargeImage: Boolean read FAutoScaleLargeImage write FAutoScaleLargeImage default False;
     property AutoScaleMemoryLimit: UInt64 read FAutoScaleMemoryLimit write FAutoScaleMemoryLimit;
-    property AutoCorrectOrientation: Boolean read FAutoCorrectOrientation write FAutoCorrectOrientation default True;
 
     // TJpegImage compatible properties
     property CompressionQuality: TJPEGQualityRange read FQuality write FQuality;
@@ -317,7 +315,6 @@ begin
   FQuality := 90;
   FAutoScaleLargeImage := False;
   FAutoScaleMemoryLimit := 1024 * 1024 * 1024; // Default 1 GB
-  FAutoCorrectOrientation := True;
 end;
 
 destructor TgexJpegImage.Destroy;
@@ -759,7 +756,7 @@ begin
 
         // Set dimensions after setting PixelFormat and after we know the output size
         DoRotate := False;
-        if FAutoCorrectOrientation and (Byte(FImageProperties.Orientation) > 1) then begin
+        if AutoCorrectOrientation and (Byte(FImageProperties.Orientation) > 1) then begin
           // First we need to make sure that we can allocate enough extra memory
           // to be able to do the rotation. We need an extra buffer the size of
           // all the image data. In case this fails with EOutOfMemory we will continue
