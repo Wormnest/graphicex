@@ -5769,7 +5769,10 @@ begin
   end
   else begin
     Progress(Self, psEnding, 0, False, FProgressRect, '');
-    GraphicExError(gesInvalidImage, ['GIF']);
+    if FLastErrorReason <> '' then
+      GraphicExError(gesInvalidImageEx, ['GIF', FLastErrorReason])
+    else
+      GraphicExError(gesInvalidImage, ['GIF']);
   end;
 end;
 
@@ -5910,7 +5913,8 @@ begin
       if (FImageProperties.BitsPerSample < 1) or (FImageProperties.BitsPerSample > 8) then
         GraphicExError(gesInvalidBitsPerSample, ['GIF', FImageProperties.BitsPerSample]);
       FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel * FImageProperties.BitsPerSample;
-      Result := True;
+
+      Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -6235,6 +6239,8 @@ begin
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['RLA', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['RLA']);
 end;
@@ -6321,7 +6327,6 @@ begin
       FImageProperties.ColorScheme := csXYZ
     else begin
       FImageProperties.ColorScheme := csUnknown;
-      Result := False;
     end;
 
     // The description of fileformat.info about gamma says:
@@ -6367,6 +6372,8 @@ begin
       FImageProperties.Comment := FImageProperties.Comment + #10'Render time: ' + String(Header.Time);
     if Header.Filter[0] <> #0 then
       FImageProperties.Comment := FImageProperties.Comment + #10'Post processing filter: ' + String(Header.Filter);
+
+    Result := CheckBasicImageProperties();
   end;
 end;
 
@@ -8118,6 +8125,8 @@ begin
 
     FinishProgressSection(False);
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PSD or PDD', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['PSD or PDD']);
 end;
@@ -8194,7 +8203,7 @@ begin
       Inc(Run, Count);
 
       FImageProperties.Compression := ConvertCompression(ReadBigEndianWord(Run));
-      Result := True;
+      Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -9214,6 +9223,8 @@ begin
         FreeMem(CompBuffer);
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PSP', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['PSP']);
 end;
@@ -9323,7 +9334,8 @@ begin
       if Image.ResolutionMetric = PSP_METRIC_CM then
         FImageProperties.XResolution := FImageProperties.XResolution * 2.54;
       FImageProperties.YResolution := FImageProperties.XResolution;
-      Result := True;
+
+      Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -9693,6 +9705,8 @@ begin
       Progress(Self, psEnding, 0, False, FProgressRect, '');
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PNG', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['PNG']);
 end;
@@ -9730,9 +9744,6 @@ begin
           ReadDataAndCheckCRC(Run);
           Move(FRawBuffer^, Description, SizeOf(Description));
           SwapCardinalArrayEndian(PCardinal(@Description), 2);
-
-          if (Description.Width = 0) or (Description.Height = 0) then
-            Exit;
 
           FImageProperties.Width := Description.Width;
           FImageProperties.Height := Description.Height;
@@ -9815,8 +9826,10 @@ begin
           if Assigned(FRawBuffer) then
             Freemem(FRawBuffer);
         end;
-        Result := True;
-      end;
+        Result := CheckBasicImageProperties();
+      end
+      else
+        Result := False
     end
     else
       Result := False;
@@ -10532,6 +10545,8 @@ begin
       Canvas.Unlock;
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['Arts & Letters GED', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['Arts & Letters GED']);
 end;
@@ -10588,7 +10603,7 @@ begin
     FImageProperties.Version := Header^.GedVersion;
     FImageProperties.Comment := string(Header^.GedVersionString);
 
-    Result := True;
+    Result := CheckBasicImageProperties();
   end;
 end;
 
