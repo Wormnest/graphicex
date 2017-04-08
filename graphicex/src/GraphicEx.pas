@@ -18,7 +18,7 @@ unit GraphicEx;
 // Copyright (C) 1999, 2008 Mike Lischke. All Rights Reserved.
 //
 // Portions created by Jacob Boerema are
-// Copyright (C) 2012-2015 Jacob Boerema. All Rights Reserved.
+// Copyright (C) 2012-2017 Jacob Boerema. All Rights Reserved.
 //
 // Credits:
 //   Haukur K. Bragason, Ingo Neumann, Craig Peterson

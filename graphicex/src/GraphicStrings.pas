@@ -15,7 +15,7 @@ unit GraphicStrings;
 // Portions created by Dipl. Ing. Mike Lischke are
 // Copyright (C) 1999-2003 Dipl. Ing. Mike Lischke. All Rights Reserved.
 //
-// Portions Created by Jacob Boerema are Copyright (C) 2013-2015 Jacob Boerema.
+// Portions Created by Jacob Boerema are Copyright (C) 2013-2017 Jacob Boerema.
 // All Rights Reserved.
 //----------------------------------------------------------------------------------------------------------------------
 //
