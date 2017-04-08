@@ -238,6 +238,7 @@ type
     FPercentDone: Single;         // Progress over all parts of the load process.
   protected
     FImageProperties: TImageProperties; // Can't be private because we need access from other units
+    FLastErrorReason: string;
     {$IFDEF LCMS}
     // Not private because we need access from other units
     FICCManager: TICCProfileManager;
@@ -305,6 +306,8 @@ type
     property ICCTransformEnabled: Boolean read FICCTransformEnabled write FICCTransformEnabled
       default {$IFDEF LCMS_CONVERSION}true{$ELSE}false{$ENDIF};
     {$ENDIF}
+    property LastErrorReason: string read FLastErrorReason;
+
   end;
 
   TGraphicExGraphicClass = class of TGraphicExGraphic;
@@ -1284,6 +1287,7 @@ begin
   inherited;
   FColorManager := TColorManager.Create;
   FAutoCorrectOrientation := True;
+  FLastErrorReason := '';
   Decoder := nil;
   {$IFDEF LCMS}
   {$IFDEF LCMS_CONVERSION}
@@ -1577,6 +1581,7 @@ procedure TGraphicExGraphic.LoadFromMemory(const Memory: Pointer; Size: Int64; I
 begin
   FreeAndNil(Decoder);
   Handle := 0;
+  FLastErrorReason := '';
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1747,6 +1752,7 @@ function TGraphicExGraphic.ReadImageProperties(const Memory: Pointer; Size: Int6
 
 begin
   ZeroMemory(@FImageProperties, SizeOf(FImageProperties));
+  FLastErrorReason := '';
   Result := True;
 end;
 
