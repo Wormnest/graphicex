@@ -4127,6 +4127,7 @@ var
   Increment: Integer;
   TempPixelFormat: TPixelFormat;
   Planes: array of Pointer;
+  MinBytesPerLine: Word;
 
 begin
   inherited;
@@ -4172,6 +4173,13 @@ begin
     Self.Height := FImageProperties.Height;
 
     // adjust alignment of line
+    MinBytesPerLine := (FImageProperties.BitsPerSample * FImageProperties.Width + 7) div 8;
+    if Header.BytesPerLine < MinBytesPerLine then begin
+      // TODO: Warning message that we encountered an invalid BytesPerLine;
+      Header.BytesPerLine := MinBytesPerLine;
+      if not FScreenCapture and Odd(Header.BytesPerLine) then
+        Inc(Header.BytesPerLine);
+    end;
     Increment := FImageProperties.SamplesPerPixel * Header.BytesPerLine;
 
     // allocate pixel data buffer and decode data if necessary
