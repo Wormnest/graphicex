@@ -86,6 +86,7 @@ resourcestring
 
   // image specific error messages
   gesInvalidImage = 'Cannot load image. Invalid or unexpected %s image format.';
+  gesInvalidImageEx = 'Cannot load %s image. %s';
   gesInvalidColorFormat = 'Invalid color format in %s file.';
   gesStreamReadError = 'Stream read error in %s file.';
   gesUnsupportedImage = 'Cannot load image. Unsupported %s image format.';
@@ -101,6 +102,14 @@ resourcestring
   gesInvalidPSDResourceData = 'Image is invalid. Resource data is corrupt.';
   gesInvalidDimensions = 'Cannot load %s image. Invalid or unsupported dimensions %d x %d.';
   gesInvalidBitsPerSample = 'Cannot load %s image. Invalid value %d for bits per sample.';
+
+  // Reasons for image loading failures
+  gerInvalidDimensions = 'Invalid image dimensions (w x h): %d x %d.';
+  gerInvalidColorScheme = 'Invalid or unsupported color format.';
+  gerInvalidCompression = 'Invalid or unsupported compression type.';
+  gerInvalidBitsPerSample = 'Invalid or unsupported bits per sample value: %d.';
+  gerInvalidSamplesPerPixel = 'Invalid or unsupported samples per pixel value: %d.';
+  gerUnsupportedDimensions = 'Unsupported image dimensions (w x h): %d x %d.';
 
   // features (usually used together with unsupported feature string)
   gesCompressionScheme = 'The compression scheme is';
