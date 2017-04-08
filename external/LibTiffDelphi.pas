@@ -1101,7 +1101,17 @@ function _TIFFmalloc(s: tmsize_t): Pointer; cdecl;
 function _TIFFmalloc(s: tmsize_t): Pointer; cdecl; public name '__TIFFmalloc';
 {$ENDIF}
 begin
-  Result := AllocMem(s);
+  // Note: Tiff expects that nil gets returned when we are out of memory but
+  // Delphi always raises an Out of Memory exception. To catch this we use
+  // try except but this does slow down our reader especially on larger images.
+  // For now we accept this slow down until we find a better solution.
+  // Not returning nil here will also cause more memory not to be freed.
+  try
+    Result := AllocMem(s);
+  except
+    on EOutOfMemory do
+      Result := nil;
+  end;
 end;
 
 {$IFNDEF FPC}
@@ -1111,10 +1121,20 @@ function _TIFFrealloc(p: Pointer; s: tmsize_t): Pointer; cdecl; public name '__T
 //[public,alias:'__TIFFrealloc'];
 {$ENDIF}
 begin
-  if p = nil then
-    Result := AllocMem(s)
-  else
-    Result := ReallocMemory(p,s);
+  // Note: Tiff expects that nil gets returned when we are out of memory but
+  // Delphi always raises an Out of Memory exception. To catch this we use
+  // try except but this does slow down our reader especially on larger images.
+  // For now we accept this slow down until we find a better solution.
+  // Not returning nil here will also cause more memory not to be freed.
+  try
+    if p = nil then
+      Result := AllocMem(s)
+    else
+      Result := ReallocMemory(p,s);
+  except
+    on EOutOfMemory do
+      Result := nil;
+  end;
 end;
 
 {$IFNDEF FPC}
