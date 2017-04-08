@@ -1138,8 +1138,10 @@ begin
       FinishProgressSection(False);
     end;
   end
+  else if FLastErrorReason <> '' then
+    FatalMessage(Format(gesInvalidImageEx, ['XCF', FLastErrorReason]))
   else
-    FatalMessage('XCF: Error reading image');
+    FatalMessage(Format(gesInvalidImage, ['XCF']));
 end;
 
 function TXcfGraphic.GetParasite(var Memory: PByte; var Parasite: TXcfParasite): Boolean;
@@ -1303,7 +1305,12 @@ begin
         Break;
       Inc(FLayerCount);
     end;
-  end;
+
+    if Result then
+      Result := CheckBasicImageProperties();
+  end
+  else // Since if can also fail because of size check we need to set result here.
+    Result := False;
 
 end;
 

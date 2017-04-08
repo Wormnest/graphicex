@@ -367,7 +367,7 @@ begin
     SeekNextIffChunk(@FData);
   end; // while not found TBHD chunk
 
-  Result := True;
+  Result := CheckBasicImageProperties();
   FImagePropertiesLoaded := True;
 end;
 
@@ -393,7 +393,10 @@ begin
   try
     if not FImagePropertiesLoaded then
       if not ReadImageProperties(Memory, Size, ImageIndex) then
-        raise EgexInvalidGraphic.CreateFmt(gesInvalidImage, [IffType]);
+        if FLastErrorReason <> '' then
+          GraphicExError(gesInvalidImageEx, [IffType, FLastErrorReason])
+        else
+          GraphicExError(gesInvalidImage, [IffType]);
 
     if (FImageProperties.Width <= 0) or (FImageProperties.Height <= 0) then
       Exit;

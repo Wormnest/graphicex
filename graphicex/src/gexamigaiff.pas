@@ -474,7 +474,8 @@ begin
 
       // Go to next chunk
       SeekNextIffChunk(@FData);
-    end; // whilte True
+    end; // while True
+    Result := CheckBasicImageProperties();
   except
     FreeAllChunkData;
     raise;
@@ -1148,7 +1149,10 @@ var
   Decoder: TDecoder;
 begin
   if not ReadImageProperties(Memory, Size, ImageIndex) then
-    raise EgexInvalidGraphic.CreateFmt(gesInvalidImage, [IffType]);
+    if FLastErrorReason <> '' then
+      GraphicExError(gesInvalidImageEx, [IffType, FLastErrorReason])
+    else
+      GraphicExError(gesInvalidImage, [IffType]);
 
   Decoder := nil;
   EHBPal := nil;
