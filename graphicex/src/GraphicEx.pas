@@ -4257,8 +4257,10 @@ begin
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PCX', FLastErrorReason])
   else
-    GraphicExError(gesInvalidImage, ['PCX, PCC or SCR']);
+    GraphicExError(gesInvalidImage, ['PCX']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -4310,7 +4312,7 @@ begin
       FImageProperties.XResolution := Header.HRes;
       FImageProperties.YResolution := Header.VRes;
 
-      Result := True;
+      Result := CheckBasicImageProperties();
     end
     else
       Result := False;
