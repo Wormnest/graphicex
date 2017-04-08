@@ -276,6 +276,11 @@ type
     // This one is probably not needed but added to have a function for all simple directions.
     procedure RotateTopLeft(const ASrcBuf: PByte; const ASrcWidth, ASamplesPerPixel: Integer);
 
+    // This can be called after the basic ImageProperties have been set to check
+    // if there are invalid values. In case there are any invalid settings it
+    // will return False and set FLastErrorReason with a string describing the problem.
+    function CheckBasicImageProperties: Boolean;
+
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -1862,6 +1867,31 @@ begin
     Move(SrcBuf^, ScanLine[y]^, SrcLineBytes);
     Dec(SrcBuf, SrcLineBytes);
   end;
+end;
+
+//------------------------------------------------------------------------------
+
+// This can be called after the basic ImageProperties have been set to check
+// if there are invalid values. In case there are any invalid settings it
+// will return False and set FLastErrorReason with a string describing the problem.
+function TGraphicExGraphic.CheckBasicImageProperties: Boolean;
+begin
+  Result := False;
+  if (FImageProperties.Width <= 0) or (FImageProperties.Height <= 0) then
+    FLastErrorReason := Format(gerInvalidDimensions, [FImageProperties.Width, FImageProperties.Height])
+  else if (FImageProperties.Width > 100000) or (FImageProperties.Height > 100000) then
+    FLastErrorReason := Format(gerUnsupportedDimensions, [FImageProperties.Width, FImageProperties.Height])
+  else if FImageProperties.ColorScheme = csUnknown then
+    FLastErrorReason := gerInvalidColorScheme
+  else if FImageProperties.Compression = ctUnknown then
+    FLastErrorReason := gerInvalidCompression
+  else if (FImageProperties.BitsPerSample = 0) or (FImageProperties.BitsPerSample > 64) then
+    FLastErrorReason := Format(gerInvalidBitsPerSample, [FImageProperties.BitsPerSample])
+  else if (FImageProperties.SamplesPerPixel = 0) or (FImageProperties.SamplesPerPixel > 64) then
+    // Note that 64 as maximum is more or less randomly chosen. PSD images allow 56 channels.
+    FLastErrorReason := Format(gerInvalidSamplesPerPixel, [FImageProperties.SamplesPerPixel])
+  else
+    Result := True;
 end;
 
 //----------------- TAutodeskGraphic -----------------------------------------------------------------------------------
