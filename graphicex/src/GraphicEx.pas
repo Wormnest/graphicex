@@ -4612,6 +4612,8 @@ begin
         FreeMem(YCbCrData[0]);
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PCD', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['PCD']);
 end;
@@ -4664,7 +4666,7 @@ begin
       else
         FImageProperties.ImageCount := 5; // These are the always present image resolutions.
 
-      Result := True;
+      Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -5006,6 +5008,8 @@ begin
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['PBM, PGM or PPM', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['PBM, PGM or PPM']);
 end;
@@ -5089,6 +5093,8 @@ begin
       end;
       FImageProperties.BitsPerPixel := FImageProperties.SamplesPerPixel *
         FImageProperties.BitsPerSample;
+      if Result then
+        Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -5199,7 +5205,11 @@ begin
     end;
 
     Progress(Self, psEnding, 0, False, FProgressRect, '');
-  end;
+  end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['CUT', FLastErrorReason])
+  else
+    GraphicExError(gesInvalidImage, ['CUT']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -5226,6 +5236,8 @@ begin
       FImageProperties.SamplesPerPixel;
 
     FImageProperties.Compression := ctRLE;
+
+    Result := CheckBasicImageProperties();
   end;
 end;
 
