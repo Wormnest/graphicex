@@ -5153,13 +5153,12 @@ var
   LineBuf: PByte;
   LogPalette: TMaxLogPalette;
   CompressedSize: Word;
+  Mem: TMemoryAccess;
 
 begin
   inherited;
 
   if ReadImageProperties(Memory, Size, ImageIndex) then begin
-    Source := Pointer(PAnsiChar(Memory) + 6);
-
     FProgressRect := Rect(0, 0, FImageProperties.Width, 0);
     Progress(Self, psStarting, 0, False, FProgressRect, gesTransfering);
 
@@ -5182,14 +5181,22 @@ begin
     ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
     GetMem(LineBuf, Width);
     Decoder := TCUTRLEDecoder.Create;
+    Mem := TMemoryAccess.Create(Memory, Size, 'CUT');
     try
+      // Skip the 6 byte header.
+      Mem.SeekFromBeginning(6);
+
+      CompressedSize := 0;
       for Y := 0 to Height - 1 do
       begin
+        // We have to seek forward first because if we did it right after decoding then on
+        // the last line we would arrive at a position one greater than allowed.
+        Mem.SeekForward(CompressedSize);
         Line := LineBuf;
         // Length in bytes of compressed data.
-        CompressedSize := PWord(Source)^;
-        Inc(Source, 2);
+        CompressedSize := Mem.GetWord();
         // Decode one line.
+        Source := Mem.GetAccessToMemory(CompressedSize);
         Decoder.Decode(Pointer(Source), Line, CompressedSize, Width);
         // Check that the correct amount of data got decompressed.
         if (Decoder.CompressedBytesAvailable <> 0) or (Decoder.DecompressedBytes <> Width) then
@@ -5200,6 +5207,7 @@ begin
         OffsetRect(FProgressRect, 0, 1);
       end;
     finally
+      Mem.Free;
       FreeAndNil(Decoder);
       FreeMem(LineBuf);
     end;
@@ -5220,7 +5228,7 @@ var
   Run: PWord;
 
 begin
-  Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
+  Result := inherited ReadImageProperties(Memory, Size, ImageIndex) and (Size > 6);
 
   if Result then begin
     PixelFormat := pf8Bit;
@@ -5228,6 +5236,8 @@ begin
     FImageProperties.Width := Run^;
     Inc(Run);
     FImageProperties.Height := Run^;
+    // After this the header has one more word that is "reserved".
+    // Following that is the RLE compressed image data.
 
     FImageProperties.ColorScheme := csIndexed;
     FImageProperties.BitsPerSample := 8;
