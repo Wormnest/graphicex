@@ -2000,6 +2000,8 @@ begin
 
     Progress(Self, psEnding, 0, False, FProgressRect, '');
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['Autodesk CEL or PIC', FLastErrorReason])
   else
     GraphicExError(gesInvalidImage, ['Autodesk CEL or PIC']);
 end;
@@ -2035,6 +2037,8 @@ begin
     FImageProperties.SamplesPerPixel := 1;
     FImageProperties.BitsPerPixel := 8;
     FImageProperties.Compression := ctNone;
+    if Result then
+      Result := CheckBasicImageProperties();
   end;
 end;
 
@@ -2328,8 +2332,10 @@ begin
       FreeAndNil(Decoder);
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['SGI, RGB(A) or BW', FLastErrorReason])
   else
-    GraphicExError(gesInvalidImage, ['sgi, bw or rgb(a)']);
+    GraphicExError(gesInvalidImage, ['SGI, RGB(A) or BW']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -2377,7 +2383,9 @@ begin
       if not (SwapEndian(Header.ColorMap) in [0, 2]) then
         // We don't support type 1, nor palette only 3.
         // Supporting type 1 looks doable if we had at least an example.
-        Result := False;
+        Result := False
+      else
+        Result := CheckBasicImageProperties();
     end
     else
       Result := False;
@@ -3066,8 +3074,10 @@ begin
       FreeAndNil(Decoder);
     end;
   end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['TIF(F)', FLastErrorReason])
   else
-    GraphicExError(gesInvalidImage, ['TIF/TIFF']);
+    GraphicExError(gesInvalidImage, ['TIF(F)']);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -3328,6 +3338,8 @@ begin
       if (TIFFGetField(TIFFImage, TIFFTAG_IMAGEDESCRIPTION, @TiffStringValue) = 1) and
          (TiffStringValue[0] <> nil) then
         FImageProperties.Comment := string(TiffStringValue[0]);
+
+      Result := CheckBasicImageProperties();
     finally
       TIFFClose(TIFFImage);
     end
