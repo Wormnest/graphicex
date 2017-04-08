@@ -3682,7 +3682,11 @@ begin
           BGRASetAlpha255(ScanLine[i], Width);
     end;
     Progress(Self, psEnding, 0, False, FProgressRect, '');
-  end;
+  end
+  else if FLastErrorReason <> '' then
+    GraphicExError(gesInvalidImageEx, ['TGA', FLastErrorReason])
+  else
+    GraphicExError(gesInvalidImage, ['TGA']);
 end;
 
 //------------------------------------------------------------------------------
@@ -3807,7 +3811,7 @@ begin
       // ColorScheme is csBGRA in combination with ExtrBits = 1 to define this.
       SamplesPerPixel := 4;
     end;}
-    Result := True;
+    Result := CheckBasicImageProperties();
   end;
 end;
 
