@@ -9968,8 +9968,8 @@ end;
 procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
 var
   Run: PByte;
-  ProfileName: PAnsiChar;
-  ProfileLength: Cardinal;
+  //ProfileName: PAnsiChar;
+  ProfileLength: Integer;
   //Compression: Byte;
   CompressedBytes: Cardinal;
   {$IFDEF LCMS}
@@ -9986,7 +9986,8 @@ begin
   if ProfileLength = -1 then
     // TODO: Warning: PAnsiChar not null terminated.
     Exit;
-  ProfileName := PAnsiChar(Run);
+  // Silence warning: we are currently not using ProfileName.
+  //ProfileName := PAnsiChar(Run);
   Inc(ProfileLength); // +1 to include the null byte
 
   Inc(Run, ProfileLength); // Skip ProfileName including terminating 0
@@ -9996,7 +9997,7 @@ begin
   //if Compression <> 0 then
   //  GraphicExError(gesDecompression, ['PNG']);
   Inc(Run); // Skip Compression type
-  CompressedBytes := FHeader.Length - ProfileLength - 1;
+  CompressedBytes := FHeader.Length - Cardinal(ProfileLength) - 1;
   {$IFDEF LCMS}
   try
     DecompressToBuffer(Run, CompressedBytes, LocalBuffer, DecompressedSize);
