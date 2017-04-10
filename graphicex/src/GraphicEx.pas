@@ -9453,6 +9453,7 @@ function TPNGGraphic.LoadAndSwapHeader(var Source: PByte): Cardinal;
 // returns the intial CRC value for following checks
 
 begin
+  ValidateMemoryPosition(Source, SizeOf(FHeader));
   Move(Source^, FHeader, SizeOf(FHeader));
   Inc(Source, SizeOf(FHeader));
 
