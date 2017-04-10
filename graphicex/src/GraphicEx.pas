@@ -10258,9 +10258,15 @@ var
   Keyword: AnsiString;
   Offset: Cardinal;
   Contents: string;
-
+  KeywordLength: Integer;
 begin
   ReadDataAndCheckCRC(Source);
+
+  // -1: After the keyword should at least be another string which can be just a #0 I think so minimum length 1.
+  KeywordLength := SafePAnsiCharLength(PAnsiChar(FRawBuffer), FHeader.Length-1);
+  if KeywordLength = -1 then
+    // TODO: Warning message: invalid keyword data.
+    Exit;
   Keyword := PAnsiChar(FRawBuffer); // Keyword is zero terminated in file
   if (Keyword = 'Comment') or (Keyword = 'Description') or (Keyword = 'Title') then
   begin
