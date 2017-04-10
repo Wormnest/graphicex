@@ -28,6 +28,15 @@ interface
   {$mode delphi}
 {$ENDIF}
 
+// Return the length of a PAnsiChar buffer terminated with 0.
+// Note that since there has to be a terminating 0 character the maximum length
+// that can be returned is BufferLength-1. To make it overflow safe we will
+// temporarily replace the last char in buffer with 0.
+// In case that last char wasn't a 0 and no other 0 was found we will return -1
+// since not finding a 0 character is an error.
+function SafePAnsiCharLength(Source: PAnsiChar; BufferLength: Integer): Integer;
+
+
 // Reads the next four bytes from the memory pointed to by Run, converts this into a
 // cardinal number (inclusive byte order swapping) and advances Run.
 function ReadBigEndianCardinal(var Run: PByte): Cardinal;
@@ -94,6 +103,36 @@ procedure SwapDouble(const Source; var Target);
 
 
 implementation
+
+
+// Return the length of a PAnsiChar buffer terminated with 0.
+// Note that since there has to be a terminating 0 character the maximum length
+// that can be returned is BufferLength-1. To make it overflow safe we will
+// temporarily replace the last char in buffer with 0.
+// In case that last char wasn't a 0 and no other 0 was found we will return -1
+// since not finding a 0 character is an error.
+function SafePAnsiCharLength(Source: PAnsiChar; BufferLength: Integer): Integer;
+var
+  SaveLastChar: AnsiChar;
+  SafeLength: Integer;
+  LastIdx: Integer;
+begin
+  if BufferLength < 1 then begin
+    Result := -1;
+    Exit;
+  end;
+  LastIdx := BufferLength-1;
+  SaveLastChar := Source[LastIdx];
+  Source[LastIdx] := #0;
+  SafeLength := Length(Source);
+  if (SafeLength < LastIdx) or
+    ((SafeLength = LastIdx) and (SaveLastChar = #0)) then
+    Result := SafeLength
+  else
+    Result := -1;
+  Source[LastIdx] := SaveLastChar;
+end;
+
 
 //----------------- support functions for image loading ----------------------------------------------------------------
 
