@@ -9967,6 +9967,7 @@ end;
 
 procedure TPNGGraphic.LoadICCProfile(var Source: PByte);
 var
+  Run: PByte;
   ProfileName: PAnsiChar;
   ProfileLength: Cardinal;
   //Compression: Byte;
@@ -9976,19 +9977,29 @@ var
   LocalBuffer: PByte;
   {$ENDIF}
 begin
-  ProfileName := PAnsiChar(Source);
-  ProfileLength := Length(ProfileName)+1; // +1 to include the null byte
-  Inc(Source, ProfileLength); // Skip ProfileName including terminating 0
+  ReadDataAndCheckCRC(Source);
+  Run := FRawBuffer;
+
+  // -2: Besides the string there should be at least room for the compression type byte and
+  // at least 1 byte of compressed data.
+  ProfileLength := SafePAnsiCharLength(PAnsiChar(Run), FHeader.Length-2);
+  if ProfileLength = -1 then
+    // TODO: Warning: PAnsiChar not null terminated.
+    Exit;
+  ProfileName := PAnsiChar(Run);
+  Inc(ProfileLength); // +1 to include the null byte
+
+  Inc(Run, ProfileLength); // Skip ProfileName including terminating 0
   // Commented out Compression to silence warning about it not being used.
   //Compression := Source^;
   // TODO: Only valid Compression type is 0. But we should only warn here not stop.
   //if Compression <> 0 then
   //  GraphicExError(gesDecompression, ['PNG']);
-  Inc(Source); // Skip Compression type
+  Inc(Run); // Skip Compression type
   CompressedBytes := FHeader.Length - ProfileLength - 1;
   {$IFDEF LCMS}
   try
-    DecompressToBuffer(Source, CompressedBytes, LocalBuffer, DecompressedSize);
+    DecompressToBuffer(Run, CompressedBytes, LocalBuffer, DecompressedSize);
     // Check if anything got decompressed.
     // Since ICC is not essential we will continue even in case of error decompressing ICC.
     if (DecompressedSize > 0) and (LocalBuffer <> nil) then begin
@@ -10004,7 +10015,6 @@ begin
   end;
   {$ELSE}
   {$ENDIF}
-  Inc(Source, CompressedBytes);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
