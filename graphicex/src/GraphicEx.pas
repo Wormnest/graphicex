@@ -10416,6 +10416,13 @@ begin
         FCurrentSource := FRawBuffer;
         FIDATSize := FHeader.Length;
 
+        // Catch missing IEND (If we wanted to be really strict we could remove
+        // this check then we would stop with a stream read error.)
+        if Source = FEOF then begin
+          FHeader.Length := 0;
+          FHeader.ChunkType := IEND;
+          break;
+        end;
         // prepare next chunk (plus CRC)
         FCurrentCRC := LoadAndSwapHeader(Source);
       end;
