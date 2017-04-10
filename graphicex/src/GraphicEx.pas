@@ -5794,7 +5794,17 @@ begin
   else begin
     Progress(Self, psEnding, 0, False, FProgressRect, '');
     if FLastErrorReason <> '' then
-      GraphicExError(gesInvalidImageEx, ['GIF', FLastErrorReason])
+      // GIF spec allows 0 x 0 image with text only blocks although you won't
+      // see it except for the theoretical examples I have.
+      // We use LeftStr here because the dimension values will get filled in making the original strings different.
+      if (LeftStr(FLastErrorReason, 25) = LeftStr(gerInvalidDimensions, 25)) and
+        (FImageProperties.Width = 0) and (FImageProperties.Height = 0) then begin
+          // Make sure we have a 0 size image.
+          Width := 0;
+          Height := 0;
+        end
+        else
+          GraphicExError(gesInvalidImageEx, ['GIF', FLastErrorReason])
     else
       GraphicExError(gesInvalidImage, ['GIF']);
   end;
