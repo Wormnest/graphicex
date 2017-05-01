@@ -584,7 +584,6 @@ object frmViewer: TfrmViewer
       Indent = 19
       ParentFont = False
       RightClickSelect = True
-      Root = 'e:\Delphi\Projects\Transcript\test-images\'
       ShowRoot = False
       TabOrder = 0
       OnChange = ShellTV1Change
