@@ -10,11 +10,8 @@
         <OtherUnitFiles Value="..\external"/>
         <UnitOutputDirectory Value="..\lib\fpc\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
-      <Other>
-        <CustomOptions Value="-dLIBTIFF4"/>
-      </Other>
     </CompilerOptions>
-    <Files Count="6">
+    <Files Count="7">
       <Item1>
         <Filename Value="..\external\c_types.pas"/>
         <UnitName Value="C_Types"/>
@@ -39,6 +36,10 @@
         <Filename Value="..\external\LibTiffDelphiHelper.pas"/>
         <UnitName Value="LibTiffDelphiHelper"/>
       </Item6>
+      <Item7>
+        <Filename Value="..\external\lcms2dll.pas"/>
+        <UnitName Value="lcms2dll"/>
+      </Item7>
     </Files>
     <RequiredPkgs Count="2">
       <Item1>
