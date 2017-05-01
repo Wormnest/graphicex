@@ -190,7 +190,7 @@
         </CompilerOptions>
       </Item5>
       <SharedMatrixOptions Count="4">
-        <Item1 ID="598540769452" Modes="Debug64,Release64,Release,Debug,Default" Value="-dLIBTIFF4"/>
+        <Item1 ID="598540769452" Modes="Default,Debug,Release,Debug64,Release64" Value="-dLCMS"/>
         <Item2 ID="940226614010" Modes="Debug64,Release64,Release,Debug,Default" Value="-dCUTGraphic"/>
         <Item3 ID="186019651453" Modes="Debug64,Default,Debug,Release,Release64" Value="-dAutodeskGraphic"/>
         <Item4 ID="424350241485" Modes="Debug64,Release64,Release,Debug,Default" Value="-dArtsAndLettersGraphic"/>
