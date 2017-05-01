@@ -21,6 +21,7 @@ uses SysUtils, Forms, Classes, Windows, Messages, Graphics, ComCtrls,
      LclType, FPReadJPEG,
      gexJpegWrapper, // Extended TJpegImage with support for scale (add after Graphics!)
      {$ENDIF}
+     gexJpeg,
      rkView;
 
 const
@@ -534,7 +535,7 @@ function CreateThumbJpeg: TgexThreadSafeJpegImage;
 begin
   Result := TgexThreadSafeJpegImage.Create;
   Result.CompressionQuality := 80;
-  Result.Performance := jpBestSpeed;
+  Result.Performance := jpeg.TJPEGPerformance(jpBestSpeed);
 end;
 
 constructor TgexBaseForm.Create(AOwner : TComponent);
@@ -551,7 +552,7 @@ begin
   FMaxThumbSizeW := 256;
   FMaxThumbSizeH := 256;
   CellJpeg := TgexThreadSafeJpegImage.Create;
-  CellJpeg.Performance := jpBestSpeed;
+  CellJpeg.Performance := jpeg.TJPEGPerformance(jpBestSpeed);
   CellStyle := -1;
   CellScale := 0;
 
@@ -689,11 +690,11 @@ begin
   if FThumbView = nil then
     InitView;
   case Value of
-    32..63: CellJpeg.Scale := jsQuarter;
-    64..127: CellJpeg.Scale := jsHalf;
-    128..255: CellJpeg.Scale := jsFullSize;
+    32..63: CellJpeg.Scale := jpeg.jsQuarter;
+    64..127: CellJpeg.Scale := jpeg.jsHalf;
+    128..255: CellJpeg.Scale := jpeg.jsFullSize;
   else
-    CellJpeg.Scale := jsEighth;
+    CellJpeg.Scale := jpeg.jsEighth;
   end;
   w := Value;
   h := Value;
@@ -846,6 +847,7 @@ var
   ThumbBmp: TBitmap;
   ImageExtraData: Pointer;
   ABitmap: TBitmap;
+  TestJpeg: TgexJpegImage;
 begin
   FName := ImageFolder + Thumb.name;
   ThumbBmp := nil;
@@ -859,20 +861,27 @@ begin
     begin
       // This part determines the dimensions of a jpeg, the optimal jpeg scale
       // and then loads the jpeg image
-      FThumbJpeg.Scale := jsFullSize;
+      FThumbJpeg.Scale := jpeg.jsFullSize;
       GetJPGSize(FName, WI, HI);
       sf := Trunc(Min(HI / 255 {TH}, WI / 255 {TW}));
       if sf < 0 then
         sf := 0;
       case sf of
-        0..1: FThumbJpeg.Scale := jsFullSize;
-        2..3: FThumbJpeg.Scale := jsHalf;
-        4..7: FThumbJpeg.Scale := jsQuarter;
+        0..1: FThumbJpeg.Scale := jpeg.jsFullSize;
+        2..3: FThumbJpeg.Scale := jpeg.jsHalf;
+        4..7: FThumbJpeg.Scale := jpeg.jsQuarter;
       else
-        FThumbJpeg.Scale := jsEighth;
+        FThumbJpeg.Scale := jpeg.jsEighth;
       end;
+      TestJpeg := TgexJpegImage.Create;
       try
+        TestJpeg.Scale := TJPEGScale(FThumbJpeg.Scale);
+        TestJpeg.Performance := jpBestSpeed;
+        TestJpeg.CompressionQuality := 80;
+        {
         FThumbJpeg.LoadFromFile(FName);
+        }
+        TestJpeg.LoadFromFile(FName);
       except
         ExceptionMessage := 'Error loading jpeg: ' + FName;
         Thumb.Broken := True;
@@ -886,8 +895,11 @@ begin
       // This draws the full image to a Bitmap and then makes a
       // thumbnail image in the required size for it
       if not fail then
-        ThumbBmp := CreateThumbnail(FThumbJpeg.Width, FThumbJpeg.Height,
-          FThumbJpeg, Thumb);
+        {ThumbBmp := CreateThumbnail(FThumbJpeg.Width, FThumbJpeg.Height,
+          FThumbJpeg, Thumb);}
+        ThumbBmp := CreateThumbnail(TestJpeg.Width, TestJpeg.Height,
+          TestJpeg, Thumb);
+      TestJpeg.Free;
     end
     else if Thumb.ImageFormat = CgexBitmap then begin
       ABitmap := TBitmap.Create;
@@ -1258,11 +1270,11 @@ begin
       if sf < 0 then
         sf := 0;
       case sf of
-        0..1: CellJPEG.Scale := jsFullSize;
-        2..3: CellJPEG.Scale := jsHalf;
-        4..7: CellJPEG.Scale := jsQuarter;
+        0..1: CellJPEG.Scale := jpeg.jsFullSize;
+        2..3: CellJPEG.Scale := jpeg.jsHalf;
+        4..7: CellJPEG.Scale := jpeg.jsQuarter;
       else
-        CellJPEG.Scale := jsEighth;
+        CellJPEG.Scale := jpeg.jsEighth;
       end;
       CellJPEG.LoadFromStream(TMemoryStream(T.Image));
 
