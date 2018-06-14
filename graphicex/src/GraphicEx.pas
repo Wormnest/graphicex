@@ -9047,8 +9047,12 @@ var
             // Set up ImageRect for the whole image and start converting rows
             ImageRect.Top := 0;
             ImageRect.Left := 0;
+{ Lazarus 1.6 doesn't have Height/Width properties for TRECT.
             ImageRect.Height := FImageProperties.Height-1;
             ImageRect.Width := FImageProperties.Width-1;
+}
+            ImageRect.Bottom := FImageProperties.Height;
+            ImageRect.Right := FImageProperties.Width;
             ConvertRows(FImageProperties.Width, ImageRect, Pointer(LastPosition + ChunkSize));
 
             Result := True;
