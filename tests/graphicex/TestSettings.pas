@@ -25,7 +25,7 @@ var IniFile: TIniFile;
 begin
   s := ChangeFileExt(Application.ExeName,'.ini');
   if not FileExists(s) then begin
-    MessageBox(0, PWideChar('Test settings file ' + s + ' does not exist!'#13#10+
+    MessageBox(0, PChar('Test settings file ' + s + ' does not exist!'#13#10+
       'Please create this ini file with a "[Settings] section".'#13#10+
       'Inside that section you should add ImagesBasePath=<location of your folder with test images>.'#13#10+
       'The folder path should end with a "\".'),
