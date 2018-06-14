@@ -519,12 +519,16 @@ end;
 
 procedure TgexThreadSafeJpegImage.Draw(ACanvas: TCanvas; const Rect: TRect);
 begin
+  {$IFNDEF FPC}
   Bitmap.Canvas.Lock;
   try
+  {$ENDIF}
     inherited Draw(ACanvas, Rect);
+  {$IFNDEF FPC}
   finally
     Bitmap.Canvas.Unlock;
   end;
+  {$ENDIF}
 end;
 
 // -----------------------------------------------------------------------------
@@ -535,7 +539,11 @@ function CreateThumbJpeg: TgexThreadSafeJpegImage;
 begin
   Result := TgexThreadSafeJpegImage.Create;
   Result.CompressionQuality := 80;
+  {$IFNDEF FPC}
   Result.Performance := jpeg.TJPEGPerformance(jpBestSpeed);
+  {$ELSE}
+  Result.Performance := TJPEGReadPerformance(jpBestSpeed);
+  {$ENDIF}
 end;
 
 constructor TgexBaseForm.Create(AOwner : TComponent);
@@ -552,7 +560,11 @@ begin
   FMaxThumbSizeW := 256;
   FMaxThumbSizeH := 256;
   CellJpeg := TgexThreadSafeJpegImage.Create;
+  {$IFNDEF FPC}
   CellJpeg.Performance := jpeg.TJPEGPerformance(jpBestSpeed);
+  {$ELSE}
+  CellJpeg.Performance := TJPEGReadPerformance(jpBestSpeed);
+  {$ENDIF}
   CellStyle := -1;
   CellScale := 0;
 
@@ -690,11 +702,11 @@ begin
   if FThumbView = nil then
     InitView;
   case Value of
-    32..63: CellJpeg.Scale := jpeg.jsQuarter;
-    64..127: CellJpeg.Scale := jpeg.jsHalf;
-    128..255: CellJpeg.Scale := jpeg.jsFullSize;
+    32..63: CellJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsQuarter;
+    64..127: CellJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsHalf;
+    128..255: CellJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsFullSize;
   else
-    CellJpeg.Scale := jpeg.jsEighth;
+    CellJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsEighth;
   end;
   w := Value;
   h := Value;
@@ -861,17 +873,17 @@ begin
     begin
       // This part determines the dimensions of a jpeg, the optimal jpeg scale
       // and then loads the jpeg image
-      FThumbJpeg.Scale := jpeg.jsFullSize;
+      FThumbJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsFullSize;
       GetJPGSize(FName, WI, HI);
       sf := Trunc(Min(HI / 255 {TH}, WI / 255 {TW}));
       if sf < 0 then
         sf := 0;
       case sf of
-        0..1: FThumbJpeg.Scale := jpeg.jsFullSize;
-        2..3: FThumbJpeg.Scale := jpeg.jsHalf;
-        4..7: FThumbJpeg.Scale := jpeg.jsQuarter;
+        0..1: FThumbJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsFullSize;
+        2..3: FThumbJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsHalf;
+        4..7: FThumbJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsQuarter;
       else
-        FThumbJpeg.Scale := jpeg.jsEighth;
+        FThumbJpeg.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsEighth;
       end;
       TestJpeg := TgexJpegImage.Create;
       try
@@ -1270,11 +1282,11 @@ begin
       if sf < 0 then
         sf := 0;
       case sf of
-        0..1: CellJPEG.Scale := jpeg.jsFullSize;
-        2..3: CellJPEG.Scale := jpeg.jsHalf;
-        4..7: CellJPEG.Scale := jpeg.jsQuarter;
+        0..1: CellJPEG.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsFullSize;
+        2..3: CellJPEG.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsHalf;
+        4..7: CellJPEG.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsQuarter;
       else
-        CellJPEG.Scale := jpeg.jsEighth;
+        CellJPEG.Scale := {$IFNDEF FPC}jpeg.{$ELSE}fpReadJpeg.{$ENDIF}jsEighth;
       end;
       CellJPEG.LoadFromStream(TMemoryStream(T.Image));
 
