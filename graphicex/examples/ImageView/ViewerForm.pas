@@ -22,7 +22,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
 {$ifdef conditionalexpressions}
-	{$if CompilerVersion >= 23} // XE2
+  {$if CompilerVersion >= 23} // XE2
   System.Types,
   {$endif}
 {$endif}
