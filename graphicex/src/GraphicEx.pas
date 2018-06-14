@@ -4540,7 +4540,7 @@ begin
         C1 := YCbCrData[1];
         C2 := YCbCrData[2];
 
-        // For the rotated mode where we need to turn the image by 90°. We can speed up loading
+        // For the rotated mode where we need to turn the image by 90 degrees. We can speed up loading
         // the image by factor 2 by using a local copy of the Scanline pointers.
         if FImageProperties.Rotate in [1, 3] then
         begin
@@ -4563,7 +4563,7 @@ begin
 
         try
           case FImageProperties.Rotate of
-            1: // rotate -90°
+            1: // rotate -90 degrees
               begin
                 for Y := 0 to FImageProperties.Height - 1 do
                 begin
@@ -4585,7 +4585,7 @@ begin
                   OffsetRect(FProgressRect, 0, 1);
                 end;
               end;
-            3: // rotate 90°
+            3: // rotate 90 degrees
               begin
                 for Y := 0 to FImageProperties.Height - 1 do
                 begin
