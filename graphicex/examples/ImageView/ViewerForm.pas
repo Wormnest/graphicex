@@ -500,7 +500,7 @@ begin
   pbProgress.Hide;
   UpdatePageButtons;
   CanView := True;
-  if ImageFolder <> '' then
+  if (ImageFolder <> '') and (DirectoryExists(ImageFolder)) then
     ShellTV1.Path := ImageFolder;
   sgImgProperties.ColWidths[1] := sgImgProperties.ClientWidth -
     sgImgProperties.ColWidths[0];
