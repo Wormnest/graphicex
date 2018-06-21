@@ -7,6 +7,8 @@ interface
 var
   // Root folder where test images can be found.
   ImagesBasePath: string;
+  // Folder to use for saving/loading test images for the test suite.
+  TestDataPath: string;
 
 implementation
 
@@ -31,6 +33,17 @@ begin
       'The folder path should end with a "\".'),
       'ImageReader Tests', mb_iconhand + mb_ok);
     Exit;
+  end;
+  TestDataPath := ExtractFileDir(s) + DirectorySeparator + 'data';
+  if not DirectoryExists(TestDataPath) then begin
+    if not CreateDir(TestDataPath) then begin
+      MessageBox(0, PChar('Path where to store and test images could not be created!'#13#10+
+        'Folder should be '+TestDataPath+#13#10+
+        'Please create a folder called data in the folder where the test binary is saved.'),
+        'ImageReader Tests', mb_iconhand + mb_ok);
+      TestDataPath := '';
+      Exit;
+    end;
   end;
   IniFile := TIniFile.Create(s);
   try
