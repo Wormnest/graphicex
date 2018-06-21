@@ -34,7 +34,7 @@ begin
       'ImageReader Tests', mb_iconhand + mb_ok);
     Exit;
   end;
-  TestDataPath := ExtractFileDir(s) + DirectorySeparator + 'data';
+  TestDataPath := ExtractFileDir(s) + PathDelim + 'data';
   if not DirectoryExists(TestDataPath) then begin
     if not CreateDir(TestDataPath) then begin
       MessageBox(0, PChar('Path where to store and test images could not be created!'#13#10+

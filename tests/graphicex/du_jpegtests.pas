@@ -193,7 +193,7 @@ initialization
   Test3 := ImagesBasePath + 'jpg\wrong-extension.bmp';  // jpg with bmp extension
   BmpPath := ImagesBasePath + 'bmp\bmpsuite-2.5\g\';
   BmpImg := BmpPath + 'rgb24.bmp';
-  JpegSavePath := TestDataPath + DirectorySeparator;
+  JpegSavePath := TestDataPath + PathDelim;
   if not FileExists(Test1) or not FileExists(Test2) or not FileExists(Test3) or not FileExists(BmpImg) then
     MessageBox(0, 'At least one of the test images does not exist!'#13#10+
       'Please change the name of the basepath or the test files to something valid for your system.',
