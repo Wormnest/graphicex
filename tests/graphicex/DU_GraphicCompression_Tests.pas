@@ -1367,9 +1367,10 @@ begin
   i := 0;
   Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = -127,
     Format('Unexpected decompressed data at position %d', [i]));
-  InputBuffer[0] := -128;
+  // Remember ShortInt values range from -128 to +127.
+  InputBuffer[0] := -128; // Copy next 128 bytes
   for i := 1 to 128 do
-    InputBuffer[i] := i;
+    InputBuffer[i] := i-1; // Make sure values are within ShortInt range.
   TestDecompress(FDecoder, Source, 129, 128, 0, 128, dsOk, 2);
   for i := 0 to 127 do
     Check(ShortInt(PByteArray(FDecompressBuffer)^[i]) = InputBuffer[i+1],
