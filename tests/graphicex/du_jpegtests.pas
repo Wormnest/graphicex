@@ -171,7 +171,6 @@ end;
 procedure TgexJpegImageTests.TestSaveFromBmp;
 begin
   // Use some of the images from the bmpsuite.
-  // Note this requires that you make a folder called temp below folder g.
   TestBmp2Jpeg('pal1.bmp');
   TestBmp2Jpeg('pal1bg.bmp');
   TestBmp2Jpeg('pal4.bmp');
