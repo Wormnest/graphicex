@@ -180,7 +180,7 @@ const
   JpegEndOfInput: array [0..1] of Byte = ($ff, JPEG_EOI);
 
 //TJpegFillInputBuffer
-function gexJpegFillInputBuffer(cinfo: j_decompress_ptr): Boolean; cdecl;
+function gexJpegFillInputBuffer(cinfo: j_decompress_ptr): JPEG_BOOLEAN; cdecl;
 var
   JpegData: PJpegSourceData;
   BufBytes: Int64;
@@ -230,7 +230,7 @@ begin
 end;
 
 //TJpegResyncToRestart
-function gexJpegResyncToRestart({%H-}cinfo: j_decompress_ptr; {%H-}Desired: Integer): Boolean; cdecl;
+function gexJpegResyncToRestart({%H-}cinfo: j_decompress_ptr; {%H-}Desired: Integer): JPEG_BOOLEAN; cdecl;
 begin
   Result := False;
 end;
@@ -265,7 +265,7 @@ end;
  * reset the pointer & count to the start of the buffer, and return TRUE
  * indicating that the buffer has been dumped.
 }
-function gexJpegEmptyOutputBuffer(cinfo: j_compress_ptr): Boolean; cdecl;
+function gexJpegEmptyOutputBuffer(cinfo: j_compress_ptr): JPEG_BOOLEAN; cdecl;
 begin
   with PJpegDestData(cinfo.dest)^ do
     if output_stream.Write(buffer^, OUTPUT_BUF_SIZE) <> OUTPUT_BUF_SIZE then
