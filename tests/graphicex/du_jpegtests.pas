@@ -147,7 +147,7 @@ begin
     for h := 0 to Height-1 do begin
       p := ABitmap.ScanLine[h];
       for w := 0 to Width-1 do begin
-        p^.R := 4*h-1;
+        p^.R := Byte(4*h-1); // Cast to Byte so we don't get a range check error.
         p^.G := 2*w;
         p^.B := w*h div 32;
         Inc(p);
