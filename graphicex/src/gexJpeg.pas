@@ -964,6 +964,15 @@ var
 begin
   if (Width > 0) and (Height > 0) then begin
     // If we have a custom pixelformat then force it to pf24Bit.
+    {$IFDEF FPC}
+    // Changing PixelFormat on an existing image doesn't work for Lazarus/LCL.
+    // Getting the palette doesn't work for pf1Bit.
+    // For now we just exit but we should set or show an error, or even better
+    // TODO: Think of a way to convert pf1Bit ourselves for Lazarus.
+    // TODO: Lazarus pf15/16Bit turns out as grayscale.
+    if PixelFormat in [pf1Bit, {pf4Bit, pf8Bit,} pfCustom, pfDevice] then
+      Exit;
+    {$ENDIF}
     if PixelFormat = pfCustom then
       PixelFormat := pf24Bit;
     Stream.Position := 0;
@@ -988,6 +997,11 @@ begin
       if ColorManager.SourceColorScheme = csIndexed then begin
         if GetLogPaletteFromHPalette(Palette, @LogPalette) then begin
           ColorManager.SetSourcePalette([@LogPalette.palPalEntry], pfInterlaced8Quad);
+        end
+        else begin
+          // Couldn't get palette, something is wrong.
+          SavingError := True;
+          Exit;
         end;
       end;
       // And then select RGB target
