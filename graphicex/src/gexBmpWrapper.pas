@@ -18,17 +18,23 @@ interface
 uses Classes, GraphicEx;
 
 type
+  TBitmapVersion = (bvUnknown, bvWin1, bvWin2, bvWin3, bvWin3a, bvWin3b, bvWin4,
+    bvWin5, bvOS21, bvOS22_64, bvOS22_16);
   // A GraphicEx wrapper class for bmp images.
   // We should also override the other Load ByIndex procedures! However we can't
   // directly use the others. We  probably need to make a temporary intermediate stream.
   // For now we will just ignore that since those are not used a lot.
   TgexBmpGraphic = class(TGraphicExGraphic)
+  private
+    FBitmapVersion: TBitmapVersion;
   protected
   public
     class function CanLoad(const Memory: Pointer; Size: Int64): Boolean; override;
     procedure LoadFromFileByIndex(const FileName: string; ImageIndex: Cardinal = 0); override;
     procedure LoadFromStreamByIndex(Stream: TStream; ImageIndex: Cardinal = 0); override;
     function ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean; override;
+
+    property BitmapVersion: TBitmapVersion read FBitmapVersion;
   end;
 
 
@@ -37,7 +43,6 @@ implementation
 uses Graphics, Windows, GraphicStrings, GraphicColor;
 
 const cBmpMarker = $4d42; // 'BM'
-
 
 class function TgexBmpGraphic.CanLoad(const Memory: Pointer; Size: Int64): Boolean;
 begin
@@ -68,7 +73,9 @@ end;
 
 function TgexBmpGraphic.ReadImageProperties(const Memory: Pointer; Size: Int64; ImageIndex: Cardinal): Boolean;
 var
+  bmpFileHeader: PBitmapFileHeader;
   bmpInfoHeader: PBitmapInfoHeader;
+  b5: Windows.PBitmapV5Header;
 begin
   Result := inherited ReadImageProperties(Memory, Size, ImageIndex);
 
@@ -76,10 +83,24 @@ begin
   begin
     // TODO: Unfinished!
 
+    bmpFileHeader := Pointer(PAnsiChar(Memory));
     bmpInfoHeader := Pointer(PAnsiChar(Memory) + SizeOf(TBitmapFileHeader));
+    b5 := Pointer(bmpInfoHeader);
     FImageProperties.Width := bmpInfoHeader.biWidth;
     FImageProperties.Height := bmpInfoHeader.biHeight;
     FImageProperties.BitsPerPixel := bmpInfoHeader.biBitCount;
+    case bmpInfoHeader.biSize of
+      12: FBitmapVersion := bvWin2;
+      40: FBitmapVersion := bvWin3;
+      52: FBitmapVersion := bvWin3a;
+      56: FBitmapVersion := bvWin3b;
+      108: FBitmapVersion := bvWin4;
+      124: FBitmapVersion := bvWin5;
+      64: FBitmapVersion := bvOS22_64;
+      16: FBitmapVersion := bvOS22_16;
+    else
+      FBitmapVersion := bvUnknown;
+    end;
 
     case bmpInfoHeader.biCompression of
       BI_RLE8,
