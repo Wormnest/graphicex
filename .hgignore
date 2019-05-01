@@ -18,9 +18,7 @@ tests/bin
 *.dsk
 *.obj
 testing
-twain-wilson/Opmerkingen JGB.txt
-graphicex/external/source/compileall.bat
-graphicex/examples/View/View.bdsproj
 **.local
 **.identcache
 **.stat
+**.tvsconfig
