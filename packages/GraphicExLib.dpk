@@ -9,21 +9,21 @@ package GraphicExLib;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS OFF}
+{$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
+{$OPTIMIZATION OFF}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO OFF}
+{$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES OFF}
+{$STACKFRAMES ON}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE RELEASE}
+{$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
 {$RUNONLY}
 {$IMPLICITBUILD ON}
@@ -54,6 +54,8 @@ contains
   GraphicColor in '..\graphicex\src\GraphicColor.pas',
   GraphicCompression in '..\graphicex\src\GraphicCompression.pas',
   GraphicEx in '..\graphicex\src\GraphicEx.pas',
-  GraphicStrings in '..\graphicex\src\GraphicStrings.pas';
+  GraphicStrings in '..\graphicex\src\GraphicStrings.pas',
+  gexMemory in '..\graphicex\src\gexMemory.pas',
+  gexExif in '..\graphicex\src\gexExif.pas';
 
 end.

@@ -9,7 +9,19 @@
         <Projects Include="GraphicExLib.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\tests\DU_graphicex_test.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="rkView.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="ShellControls_R.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="ShellControls_D.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\graphicex\examples\ImageView\ImageViewer.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -38,6 +50,15 @@
     <Target Name="GraphicExLib:Make">
         <MSBuild Projects="GraphicExLib.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DU_graphicex_test">
+        <MSBuild Projects="..\tests\DU_graphicex_test.dproj"/>
+    </Target>
+    <Target Name="DU_graphicex_test:Clean">
+        <MSBuild Projects="..\tests\DU_graphicex_test.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DU_graphicex_test:Make">
+        <MSBuild Projects="..\tests\DU_graphicex_test.dproj" Targets="Make"/>
+    </Target>
     <Target Name="rkView">
         <MSBuild Projects="rkView.dproj"/>
     </Target>
@@ -47,14 +68,41 @@
     <Target Name="rkView:Make">
         <MSBuild Projects="rkView.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ShellControls_R">
+        <MSBuild Projects="ShellControls_R.dproj"/>
+    </Target>
+    <Target Name="ShellControls_R:Clean">
+        <MSBuild Projects="ShellControls_R.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ShellControls_R:Make">
+        <MSBuild Projects="ShellControls_R.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ShellControls_D">
+        <MSBuild Projects="ShellControls_D.dproj"/>
+    </Target>
+    <Target Name="ShellControls_D:Clean">
+        <MSBuild Projects="ShellControls_D.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ShellControls_D:Make">
+        <MSBuild Projects="ShellControls_D.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ImageViewer">
+        <MSBuild Projects="..\graphicex\examples\ImageView\ImageViewer.dproj"/>
+    </Target>
+    <Target Name="ImageViewer:Clean">
+        <MSBuild Projects="..\graphicex\examples\ImageView\ImageViewer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ImageViewer:Make">
+        <MSBuild Projects="..\graphicex\examples\ImageView\ImageViewer.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="ExternalLibs;GraphicExLib;rkView"/>
+        <CallTarget Targets="ExternalLibs;GraphicExLib;DU_graphicex_test;rkView;ShellControls_R;ShellControls_D;ImageViewer"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ExternalLibs:Clean;GraphicExLib:Clean;rkView:Clean"/>
+        <CallTarget Targets="ExternalLibs:Clean;GraphicExLib:Clean;DU_graphicex_test:Clean;rkView:Clean;ShellControls_R:Clean;ShellControls_D:Clean;ImageViewer:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ExternalLibs:Make;GraphicExLib:Make;rkView:Make"/>
+        <CallTarget Targets="ExternalLibs:Make;GraphicExLib:Make;DU_graphicex_test:Make;rkView:Make;ShellControls_R:Make;ShellControls_D:Make;ImageViewer:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
