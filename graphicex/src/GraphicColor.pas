@@ -62,6 +62,7 @@ unit GraphicColor;
 interface
 
 {$Include GraphicConfiguration.inc}
+{$I gexdefines.inc}
 
 {$IFNDEF FPC}
 {$Include Compilers.inc}

@@ -10,9 +10,7 @@ interface
 
 {$WARN SYMBOL_PLATFORM OFF} // FindFirst: faHidden, faSysFile, faArchive
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 uses SysUtils, Forms, Classes, Windows, Messages, Graphics, ComCtrls,
      {$IFNDEF FPC}

@@ -22,6 +22,8 @@ unit LibJpeg;
 // This file is part of the image library GraphicEx.
 // This fork of GraphicEx can be found at https://bitbucket.org/jacobb/graphicex
 
+{$I gexdefines.inc}
+
 {$IFNDEF FPC}
   {$Include Compilers.inc}
 

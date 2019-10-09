@@ -31,6 +31,7 @@ unit GraphicCompression;
 interface
 
 {$I GraphicConfiguration.inc}
+{$I gexdefines.inc}
 
 {$IFNDEF FPC}
 {$I Compilers.inc}
@@ -41,8 +42,6 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
-{$ELSE}
-  {$mode delphi}
 {$ENDIF}
 
 uses

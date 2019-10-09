@@ -3,13 +3,7 @@
 
 unit C_Types;
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ELSE}
-  {$IFDEF CPUX64}
-    {$DEFINE CPU64}
-  {$ENDIF}
-{$ENDIF}
+{$I gexdefines.inc}
 
 interface
 

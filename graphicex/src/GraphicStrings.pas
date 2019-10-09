@@ -31,9 +31,7 @@ interface
 
 {$I GraphicConfiguration.inc}
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 resourcestring
   // image file descriptions

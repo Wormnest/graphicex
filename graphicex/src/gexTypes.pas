@@ -18,9 +18,9 @@ unit gexTypes;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ELSE}
+{$I gexdefines.inc}
+
+{$IFNDEF FPC}
   {$I Compilers.inc}
 {$ENDIF}
 

@@ -2,9 +2,7 @@ unit LibDelphi;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 uses
   Windows, SysUtils, C_Types;

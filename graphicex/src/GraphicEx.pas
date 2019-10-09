@@ -60,6 +60,7 @@ unit GraphicEx;
 
 interface
 
+{$I gexdefines.inc}
 {$I GraphicConfiguration.inc}
 
 {$IFDEF JpegGraphic}
@@ -80,9 +81,6 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
-{$ELSE}
-  // fpc
-  {$mode delphi}
 {$ENDIF}
 
 uses

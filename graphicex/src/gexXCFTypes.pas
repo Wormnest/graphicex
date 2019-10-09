@@ -9,9 +9,7 @@ unit gexXCFTypes;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 type
 ////////////////////////////////////////////////////////////////////////////////

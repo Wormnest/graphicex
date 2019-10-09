@@ -6,6 +6,8 @@
 
 unit LibTiffDelphi;
 
+{$I gexdefines.inc}
+
 {$IFDEF FPC}
   {$mode delphi}
   // We need cvar enabled here which is on in objfpc but off by default in delphi mode.

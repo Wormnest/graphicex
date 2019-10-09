@@ -9,15 +9,13 @@ unit ViewerForm;
 
 interface
 
+{$I gexdefines.inc}
+
 {$WARN UNIT_PLATFORM OFF} // Stop warning ShellCtrls is specific to a platform
 
 {$DEFINE USE_XCF} // Detect Gimp XCF files
 {$DEFINE USE_MAYAIFF}  // Detect Maya IFF images
 {$DEFINE USE_AMIGAIFF} // Detect Amiga IFF images
-
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,

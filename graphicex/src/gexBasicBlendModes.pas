@@ -274,9 +274,7 @@ unit gexBasicBlendModes;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 uses
 {$IFDEF USE_GR32}

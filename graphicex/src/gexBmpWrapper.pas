@@ -9,9 +9,7 @@ unit gexBmpWrapper;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 {$I GraphicConfiguration.inc}
 

@@ -9,12 +9,11 @@ unit gexJpeg;
 
 interface
 
+{$I gexdefines.inc}
+
 {$IFNDEF FPC}
   // Delphi
   {$I Compilers.inc}
-{$ELSE}
-  // Fpc/Lazarus
-  {$mode delphi}
 {$ENDIF}
 
 {$I GraphicConfiguration.inc}

@@ -26,9 +26,7 @@ unit gexXCF;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 {$I GraphicConfiguration.inc}
 

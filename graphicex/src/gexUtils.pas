@@ -24,9 +24,7 @@ unit gexUtils;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 // Return the length of a PAnsiChar buffer terminated with 0.
 // Note that since there has to be a terminating 0 character the maximum length

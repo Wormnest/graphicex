@@ -37,6 +37,8 @@ unit LibStub;
 
 interface
 
+{$I gexdefines.inc}
+
 {$IFNDEF FPC}
 {$include Compilers.inc}
 
@@ -47,8 +49,6 @@ interface
   {$warn UNSAFE_CAST off}
   {$warn UNSAFE_CODE off}
 {$endif COMPILER_7_UP}
-{$ELSE}
-  {$mode delphi}
 {$ENDIF}
 
 {$define Underlined}

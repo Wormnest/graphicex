@@ -9,10 +9,7 @@ unit gexGR32Replacement;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-  {$DEFINE USEINLINING}
-{$ENDIF}
+{$I gexdefines.inc}
 
 type
   PColor32 = ^TColor32;

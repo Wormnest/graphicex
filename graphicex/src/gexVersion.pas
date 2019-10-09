@@ -19,9 +19,7 @@ interface
 {.$DEFINE GEX_RELEASE}
 {$DEFINE GEX_BETA}
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 const
   GraphicExBase   = 'GraphicEx';  // GraphicEx identifier

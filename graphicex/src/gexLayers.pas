@@ -12,9 +12,9 @@ unit gexLayers;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ELSE}
+{$I gexdefines.inc}
+
+{$IFNDEF FPC}
   {$Include Compilers.inc}
 {$ENDIF}
 

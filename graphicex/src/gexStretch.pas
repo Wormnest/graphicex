@@ -22,9 +22,7 @@ unit gexStretch;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-{$ENDIF}
+{$I gexdefines.inc}
 
 uses Graphics, gexTypes;
 

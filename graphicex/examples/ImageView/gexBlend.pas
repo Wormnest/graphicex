@@ -7,12 +7,7 @@ unit gexBlend;
 
 interface
 
-{$IFDEF FPC}
-  {$mode delphi}
-  {$ASMMODE INTEL} // bug in Fpc XMM registers in (64 bit only?) assembler not
-                   // recognized without adding this even though mode delphi
-                   // is supposed to set this.
-{$ENDIF}
+{$I gexdefines.inc}
 
 uses SysUtils, Windows;
 
