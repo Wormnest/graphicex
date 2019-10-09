@@ -18,9 +18,15 @@
 #define NO_GETENV     /* disable use of environment variables (and scanf) */
 
 /* Define "boolean" as unsigned char, not int, per Windows custom (but not for MINGW) */
-#if defined(__BORLANDC__) && !defined(HAVE_BOOLEAN)
+#if (defined(__BORLANDC__) || defined(_MSC_VER)) && !defined(HAVE_BOOLEAN)
 #ifndef __RPCNDR_H__		/* don't conflict if rpcndr.h already read */
 typedef unsigned char boolean;
+#endif
+#ifndef FALSE			/* in case these macros already exist */
+#define FALSE	0		/* values of boolean */
+#endif
+#ifndef TRUE
+#define TRUE	1
 #endif
 #define HAVE_BOOLEAN		/* prevent jmorecfg.h from redefining it */
 #endif
@@ -40,7 +46,7 @@ typedef unsigned char boolean;
 
 #ifdef JPEG_CJPEG_DJPEG
 
-#if defined(__BORLANDC__)
+#if defined(__BORLANDC__) || defined(_MSC_VER)
 #undef BMP_SUPPORTED		/* BMP image file format */
 #undef GIF_SUPPORTED		/* GIF image file format */
 #undef PPM_SUPPORTED		/* PBMPLUS PPM/PGM image file format */
