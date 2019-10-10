@@ -560,10 +560,8 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 function _ftol: Integer;
-
 var
   F: Double;
-
 begin
   asm
     LEA   EAX, F             //  BC++ passes floats on the FPU stack

@@ -1650,7 +1650,7 @@ begin
     with cinfo^.err^.msg_parm do
       raise EJPGError.CreateFmt(Template, [i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]]);
 end;
-                                                         
+
 // For debugging only.
 procedure EmitMessage(cinfo: j_common_ptr; msg_level: Integer); cdecl;
 {$ifopt D+}
@@ -1748,8 +1748,8 @@ end;
 
 procedure OutputMessage(cinfo: j_common_ptr); cdecl;
 begin
-end;               
-                                   
+end;
+
 procedure FormatMessage(cinfo: j_common_ptr; buffer: PAnsiChar); cdecl;
 begin
 end;
