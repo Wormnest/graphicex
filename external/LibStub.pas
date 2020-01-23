@@ -559,6 +559,8 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$IFNDEF CPU64}
+
 function _ftol: Integer;
 var
   F: Double;
@@ -569,6 +571,29 @@ begin
   end;
   Result := Trunc(f);
 end;
+
+{$ELSE}
+// 64 bit version taken from: https://stackoverflow.com/questions/7695108/delphi-xe2-64bit-inline-asm-in-graphicex
+
+function _ftol : Integer;
+// Assumes double value is in FPU stack on entry
+// Make a truncation to integer and put it into function result
+var
+  TmpVal: Int64;
+  SaveCW, ScratchCW: word;
+asm
+  .NOFRAME
+
+  fnstcw word ptr [SaveCW]
+  fnstcw word ptr [ScratchCW]
+  or word ptr [ScratchCW], 0F00h  ;// trunc toward zero, full precision
+  fldcw word ptr [ScratchCW]
+  fistp qword ptr [TmpVal]
+  fldcw word ptr [SaveCW]
+  mov rax, TmpVal
+end;
+
+{$ENDIF}
 
 //----------------------------------------------------------------------------------------------------------------------
 
