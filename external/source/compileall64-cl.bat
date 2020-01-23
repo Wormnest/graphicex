@@ -58,7 +58,6 @@ cd ..
 : Auto copying of the obj files disabled since we don't want to overwrite
 : in case we didn't have our patches applied!
 
-:copy obj64\libtiff4\*.obj ..\obj64\libtiff4
 :copy obj64\*.obj ..\obj64
 
 echo Done.
