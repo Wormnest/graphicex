@@ -1738,7 +1738,8 @@ begin
       ErrMsg := '';
 {$ifopt D+} // For debugging only.
   {$IFDEF WINDOWS}
-  OutputDebugString(PChar(ErrMsg));
+  if msg_level < 0 then
+    OutputDebugString(PChar(ErrMsg));
   {$ENDIF}
 {$endif D+}
   if not ShouldWeContinue then begin
