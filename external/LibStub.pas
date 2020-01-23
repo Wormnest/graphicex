@@ -192,6 +192,34 @@ function wcstombs(mbstr: PAnsiChar; wcstr: PWideChar; count: Cardinal): Cardinal
 procedure fprintf; cdecl;
 procedure fputs; cdecl;
 
+
+// Declarations needed for obj files compiled with Visual C (cl.exe)
+// From corecrt_wstdio.h
+// _ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned _Ix);
+//
+// #define stdin  (__acrt_iob_func(0))
+// #define stdout (__acrt_iob_func(1))
+// #define stderr (__acrt_iob_func(2))
+function __acrt_iob_func(_Ix: uint): Pointer; cdecl;
+
+// See vcruntime_internal.h and isa_availability.h
+// Possible values:
+(*
+    __ISA_AVAILABLE_X86   = 0,
+    __ISA_AVAILABLE_SSE2  = 1,
+    __ISA_AVAILABLE_SSE42 = 2,
+    __ISA_AVAILABLE_AVX   = 3,
+    __ISA_AVAILABLE_ENFSTRG = 4,
+    __ISA_AVAILABLE_AVX2 = 5,
+*)
+
+var
+  __isa_available: int;
+
+const
+  _fltused: int = $9875;
+
+
 //----------------------------------------------------------------------------------------------------------------------
 
 implementation
@@ -1468,6 +1496,27 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// Declarations needed for obj files compiled with Visual C (cl.exe)
+// From corecrt_wstdio.h
+// _ACRTIMP_ALT FILE* __cdecl __acrt_iob_func(unsigned _Ix);
+//
+// #define stdin  (__acrt_iob_func(0))
+// #define stdout (__acrt_iob_func(1))
+// #define stderr (__acrt_iob_func(2))
+function __acrt_iob_func(_Ix: uint): Pointer; cdecl;
+begin
+  // Not sure how to return the correct FILE object for stdin, stdout, stderr
+  // See discussion here: https://stackoverflow.com/questions/30412951/unresolved-external-symbol-imp-fprintf-and-imp-iob-func-sdl2
+  // Maybe, last answer:
+  // "However, defining symbol _NO_CRT_STDIO_INLINE removes all hassle, and a simple "Hello World" application is again 3 KB small
+  // and doesn't depend to unusual DLLs. Tested in Visual Studio 2017."
+  raise Exception.Create('Fatal error: stub function __acrt_iob_func cannot be executed.');
+//  Result := nil;
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
+
 var
   Info: TTimezoneInformation;
 
@@ -1475,5 +1524,6 @@ begin
   GetTimezoneInformation(Info);
   daylight := Info.DaylightBias <> 0;
   timezone := (Info.Bias + Info.StandardBias) * 60;
+  __isa_available := 1; // Assume at least SSE2 is available.
 end.
 
