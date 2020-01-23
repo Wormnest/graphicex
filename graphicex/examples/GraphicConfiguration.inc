@@ -153,7 +153,10 @@
 //
 //      Support for ICC profiles. Disabled by default but enabled for our ImageViewer example.
 ////////////////////////////////////////////////////////////////////////////////
+{$ifndef CPUX64}
+// FOR NOW: Disable lcms for Delphi 64 bits until we manage to compile a 64 bit version of the dll.
 {$define LCMS}                   // Enable use of LCMS. This requires availability of lcms2.dll.
+{$endif}
 {$ifdef LCMS}
   {$define LCMS_CONVERSION}      // Enable by default conversion based on ICC profiles for images that have an ICC profile.
 {$endif}
