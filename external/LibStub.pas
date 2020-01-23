@@ -93,6 +93,7 @@ type
 
 procedure Abort;
 procedure _assert(__cond, __file: PAnsiChar; __line: Integer); cdecl;
+procedure _wassert(__cond, __file: PChar; __line: Integer); cdecl;
 function atan2(Y, X: Double): Double; cdecl;
 function atan(X: Double): Double; cdecl;
 function atof(Value: PAnsiChar): Double; cdecl;
@@ -239,6 +240,14 @@ end;
 //----------------------------------------------------------------------------------------------------------------------
 
 procedure _assert(__cond, __file: PAnsiChar; __line: Integer);
+
+// Emulation of the BCB RTL runtime library function assert.
+
+begin
+  raise Exception.CreateFmt('Assertion failed: %s, file %s, line %d', [__cond, __file, __line]);
+end;
+
+procedure _wassert(__cond, __file: PChar; __line: Integer);
 
 // Emulation of the BCB RTL runtime library function assert.
 
