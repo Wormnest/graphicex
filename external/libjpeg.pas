@@ -1558,7 +1558,9 @@ function jpeg_huff_decode(state: bitread_working_state_ptr; get_buffer: bit_buf_
 {$L jcapistd.obj}
 {$L jctrans.obj}
 {$L jcparam.obj}
+{$IFNDEF CPU64}
 {$L jdatadst.obj}
+{$ENDIF}
 {$L jcinit.obj}
 {$L jcmaster.obj}
 {$L jcmarker.obj}
