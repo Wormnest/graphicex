@@ -692,7 +692,12 @@ begin
           // New note: It seems that Delphi only works (blends) when using bmPerPixelAlpha
           // so we will use that for Delphi and bmConstantAlpha for Lazarus.
           {$IFNDEF FPC}
+          //{$IFNDEF CPUX64}
           gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmPerPixelAlpha, 0, 0);
+          //{$ELSE}
+          /// TESTING!!!!!!!!!!!!!! PerPixelAlpha ALSO NOT WORKING IN DELPHI 64
+          //gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmConstantAlpha, 255, 0);
+          //{$ENDIF}
           {$ELSE}
           gexBlend.AlphaBlend(FPicture.Bitmap.Canvas.Handle, Buffer.Canvas.Handle, R, Point(X, Y), bmConstantAlpha, 255, 0);
           {$ENDIF}
