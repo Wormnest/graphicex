@@ -1,0 +1,24 @@
+syntax: glob
+lib
+*.bak
+*.lps
+*.o
+*.a
+*.res
+*.ico
+*.exe
+graphicex/examples/bin
+external/obj
+*.dcu
+tests/bin
+*.~*
+*.cfg
+*.dof
+*.drc
+*.dsk
+*.obj
+testing
+**.local
+**.identcache
+**.stat
+**.tvsconfig
