@@ -64,6 +64,7 @@ object frmViewer: TfrmViewer
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
+        StyleElements = []
         DesignSize = (
           775
           65)
@@ -78,6 +79,7 @@ object frmViewer: TfrmViewer
           Font.Name = 'Segoe UI'
           Font.Style = []
           ParentFont = False
+          Transparent = True
         end
         object lblComment: TLabel
           Left = 4
@@ -90,6 +92,7 @@ object frmViewer: TfrmViewer
           Font.Name = 'Segoe UI'
           Font.Style = []
           ParentFont = False
+          Transparent = True
         end
         object lblPages: TLabel
           Left = 4
@@ -102,6 +105,7 @@ object frmViewer: TfrmViewer
           Font.Name = 'Segoe UI'
           Font.Style = []
           ParentFont = False
+          Transparent = True
         end
         object spbtnFirst: TSpeedButton
           Left = 120
@@ -287,6 +291,7 @@ object frmViewer: TfrmViewer
           Font.Name = 'Segoe UI'
           Font.Style = []
           ParentFont = False
+          Transparent = True
         end
         object cbStretch: TCheckBox
           Left = 224
@@ -431,6 +436,7 @@ object frmViewer: TfrmViewer
         Align = alTop
         Caption = 'pnlImageFolder'
         TabOrder = 0
+        StyleElements = []
         DesignSize = (
           632
           403)
@@ -447,6 +453,7 @@ object frmViewer: TfrmViewer
           Font.Name = 'Segoe UI'
           Font.Style = []
           ParentFont = False
+          Transparent = True
         end
         object rkView1: TrkView
           Left = 1
