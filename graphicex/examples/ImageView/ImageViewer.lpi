@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="9"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
@@ -9,7 +9,6 @@
       <Title Value="ImageViewer"/>
       <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
-      <Icon Value="0"/>
     </General>
     <i18n>
       <EnableI18N LFM="False"/>
@@ -18,9 +17,8 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <MinorVersionNr Value="1"/>
-      <BuildNr Value="96"/>
+      <BuildNr Value="107"/>
       <Attributes pvaDebug="True" pvaPrivateBuild="True"/>
-      <StringTable ProductVersion=""/>
     </VersionInfo>
     <BuildModes Count="5">
       <Item1 Name="Default" Default="True"/>
@@ -32,7 +30,7 @@
             <Filename Value="..\bin\$(BuildMode)_ImageViewer_$(TargetCPU)"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\include;.."/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -73,7 +71,7 @@
             <Filename Value="..\bin\ImageViewer"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\include;.."/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -111,7 +109,7 @@
             <Filename Value="..\bin\$(BuildMode)_ImageViewer_$(TargetCPU)"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\include;.."/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -123,7 +121,6 @@
           <CodeGeneration>
             <Checks>
               <IOChecks Value="True"/>
-              <RangeChecks Value="True"/>
               <OverflowChecks Value="True"/>
               <StackChecks Value="True"/>
             </Checks>
@@ -142,7 +139,8 @@
             </Options>
           </Linking>
           <Other>
-            <CustomOptions Value="-dLIBTIFF4"/>
+            <CustomOptions Value="-dLIBTIFF4
+-vd"/>
           </Other>
         </CompilerOptions>
       </Item4>
@@ -154,7 +152,7 @@
             <Filename Value="..\bin\ImageViewer"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\..\..\include;.."/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -190,7 +188,7 @@
         </CompilerOptions>
       </Item5>
       <SharedMatrixOptions Count="4">
-        <Item1 ID="598540769452" Modes="Default,Debug,Release,Debug64,Release64" Value="-dLCMS"/>
+        <Item1 ID="598540769452" Modes="Default,Debug,Release" Value="-dLCMS"/>
         <Item2 ID="940226614010" Modes="Debug64,Release64,Release,Debug,Default" Value="-dCUTGraphic"/>
         <Item3 ID="186019651453" Modes="Debug64,Default,Debug,Release,Release64" Value="-dAutodeskGraphic"/>
         <Item4 ID="424350241485" Modes="Debug64,Release64,Release,Debug,Default" Value="-dArtsAndLettersGraphic"/>
@@ -200,9 +198,10 @@
       <Version Value="2"/>
     </PublishOptions>
     <RunParams>
-      <local>
-        <FormatVersion Value="1"/>
-      </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="1">
+        <Mode0 Name="default"/>
+      </Modes>
     </RunParams>
     <RequiredPackages Count="3">
       <Item1>
@@ -215,11 +214,32 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="1">
+    <Units Count="6">
       <Unit0>
         <Filename Value="ImageViewer.dpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
+      <Unit1>
+        <Filename Value="ViewerForm.pas"/>
+        <IsPartOfProject Value="True"/>
+        <HasResources Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="gexThread.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="gexBlend.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\..\..\include\gexdefines.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\GraphicConfiguration.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -229,7 +249,7 @@
       <Filename Value="..\bin\ImageViewer"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\include;.."/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
