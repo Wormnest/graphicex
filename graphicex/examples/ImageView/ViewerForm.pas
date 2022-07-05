@@ -96,6 +96,23 @@ const
     );
 
 type
+  TPsdLayerInfo = record
+    FBounds: TRect;
+    FBlendMode: TPSDLayerBlendMode;
+    FOpacity: Byte;                    // 0 = transparent ... 255 = opaque
+    FClipping: TPSDLayerClipping;
+    FOptions: TPSDLayerOptions;
+    //FMaskData: TPSDLayerMaskData;
+    FCompositeGrayBlendSource,
+    FCompositeGrayBlendDestination: TPSDCompositeGrayBlend;
+    //FChannels: TPSDChannels;
+    FName: WideString;
+    //FImage: TBitmap;
+    FType: TPSDLayerType;
+    FTypeToolInfo: TPSDTypeToolInfo;   // Only valid if layer is a text layer.
+  end;
+  TPsdLayers = array [0..0] of TPsdLayerInfo;
+  PPsdLayers = ^TPsdLayers;
 
   { TfrmViewer }
 
@@ -231,6 +248,7 @@ type
     PsdMergedTransparencyPresent: Boolean;
     ImgIccProfile: string;
     PsdIccEnabled: Boolean;
+    PsdLayers: PPsdLayers;
     ImgStrings: TStringList; // StringList with data depending on image type (currently only used by GIF)
     GifInfo: TGifInfo;       // Extra info for GIF images
     PcxIsCapture: Boolean;
@@ -1043,7 +1061,7 @@ end;
 procedure TfrmViewer.ShowImageInfo;
 var //r: Integer; // row
   Temp: string;
-  TempVal: Integer;
+  i, TempVal: Integer;
   TempFloat: Single;
 begin
   // ImgThumbData is expected to be validated here already!
@@ -1355,6 +1373,19 @@ begin
       sgImgProperties.Cells[1,InfoRow] := CSampleFormat[ImgProperties.SampleFormat];
       IncInfoRow;
     end;
+    if (ImgIccProfile <> '') then begin
+      sgImgProperties.Cells[0,InfoRow] := 'ICC profile:';
+      sgImgProperties.Cells[1,InfoRow] := ImgIccProfile;
+      IncInfoRow;
+      if (ImgThumbData.ImageFormat = CgexPSD) then begin
+        sgImgProperties.Cells[0,InfoRow] := 'ICC Untagged:';
+        if PsdIccEnabled then
+          sgImgProperties.Cells[1,InfoRow] := 'No'
+        else
+          sgImgProperties.Cells[1,InfoRow] := 'Yes';
+        IncInfoRow;
+      end;
+    end;
     // For formats that have layers:
     if (ImgLayerCount <> 0) or (ImgThumbData.ImageFormat = CgexPSD)then begin
       sgImgProperties.Cells[0,InfoRow] := 'Number of layers:';
@@ -1368,17 +1399,12 @@ begin
       else
         sgImgProperties.Cells[1,InfoRow] := 'Not Present';
       IncInfoRow;
-    end;
-    if (ImgIccProfile <> '') then begin
-      sgImgProperties.Cells[0,InfoRow] := 'ICC profile:';
-      sgImgProperties.Cells[1,InfoRow] := ImgIccProfile;
-      IncInfoRow;
-      if (ImgThumbData.ImageFormat = CgexPSD) then begin
-        sgImgProperties.Cells[0,InfoRow] := 'ICC Untagged:';
-        if PsdIccEnabled then
-          sgImgProperties.Cells[1,InfoRow] := 'No'
-        else
-          sgImgProperties.Cells[1,InfoRow] := 'Yes';
+      for i := 0 to ImgLayerCount -1 do begin
+        sgImgProperties.Cells[0,InfoRow] := 'Layer:';
+        sgImgProperties.Cells[1,InfoRow] := PsdLayers[i].FName;
+        IncInfoRow;
+        sgImgProperties.Cells[0,InfoRow] := 'Opacity:';
+        sgImgProperties.Cells[1,InfoRow] := IntToStr(PsdLayers[i].FOpacity);
         IncInfoRow;
       end;
     end;
@@ -1607,6 +1633,8 @@ begin
 end;
 
 procedure TfrmViewer.CopyImageInfo(AGraphic: TGraphicExGraphic);
+var i: Integer;
+  Temp: WideString;
 begin
   // We expect AGraphic to be valid and just having read a page from the image or the whole image.
   // Therefore it's image properties should be valid and show the state of the current page.
@@ -1628,6 +1656,22 @@ begin
           if TPSDGraphic(AGraphic).ImageProperties.BitsPerSample = 32 then
             ImgProperties.SampleFormat := SAMPLEFORMAT_IEEEFP;
           PsdIccEnabled := not TPSDGraphic(AGraphic).ICCUntagged;
+          if Assigned(TPSDGraphic(AGraphic).Layers) then begin
+            GetMem(PsdLayers, TPSDGraphic(AGraphic).Layers.Count * SizeOf(TPsdLayerInfo));
+            FillChar(PsdLayers^, TPSDGraphic(AGraphic).Layers.Count * SizeOf(TPsdLayerInfo), 0);
+            for i := 0 to TPSDGraphic(AGraphic).Layers.Count -1 do begin
+              PsdLayers[i].FBounds := TPSDGraphic(AGraphic).Layers[i].Bounds;
+              PsdLayers[i].FBlendMode := TPSDGraphic(AGraphic).Layers[i].BlendMode;
+              PsdLayers[i].FOpacity := TPSDGraphic(AGraphic).Layers[i].Opacity;
+              //Temp := TPSDGraphic(AGraphic).Layers[i].Name;
+              //UniqueString(Temp);
+              PsdLayers[i].FName := TPSDGraphic(AGraphic).Layers[i].Name;
+              //SetLength(PsdLayers[i].FName, 0);
+              //SetLength(PsdLayers[i].FName, Length(Temp));
+              //PsdLayers[i].FName := Temp;
+              //UniqueString(PsdLayers[i].FName);
+            end;
+          end;
         end;
       CgexGIF:
         begin
@@ -1749,6 +1793,10 @@ begin
   try
 
     ClearGrid; // Clear grid with image info
+    if Assigned(PsdLayers) then begin
+      FreeMem(PsdLayers);
+      PsdLayers := nil;
+    end;
 
     CollectErrors := True;
     // To be able to handle situations where the file extension differs from
