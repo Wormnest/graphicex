@@ -46,7 +46,6 @@ unit LibJpeg;
   {$endif COMPILER_7_UP}
 {$ELSE}
   // FPC
-  {$mode delphi}
   {$Z4} // enum size = dword
   {$A8} // Align record structures to 8 byte boundaries.
 {$ENDIF}
