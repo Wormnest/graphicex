@@ -1,4 +1,4 @@
-unit rkView;
+﻿unit rkView;
 
 //  rkView © 2010 by Roy Magne Klever. All rights reserved
 //
@@ -375,7 +375,7 @@ procedure Register;
 implementation
 
 {$ifdef conditionalexpressions}
-	{$if CompilerVersion >= 23} // XE2
+  {$if CompilerVersion >= 23} // XE2
 uses  System.Types;
   {$endif}
 {$endif}
